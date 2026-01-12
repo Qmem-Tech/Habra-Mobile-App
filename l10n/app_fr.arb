@@ -1,0 +1,16 @@
+{
+  "@@locale": "fr",
+  "appName": "Application Mobile Habra",
+  "welcome": "Bienvenue",
+  "login": "Connexion",
+  "email": "Email",
+  "password": "Mot de passe",
+  "settings": "Paramètres",
+  "theme": "Thème",
+  "language": "Langue",
+  "darkMode": "Mode sombre",
+  "lightMode": "Mode clair",
+  "systemDefault": "Par défaut du système",
+  "logout": "Déconnexion",
+  "register": "S'inscrire"
+}

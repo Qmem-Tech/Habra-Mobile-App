@@ -1,0 +1,22 @@
+{
+  "@@locale": "en",
+  "appName": "Habra Mobile App",
+  "@appName": {
+    "description": "The application name"
+  },
+  "welcome": "Welcome",
+  "@welcome": {
+    "description": "Welcome message"
+  },
+  "login": "Login",
+  "email": "Email",
+  "password": "Password",
+  "settings": "Settings",
+  "theme": "Theme",
+  "language": "Language",
+  "darkMode": "Dark Mode",
+  "lightMode": "Light Mode",
+  "systemDefault": "System Default",
+  "logout": "Logout",
+  "register": "Register"
+}
