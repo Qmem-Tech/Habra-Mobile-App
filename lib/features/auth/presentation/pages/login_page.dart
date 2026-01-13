@@ -4,11 +4,11 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../bloc/auth_cubit.dart';
 import '../bloc/auth_state.dart';
 import '../../domain/entities/user.dart';
-import '../../settings/presentation/pages/settings_page.dart';
-import '../../home/presentation/pages/customer_home_page.dart';
-import '../../home/presentation/pages/business_owner_home_page.dart';
-import '../../home/presentation/pages/admin_home_page.dart';
-import '../../home/presentation/pages/guest_home_page.dart';
+import '../../../settings/presentation/pages/settings_page.dart';
+import '../../../home/presentation/pages/customer_home_page.dart';
+import '../../../home/presentation/pages/business_owner_home_page.dart';
+import '../../../home/presentation/pages/admin_home_page.dart';
+import '../../../home/presentation/pages/guest_home_page.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});

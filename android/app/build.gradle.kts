@@ -7,9 +7,9 @@ plugins {
 }
 
 android {
-    namespace = "com.habra.habra_mobile_app"
+    namespace = "com.habra.habra"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -21,8 +21,10 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.habra.habra_mobile_app"
-        minSdk = flutter.minSdkVersion
+        applicationId = "com.habra.habra"
+        // Firebase Firestore requires minSdk 23 (Android 6.0)
+        // API 23 covers 99%+ of active Android devices (as of 2024)
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

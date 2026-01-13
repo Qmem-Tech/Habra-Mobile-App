@@ -23,13 +23,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   AuthRemoteDataSourceImpl(this.firebaseServices);
 
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
-      FirebaseServices.firestore.collection('users');
+      firebaseServices.habraFirestore.collection('users');
 
   @override
   Future<UserModel> login(String email, String password) async {
     try {
       final userCredential =
-          await firebaseServices.auth.signInWithEmailAndPassword(
+          await firebaseServices.habraAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -74,7 +74,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserModel> loginAsGuest() async {
     try {
-      final userCredential = await firebaseServices.auth.signInAnonymously();
+      final userCredential = await firebaseServices.habraAuth.signInAnonymously();
       final user = userCredential.user;
       if (user == null) {
         throw ServerException('Guest login failed');
@@ -122,7 +122,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   ) async {
     try {
       final userCredential =
-          await firebaseServices.auth.createUserWithEmailAndPassword(
+          await firebaseServices.habraAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -161,7 +161,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> logout() async {
     try {
-      await firebaseServices.auth.signOut();
+      await firebaseServices.habraAuth.signOut();
     } catch (e) {
       throw ServerException(e.toString());
     }

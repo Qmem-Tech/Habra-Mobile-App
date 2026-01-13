@@ -7,6 +7,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'injection/injection_container.dart' as di;
 import 'core/network/firebase/firebase_config.dart';
 import 'core/theme/theme_cubit.dart';
+import 'core/theme/theme_state.dart';
 import 'core/theme/app_theme.dart';
 import 'core/localization/localization_cubit.dart';
 import 'features/auth/presentation/pages/login_page.dart';

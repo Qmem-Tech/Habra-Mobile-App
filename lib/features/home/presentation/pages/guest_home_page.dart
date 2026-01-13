@@ -8,8 +8,8 @@ class GuestHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      appBar: AppBar(
+    return  Scaffold(
+      appBar:  AppBar(
         title: Text('Guest'),
       ),
       body: Center(
