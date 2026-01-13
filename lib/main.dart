@@ -14,6 +14,7 @@ import 'features/auth/presentation/bloc/auth_cubit.dart';
 import 'features/auth/domain/usecases/login_usecase.dart';
 import 'features/auth/domain/usecases/logout_usecase.dart';
 import 'features/auth/domain/usecases/register_usecase.dart';
+import 'features/auth/domain/usecases/login_as_guest_usecase.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +46,7 @@ class MyApp extends StatelessWidget {
             loginUseCase: di.sl<LoginUseCase>(),
             logoutUseCase: di.sl<LogoutUseCase>(),
             registerUseCase: di.sl<RegisterUseCase>(),
+            loginAsGuestUseCase: di.sl<LoginAsGuestUseCase>(),
           ),
         ),
       ],

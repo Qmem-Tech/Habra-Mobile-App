@@ -34,6 +34,21 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, User>> loginAsGuest() async {
+    if (await networkInfo.isConnected) {
+      try {
+        final user = await remoteDataSource.loginAsGuest();
+        await localDataSource.cacheUser(user);
+        return Right(user);
+      } on ServerException catch (e) {
+        return Left(ServerFailure(e.message));
+      }
+    } else {
+      return const Left(NetworkFailure('No Internet Connection'));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> logout() async {
     try {
       await remoteDataSource.logout();
@@ -45,10 +60,20 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, User>> register(String email, String password, String name) async {
+  Future<Either<Failure, User>> register(
+    String email,
+    String password,
+    String name,
+    UserRole role,
+  ) async {
     if (await networkInfo.isConnected) {
       try {
-        final user = await remoteDataSource.register(email, password, name);
+        final user = await remoteDataSource.register(
+          email,
+          password,
+          name,
+          role,
+        );
         await localDataSource.cacheUser(user);
         return Right(user);
       } on ServerException catch (e) {

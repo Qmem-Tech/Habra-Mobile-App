@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "685058882138",
+    "project_id": "habra-f1e78",
+    "storage_bucket": "habra-f1e78.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:685058882138:android:1ae2d2641e3b49a2767663",
+        "android_client_info": {
+          "package_name": "com.habra.habra"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "685058882138-ccq63e99gg2k66ndfn1d8i4isin00dr2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD45R3P-0137QUbTxTkkZfUW5cbLVzUYy0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "685058882138-ccq63e99gg2k66ndfn1d8i4isin00dr2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
