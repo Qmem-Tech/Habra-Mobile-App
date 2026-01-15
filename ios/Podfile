@@ -1,0 +1,87 @@
+# Uncomment this line to define a global platform for your project
+platform :ios, '13.0'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  # Firebase pods often break with "Include of non-modular header inside framework module"
+  # when built as dynamic frameworks. Prefer static linkage + modular headers.
+  use_frameworks! :linkage => :static
+  use_modular_headers!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      # Ensure proper debug information format for iOS
+      if config.build_settings['DEBUG_INFORMATION_FORMAT'] == nil
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+      end
+      # Remove unsupported compiler flags
+      ['OTHER_CFLAGS', 'OTHER_CPLUSPLUSFLAGS', 'OTHER_SWIFT_FLAGS'].each do |flag_key|
+        flags = config.build_settings[flag_key] || ['$(inherited)']
+        flags = flags.is_a?(String) ? flags.split(' ') : flags
+        flags.reject! { |flag| flag == '-G' || flag.start_with?('-G') }
+        config.build_settings[flag_key] = flags
+      end
+
+      # Xcode 16.4 + current gRPC sources trigger a warning that is treated as error in some setups.
+      # Keep the pod buildable by downgrading that one diagnostic.
+      if ['gRPC-Core', 'gRPC-C++'].include?(target.name)
+        cxxflags = config.build_settings['OTHER_CPLUSPLUSFLAGS'] || ['$(inherited)']
+        cxxflags = cxxflags.is_a?(String) ? cxxflags.split(' ') : cxxflags
+        cxxflags << '-Wno-error=missing-template-arg-list-after-template-kw'
+        cxxflags << '-Wno-missing-template-arg-list-after-template-kw'
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = cxxflags.uniq
+      end
+    end
+
+    # CocoaPods injects an invalid flag into BoringSSL-GRPC sources:
+    # "-GCC_WARN_INHIBIT_ALL_WARNINGS" which Clang interprets as "-G ..."
+    # and fails for iOS targets.
+    if target.name == 'BoringSSL-GRPC' && target.respond_to?(:source_build_phase)
+      target.source_build_phase.files.each do |file|
+        next unless file.settings && file.settings['COMPILER_FLAGS']
+
+        flags_str = file.settings['COMPILER_FLAGS']
+        next unless flags_str.is_a?(String)
+
+        flags = flags_str.split(' ')
+        flags.reject! { |flag| flag == '-GCC_WARN_INHIBIT_ALL_WARNINGS' }
+        file.settings['COMPILER_FLAGS'] = flags.join(' ')
+      end
+    end
+  end
+end
