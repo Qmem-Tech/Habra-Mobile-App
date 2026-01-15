@@ -18,6 +18,16 @@ import '../features/auth/domain/usecases/logout_usecase.dart';
 import '../features/auth/domain/usecases/register_usecase.dart';
 import '../features/auth/domain/usecases/login_as_guest_usecase.dart';
 
+// Splash feature
+import '../features/splash/data/repositories/splash_repository_impl.dart';
+import '../features/splash/domain/repositories/splash_repository.dart';
+import '../features/splash/domain/usecases/get_splash_status_usecase.dart';
+
+// Onboarding feature
+import '../features/onboarding/data/repositories/onboarding_repository_impl.dart';
+import '../features/onboarding/domain/repositories/onboarding_repository.dart';
+import '../features/onboarding/domain/usecases/complete_onboarding_usecase.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -63,4 +73,21 @@ Future<void> init() async {
   sl.registerLazySingleton(() => LogoutUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => RegisterUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => LoginAsGuestUseCase(sl<AuthRepository>()));
+
+  // Features - Splash
+  sl.registerLazySingleton<SplashRepository>(
+    () => SplashRepositoryImpl(
+      localStorage: sl<LocalStorage>(),
+      firebaseServices: FirebaseServices(),
+    ),
+  );
+  sl.registerLazySingleton(() => GetSplashStatusUseCase(sl<SplashRepository>()));
+
+  // Features - Onboarding
+  sl.registerLazySingleton<OnboardingRepository>(
+    () => OnboardingRepositoryImpl(
+      localStorage: sl<LocalStorage>(),
+    ),
+  );
+  sl.registerLazySingleton(() => CompleteOnboardingUseCase(sl<OnboardingRepository>()));
 }

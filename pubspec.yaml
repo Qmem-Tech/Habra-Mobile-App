@@ -62,3 +62,10 @@ flutter:
 
   # Localization configuration
   generate: true
+
+  # Assets configuration
+  assets:
+    - assets/images/
+    - assets/images/onboarding/
+    - assets/icons/
+    - assets/logos/

@@ -15,6 +15,11 @@ import 'features/auth/domain/usecases/login_usecase.dart';
 import 'features/auth/domain/usecases/logout_usecase.dart';
 import 'features/auth/domain/usecases/register_usecase.dart';
 import 'features/auth/domain/usecases/login_as_guest_usecase.dart';
+import 'features/splash/presentation/pages/splash_page.dart';
+import 'features/splash/presentation/bloc/splash_cubit.dart';
+import 'features/splash/domain/usecases/get_splash_status_usecase.dart';
+import 'features/onboarding/presentation/bloc/onboarding_cubit.dart';
+import 'features/onboarding/domain/usecases/complete_onboarding_usecase.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +54,16 @@ class MyApp extends StatelessWidget {
             loginAsGuestUseCase: di.sl<LoginAsGuestUseCase>(),
           ),
         ),
+        BlocProvider(
+          create: (_) => SplashCubit(
+            getSplashStatusUseCase: di.sl<GetSplashStatusUseCase>(),
+          ),
+        ),
+        BlocProvider(
+          create: (_) => OnboardingCubit(
+            completeOnboardingUseCase: di.sl<CompleteOnboardingUseCase>(),
+          ),
+        ),
       ],
       child: Builder(
         builder: (context) {
@@ -75,8 +90,8 @@ class MyApp extends StatelessWidget {
                     ],
                     supportedLocales: context.read<LocalizationCubit>().supportedLocales,
 
-                    // Home
-                    home: const LoginPage(),
+                    // Home - Start with splash screen
+                    home: const SplashPage(),
                   );
                 },
               );

@@ -5,4 +5,5 @@ class StorageKeys {
   static const String isLoggedIn = 'is_logged_in';
   static const String themeMode = 'theme_mode';
   static const String locale = 'locale';
+  static const String hasCompletedOnboarding = 'has_completed_onboarding';
 }

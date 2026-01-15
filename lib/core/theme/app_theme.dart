@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'app_colors.dart';
 
 class AppTheme {
+  AppTheme._(); // Private constructor to prevent instantiation
+
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
@@ -22,8 +24,21 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
+        backgroundColor: AppColors.lightSurface,
+        foregroundColor: AppColors.textPrimary,
       ),
       scaffoldBackgroundColor: AppColors.lightBackground,
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.brandPrimary,
+          foregroundColor: AppColors.textOnPrimary,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
     );
   }
 
@@ -46,8 +61,21 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         elevation: 0,
         systemOverlayStyle: SystemUiOverlayStyle.light,
+        backgroundColor: AppColors.darkSurface,
+        foregroundColor: AppColors.darkOnSurface,
       ),
       scaffoldBackgroundColor: AppColors.darkBackground,
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.darkPrimary,
+          foregroundColor: AppColors.darkOnPrimary,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
     );
   }
 }
