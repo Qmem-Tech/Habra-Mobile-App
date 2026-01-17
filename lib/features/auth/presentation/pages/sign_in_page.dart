@@ -11,6 +11,7 @@ import '../../../home/presentation/pages/business_owner_home_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
 import 'sign_up_options_page.dart';
+import 'forgot_password_page.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -189,9 +190,10 @@ class _SignInPageState extends State<SignInPage> {
                       children: [
                         TextButton(
                           onPressed: () {
-                            // TODO: Navigate to forgot password
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Forgot password coming soon')),
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ForgotPasswordPage(),
+                              ),
                             );
                           },
                           child: Text(
