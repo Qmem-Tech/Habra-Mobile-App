@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:habra_mobile_app/features/auth/domain/entities/user.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -82,7 +83,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
           // For now, default to customer home
           // This can be enhanced to check user role
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const CustomerHomePage()),
+            MaterialPageRoute(builder: (_) => const CustomerHomePage(user: User(id: 'id', email: 'abec@gmail.com', name: "Abel", role: UserRole.customer),)),
           );
         } else {
           // Navigate to login

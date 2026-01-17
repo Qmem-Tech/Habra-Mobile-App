@@ -24,7 +24,7 @@ android {
         applicationId = "com.habra.habra"
         // Firebase Firestore requires minSdk 23 (Android 6.0)
         // API 23 covers 99%+ of active Android devices (as of 2024)
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
