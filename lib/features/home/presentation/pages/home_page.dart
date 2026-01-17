@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/full_screen_loader.dart';
+import '../../../../core/widgets/pulsing_loader.dart';
 import '../../domain/entities/location_entity.dart';
 import '../../domain/entities/event.dart';
 import '../../domain/entities/deal.dart';
@@ -70,6 +72,10 @@ class _HomePageState extends State<HomePage> {
               return _buildErrorView(state.message);
             }
 
+            if (state is HomeLoading) {
+              return const FullScreenLoader();
+            }
+
             if (state is HomeLoaded && state.events.isEmpty &&
                 state.deals.isEmpty && state.businesses.isEmpty &&
                 state.jobs.isEmpty) {
@@ -93,24 +99,13 @@ class _HomePageState extends State<HomePage> {
     return CustomScrollView(
       slivers: [
         _buildHeader(),
-        if (state is HomeLoading)
-          const SliverToBoxAdapter(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-          )
-        else ...[
-          _buildGreetingSection(),
-          _buildSearchSection(),
-          if (events.isNotEmpty) _buildEventsSection(events),
-          if (deals.isNotEmpty) _buildDealsSection(deals),
-          if (businesses.isNotEmpty) _buildBusinessesSection(businesses),
-          if (jobs.isNotEmpty) _buildJobsSection(jobs),
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        ],
+        _buildGreetingSection(),
+        _buildSearchSection(),
+        if (events.isNotEmpty) _buildEventsSection(events),
+        if (deals.isNotEmpty) _buildDealsSection(deals),
+        if (businesses.isNotEmpty) _buildBusinessesSection(businesses),
+        if (jobs.isNotEmpty) _buildJobsSection(jobs),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
     );
   }
