@@ -72,7 +72,7 @@ class MyApp extends StatelessWidget {
               return BlocBuilder<ThemeCubit, ThemeState>(
                 builder: (context, themeState) {
                   return MaterialApp(
-                    title: 'Habra Mobile App',
+                    title: 'Habra',
                     debugShowCheckedModeBanner: false,
 
                     // Theme

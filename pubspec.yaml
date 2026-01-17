@@ -56,6 +56,7 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   build_runner: ^2.4.7
   json_serializable: ^6.7.1
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -69,3 +70,11 @@ flutter:
     - assets/images/onboarding/
     - assets/icons/
     - assets/logos/
+
+# Flutter Launcher Icons configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/habra_app_lcon.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true

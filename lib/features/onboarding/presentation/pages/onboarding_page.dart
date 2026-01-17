@@ -92,34 +92,39 @@ class _OnboardingPageState extends State<OnboardingPage> {
         body: SafeArea(
           child: Column(
             children: [
-              // Skip/Close button
-              Align(
-                alignment: Alignment.topRight,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppResources.spacingM),
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.close,
-                      color: AppColors.textPrimary,
-                    ),
-                    onPressed: _onSkip,
-                  ),
-                ),
-              ),
-
-              // Progress indicators
+              // Top bar with X button and progress indicators inline
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppResources.spacingM,
+                  vertical: AppResources.spacingM,
+                ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    _pages.length,
-                    (index) => _buildProgressIndicator(index == _currentPage),
-                  ),
+                  children: [
+                    // X button on the left
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        color: AppColors.textPrimary,
+                      ),
+                      onPressed: _onSkip,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    // Progress indicators centered
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          _pages.length,
+                          (index) => _buildProgressIndicator(index == _currentPage),
+                        ),
+                      ),
+                    ),
+                    // Spacer to balance the X button
+                    const SizedBox(width: 48),
+                  ],
                 ),
               ),
-
-              const SizedBox(height: AppResources.spacingM),
 
               // Page content
               Expanded(
@@ -141,6 +146,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   height: AppResources.buttonHeightM,
                   child: ElevatedButton(
                     onPressed: _onNext,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.brandPrimary,
+                      foregroundColor: AppColors.textOnPrimary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      ),
+                    ),
                     child: Text(
                       _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
                       style: AppTextStyles.buttonText(context),
@@ -159,7 +172,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
       height: 4,
-      width: isActive ? 32 : 8,
+      width: isActive ? 48 : 12,
       decoration: BoxDecoration(
         color: isActive ? AppColors.progressActive : AppColors.progressInactive,
         borderRadius: BorderRadius.circular(2),
@@ -175,7 +188,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
         children: [
           // Illustration
           Expanded(
-            flex: 3,
+            flex: 4,
             child: Image.asset(
               pageData.imageAsset,
               fit: BoxFit.contain,
@@ -188,7 +201,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   ),
                   child: const Icon(
                     Icons.image,
-                    size: 120,
+                    size: 110,
                     color: AppColors.textTertiary,
                   ),
                 );
@@ -196,12 +209,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
             ),
           ),
 
-          const SizedBox(height: AppResources.spacingXL),
+          const SizedBox(height: AppResources.spacingM),
 
           // Title
           Text(
             pageData.title,
-            style: AppTextStyles.largeTitle(context),
+            style: AppTextStyles.largeTitle(context, color: AppColors.textPrimary),
             textAlign: TextAlign.center,
           ),
 

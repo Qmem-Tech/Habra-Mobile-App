@@ -17,10 +17,11 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateMixin {
+class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  late AnimationController _loadingDotsController;
 
   @override
   void initState() {
@@ -51,6 +52,12 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       curve: Curves.easeOutBack,
     ));
 
+    // Loading dots animation controller (loops continuously)
+    _loadingDotsController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat();
+
     _animationController.forward();
   }
 
@@ -62,7 +69,40 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   @override
   void dispose() {
     _animationController.dispose();
+    _loadingDotsController.dispose();
     super.dispose();
+  }
+
+  Widget _buildLoadingDots() {
+    return SizedBox(
+      height: 20,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(3, (index) {
+          return AnimatedBuilder(
+            animation: _loadingDotsController,
+            builder: (context, child) {
+              // Create staggered animation for each dot
+              final delay = index * 0.2;
+              final animationValue = ((_loadingDotsController.value + delay) % 1.0);
+              final opacity = (animationValue < 0.5)
+                  ? animationValue * 2
+                  : 2 - (animationValue * 2);
+
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: AppColors.brandPrimary.withOpacity(opacity.clamp(0.3, 1.0)),
+                  shape: BoxShape.circle,
+                ),
+              );
+            },
+          );
+        }),
+      ),
+    );
   }
 
   void _navigateToNextScreen(SplashState state) {
@@ -159,6 +199,9 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                               color: AppColors.brandPrimary,
                             ),
                       ),
+                      const SizedBox(height: AppResources.spacingXL),
+                      // Loading dots
+                      _buildLoadingDots(),
                     ],
                   ),
                 ),

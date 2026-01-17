@@ -12,28 +12,26 @@ class AppAssets {
 
   // ==================== Logos ====================
   /// App logo - Hexagonal logo with interconnected figures
-  /// Expected path: assets/logos/app_logo.png
-  /// Also available as: app_logo.svg (if vector format)
-  static const String appLogo = '$_logosPath/app_logo.png';
-  static const String appLogoSvg = '$_logosPath/app_logo.svg';
+  /// Expected path: assets/logos/habra_app_logo.png
+  static const String appLogo = '$_logosPath/habra_app_logo.png';
 
   // ==================== Splash Screen ====================
   /// Splash screen logo (same as app logo, but may have different sizing)
-  /// Expected path: assets/logos/splash_logo.png
-  static const String splashLogo = '$_logosPath/splash_logo.png';
+  /// Expected path: assets/logos/habra_app_logo.png
+  static const String splashLogo = '$_logosPath/habra_app_logo.png';
 
   // ==================== Onboarding Illustrations ====================
   /// Onboarding screen 1: "Discover Your Community" - Music Festival illustration
-  /// Expected path: assets/images/onboarding/onboarding_1_music_festival.png
-  static const String onboardingMusicFestival = '$_imagesPath/onboarding/onboarding_1_music_festival.png';
+  /// Expected path: assets/images/onboarding/onboarding_screen_1.png
+  static const String onboardingMusicFestival = '$_imagesPath/onboarding/onboarding_screen_1.png';
 
   /// Onboarding screen 2: "Support Local Businesses" - Coffee Shop illustration
-  /// Expected path: assets/images/onboarding/onboarding_2_coffee_shop.png
-  static const String onboardingCoffeeShop = '$_imagesPath/onboarding/onboarding_2_coffee_shop.png';
+  /// Expected path: assets/images/onboarding/onboarding_screen_2.png
+  static const String onboardingCoffeeShop = '$_imagesPath/onboarding/onboarding_screen_2.png';
 
   /// Onboarding screen 3: "Grow Together" - Globe/Connectivity illustration
-  /// Expected path: assets/images/onboarding/onboarding_3_grow_together.png
-  static const String onboardingGrowTogether = '$_imagesPath/onboarding/onboarding_3_grow_together.png';
+  /// Expected path: assets/images/onboarding/onboarding_screen_3.png
+  static const String onboardingGrowTogether = '$_imagesPath/onboarding/onboarding_screen_3.png';
 
   // ==================== Icons ====================
   /// Close/Skip icon for onboarding
