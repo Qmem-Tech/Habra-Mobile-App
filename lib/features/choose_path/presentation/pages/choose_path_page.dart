@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/pages/sign_up_options_page.dart';
+import '../../../auth/presentation/pages/business_sign_in_page.dart';
 import '../bloc/choose_path_cubit.dart';
 
 class ChoosePathPage extends StatelessWidget {
@@ -37,11 +38,19 @@ class _ChoosePathViewState extends State<_ChoosePathView> {
 
   void _onSelect() {
     if (_selectedRole != null) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const SignUpOptionsPage(),
-        ),
-      );
+      if (_selectedRole == UserRole.businessOwner) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const BusinessSignInPage(),
+          ),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const SignUpOptionsPage(),
+          ),
+        );
+      }
     }
   }
 
