@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../injection/injection_container.dart' as di;
 import '../bloc/notification_cubit.dart';
 import '../bloc/notification_state.dart';
 import '../../domain/entities/notification_entity.dart';
@@ -15,26 +16,26 @@ class NotificationPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final userId = this.userId ?? 'current_user'; // TODO: Get from auth
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Notifications',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+    return BlocProvider(
+      create: (context) => di.sl<NotificationCubit>()..loadNotifications(userId),
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+            onPressed: () => Navigator.pop(context),
           ),
+          title: const Text(
+            'Notifications',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
         ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: BlocProvider(
-        create: (context) => context.read<NotificationCubit>()..loadNotifications(userId),
-        child: BlocBuilder<NotificationCubit, NotificationState>(
+        body: BlocBuilder<NotificationCubit, NotificationState>(
           builder: (context, state) {
             if (state is NotificationLoading) {
               return const Center(child: CircularProgressIndicator());
