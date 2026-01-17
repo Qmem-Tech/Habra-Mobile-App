@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../auth/domain/entities/user.dart';
+import '../../../../injection/injection_container.dart' as di;
+import '../bloc/home_cubit.dart';
+import '../bloc/search_cubit.dart';
+import '../bloc/notification_cubit.dart';
+import 'home_page.dart';
 
 class CustomerHomePage extends StatelessWidget {
   final User user;
@@ -8,12 +14,16 @@ class CustomerHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Customer Home (${user.name})'),
-      ),
-      body: const Center(
-        child: Text('Customer UI goes here'),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => di.sl<HomeCubit>()),
+        BlocProvider(create: (_) => di.sl<SearchCubit>()),
+        BlocProvider(create: (_) => di.sl<NotificationCubit>()),
+      ],
+      child: HomePage(
+        userId: user.id,
+        userName: user.name,
+        currentLocation: null, // TODO: Get from location service or storage
       ),
     );
   }

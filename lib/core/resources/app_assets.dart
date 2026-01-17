@@ -38,6 +38,31 @@ class AppAssets {
   /// Expected path: assets/icons/ic_close.png
   static const String icClose = '$_iconsPath/ic_close.png';
 
+  // ==================== Home Feature Assets ====================
+  /// Placeholder image for events
+  /// Expected path: assets/images/home/event_placeholder.png
+  static const String eventPlaceholder = '$_imagesPath/home/event_placeholder.png';
+
+  /// Placeholder image for deals
+  /// Expected path: assets/images/home/deal_placeholder.png
+  static const String dealPlaceholder = '$_imagesPath/home/deal_placeholder.png';
+
+  /// Placeholder image for businesses
+  /// Expected path: assets/images/home/business_placeholder.png
+  static const String businessPlaceholder = '$_imagesPath/home/business_placeholder.png';
+
+  /// Placeholder image for jobs
+  /// Expected path: assets/images/home/job_placeholder.png
+  static const String jobPlaceholder = '$_imagesPath/home/job_placeholder.png';
+
+  /// Empty state illustration for notifications
+  /// Expected path: assets/images/home/notification_empty.png
+  static const String notificationEmpty = '$_imagesPath/home/notification_empty.png';
+
+  /// Empty state illustration for no results
+  /// Expected path: assets/images/home/no_results.png
+  static const String noResults = '$_imagesPath/home/no_results.png';
+
   // ==================== Helper Methods ====================
   /// Get asset path with optional fallback
   ///

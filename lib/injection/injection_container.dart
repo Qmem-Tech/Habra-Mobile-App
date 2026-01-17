@@ -28,6 +28,27 @@ import '../features/onboarding/data/repositories/onboarding_repository_impl.dart
 import '../features/onboarding/domain/repositories/onboarding_repository.dart';
 import '../features/onboarding/domain/usecases/complete_onboarding_usecase.dart';
 
+// Home feature
+import '../features/home/data/datasources/home_remote_datasource.dart';
+import '../features/home/data/datasources/search_remote_datasource.dart';
+import '../features/home/data/datasources/search_local_datasource.dart';
+import '../features/home/data/datasources/notification_remote_datasource.dart';
+import '../features/home/data/repositories/home_repository_impl.dart';
+import '../features/home/data/repositories/search_repository_impl.dart';
+import '../features/home/data/repositories/notification_repository_impl.dart';
+import '../features/home/domain/repositories/home_repository.dart';
+import '../features/home/domain/repositories/search_repository.dart';
+import '../features/home/domain/repositories/notification_repository.dart';
+import '../features/home/domain/usecases/get_happening_this_week_usecase.dart';
+import '../features/home/domain/usecases/get_hot_deals_usecase.dart';
+import '../features/home/domain/usecases/get_popular_businesses_usecase.dart';
+import '../features/home/domain/usecases/get_latest_jobs_usecase.dart';
+import '../features/home/domain/usecases/search_usecase.dart';
+import '../features/home/domain/usecases/get_notifications_usecase.dart';
+import '../features/home/presentation/bloc/home_cubit.dart';
+import '../features/home/presentation/bloc/search_cubit.dart';
+import '../features/home/presentation/bloc/notification_cubit.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -90,4 +111,57 @@ Future<void> init() async {
     ),
   );
   sl.registerLazySingleton(() => CompleteOnboardingUseCase(sl<OnboardingRepository>()));
+
+  // Features - Home
+  // Data sources
+  sl.registerLazySingleton<HomeRemoteDataSource>(
+    () => HomeRemoteDataSourceImpl(),
+  );
+  sl.registerLazySingleton<SearchRemoteDataSource>(
+    () => SearchRemoteDataSourceImpl(),
+  );
+  sl.registerLazySingleton<SearchLocalDataSource>(
+    () => SearchLocalDataSourceImpl(sl<LocalStorage>()),
+  );
+  sl.registerLazySingleton<NotificationRemoteDataSource>(
+    () => NotificationRemoteDataSourceImpl(),
+  );
+
+  // Repositories
+  sl.registerLazySingleton<HomeRepository>(
+    () => HomeRepositoryImpl(sl<HomeRemoteDataSource>()),
+  );
+  sl.registerLazySingleton<SearchRepository>(
+    () => SearchRepositoryImpl(
+      sl<SearchRemoteDataSource>(),
+      sl<SearchLocalDataSource>(),
+    ),
+  );
+  sl.registerLazySingleton<NotificationRepository>(
+    () => NotificationRepositoryImpl(sl<NotificationRemoteDataSource>()),
+  );
+
+  // Use cases
+  sl.registerLazySingleton(() => GetHappeningThisWeekUseCase(sl<HomeRepository>()));
+  sl.registerLazySingleton(() => GetHotDealsUseCase(sl<HomeRepository>()));
+  sl.registerLazySingleton(() => GetPopularBusinessesUseCase(sl<HomeRepository>()));
+  sl.registerLazySingleton(() => GetLatestJobsUseCase(sl<HomeRepository>()));
+  sl.registerLazySingleton(() => SearchUseCase(sl<SearchRepository>()));
+  sl.registerLazySingleton(() => GetNotificationsUseCase(sl<NotificationRepository>()));
+
+  // Cubits (Factory - new instance per usage)
+  sl.registerFactory(() => HomeCubit(
+    getHappeningThisWeekUseCase: sl<GetHappeningThisWeekUseCase>(),
+    getHotDealsUseCase: sl<GetHotDealsUseCase>(),
+    getPopularBusinessesUseCase: sl<GetPopularBusinessesUseCase>(),
+    getLatestJobsUseCase: sl<GetLatestJobsUseCase>(),
+  ));
+  sl.registerFactory(() => SearchCubit(
+    searchUseCase: sl<SearchUseCase>(),
+    searchRepository: sl<SearchRepository>(),
+  ));
+  sl.registerFactory(() => NotificationCubit(
+    getNotificationsUseCase: sl<GetNotificationsUseCase>(),
+    notificationRepository: sl<NotificationRepository>(),
+  ));
 }
