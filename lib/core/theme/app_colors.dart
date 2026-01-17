@@ -10,15 +10,15 @@ class AppColors {
   // ==================== Brand Colors ====================
   /// Primary brand color - Dark green (from design)
   /// Used for: Primary buttons, active states, progress indicators
-  static const Color brandPrimary = Color(0xFF1B5E20); // Dark forest green
-  static const Color brandPrimaryLight = Color(0xFF2E7D32);
-  static const Color brandPrimaryDark = Color(0xFF0D3E10);
+  static const Color brandPrimary = Color(0xFF1F563F); // Primary green
+  static const Color brandPrimaryLight = Color(0xFF2D6B4F);
+  static const Color brandPrimaryDark = Color(0xFF16402F);
 
-  /// Secondary brand color - Golden brown/tan (from logo)
+  /// Secondary brand color - Golden/tan (from design)
   /// Used for: Accents, secondary elements
-  static const Color brandSecondary = Color(0xFFD4A574); // Golden brown/tan
-  static const Color brandSecondaryLight = Color(0xFFE8C19A);
-  static const Color brandSecondaryDark = Color(0xFFB8904F);
+  static const Color brandSecondary = Color(0xFFC1A25F); // Secondary gold/tan
+  static const Color brandSecondaryLight = Color(0xFFD4B87A);
+  static const Color brandSecondaryDark = Color(0xFFA88A4F);
 
   // ==================== Text Colors ====================
   static const Color textPrimary = Color(0xFF000000);

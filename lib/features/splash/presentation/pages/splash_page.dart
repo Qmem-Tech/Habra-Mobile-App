@@ -7,7 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../bloc/splash_cubit.dart';
 import '../bloc/splash_state.dart';
 import '../../../onboarding/presentation/pages/onboarding_page.dart';
-import '../../../auth/presentation/pages/login_page.dart';
+import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import '../../../home/presentation/pages/customer_home_page.dart';
 
 class SplashPage extends StatefulWidget {
@@ -126,18 +126,18 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             MaterialPageRoute(builder: (_) => const CustomerHomePage(user: User(id: 'id', email: 'abec@gmail.com', name: "Abel", role: UserRole.customer),)),
           );
         } else {
-          // Navigate to login
+          // Navigate to choose path (user not authenticated)
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const LoginPage()),
+            MaterialPageRoute(builder: (_) => const ChoosePathPage()),
           );
         }
       });
     } else if (state is SplashError) {
-      // On error, navigate to login after delay
+      // On error, navigate to choose path after delay
       Future.delayed(AppResources.splashScreenDuration, () {
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginPage()),
+          MaterialPageRoute(builder: (_) => const ChoosePathPage()),
         );
       });
     }
