@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../injection/injection_container.dart' as di;
 import '../../domain/repositories/search_repository.dart';
 import '../bloc/search_cubit.dart';
 import '../bloc/search_state.dart';
@@ -25,42 +26,44 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: TextField(
-          controller: _searchController,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: 'Find business, event...',
-            hintStyle: TextStyle(color: AppColors.textSecondary),
-            border: InputBorder.none,
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() {});
-                    },
-                  )
-                : null,
+    return BlocProvider(
+      create: (context) => di.sl<SearchCubit>(),
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+            onPressed: () => Navigator.pop(context),
           ),
-          onChanged: (value) {
-            setState(() {});
-            if (value.isEmpty) {
-              context.read<SearchCubit>().search('', _selectedCategory, '');
-            }
-          },
-          onSubmitted: (value) {
-            if (value.isNotEmpty) {
-              _performSearch(value);
-            }
-          },
-        ),
-        actions: [
+          title: TextField(
+            controller: _searchController,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: 'Find business, event...',
+              hintStyle: TextStyle(color: AppColors.textSecondary),
+              border: InputBorder.none,
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {});
+                      },
+                    )
+                  : null,
+            ),
+            onChanged: (value) {
+              setState(() {});
+              if (value.isEmpty) {
+                context.read<SearchCubit>().search('', _selectedCategory, '');
+              }
+            },
+            onSubmitted: (value) {
+              if (value.isNotEmpty) {
+                _performSearch(value);
+              }
+            },
+          ),
+          actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text(
@@ -82,6 +85,7 @@ class _SearchPageState extends State<SearchPage> {
 
           return _buildSearchInitialView(state);
         },
+      ),
       ),
     );
   }

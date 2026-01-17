@@ -24,7 +24,7 @@ class LoaderHelper {
       barrierColor: Colors.transparent,
       builder: (context) => FullScreenLoader(
         message: message,
-        backgroundColor: backgroundColor,
+        backgroundColor: backgroundColor ?? Colors.transparent,
       ),
     );
   }

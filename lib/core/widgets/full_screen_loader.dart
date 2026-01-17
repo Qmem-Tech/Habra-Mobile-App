@@ -42,7 +42,7 @@ class _FullScreenLoaderState extends State<FullScreenLoader>
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: widget.backgroundColor ?? Colors.black.withOpacity(0.3),
+      color: widget.backgroundColor ?? Colors.transparent,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -91,14 +91,21 @@ class _FullScreenLoaderState extends State<FullScreenLoader>
               const SizedBox(height: 24),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 48),
-                child: Text(
-                  widget.message!,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  textAlign: TextAlign.center,
+                  child: Text(
+                    widget.message!,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             ],
