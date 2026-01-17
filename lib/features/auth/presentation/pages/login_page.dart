@@ -11,7 +11,9 @@ import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
 
 class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
+  final UserRole? selectedRole;
+
+  const LoginPage({super.key, this.selectedRole});
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +59,7 @@ class LoginPage extends StatelessWidget {
             return TabBarView(
               children: [
                 const LoginForm(),
-                const RegisterForm(),
+                RegisterForm(initialRole: selectedRole),
               ],
             );
           },
@@ -179,7 +181,9 @@ class _LoginFormState extends State<LoginForm> {
 }
 
 class RegisterForm extends StatefulWidget {
-  const RegisterForm({super.key});
+  final UserRole? initialRole;
+
+  const RegisterForm({super.key, this.initialRole});
 
   @override
   State<RegisterForm> createState() => _RegisterFormState();
@@ -190,7 +194,13 @@ class _RegisterFormState extends State<RegisterForm> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  UserRole _selectedRole = UserRole.customer;
+  late UserRole _selectedRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRole = widget.initialRole ?? UserRole.customer;
+  }
 
   @override
   void dispose() {

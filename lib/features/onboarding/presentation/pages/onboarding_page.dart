@@ -7,7 +7,7 @@ import '../../../../l10n/app_localizations.dart';
 import '../bloc/onboarding_cubit.dart';
 import '../bloc/onboarding_state.dart';
 import '../../domain/entities/onboarding_page_data.dart';
-import '../../../auth/presentation/pages/login_page.dart';
+import '../../../choose_path/presentation/pages/choose_path_page.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -79,7 +79,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       listener: (context, state) {
         if (state is OnboardingCompleted) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const LoginPage()),
+            MaterialPageRoute(builder: (_) => const ChoosePathPage()),
           );
         } else if (state is OnboardingError) {
           ScaffoldMessenger.of(context).showSnackBar(
