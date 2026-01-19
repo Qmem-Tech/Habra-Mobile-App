@@ -95,7 +95,6 @@ class _EventsPageState extends State<EventsPage> {
             ],
           ),
         ),
-        bottomNavigationBar: _buildBottomNavigationBar(),
       ),
     );
   }
@@ -381,34 +380,4 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 
-  Widget _buildBottomNavigationBar() {
-    return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: AppColors.brandPrimary,
-      unselectedItemColor: AppColors.textSecondary,
-      currentIndex: 1, // Events tab
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today),
-          label: 'Events',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.explore),
-          label: 'Explore',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.message),
-          label: 'Messages',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.work),
-          label: 'Jobs',
-        ),
-      ],
-    );
-  }
 }

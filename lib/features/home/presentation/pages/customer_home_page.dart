@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../bloc/home_cubit.dart';
 import '../bloc/search_cubit.dart';
 import '../bloc/notification_cubit.dart';
@@ -20,10 +21,13 @@ class CustomerHomePage extends StatelessWidget {
         BlocProvider(create: (_) => di.sl<SearchCubit>()),
         BlocProvider(create: (_) => di.sl<NotificationCubit>()),
       ],
-      child: HomePage(
-        userId: user.id,
-        userName: user.name,
-        currentLocation: null, // TODO: Get from location service or storage
+      child: MainNavigationWrapper(
+        initialIndex: 0,
+        homePage: HomePage(
+          userId: user.id,
+          userName: user.name,
+          currentLocation: null, // TODO: Get from location service or storage
+        ),
       ),
     );
   }

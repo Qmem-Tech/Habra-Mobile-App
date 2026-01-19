@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/full_screen_loader.dart';
 import '../../../../core/widgets/pulsing_loader.dart';
+import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../../domain/entities/location_entity.dart';
 import '../../domain/entities/event.dart';
 import '../../domain/entities/deal.dart';
@@ -18,7 +19,6 @@ import 'search_page.dart';
 import 'location_selection_page.dart';
 import 'notification_page.dart';
 import 'navigation_drawer.dart' as custom;
-import '../../../events/presentation/pages/events_page.dart';
 
 class HomePage extends StatefulWidget {
   final String userId;
@@ -87,7 +87,6 @@ class _HomePageState extends State<HomePage> {
           },
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
@@ -266,12 +265,8 @@ class _HomePageState extends State<HomePage> {
                 ),
                 TextButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EventsPage(location: _currentLocation?.fullDisplayName),
-                      ),
-                    );
+                    // Navigate to Events tab in the main navigation
+                    MainNavigationWrapper.navigateToTab(context, 1);
                   },
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -525,48 +520,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildBottomNavigationBar() {
-    return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: AppColors.brandPrimary,
-      unselectedItemColor: AppColors.textSecondary,
-      currentIndex: 0,
-      onTap: (index) {
-        if (index == 1) {
-          // Navigate to Events page
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const EventsPage(location: 'Washington, D.C.'),
-            ),
-          );
-        }
-        // TODO: Handle other navigation items
-      },
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today),
-          label: 'Events',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.explore),
-          label: 'Explore',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.message),
-          label: 'Messages',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.work),
-          label: 'Jobs',
-        ),
-      ],
-    );
-  }
 
   Future<void> _navigateToLocationSelection() async {
     final result = await Navigator.push<LocationEntity>(
