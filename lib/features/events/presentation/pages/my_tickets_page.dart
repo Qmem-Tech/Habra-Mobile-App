@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/full_screen_loader.dart';
+import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/ticket.dart';
 import '../bloc/tickets_cubit.dart';
@@ -45,7 +45,7 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
               child: BlocBuilder<TicketsCubit, TicketsState>(
                 builder: (context, state) {
                   if (state is TicketsLoading) {
-                    return const FullScreenLoader();
+                    return const HabraCircularLoader(fullScreen: true);
                   }
 
                   if (state is TicketsError) {

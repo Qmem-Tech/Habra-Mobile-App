@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'full_screen_loader.dart';
+import 'habra_circular_loader.dart';
 
 /// Helper class to show/hide full-screen loader
 ///
@@ -22,7 +22,8 @@ class LoaderHelper {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.transparent,
-      builder: (context) => FullScreenLoader(
+      builder: (context) => HabraCircularLoader(
+        fullScreen: true,
         message: message,
         backgroundColor: backgroundColor ?? Colors.transparent,
       ),

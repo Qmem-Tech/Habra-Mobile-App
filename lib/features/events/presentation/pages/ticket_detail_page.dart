@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/full_screen_loader.dart';
+import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/tickets_cubit.dart';
 import '../bloc/tickets_state.dart';
@@ -28,7 +28,7 @@ class TicketDetailPage extends StatelessWidget {
           future: _loadTicket(context),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const FullScreenLoader();
+              return const HabraCircularLoader(fullScreen: true);
             }
 
             if (snapshot.hasError || !snapshot.hasData) {

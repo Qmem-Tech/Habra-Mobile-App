@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/full_screen_loader.dart';
+import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/notification_cubit.dart';
 import '../bloc/notification_state.dart';
@@ -39,7 +39,7 @@ class NotificationPage extends StatelessWidget {
         body: BlocBuilder<NotificationCubit, NotificationState>(
           builder: (context, state) {
             if (state is NotificationLoading) {
-              return const FullScreenLoader();
+              return const HabraCircularLoader(fullScreen: true);
             }
 
             if (state is NotificationEmpty) {

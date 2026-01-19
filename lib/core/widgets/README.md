@@ -4,32 +4,48 @@ This directory contains reusable widgets used throughout the app.
 
 ## Loaders
 
-### FullScreenLoader
+### HabraCircularLoader
 
-A full-screen loader with rotating app icon and loading dots. Use for full-screen loading states.
+A unified circular loader with rotating app icon. Can be used for both inline and full-screen loading states.
 
 **Asset Required:**
 - `assets/logos/habra_app_logo.png` - App logo for rotation
 
 **Usage:**
+
+**Full-Screen Loading:**
 ```dart
-import 'package:habra_mobile_app/core/widgets/full_screen_loader.dart';
+import 'package:habra_mobile_app/core/widgets/habra_circular_loader.dart';
 
 // In your widget
 if (isLoading) {
-  return FullScreenLoader(
+  return HabraCircularLoader(
+    fullScreen: true,
     message: 'Loading data...', // Optional message
     backgroundColor: Colors.black.withOpacity(0.3), // Optional background color
   );
 }
 ```
 
+**Inline Loading:**
+```dart
+// Default size (60px)
+const HabraCircularLoader()
+
+// Custom size
+const HabraCircularLoader(size: 40)
+
+// In a button or small space
+const HabraCircularLoader(size: 24)
+```
+
 **Features:**
 - Rotating app logo in white circular container
-- Three animated loading dots below the logo
-- Optional message display
-- Transparent or semi-transparent background
+- Optional message display (full-screen mode only)
+- Transparent or semi-transparent background (full-screen mode)
+- Customizable size and color
 - Fallback to refresh icon if logo not found
+- Works for both inline and full-screen scenarios
 
 ### PulsingLoader
 
@@ -80,7 +96,7 @@ LoaderHelper.hide(context);
 BlocBuilder<MyCubit, MyState>(
   builder: (context, state) {
     if (state is MyLoading) {
-      return FullScreenLoader(message: 'Loading data...');
+      return HabraCircularLoader(fullScreen: true, message: 'Loading data...');
     }
     // ... rest of UI
   },

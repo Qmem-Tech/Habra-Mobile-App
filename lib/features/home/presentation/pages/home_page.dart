@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/full_screen_loader.dart';
+import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/pulsing_loader.dart';
 import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../../domain/entities/location_entity.dart';
@@ -74,7 +74,7 @@ class _HomePageState extends State<HomePage> {
             }
 
             if (state is HomeLoading) {
-              return const FullScreenLoader();
+              return const HabraCircularLoader(fullScreen: true);
             }
 
             if (state is HomeLoaded && state.events.isEmpty &&

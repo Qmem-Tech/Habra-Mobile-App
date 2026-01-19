@@ -5,15 +5,23 @@ import '../resources/app_assets.dart';
 
 /// Circular loader with rotating app icon
 ///
-/// Use this for inline loading states (similar to CircularProgressIndicator)
+/// Use this for both inline and full-screen loading states
+/// - For inline: Use default size or specify custom size
+/// - For full-screen: Set fullScreen to true and optionally provide a message
 class HabraCircularLoader extends StatefulWidget {
   final double? size;
   final Color? color;
+  final bool fullScreen;
+  final String? message;
+  final Color? backgroundColor;
 
   const HabraCircularLoader({
     super.key,
     this.size,
     this.color,
+    this.fullScreen = false,
+    this.message,
+    this.backgroundColor,
   });
 
   @override
@@ -41,10 +49,10 @@ class _HabraCircularLoaderState extends State<HabraCircularLoader>
 
   @override
   Widget build(BuildContext context) {
-    final size = widget.size ?? 24.0;
+    final size = widget.size ?? (widget.fullScreen ? 80.0 : 60.0);
     final color = widget.color ?? AppColors.brandPrimary;
 
-    return SizedBox(
+    final loader = SizedBox(
       width: size,
       height: size,
       child: AnimatedBuilder(
@@ -61,8 +69,8 @@ class _HabraCircularLoaderState extends State<HabraCircularLoader>
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                    blurRadius: widget.fullScreen ? 12 : 4,
+                    offset: Offset(0, widget.fullScreen ? 4 : 2),
                   ),
                 ],
               ),
@@ -84,5 +92,43 @@ class _HabraCircularLoaderState extends State<HabraCircularLoader>
         },
       ),
     );
+
+    if (widget.fullScreen) {
+      return Container(
+        color: widget.backgroundColor ?? Colors.transparent,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              loader,
+              if (widget.message != null) ...[
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 48),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      widget.message!,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    return loader;
   }
 }

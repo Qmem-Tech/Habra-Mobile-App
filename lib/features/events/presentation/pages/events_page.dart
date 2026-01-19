@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/full_screen_loader.dart';
+import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/event_list_item.dart';
 import '../../domain/entities/event_category.dart';
@@ -74,7 +74,7 @@ class _EventsPageState extends State<EventsPage> {
                 child: BlocBuilder<EventsCubit, EventsState>(
                   builder: (context, state) {
                     if (state is EventsLoading) {
-                      return const FullScreenLoader();
+                      return const HabraCircularLoader(fullScreen: true);
                     }
 
                     if (state is EventsError) {
