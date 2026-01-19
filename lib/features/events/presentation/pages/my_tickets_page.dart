@@ -102,7 +102,7 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? AppColors.backgroundLight.withOpacity(0.8) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
@@ -111,7 +111,7 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: isSelected ? AppColors.brandPrimary : AppColors.textSecondary,
+            color: isSelected ? AppColors.textPrimary : AppColors.brandPrimary,
           ),
         ),
       ),
@@ -146,6 +146,9 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
   }
 
   Widget _buildTicketCard(Ticket ticket) {
+    // Count tickets with same event for this user (simplified - in real app, count from order)
+    final ticketCount = ticket.id.contains('_2') ? 2 : 1;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -155,6 +158,7 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
         border: Border.all(color: AppColors.backgroundGrey),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 80,
@@ -170,14 +174,14 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                       ticket.event.imageUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
-                        return const Icon(Icons.event, size: 32);
+                        return const Icon(Icons.event, size: 32, color: AppColors.textSecondary);
                       },
                     )
                   : Image.network(
                       ticket.event.imageUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
-                        return const Icon(Icons.event, size: 32);
+                        return const Icon(Icons.event, size: 32, color: AppColors.textSecondary);
                       },
                     ),
             ),
@@ -189,7 +193,7 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.confirmation_number, size: 16, color: AppColors.brandPrimary),
+                    Icon(Icons.confirmation_number, size: 14, color: AppColors.brandPrimary),
                     const SizedBox(width: 4),
                     Text(
                       ticket.ticketTypeName,
@@ -201,12 +205,13 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   ticket.event.title,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -269,14 +274,38 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.brandPrimary,
                           foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                        child: Text('View Ticket${ticket.id.contains('_2') ? ' (2)' : ''}'),
+                        child: Text(
+                          ticketCount > 1 ? 'View Ticket ($ticketCount)' : 'View Ticket',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     OutlinedButton(
                       onPressed: () {},
-                      child: const Text('Directions'),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppColors.brandPrimary),
+                        foregroundColor: AppColors.brandPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'Directions',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),

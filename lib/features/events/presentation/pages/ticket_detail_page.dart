@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -7,10 +8,17 @@ import '../bloc/tickets_cubit.dart';
 import '../bloc/tickets_state.dart';
 import 'package:intl/intl.dart';
 
-class TicketDetailPage extends StatelessWidget {
+class TicketDetailPage extends StatefulWidget {
   final String ticketId;
 
   const TicketDetailPage({super.key, required this.ticketId});
+
+  @override
+  State<TicketDetailPage> createState() => _TicketDetailPageState();
+}
+
+class _TicketDetailPageState extends State<TicketDetailPage> {
+  bool _policiesExpanded = true;
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +33,7 @@ class TicketDetailPage extends StatelessWidget {
           ),
         ),
         body: FutureBuilder(
-          future: _loadTicket(context),
+          future: _loadTicket(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const HabraCircularLoader(fullScreen: true);
@@ -54,11 +62,11 @@ class TicketDetailPage extends StatelessWidget {
     );
   }
 
-  Future<dynamic> _loadTicket(BuildContext context) async {
+  Future<dynamic> _loadTicket() async {
     // Mock ticket loading - in real app, use cubit
     await Future.delayed(const Duration(milliseconds: 500));
     return {
-      'ticketId': ticketId,
+      'ticketId': widget.ticketId,
       'event': {
         'title': 'Habesha Cultural Night 2024',
         'imageUrl': 'assets/images/events/cultural_night.png',
@@ -99,7 +107,7 @@ class TicketDetailPage extends StatelessWidget {
                         width: 80,
                         height: 80,
                         color: AppColors.backgroundGrey,
-                        child: const Icon(Icons.event),
+                        child: const Icon(Icons.event, color: AppColors.textSecondary),
                       );
                     },
                   )
@@ -113,7 +121,7 @@ class TicketDetailPage extends StatelessWidget {
                         width: 80,
                         height: 80,
                         color: AppColors.backgroundGrey,
-                        child: const Icon(Icons.event),
+                        child: const Icon(Icons.event, color: AppColors.textSecondary),
                       );
                     },
                   ),
@@ -128,9 +136,10 @@ class TicketDetailPage extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Row(
                   children: [
                     Icon(Icons.calendar_today, size: 14, color: AppColors.textSecondary),
@@ -172,12 +181,12 @@ class TicketDetailPage extends StatelessWidget {
 
   Widget _buildTicketNavigation() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left),
+            icon: const Icon(Icons.chevron_left, color: AppColors.textPrimary),
             onPressed: () {},
           ),
           const Text(
@@ -185,10 +194,11 @@ class TicketDetailPage extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.chevron_right),
+            icon: const Icon(Icons.chevron_right, color: AppColors.textPrimary),
             onPressed: () {},
           ),
         ],
@@ -197,8 +207,9 @@ class TicketDetailPage extends StatelessWidget {
   }
 
   Widget _buildQRCode(dynamic ticket) {
+    final qrData = ticket['ticketId'] ?? 'HB-89204';
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -206,23 +217,11 @@ class TicketDetailPage extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Container(
-            width: 250,
-            height: 250,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.black, width: 2),
-            ),
-            child: Center(
-              child: Text(
-                'QR\nCODE\n${ticket['ticketId'] ?? 'HB-89204'}',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+          QrImageView(
+            data: qrData,
+            version: QrVersions.auto,
+            size: 280,
+            backgroundColor: Colors.white,
           ),
           const SizedBox(height: 16),
           Text(
@@ -287,13 +286,13 @@ class TicketDetailPage extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: AppColors.brandPrimary),
+              Icon(icon, size: 16, color: AppColors.brandSecondary),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.brandPrimary,
+                  color: AppColors.brandSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -305,6 +304,7 @@ class TicketDetailPage extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
             ),
           ),
         ],
@@ -314,7 +314,7 @@ class TicketDetailPage extends StatelessWidget {
 
   Widget _buildActionButtons() {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           Expanded(
@@ -323,6 +323,7 @@ class TicketDetailPage extends StatelessWidget {
               Icons.account_balance_wallet,
               AppColors.brandPrimary,
               Colors.white,
+              isPrimary: true,
             ),
           ),
           const SizedBox(width: 8),
@@ -331,7 +332,28 @@ class TicketDetailPage extends StatelessWidget {
               'Directions',
               Icons.directions,
               AppColors.brandSecondary,
-              Colors.white,
+              AppColors.textPrimary,
+              isPrimary: false,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildActionButton(
+              'Save PDF',
+              Icons.download,
+              AppColors.brandSecondary,
+              AppColors.textPrimary,
+              isPrimary: false,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildActionButton(
+              'Share',
+              Icons.share,
+              AppColors.brandSecondary,
+              AppColors.textPrimary,
+              isPrimary: false,
             ),
           ),
         ],
@@ -339,16 +361,46 @@ class TicketDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton(String label, IconData icon, Color bgColor, Color textColor) {
-    return ElevatedButton.icon(
-      onPressed: () {},
-      style: ElevatedButton.styleFrom(
-        backgroundColor: bgColor,
-        foregroundColor: textColor,
-        padding: const EdgeInsets.all(16),
+  Widget _buildActionButton(
+    String label,
+    IconData icon,
+    Color bgColor,
+    Color textColor, {
+    bool isPrimary = false,
+  }) {
+    return Container(
+      height: 80,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
       ),
-      icon: Icon(icon, size: 20),
-      label: Text(label),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {},
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color: isPrimary ? Colors.white : AppColors.textPrimary,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: isPrimary ? Colors.white : AppColors.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -364,48 +416,61 @@ class TicketDetailPage extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.brandSecondary.withOpacity(0.2),
-                  shape: BoxShape.circle,
+          InkWell(
+            onTap: () {
+              setState(() {
+                _policiesExpanded = !_policiesExpanded;
+              });
+            },
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.brandSecondary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.info, color: Colors.white, size: 20),
                 ),
-                child: Icon(Icons.info, color: AppColors.brandSecondary, size: 20),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Event Policies',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Event Policies',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
-              ),
-              Icon(Icons.expand_more, color: AppColors.textSecondary),
-            ],
+                Icon(
+                  _policiesExpanded ? Icons.expand_less : Icons.expand_more,
+                  color: AppColors.textSecondary,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          ...policies.map((policy) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('• ', style: TextStyle(fontSize: 16)),
-                    Expanded(
-                      child: Text(
-                        policy.toString(),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
+          if (_policiesExpanded) ...[
+            const SizedBox(height: 16),
+            ...policies.map((policy) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('• ', style: TextStyle(fontSize: 16, color: AppColors.textPrimary)),
+                      Expanded(
+                        child: Text(
+                          policy.toString(),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              )),
+                    ],
+                  ),
+                )),
+          ],
         ],
       ),
     );
