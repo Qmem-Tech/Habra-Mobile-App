@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/tickets_cubit.dart';
 import '../bloc/tickets_state.dart';
@@ -85,7 +86,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
               if (state is EventDetailLoaded) {
                 return _buildContent(context, state.event);
               }
-              return const Center(child: CircularProgressIndicator());
+              return const Center(
+                child: HabraCircularLoader(),
+              );
             },
           ),
         ),
