@@ -34,6 +34,7 @@ class EventListCard extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Stack(
               children: [
@@ -42,12 +43,12 @@ class EventListCard extends StatelessWidget {
                   child: event.imageUrl.startsWith('assets/')
                       ? Image.asset(
                           event.imageUrl,
-                          height: 200,
+                          height: 160,
                           width: double.infinity,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
-                              height: 200,
+                              height: 160,
                               color: AppColors.backgroundGrey,
                               child: const Icon(Icons.event, size: 48, color: AppColors.textSecondary),
                             );
@@ -55,12 +56,12 @@ class EventListCard extends StatelessWidget {
                         )
                       : Image.network(
                           event.imageUrl,
-                          height: 200,
+                          height: 160,
                           width: double.infinity,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
-                              height: 200,
+                              height: 160,
                               color: AppColors.backgroundGrey,
                               child: const Icon(Icons.event, size: 48, color: AppColors.textSecondary),
                             );
@@ -68,12 +69,12 @@ class EventListCard extends StatelessWidget {
                         ),
                 ),
                 Positioned(
-                  top: 12,
-                  right: 12,
+                  top: 8,
+                  right: 8,
                   child: GestureDetector(
                     onTap: onBookmark,
                     child: Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.5),
                         shape: BoxShape.circle,
@@ -81,7 +82,7 @@ class EventListCard extends StatelessWidget {
                       child: Icon(
                         event.isBookmarked ? Icons.bookmark : Icons.bookmark_border,
                         color: Colors.white,
-                        size: 20,
+                        size: 18,
                       ),
                     ),
                   ),
@@ -89,44 +90,49 @@ class EventListCard extends StatelessWidget {
               ],
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     event.title,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 16, color: AppColors.textSecondary),
-                      const SizedBox(width: 8),
-                      Text(
-                        _formatDateTime(event.dateTime),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
+                      Icon(Icons.calendar_today, size: 14, color: AppColors.textSecondary),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          _formatDateTime(event.dateTime),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.location_on, size: 16, color: AppColors.textSecondary),
-                      const SizedBox(width: 8),
+                      Icon(Icons.location_on, size: 14, color: AppColors.textSecondary),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           event.venue,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             color: AppColors.textSecondary,
                           ),
                           maxLines: 1,
@@ -136,7 +142,7 @@ class EventListCard extends StatelessWidget {
                       Text(
                         event.displayPrice,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: AppColors.brandPrimary,
                         ),

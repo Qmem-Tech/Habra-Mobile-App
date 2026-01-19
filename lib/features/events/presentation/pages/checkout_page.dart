@@ -263,11 +263,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildPaymentTab('apple', 'Apple Pay', Icons.apple),
+                child: _buildPaymentTab('apple', 'Apple', Icons.apple),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildPaymentTab('google', 'Google Pay', Icons.account_balance_wallet),
+                child: _buildPaymentTab('google', 'Google', Icons.account_balance_wallet),
               ),
             ],
           ),
@@ -281,7 +281,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return GestureDetector(
       onTap: () => setState(() => _selectedPaymentMethod = method),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.brandPrimary.withOpacity(0.1) : Colors.white,
           borderRadius: BorderRadius.circular(8),
@@ -292,15 +292,20 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: isSelected ? AppColors.brandPrimary : AppColors.textSecondary),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? AppColors.brandPrimary : AppColors.textSecondary,
+            Icon(icon, size: 18, color: isSelected ? AppColors.brandPrimary : AppColors.textSecondary),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? AppColors.brandPrimary : AppColors.textSecondary,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
           ],

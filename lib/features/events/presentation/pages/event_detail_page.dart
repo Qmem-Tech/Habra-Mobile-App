@@ -323,10 +323,11 @@ class EventDetailPage extends StatelessWidget {
 
   Widget _buildSimilarEvents(BuildContext context, similarEvents) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 20),
       color: Colors.white,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -353,20 +354,27 @@ class EventDetailPage extends StatelessWidget {
             height: 280,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
               itemCount: similarEvents.length,
               itemBuilder: (context, index) {
-                return SizedBox(
-                  width: 280,
-                  child: EventListCard(
-                    event: similarEvents[index],
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => EventDetailPage(eventId: similarEvents[index].id),
-                        ),
-                      );
-                    },
+                return Padding(
+                  padding: EdgeInsets.only(
+                    right: index == similarEvents.length - 1 ? 0 : 16,
+                  ),
+                  child: SizedBox(
+                    width: 280,
+                    child: EventListCard(
+                      event: similarEvents[index],
+                      onTap: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EventDetailPage(eventId: similarEvents[index].id),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 );
               },
