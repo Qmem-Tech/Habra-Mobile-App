@@ -1,0 +1,414 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/full_screen_loader.dart';
+import '../../../../injection/injection_container.dart' as di;
+import '../../domain/entities/event_list_item.dart';
+import '../../domain/entities/event_category.dart';
+import '../../domain/entities/event_filters.dart';
+import '../bloc/events_cubit.dart';
+import '../bloc/events_state.dart';
+import '../widgets/event_list_card.dart';
+import 'event_detail_page.dart';
+import 'event_filters_page.dart';
+import 'search_page.dart' as events_search;
+
+class EventsPage extends StatefulWidget {
+  final String? location;
+
+  const EventsPage({super.key, this.location});
+
+  @override
+  State<EventsPage> createState() => _EventsPageState();
+}
+
+class _EventsPageState extends State<EventsPage> {
+  final TextEditingController _searchController = TextEditingController();
+  EventCategory _selectedCategory = EventCategory.all;
+  EventFilters? _activeFilters;
+  String? _currentLocation;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentLocation = widget.location ?? 'Washington, D.C.';
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _loadEvents(BuildContext context) {
+    context.read<EventsCubit>().loadEvents(
+          location: _currentLocation,
+          filters: _activeFilters,
+          searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) {
+        final cubit = di.sl<EventsCubit>();
+        // Load events after cubit is created
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          cubit.loadEvents(
+            location: _currentLocation,
+            filters: _activeFilters,
+            searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
+          );
+        });
+        return cubit;
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildSearchBar(),
+              _buildCategoryFilters(),
+              Expanded(
+                child: BlocBuilder<EventsCubit, EventsState>(
+                  builder: (context, state) {
+                    if (state is EventsLoading) {
+                      return const FullScreenLoader();
+                    }
+
+                    if (state is EventsError) {
+                      return _buildErrorView(state.message);
+                    }
+
+                    if (state is EventsLoaded) {
+                      if (state.events.isEmpty) {
+                        return _buildEmptyState();
+                      }
+                      return _buildEventsList(state.events);
+                    }
+
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        bottomNavigationBar: _buildBottomNavigationBar(),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.menu, color: AppColors.textPrimary),
+            onPressed: () {
+              // Open drawer
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                // Navigate to location selection
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.brandPrimary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.location_on, size: 16, color: Colors.white),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        _currentLocation ?? 'Washington, D.C.',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            onPressed: () {
+              // Navigate to notifications
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => events_search.SearchPage(
+                      onSearch: (query) {
+                        _searchController.text = query;
+                        _loadEvents(context);
+                      },
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.backgroundGrey.withOpacity(0.5)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.search, color: AppColors.textSecondary.withOpacity(0.7), size: 20),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Search events...',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          IconButton(
+            icon: const Icon(Icons.tune, color: AppColors.textPrimary),
+            onPressed: () async {
+              final filters = await Navigator.push<EventFilters>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EventFiltersPage(initialFilters: _activeFilters),
+                ),
+              );
+              if (filters != null) {
+                setState(() {
+                  _activeFilters = filters;
+                });
+                _loadEvents(context);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryFilters() {
+    final categories = [
+      EventCategory.all,
+      EventCategory.concerts,
+      EventCategory.parties,
+      EventCategory.cultural,
+    ];
+
+    return SizedBox(
+      height: 50,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: categories.length,
+        itemBuilder: (context, index) {
+          final category = categories[index];
+          final isSelected = category == _selectedCategory;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () {
+              setState(() {
+                _selectedCategory = category;
+              });
+              _loadEvents(context);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.brandPrimary : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,
+                  ),
+                ),
+                child: Text(
+                  category.displayName,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected ? Colors.white : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEventsList(List<EventListItem> events) {
+    return RefreshIndicator(
+          onRefresh: () async {
+            _loadEvents(context);
+          },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: events.length,
+        itemBuilder: (context, index) {
+          return EventListCard(
+            event: events[index],
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EventDetailPage(eventId: events[index].id),
+                ),
+              );
+            },
+            onBookmark: () {
+              // TODO: Implement bookmark
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildErrorView(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+          const SizedBox(height: 16),
+          Text(
+            'Error loading events',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: TextStyle(color: AppColors.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => _loadEvents(context),
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.event_busy,
+            size: 80,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No events found',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 48),
+            child: Text(
+              'Try adjusting your filters or search query',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      selectedItemColor: AppColors.brandPrimary,
+      unselectedItemColor: AppColors.textSecondary,
+      currentIndex: 1, // Events tab
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.calendar_today),
+          label: 'Events',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.explore),
+          label: 'Explore',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.message),
+          label: 'Messages',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.work),
+          label: 'Jobs',
+        ),
+      ],
+    );
+  }
+}

@@ -18,6 +18,7 @@ import 'search_page.dart';
 import 'location_selection_page.dart';
 import 'notification_page.dart';
 import 'navigation_drawer.dart' as custom;
+import '../../../events/presentation/pages/events_page.dart';
 
 class HomePage extends StatefulWidget {
   final String userId;
@@ -264,7 +265,14 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {}, // TODO: Navigate to all events
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EventsPage(location: _currentLocation?.fullDisplayName),
+                      ),
+                    );
+                  },
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     minimumSize: Size.zero,
@@ -523,6 +531,18 @@ class _HomePageState extends State<HomePage> {
       selectedItemColor: AppColors.brandPrimary,
       unselectedItemColor: AppColors.textSecondary,
       currentIndex: 0,
+      onTap: (index) {
+        if (index == 1) {
+          // Navigate to Events page
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const EventsPage(location: 'Washington, D.C.'),
+            ),
+          );
+        }
+        // TODO: Handle other navigation items
+      },
       items: const [
         BottomNavigationBarItem(
           icon: Icon(Icons.home),

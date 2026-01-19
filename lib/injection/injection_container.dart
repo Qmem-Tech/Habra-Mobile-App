@@ -49,6 +49,18 @@ import '../features/home/presentation/bloc/home_cubit.dart';
 import '../features/home/presentation/bloc/search_cubit.dart';
 import '../features/home/presentation/bloc/notification_cubit.dart';
 
+// Events feature
+import '../features/events/data/datasources/events_remote_datasource.dart';
+import '../features/events/data/repositories/events_repository_impl.dart';
+import '../features/events/domain/repositories/events_repository.dart';
+import '../features/events/domain/usecases/get_events_usecase.dart';
+import '../features/events/domain/usecases/get_event_detail_usecase.dart';
+import '../features/events/domain/usecases/get_user_tickets_usecase.dart';
+import '../features/events/domain/usecases/create_order_usecase.dart';
+import '../features/events/domain/usecases/process_payment_usecase.dart';
+import '../features/events/presentation/bloc/events_cubit.dart';
+import '../features/events/presentation/bloc/tickets_cubit.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -163,5 +175,34 @@ Future<void> init() async {
   sl.registerFactory(() => NotificationCubit(
     getNotificationsUseCase: sl<GetNotificationsUseCase>(),
     notificationRepository: sl<NotificationRepository>(),
+  ));
+
+  // Features - Events
+  // Data sources
+  sl.registerLazySingleton<EventsRemoteDataSource>(
+    () => EventsRemoteDataSourceImpl(),
+  );
+
+  // Repositories
+  sl.registerLazySingleton<EventsRepository>(
+    () => EventsRepositoryImpl(sl<EventsRemoteDataSource>()),
+  );
+
+  // Use cases
+  sl.registerLazySingleton(() => GetEventsUseCase(sl<EventsRepository>()));
+  sl.registerLazySingleton(() => GetEventDetailUseCase(sl<EventsRepository>()));
+  sl.registerLazySingleton(() => GetUserTicketsUseCase(sl<EventsRepository>()));
+  sl.registerLazySingleton(() => CreateOrderUseCase(sl<EventsRepository>()));
+  sl.registerLazySingleton(() => ProcessPaymentUseCase(sl<EventsRepository>()));
+
+  // Cubits
+  sl.registerFactory(() => EventsCubit(
+    getEventsUseCase: sl<GetEventsUseCase>(),
+    getEventDetailUseCase: sl<GetEventDetailUseCase>(),
+  ));
+  sl.registerFactory(() => TicketsCubit(
+    getUserTicketsUseCase: sl<GetUserTicketsUseCase>(),
+    createOrderUseCase: sl<CreateOrderUseCase>(),
+    processPaymentUseCase: sl<ProcessPaymentUseCase>(),
   ));
 }
