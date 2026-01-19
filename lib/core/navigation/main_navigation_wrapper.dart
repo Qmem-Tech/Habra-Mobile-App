@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/events/presentation/pages/events_page.dart';
+import '../../features/explore/presentation/pages/explore_page.dart';
 
 // Global key to access navigation from anywhere
 final GlobalKey<NavigatorState> mainNavigatorKey = GlobalKey<NavigatorState>();
@@ -74,7 +75,7 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
         children: [
           widget.homePage,
           EventsPage(location: widget.eventsLocation ?? 'Washington, D.C.'),
-          _buildPlaceholderPage('Explore'),
+          const ExplorePage(),
           _buildPlaceholderPage('Messages'),
           _buildPlaceholderPage('Jobs'),
         ],

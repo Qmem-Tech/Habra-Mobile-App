@@ -33,7 +33,7 @@ dependencies:
 
   # Networking
   dio: ^5.4.0
-  json_annotation: ^4.8.1
+  json_annotation: ^4.9.0
 
   # Code Generation
   json_serializable: ^6.7.1
@@ -71,6 +71,8 @@ flutter:
     - assets/images/onboarding/
     - assets/images/home/
     - assets/images/events/
+    - assets/images/deals/
+    - assets/images/businesses/
     - assets/icons/
     - assets/logos/
 

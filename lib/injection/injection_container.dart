@@ -61,6 +61,21 @@ import '../features/events/domain/usecases/process_payment_usecase.dart';
 import '../features/events/presentation/bloc/events_cubit.dart';
 import '../features/events/presentation/bloc/tickets_cubit.dart';
 
+// Explore feature
+import '../features/explore/data/datasources/businesses_remote_datasource.dart';
+import '../features/explore/data/repositories/businesses_repository_impl.dart';
+import '../features/explore/domain/repositories/businesses_repository.dart';
+import '../features/explore/domain/usecases/get_businesses_usecase.dart';
+import '../features/explore/domain/usecases/get_business_detail_usecase.dart';
+import '../features/explore/domain/usecases/get_deals_usecase.dart';
+import '../features/explore/domain/usecases/get_deal_detail_usecase.dart';
+import '../features/explore/domain/usecases/get_business_reviews_usecase.dart';
+import '../features/explore/domain/usecases/write_review_usecase.dart';
+import '../features/explore/domain/usecases/redeem_deal_usecase.dart';
+import '../features/explore/presentation/bloc/businesses_cubit.dart';
+import '../features/explore/presentation/bloc/deals_cubit.dart';
+import '../features/explore/presentation/bloc/reviews_cubit.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -204,5 +219,40 @@ Future<void> init() async {
     getUserTicketsUseCase: sl<GetUserTicketsUseCase>(),
     createOrderUseCase: sl<CreateOrderUseCase>(),
     processPaymentUseCase: sl<ProcessPaymentUseCase>(),
+  ));
+
+  // Features - Explore
+  // Data sources
+  sl.registerLazySingleton<BusinessesRemoteDataSource>(
+    () => BusinessesRemoteDataSourceImpl(),
+  );
+
+  // Repositories
+  sl.registerLazySingleton<BusinessesRepository>(
+    () => BusinessesRepositoryImpl(remoteDataSource: sl<BusinessesRemoteDataSource>()),
+  );
+
+  // Use cases
+  sl.registerLazySingleton(() => GetBusinessesUseCase(sl<BusinessesRepository>()));
+  sl.registerLazySingleton(() => GetBusinessDetailUseCase(sl<BusinessesRepository>()));
+  sl.registerLazySingleton(() => GetDealsUseCase(sl<BusinessesRepository>()));
+  sl.registerLazySingleton(() => GetDealDetailUseCase(sl<BusinessesRepository>()));
+  sl.registerLazySingleton(() => GetBusinessReviewsUseCase(sl<BusinessesRepository>()));
+  sl.registerLazySingleton(() => WriteReviewUseCase(sl<BusinessesRepository>()));
+  sl.registerLazySingleton(() => RedeemDealUseCase(sl<BusinessesRepository>()));
+
+  // Cubits
+  sl.registerFactory(() => BusinessesCubit(
+    getBusinessesUseCase: sl<GetBusinessesUseCase>(),
+    getBusinessDetailUseCase: sl<GetBusinessDetailUseCase>(),
+  ));
+  sl.registerFactory(() => DealsCubit(
+    getDealsUseCase: sl<GetDealsUseCase>(),
+    getDealDetailUseCase: sl<GetDealDetailUseCase>(),
+    redeemDealUseCase: sl<RedeemDealUseCase>(),
+  ));
+  sl.registerFactory(() => ReviewsCubit(
+    getBusinessReviewsUseCase: sl<GetBusinessReviewsUseCase>(),
+    writeReviewUseCase: sl<WriteReviewUseCase>(),
   ));
 }
