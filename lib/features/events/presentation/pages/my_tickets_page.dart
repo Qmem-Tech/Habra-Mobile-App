@@ -20,15 +20,16 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
   bool _isUpcoming = true;
 
   @override
-  void initState() {
-    super.initState();
-    context.read<TicketsCubit>().loadUserTickets(upcomingOnly: _isUpcoming);
-  }
-
-  @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => di.sl<TicketsCubit>()..loadUserTickets(upcomingOnly: _isUpcoming),
+      create: (context) {
+        final cubit = di.sl<TicketsCubit>();
+        // Load tickets after cubit is created
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          cubit.loadUserTickets(upcomingOnly: _isUpcoming);
+        });
+        return cubit;
+      },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('My Tickets'),

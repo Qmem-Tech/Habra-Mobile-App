@@ -66,7 +66,7 @@ class _HabraCircularLoaderState extends State<HabraCircularLoader>
                   ),
                 ],
               ),
-              padding: EdgeInsets.all(size * 0.2),
+              padding: EdgeInsets.all(size * 0.1),
               child: Image.asset(
                 AppAssets.appLogo,
                 fit: BoxFit.contain,
@@ -74,7 +74,7 @@ class _HabraCircularLoaderState extends State<HabraCircularLoader>
                   // Fallback to a simple icon if logo not found
                   return Icon(
                     Icons.refresh,
-                    size: size * 0.6,
+                    size: size * 0.8,
                     color: color,
                   );
                 },

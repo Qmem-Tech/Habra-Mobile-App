@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/resources/app_assets.dart';
 import '../../domain/entities/order.dart' as events;
 import '../../domain/entities/ticket.dart';
 import 'my_tickets_page.dart';
@@ -43,16 +44,24 @@ class OrderConfirmationPage extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 80,
-            height: 80,
+            width: 120,
+            height: 120,
             decoration: BoxDecoration(
-              color: AppColors.brandSecondary,
+              // color: AppColors.brandSecondary,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.check,
-              color: Colors.white,
-              size: 48,
+            padding: const EdgeInsets.all(10),
+            child: Image.asset(
+              AppAssets.successIcon,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                // Fallback to check icon if asset not found
+                return const Icon(
+                  Icons.check,
+                  color: Colors.white,
+                  size: 60,
+                );
+              },
             ),
           ),
           const SizedBox(height: 24),

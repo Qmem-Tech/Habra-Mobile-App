@@ -38,6 +38,10 @@ class AppAssets {
   /// Expected path: assets/icons/ic_close.png
   static const String icClose = '$_iconsPath/ic_close.png';
 
+  /// Success icon for payment/order confirmation
+  /// Expected path: assets/icons/success_icon.png
+  static const String successIcon = '$_iconsPath/success_icon.png';
+
   // ==================== Home Feature Assets ====================
   /// Placeholder image for events
   /// Expected path: assets/images/home/event_placeholder.png
@@ -84,6 +88,7 @@ class AppAssets {
       onboardingCoffeeShop,
       onboardingGrowTogether,
       icClose,
+      successIcon,
     ];
   }
 }
