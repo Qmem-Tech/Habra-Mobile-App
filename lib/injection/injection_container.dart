@@ -17,6 +17,7 @@ import '../features/auth/domain/usecases/login_usecase.dart';
 import '../features/auth/domain/usecases/logout_usecase.dart';
 import '../features/auth/domain/usecases/register_usecase.dart';
 import '../features/auth/domain/usecases/login_as_guest_usecase.dart';
+import '../features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 
 // Splash feature
 import '../features/splash/data/repositories/splash_repository_impl.dart';
@@ -121,6 +122,7 @@ Future<void> init() async {
   sl.registerLazySingleton(() => LogoutUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => RegisterUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => LoginAsGuestUseCase(sl<AuthRepository>()));
+  sl.registerLazySingleton(() => SignInWithGoogleUseCase(sl<AuthRepository>()));
 
   // Features - Splash
   sl.registerLazySingleton<SplashRepository>(

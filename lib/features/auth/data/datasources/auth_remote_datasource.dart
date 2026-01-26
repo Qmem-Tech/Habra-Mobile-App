@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../models/user_model.dart';
 import '../../../../core/error/exceptions.dart';
@@ -8,6 +10,7 @@ import '../../domain/entities/user.dart';
 abstract class AuthRemoteDataSource {
   Future<UserModel> login(String email, String password);
   Future<UserModel> loginAsGuest();
+  Future<UserModel> signInWithGoogle();
   Future<UserModel> register(
     String email,
     String password,
@@ -19,6 +22,7 @@ abstract class AuthRemoteDataSource {
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final FirebaseServices firebaseServices;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   AuthRemoteDataSourceImpl(this.firebaseServices);
 
@@ -114,6 +118,90 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
+  Future<UserModel> signInWithGoogle() async {
+    try {
+      // Trigger the Google Sign-In flow
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      
+      if (googleUser == null) {
+        // User cancelled the sign-in
+        throw ServerException('Google sign-in was cancelled');
+      }
+
+      // Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Create a new credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase with the Google credential
+      final userCredential = await firebaseServices.habraAuth.signInWithCredential(credential);
+      final user = userCredential.user;
+      
+      if (user == null) {
+        throw ServerException('Google sign-in failed');
+      }
+
+      // Check if user document exists in Firestore
+      final docRef = _usersCollection.doc(user.uid);
+      final doc = await docRef.get();
+
+      if (!doc.exists) {
+        // Create user profile in Firestore
+        final displayName = user.displayName ?? googleUser.displayName ?? '';
+        final email = user.email ?? googleUser.email ?? '';
+        
+        final data = {
+          'uid': user.uid,
+          'email': email,
+          'name': displayName,
+          'role': 'customer',
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        await docRef.set(data);
+        
+        return UserModel.fromFirebase(
+          uid: user.uid,
+          email: email,
+          name: displayName,
+          roleString: 'customer',
+        );
+      }
+
+      // Update user profile if needed
+      final data = doc.data()!;
+      final displayName = user.displayName ?? googleUser.displayName ?? data['name'] as String? ?? '';
+      final email = user.email ?? googleUser.email ?? data['email'] as String? ?? '';
+      
+      // Update if name or email changed
+      if (displayName.isNotEmpty && displayName != data['name']) {
+        await docRef.update({
+          'name': displayName,
+          'email': email,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      return UserModel.fromFirebase(
+        uid: user.uid,
+        email: email,
+        name: displayName,
+        roleString: data['role'] as String? ?? 'customer',
+      );
+    } catch (e) {
+      // If it's already a ServerException, rethrow it
+      if (e is ServerException) {
+        rethrow;
+      }
+      throw ServerException('Google sign-in failed: ${e.toString()}');
+    }
+  }
+
+  @override
   Future<UserModel> register(
     String email,
     String password,
@@ -161,6 +249,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> logout() async {
     try {
+      // Sign out from Google
+      await _googleSignIn.signOut();
+      // Sign out from Firebase
       await firebaseServices.habraAuth.signOut();
     } catch (e) {
       throw ServerException(e.toString());

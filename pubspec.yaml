@@ -30,6 +30,7 @@ dependencies:
   firebase_analytics: ^10.7.4
   firebase_crashlytics: ^3.4.9
   firebase_remote_config: ^4.3.10
+  google_sign_in: ^6.1.6
 
   # Networking
   dio: ^5.4.0

@@ -1,17 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../bloc/auth_cubit.dart';
+import '../bloc/auth_state.dart';
+import '../../domain/entities/user.dart';
+import '../../../home/presentation/pages/customer_home_page.dart';
+import '../../../home/presentation/pages/business_owner_home_page.dart';
+import '../../../home/presentation/pages/admin_home_page.dart';
+import '../../../home/presentation/pages/guest_home_page.dart';
 import 'email_sign_up_page.dart';
-import 'phone_sign_up_page.dart';
 import 'sign_in_page.dart';
 
 class SignUpOptionsPage extends StatelessWidget {
   const SignUpOptionsPage({super.key});
 
+  void _handleNavigationForUser(BuildContext context, User user) {
+    Widget destination;
+    switch (user.role) {
+      case UserRole.businessOwner:
+        destination = BusinessOwnerHomePage(user: user);
+        break;
+      case UserRole.admin:
+        destination = AdminHomePage(user: user);
+        break;
+      case UserRole.guest:
+        destination = GuestHomePage(user: user);
+        break;
+      case UserRole.customer:
+      default:
+        destination = CustomerHomePage(user: user);
+        break;
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => destination),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return BlocConsumer<AuthCubit, AuthState>(
+      listener: (context, state) {
+        if (state is AuthError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message)),
+          );
+        } else if (state is AuthAuthenticated) {
+          _handleNavigationForUser(context, state.user);
+        }
+      },
+      builder: (context, state) {
+        final isLoading = state is AuthLoading;
+        return Scaffold(
       backgroundColor: AppColors.backgroundWhite,
       appBar: AppBar(
         backgroundColor: AppColors.backgroundWhite,
@@ -74,23 +116,6 @@ class SignUpOptionsPage extends StatelessWidget {
               ),
               const SizedBox(height: AppResources.spacingM),
 
-              // Continue with Phone button
-              _buildSignUpButton(
-                icon: Icons.phone,
-                label: 'Continue with Phone',
-                backgroundColor: AppColors.backgroundWhite,
-                textColor: AppColors.brandPrimary,
-                iconColor: AppColors.brandPrimary,
-                borderColor: AppColors.brandPrimaryLight,
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const PhoneSignUpPage(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: AppResources.spacingM),
 
               // OR separator
               Row(
@@ -116,12 +141,11 @@ class SignUpOptionsPage extends StatelessWidget {
                 textColor: AppColors.textSecondary,
                 iconColor: AppColors.textSecondary,
                 borderColor: AppColors.backgroundGrey,
-                onPressed: () {
-                  // TODO: Implement Google sign in
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Google sign in coming soon')),
-                  );
-                },
+                onPressed: isLoading
+                    ? () {}
+                    : () {
+                        context.read<AuthCubit>().signInWithGoogle();
+                      },
               ),
               const SizedBox(height: AppResources.spacingM),
 
@@ -171,6 +195,8 @@ class SignUpOptionsPage extends StatelessWidget {
           ),
         ),
       ),
+        );
+      },
     );
   }
 

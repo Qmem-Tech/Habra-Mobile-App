@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:habra_mobile_app/features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 import 'package:habra_mobile_app/l10n/app_localizations.dart';
 
 import 'injection/injection_container.dart' as di;
@@ -9,7 +10,7 @@ import 'core/theme/theme_cubit.dart';
 import 'core/theme/theme_state.dart';
 import 'core/theme/app_theme.dart';
 import 'core/localization/localization_cubit.dart';
-import 'features/auth/presentation/pages/login_page.dart';
+import 'features/auth/presentation/pages/sign_in_page.dart';
 import 'features/auth/presentation/bloc/auth_cubit.dart';
 import 'features/auth/domain/usecases/login_usecase.dart';
 import 'features/auth/domain/usecases/logout_usecase.dart';
@@ -52,6 +53,7 @@ class MyApp extends StatelessWidget {
             logoutUseCase: di.sl<LogoutUseCase>(),
             registerUseCase: di.sl<RegisterUseCase>(),
             loginAsGuestUseCase: di.sl<LoginAsGuestUseCase>(),
+            signInWithGoogleUseCase: di.sl<SignInWithGoogleUseCase>(),
           ),
         ),
         BlocProvider(

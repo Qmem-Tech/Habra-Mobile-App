@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
-import '../../../auth/presentation/pages/login_page.dart';
+import '../../../auth/presentation/pages/sign_in_page.dart';
 
 class NavigationDrawer extends StatelessWidget {
   final String userId;
@@ -312,7 +312,7 @@ class NavigationDrawer extends StatelessWidget {
             Navigator.pop(context);
             context.read<AuthCubit>().logout();
             Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const LoginPage()),
+              MaterialPageRoute(builder: (_) => const SignInPage()),
               (route) => false,
             );
           },

@@ -83,15 +83,15 @@ class _SignInPageState extends State<SignInPage> {
             }
           },
           builder: (context, state) {
-            if (state is AuthLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppResources.spacingL,
-                vertical: AppResources.spacingM,
-              ),
-              child: Form(
+            final isLoading = state is AuthLoading;
+            return Stack(
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppResources.spacingL,
+                    vertical: AppResources.spacingM,
+                  ),
+                  child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,15 +105,16 @@ class _SignInPageState extends State<SignInPage> {
                     ),
                     const SizedBox(height: AppResources.spacingXXL),
 
-                    // Email or Phone field
+                    // Email field
                     Text(
-                      'Email or Phone',
+                      'Email',
                       style: AppFonts.body(color: AppColors.textPrimary),
                     ),
                     const SizedBox(height: AppResources.spacingS),
                     TextFormField(
                       controller: _emailOrPhoneController,
                       keyboardType: TextInputType.emailAddress,
+                      enabled: !isLoading,
                       decoration: InputDecoration(
                         hintText: 'email@example.com',
                         hintStyle: AppFonts.body(color: AppColors.textTertiary),
@@ -132,7 +133,10 @@ class _SignInPageState extends State<SignInPage> {
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your email or phone';
+                          return 'Please enter your email';
+                        }
+                        if (!value.contains('@')) {
+                          return 'Please enter a valid email';
                         }
                         return null;
                       },
@@ -147,6 +151,7 @@ class _SignInPageState extends State<SignInPage> {
                     const SizedBox(height: AppResources.spacingS),
                     TextFormField(
                       controller: _passwordController,
+                      enabled: !isLoading,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         hintText: 'Enter your password',
@@ -222,14 +227,16 @@ class _SignInPageState extends State<SignInPage> {
                       width: double.infinity,
                       height: AppResources.buttonHeightM,
                       child: ElevatedButton(
-                        onPressed: () {
-                          if (_formKey.currentState!.validate()) {
-                            context.read<AuthCubit>().login(
-                                  _emailOrPhoneController.text,
-                                  _passwordController.text,
-                                );
-                          }
-                        },
+                        onPressed: (state is AuthLoading)
+                            ? null
+                            : () {
+                                if (_formKey.currentState!.validate()) {
+                                  context.read<AuthCubit>().login(
+                                        _emailOrPhoneController.text.trim(),
+                                        _passwordController.text,
+                                      );
+                                }
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.brandPrimary,
                           foregroundColor: AppColors.textOnPrimary,
@@ -238,10 +245,19 @@ class _SignInPageState extends State<SignInPage> {
                             borderRadius: BorderRadius.circular(AppResources.radiusM),
                           ),
                         ),
-                        child: Text(
-                          'Sign In',
-                          style: AppFonts.button(color: AppColors.textOnPrimary),
-                        ),
+                        child: (state is AuthLoading)
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Text(
+                                'Sign In',
+                                style: AppFonts.button(color: AppColors.textOnPrimary),
+                              ),
                       ),
                     ),
                     const SizedBox(height: AppResources.spacingM),
@@ -295,12 +311,11 @@ class _SignInPageState extends State<SignInPage> {
                       width: double.infinity,
                       height: AppResources.buttonHeightM,
                       child: OutlinedButton(
-                        onPressed: () {
-                          // TODO: Implement Google sign in
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Google sign in coming soon')),
-                          );
-                        },
+                        onPressed: (state is AuthLoading)
+                            ? null
+                            : () {
+                                context.read<AuthCubit>().signInWithGoogle();
+                              },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.textSecondary,
                           side: BorderSide(color: AppColors.backgroundGrey),
@@ -311,7 +326,14 @@ class _SignInPageState extends State<SignInPage> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.g_mobiledata, color: AppColors.textSecondary),
+                            Image.asset(
+                              'assets/icons/google_icon.png',
+                              height: 24,
+                              width: 24,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Icons.g_mobiledata, color: AppColors.textSecondary);
+                              },
+                            ),
                             const SizedBox(width: AppResources.spacingM),
                             Text(
                               'Sign In with Google',
@@ -358,6 +380,15 @@ class _SignInPageState extends State<SignInPage> {
                   ],
                 ),
               ),
+              ),
+                if (isLoading)
+                  Container(
+                    color: Colors.black.withOpacity(0.3),
+                    child: const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+              ],
             );
           },
         ),

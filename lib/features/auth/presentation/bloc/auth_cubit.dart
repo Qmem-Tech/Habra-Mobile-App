@@ -3,6 +3,7 @@ import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
 import '../../domain/usecases/login_as_guest_usecase.dart';
+import '../../domain/usecases/sign_in_with_google_usecase.dart';
 import '../../domain/entities/user.dart';
 import 'auth_state.dart';
 
@@ -11,12 +12,14 @@ class AuthCubit extends Cubit<AuthState> {
   final LogoutUseCase logoutUseCase;
   final RegisterUseCase registerUseCase;
   final LoginAsGuestUseCase loginAsGuestUseCase;
+  final SignInWithGoogleUseCase signInWithGoogleUseCase;
 
   AuthCubit({
     required this.loginUseCase,
     required this.logoutUseCase,
     required this.registerUseCase,
     required this.loginAsGuestUseCase,
+    required this.signInWithGoogleUseCase,
   }) : super(AuthInitial());
 
   Future<void> login(String email, String password) async {
@@ -45,6 +48,15 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> loginAsGuest() async {
     emit(AuthLoading());
     final result = await loginAsGuestUseCase();
+    result.fold(
+      (failure) => emit(AuthError(failure.message)),
+      (user) => emit(AuthAuthenticated(user)),
+    );
+  }
+
+  Future<void> signInWithGoogle() async {
+    emit(AuthLoading());
+    final result = await signInWithGoogleUseCase();
     result.fold(
       (failure) => emit(AuthError(failure.message)),
       (user) => emit(AuthAuthenticated(user)),
