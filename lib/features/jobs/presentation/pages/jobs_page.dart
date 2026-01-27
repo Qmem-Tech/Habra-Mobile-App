@@ -43,8 +43,8 @@ class _JobsPageState extends State<JobsPage> {
     super.dispose();
   }
 
-  void _loadJobs(JobsCubit? cubit) {
-    final jobsCubit = cubit ?? context.read<JobsCubit>();
+  void _loadJobs(BuildContext? context, JobsCubit? cubit) {
+    final jobsCubit = cubit ?? (context ?? this.context).read<JobsCubit>();
     jobsCubit.loadJobs(
       location: _currentLocation,
       filters: _activeFilters,
@@ -68,7 +68,7 @@ class _JobsPageState extends State<JobsPage> {
       setState(() {
         _activeFilters = filters;
       });
-      _loadJobs(null);
+      _loadJobs(context, null);
     }
   }
 
@@ -125,7 +125,7 @@ class _JobsPageState extends State<JobsPage> {
 
                       return RefreshIndicator(
                       onRefresh: () async {
-                        _loadJobs(null);
+                        _loadJobs(context, null);
                       },
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.all(16),
@@ -251,7 +251,7 @@ class _JobsPageState extends State<JobsPage> {
           ),
         ),
         onChanged: (value) {
-          _loadJobs(null);
+          _loadJobs(context, null);
         },
       ),
     );
@@ -288,7 +288,15 @@ class _JobsPageState extends State<JobsPage> {
                           .copyWith(categories: [category]);
                     }
                   });
-                  _loadJobs(null);
+                  // Use the context from BlocBuilder
+                  final cubit = context.read<JobsCubit>();
+                  cubit.loadJobs(
+                    location: _currentLocation,
+                    filters: _activeFilters,
+                    searchQuery: _searchController.text.isEmpty
+                        ? null
+                        : _searchController.text,
+                  );
                 },
               );
             },
