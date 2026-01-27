@@ -5,6 +5,8 @@ abstract class LocalStorage {
   Future<String?> getString(String key);
   Future<void> setBool(String key, bool value);
   Future<bool?> getBool(String key);
+  Future<void> setStringList(String key, List<String> value);
+  Future<List<String>?> getStringList(String key);
   Future<void> remove(String key);
   Future<void> clear();
 }
@@ -32,6 +34,16 @@ class LocalStorageImpl implements LocalStorage {
   @override
   Future<bool?> getBool(String key) async {
     return sharedPreferences.getBool(key);
+  }
+
+  @override
+  Future<void> setStringList(String key, List<String> value) async {
+    await sharedPreferences.setStringList(key, value);
+  }
+
+  @override
+  Future<List<String>?> getStringList(String key) async {
+    return sharedPreferences.getStringList(key);
   }
 
   @override

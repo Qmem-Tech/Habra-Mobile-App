@@ -3,6 +3,7 @@ import '../../core/theme/app_colors.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/events/presentation/pages/events_page.dart';
 import '../../features/explore/presentation/pages/explore_page.dart';
+import '../../features/jobs/presentation/pages/jobs_page.dart';
 
 // Global key to access navigation from anywhere
 final GlobalKey<NavigatorState> mainNavigatorKey = GlobalKey<NavigatorState>();
@@ -77,7 +78,7 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
           EventsPage(location: widget.eventsLocation ?? 'Washington, D.C.'),
           const ExplorePage(),
           _buildPlaceholderPage('Messages'),
-          _buildPlaceholderPage('Jobs'),
+          JobsPage(initialLocation: widget.eventsLocation ?? 'Washington, D.C.'),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

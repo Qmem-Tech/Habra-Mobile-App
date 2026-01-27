@@ -74,6 +74,7 @@ flutter:
     - assets/images/events/
     - assets/images/deals/
     - assets/images/businesses/
+    - assets/images/jobs/
     - assets/icons/
     - assets/logos/
 

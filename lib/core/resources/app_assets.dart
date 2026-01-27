@@ -67,6 +67,32 @@ class AppAssets {
   /// Expected path: assets/images/home/no_results.png
   static const String noResults = '$_imagesPath/home/no_results.png';
 
+  // ==================== Jobs Feature Assets ====================
+  /// Jobs folder base path
+  static const String _jobsPath = '$_imagesPath/jobs';
+
+  /// Cultural night hero image - Used for featured jobs, job cards, and general job illustrations
+  /// Expected path: assets/images/jobs/cultural_night_hero.png
+  static const String jobsCulturalNightHero = '$_jobsPath/cultural_night_hero.png';
+
+  /// Cultural night image - Used for job listings, empty states, and general illustrations
+  /// Expected path: assets/images/jobs/cultural_night.png
+  static const String jobsCulturalNight = '$_jobsPath/cultural_night.png';
+
+  /// Teddy afro concert image - Used for job cards, featured jobs, and illustrations
+  /// Expected path: assets/images/jobs/teddy_afro_concert.png
+  static const String jobsTeddyAfroConcert = '$_jobsPath/teddy_afro_concert.png';
+
+  // Convenience aliases for specific use cases (can reuse the same images)
+  /// Empty state illustration for no jobs found
+  static const String noJobsFound = jobsCulturalNight;
+
+  /// Empty state illustration for no applications
+  static const String noApplications = jobsTeddyAfroConcert;
+
+  /// Success icon/illustration for application submitted
+  static const String applicationSubmitted = jobsCulturalNightHero;
+
   // ==================== Helper Methods ====================
   /// Get asset path with optional fallback
   ///

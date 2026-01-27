@@ -77,6 +77,23 @@ import '../features/explore/presentation/bloc/businesses_cubit.dart';
 import '../features/explore/presentation/bloc/deals_cubit.dart';
 import '../features/explore/presentation/bloc/reviews_cubit.dart';
 
+// Jobs feature
+import '../features/jobs/data/datasources/jobs_remote_datasource.dart';
+import '../features/jobs/data/datasources/jobs_local_datasource.dart';
+import '../features/jobs/data/datasources/job_applications_remote_datasource.dart';
+import '../features/jobs/data/repositories/jobs_repository_impl.dart';
+import '../features/jobs/data/repositories/job_applications_repository_impl.dart';
+import '../features/jobs/domain/repositories/jobs_repository.dart';
+import '../features/jobs/domain/repositories/job_applications_repository.dart';
+import '../features/jobs/domain/usecases/get_jobs_usecase.dart';
+import '../features/jobs/domain/usecases/get_job_detail_usecase.dart';
+import '../features/jobs/domain/usecases/toggle_bookmark_usecase.dart';
+import '../features/jobs/domain/usecases/get_job_categories_usecase.dart';
+import '../features/jobs/domain/usecases/submit_application_usecase.dart';
+import '../features/jobs/domain/usecases/get_applications_usecase.dart';
+import '../features/jobs/presentation/bloc/jobs_cubit.dart';
+import '../features/jobs/presentation/bloc/job_applications_cubit.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
@@ -256,5 +273,51 @@ Future<void> init() async {
   sl.registerFactory(() => ReviewsCubit(
     getBusinessReviewsUseCase: sl<GetBusinessReviewsUseCase>(),
     writeReviewUseCase: sl<WriteReviewUseCase>(),
+  ));
+
+  // Features - Jobs
+  // Data sources
+  sl.registerLazySingleton<JobsRemoteDataSource>(
+    () => JobsRemoteDataSourceImpl(),
+  );
+  sl.registerLazySingleton<JobsLocalDataSource>(
+    () => JobsLocalDataSourceImpl(sl<LocalStorage>()),
+  );
+  sl.registerLazySingleton<JobApplicationsRemoteDataSource>(
+    () => JobApplicationsRemoteDataSourceImpl(),
+  );
+
+  // Repositories
+  sl.registerLazySingleton<JobsRepository>(
+    () => JobsRepositoryImpl(
+      remoteDataSource: sl<JobsRemoteDataSource>(),
+      localDataSource: sl<JobsLocalDataSource>(),
+      networkInfo: sl<NetworkInfo>(),
+    ),
+  );
+  sl.registerLazySingleton<JobApplicationsRepository>(
+    () => JobApplicationsRepositoryImpl(
+      remoteDataSource: sl<JobApplicationsRemoteDataSource>(),
+    ),
+  );
+
+  // Use cases
+  sl.registerLazySingleton(() => GetJobsUseCase(sl<JobsRepository>()));
+  sl.registerLazySingleton(() => GetJobDetailUseCase(sl<JobsRepository>()));
+  sl.registerLazySingleton(() => ToggleBookmarkUseCase(sl<JobsRepository>()));
+  sl.registerLazySingleton(() => GetJobCategoriesUseCase(sl<JobsRepository>()));
+  sl.registerLazySingleton(() => SubmitApplicationUseCase(sl<JobApplicationsRepository>()));
+  sl.registerLazySingleton(() => GetApplicationsUseCase(sl<JobApplicationsRepository>()));
+
+  // Cubits
+  sl.registerFactory(() => JobsCubit(
+    getJobsUseCase: sl<GetJobsUseCase>(),
+    getJobDetailUseCase: sl<GetJobDetailUseCase>(),
+    toggleBookmarkUseCase: sl<ToggleBookmarkUseCase>(),
+    getJobCategoriesUseCase: sl<GetJobCategoriesUseCase>(),
+  ));
+  sl.registerFactory(() => JobApplicationsCubit(
+    submitApplicationUseCase: sl<SubmitApplicationUseCase>(),
+    getApplicationsUseCase: sl<GetApplicationsUseCase>(),
   ));
 }
