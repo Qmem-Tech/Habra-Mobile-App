@@ -22,7 +22,7 @@ class DirectoryPage extends StatefulWidget {
 class _DirectoryPageState extends State<DirectoryPage> {
   final TextEditingController _searchController = TextEditingController();
   BusinessCategory _selectedCategory = BusinessCategory.all;
-  String? _currentLocation = 'Washington, D.C.';
+  final String _currentLocation = 'Washington, D.C.';
 
   @override
   void initState() {
@@ -116,11 +116,11 @@ class _DirectoryPageState extends State<DirectoryPage> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.backgroundGrey.withOpacity(0.5)),
+                border: Border.all(color: AppColors.backgroundGrey.withValues(alpha:0.5)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.search, color: AppColors.textSecondary.withOpacity(0.7), size: 20),
+                  Icon(Icons.search, color: AppColors.textSecondary.withValues(alpha:0.7), size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: TextField(
@@ -227,7 +227,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
                 ),
               ),
               Text(
-                _currentLocation ?? 'Washington, D.C.',
+                _currentLocation,
                 style: TextStyle(
                   fontSize: 14,
                   color: AppColors.textSecondary,

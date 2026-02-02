@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -34,7 +33,6 @@ class WelcomePage extends StatelessWidget {
         destination = GuestHomePage(user: user);
         break;
       case UserRole.customer:
-      default:
         destination = CustomerHomePage(user: user);
         break;
     }

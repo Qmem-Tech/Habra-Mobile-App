@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/resources/app_assets.dart';
 
 class ApplicationSubmittedPage extends StatelessWidget {
   final String jobTitle;
@@ -33,7 +32,7 @@ class ApplicationSubmittedPage extends StatelessWidget {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: AppColors.brandSecondary.withOpacity(0.2),
+                  color: AppColors.brandSecondary.withValues(alpha:0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -64,7 +63,7 @@ class ApplicationSubmittedPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.brandPrimaryLight.withOpacity(0.2),
+                  color: AppColors.brandPrimaryLight.withValues(alpha:0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -187,7 +186,7 @@ class ApplicationSubmittedPage extends StatelessWidget {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: AppColors.brandPrimaryLight.withOpacity(0.2),
+            color: AppColors.brandPrimaryLight.withValues(alpha:0.2),
             shape: BoxShape.circle,
           ),
           child: Center(

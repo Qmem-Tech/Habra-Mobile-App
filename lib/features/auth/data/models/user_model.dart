@@ -17,7 +17,6 @@ class UserModel extends User {
     );
   }
 
-  @override
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -52,6 +51,7 @@ class UserModel extends User {
       case 'guest':
         return UserRole.guest;
       case 'customer':
+        return UserRole.customer;
       default:
         return UserRole.customer;
     }
@@ -66,7 +66,6 @@ class UserModel extends User {
       case UserRole.guest:
         return 'guest';
       case UserRole.customer:
-      default:
         return 'customer';
     }
   }

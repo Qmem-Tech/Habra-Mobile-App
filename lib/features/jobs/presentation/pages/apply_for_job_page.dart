@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/job_applications_cubit.dart';
 import '../bloc/job_applications_state.dart';
@@ -32,7 +31,6 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
 
   String? _resumePath;
   String? _selectedScreeningAnswer;
-  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -159,7 +157,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha:0.1),
                       blurRadius: 4,
                       offset: const Offset(0, -2),
                     ),
@@ -217,7 +215,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.brandPrimaryLight.withOpacity(0.1),
+        color: AppColors.brandPrimaryLight.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -326,7 +324,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.brandPrimaryLight.withOpacity(0.1),
+              color: AppColors.brandPrimaryLight.withValues(alpha:0.1),
               border: Border.all(
                 color: AppColors.brandPrimary,
                 width: 2,
@@ -496,7 +494,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.brandPrimaryLight.withOpacity(0.2)
+              ? AppColors.brandPrimaryLight.withValues(alpha:0.2)
               : Colors.white,
           border: Border.all(
             color: isSelected

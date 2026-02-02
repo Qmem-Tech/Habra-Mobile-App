@@ -29,7 +29,6 @@ class SignUpOptionsPage extends StatelessWidget {
         destination = GuestHomePage(user: user);
         break;
       case UserRole.customer:
-      default:
         destination = CustomerHomePage(user: user);
         break;
     }
@@ -120,7 +119,7 @@ class SignUpOptionsPage extends StatelessWidget {
               // OR separator
               Row(
                 children: [
-                  Expanded(child: Divider(color: AppColors.textSecondary.withOpacity(0.3))),
+                  Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha:0.3))),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                     child: Text(
@@ -128,7 +127,7 @@ class SignUpOptionsPage extends StatelessWidget {
                       style: AppFonts.bodySmall(color: AppColors.textSecondary),
                     ),
                   ),
-                  Expanded(child: Divider(color: AppColors.textSecondary.withOpacity(0.3))),
+                  Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha:0.3))),
                 ],
               ),
               const SizedBox(height: AppResources.spacingM),

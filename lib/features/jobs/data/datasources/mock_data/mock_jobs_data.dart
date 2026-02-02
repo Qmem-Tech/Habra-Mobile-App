@@ -1,4 +1,3 @@
-import '../../../domain/entities/job_detail.dart';
 import '../../../domain/entities/job_listing.dart';
 import '../../models/job_detail_model.dart';
 import '../../models/job_listing_model.dart';

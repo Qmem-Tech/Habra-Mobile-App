@@ -241,7 +241,7 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
-                          color: AppColors.backgroundGrey.withOpacity(0.5),
+                          color: AppColors.backgroundGrey.withValues(alpha:0.5),
                           width: 0.5,
                         ),
                       ),
@@ -260,7 +260,7 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
                           ),
                           decoration: BoxDecoration(
                             color: isClosed
-                                ? AppColors.error.withOpacity(0.1)
+                                ? AppColors.error.withValues(alpha:0.1)
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(AppResources.radiusS),
                           ),

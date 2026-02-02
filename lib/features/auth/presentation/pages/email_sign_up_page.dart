@@ -50,7 +50,6 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
         destination = GuestHomePage(user: user);
         break;
       case UserRole.customer:
-      default:
         destination = CustomerHomePage(user: user);
         break;
     }
@@ -424,7 +423,7 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
               ),
               if (isLoading)
                 Container(
-                  color: Colors.black.withOpacity(0.3),
+                  color: Colors.black.withValues(alpha:0.3),
                   child: const Center(
                     child: CircularProgressIndicator(),
                   ),

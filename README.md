@@ -272,6 +272,10 @@ See `pubspec.yaml` for the complete list.
 
 ## 🐛 Troubleshooting
 
+### Full Clean Up -> The Master Command List 
+
+`flutter doctor; flutter clean; flutter pub cache repair; flutter pub get; dart run build_runner build --delete-conflicting-outputs; flutter gen-l10n; flutter analyze`
+
 ### Firebase Not Initialized
 
 - Ensure `google-services.json` (Android) or `GoogleService-Info.plist` (iOS) is in the correct location

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../widgets/empty_state_widget.dart';
 

@@ -210,7 +210,7 @@ class _EventFiltersPageState extends State<EventFiltersPage> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.brandPrimary.withOpacity(0.1) : Colors.white,
+          color: isSelected ? AppColors.brandPrimary.withValues(alpha:0.1) : Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,

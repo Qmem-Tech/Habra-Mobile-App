@@ -1,5 +1,4 @@
 import '../../../../core/storage/local_storage.dart';
-import '../../../../core/constants/storage_keys.dart';
 
 abstract class SearchLocalDataSource {
   Future<List<String>> getRecentSearches();

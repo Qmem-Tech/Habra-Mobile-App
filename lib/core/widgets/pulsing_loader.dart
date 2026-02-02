@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../resources/app_assets.dart';
-import 'dart:math' as math;
 
 /// Pulsing loader using app icon
 ///
@@ -77,7 +76,7 @@ class _PulsingLoaderState extends State<PulsingLoader>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: color.withOpacity(0.2),
+                    color: color.withValues(alpha: 0.2),
                     blurRadius: 8,
                     spreadRadius: 2,
                   ),

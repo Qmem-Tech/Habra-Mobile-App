@@ -1,4 +1,3 @@
-import '../../../domain/entities/job_application.dart';
 import '../../models/job_application_model.dart';
 
 class MockApplicationsData {

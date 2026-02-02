@@ -3,7 +3,6 @@ import '../models/event_detail_model.dart';
 import '../models/ticket_model.dart';
 import '../models/order_model.dart';
 import '../../domain/entities/event_filters.dart';
-import '../../domain/entities/event_category.dart';
 import 'mock_data/mock_events_data.dart';
 
 abstract class EventsRemoteDataSource {

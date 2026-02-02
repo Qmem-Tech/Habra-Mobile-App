@@ -68,7 +68,7 @@ class _HabraCircularLoaderState extends State<HabraCircularLoader>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: widget.fullScreen ? 12 : 4,
                     offset: Offset(0, widget.fullScreen ? 4 : 2),
                   ),
@@ -108,7 +108,7 @@ class _HabraCircularLoaderState extends State<HabraCircularLoader>
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
+                      color: Colors.black.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(

@@ -1,4 +1,3 @@
-import '../../../../core/error/exceptions.dart';
 import '../models/notification_model.dart';
 import 'mock_data/mock_notification_data.dart';
 

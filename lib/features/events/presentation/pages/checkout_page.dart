@@ -286,7 +286,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.brandPrimary.withOpacity(0.1) : Colors.white,
+          color: isSelected ? AppColors.brandPrimary.withValues(alpha:0.1) : Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,
@@ -467,7 +467,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha:0.05),
                 blurRadius: 10,
                 offset: const Offset(0, -2),
               ),
@@ -521,7 +521,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   void _processPayment(BuildContext context) {
     final cubit = context.read<TicketsCubit>();
-    final eventsCubit = context.read<EventsCubit>();
 
     // First create order
     cubit.createOrder(

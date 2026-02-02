@@ -94,7 +94,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: AppColors.brandPrimary.withOpacity(opacity.clamp(0.3, 1.0)),
+                  color: AppColors.brandPrimary.withValues(alpha: opacity.clamp(0.3, 1.0)),
                   shape: BoxShape.circle,
                 ),
               );
@@ -151,63 +151,70 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       },
       child: Scaffold(
         backgroundColor: AppColors.backgroundWhite,
-        body: Center(
-          child: AnimatedBuilder(
-            animation: _animationController,
-            builder: (context, child) {
-              return FadeTransition(
-                opacity: _fadeAnimation,
-                child: ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // App Logo
-                      Image.asset(
-                        AppAssets.splashLogo,
-                        width: AppResources.logoSizeSplash,
-                        height: AppResources.logoSizeSplash,
-                        errorBuilder: (context, error, stackTrace) {
-                          // Fallback if asset not found
-                          return Container(
-                            width: AppResources.logoSizeSplash,
-                            height: AppResources.logoSizeSplash,
-                            decoration: BoxDecoration(
-                              color: AppColors.brandPrimary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.people,
-                              color: AppColors.textOnPrimary,
-                              size: 60,
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: AppResources.spacingL),
-                      // App Name
-                      Text(
-                        'Habra',
-                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                              color: AppColors.brandPrimary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 32,
-                            ) ??
-                            const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.brandPrimary,
-                            ),
-                      ),
-                      const SizedBox(height: AppResources.spacingXL),
-                      // Loading dots
-                      _buildLoadingDots(),
-                    ],
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: AnimatedBuilder(
+                    animation: _animationController,
+                    builder: (context, child) {
+                      return FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: ScaleTransition(
+                          scale: _scaleAnimation,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.asset(
+                                AppAssets.splashLogo,
+                                width: AppResources.logoSizeSplash,
+                                height: AppResources.logoSizeSplash,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: AppResources.logoSizeSplash,
+                                    height: AppResources.logoSizeSplash,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.brandPrimary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.people,
+                                      color: AppColors.textOnPrimary,
+                                      size: 60,
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: AppResources.spacingL),
+                              Text(
+                                'Habra',
+                                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                      color: AppColors.brandPrimary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 32,
+                                    ) ??
+                                    const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.brandPrimary,
+                                    ),
+                              ),
+                              const SizedBox(height: AppResources.spacingXL),
+                              _buildLoadingDots(),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );

@@ -76,7 +76,7 @@ class BusinessSignInPage extends StatelessWidget {
               // OR separator
               Row(
                 children: [
-                  Expanded(child: Divider(color: AppColors.textSecondary.withOpacity(0.3))),
+                  Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha:0.3))),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                     child: Text(
@@ -84,7 +84,7 @@ class BusinessSignInPage extends StatelessWidget {
                       style: AppFonts.bodySmall(color: AppColors.textSecondary),
                     ),
                   ),
-                  Expanded(child: Divider(color: AppColors.textSecondary.withOpacity(0.3))),
+                  Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha:0.3))),
                 ],
               ),
               const SizedBox(height: AppResources.spacingM),

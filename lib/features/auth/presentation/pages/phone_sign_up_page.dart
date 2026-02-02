@@ -183,6 +183,7 @@ class _PhoneSignUpPageState extends State<PhoneSignUpPage> {
                           ),
                           const SizedBox(height: AppResources.spacingS),
                           DropdownButtonFormField<String>(
+                            // ignore: deprecated_member_use - use initialValue when form API is updated
                             value: _selectedCountryCode,
                             decoration: InputDecoration(
                               border: OutlineInputBorder(

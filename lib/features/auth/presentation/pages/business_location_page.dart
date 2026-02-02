@@ -115,7 +115,7 @@ class _BusinessLocationPageState extends State<BusinessLocationPage> {
                       style: AppFonts.button(color: AppColors.brandPrimary),
                     ),
                     style: OutlinedButton.styleFrom(
-                      backgroundColor: AppColors.brandPrimaryLight.withOpacity(0.1),
+                      backgroundColor: AppColors.brandPrimaryLight.withValues(alpha:0.1),
                       foregroundColor: AppColors.brandPrimary,
                       side: BorderSide(color: AppColors.brandPrimaryLight),
                       shape: RoundedRectangleBorder(

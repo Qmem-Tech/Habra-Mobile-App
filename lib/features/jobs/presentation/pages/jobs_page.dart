@@ -8,8 +8,6 @@ import '../bloc/jobs_state.dart';
 import '../widgets/featured_job_card.dart';
 import '../widgets/recent_job_card.dart';
 import '../widgets/job_category_chip.dart';
-import '../widgets/empty_state_widget.dart';
-import '../../../../core/resources/app_assets.dart';
 import '../../domain/entities/job_filters.dart';
 import 'job_detail_page.dart';
 import 'job_filters_bottom_sheet.dart';
@@ -68,6 +66,7 @@ class _JobsPageState extends State<JobsPage> {
       setState(() {
         _activeFilters = filters;
       });
+      if (!context.mounted) return;
       _loadJobs(context, null);
     }
   }
@@ -172,7 +171,7 @@ class _JobsPageState extends State<JobsPage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.brandPrimaryLight.withOpacity(0.2),
+                  color: AppColors.brandPrimaryLight.withValues(alpha:0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(

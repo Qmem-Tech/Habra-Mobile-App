@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
-import '../../../../core/widgets/pulsing_loader.dart';
 import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../../domain/entities/location_entity.dart';
 import '../../domain/entities/event.dart';
@@ -215,10 +214,10 @@ class _HomePageState extends State<HomePage> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.backgroundGrey.withOpacity(0.5)),
+              border: Border.all(color: AppColors.backgroundGrey.withValues(alpha:0.5)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha:0.03),
                   blurRadius: 4,
                   offset: const Offset(0, 1),
                 ),
@@ -226,7 +225,7 @@ class _HomePageState extends State<HomePage> {
             ),
             child: Row(
               children: [
-                Icon(Icons.search, color: AppColors.textSecondary.withOpacity(0.7), size: 20),
+                Icon(Icons.search, color: AppColors.textSecondary.withValues(alpha:0.7), size: 20),
                 const SizedBox(width: 12),
                 Text(
                   'Find business, event...',

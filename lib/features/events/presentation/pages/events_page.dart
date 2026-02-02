@@ -196,11 +196,11 @@ class _EventsPageState extends State<EventsPage> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.backgroundGrey.withOpacity(0.5)),
+                  border: Border.all(color: AppColors.backgroundGrey.withValues(alpha:0.5)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.search, color: AppColors.textSecondary.withOpacity(0.7), size: 20),
+                    Icon(Icons.search, color: AppColors.textSecondary.withValues(alpha:0.7), size: 20),
                     const SizedBox(width: 12),
                     Text(
                       'Search events...',
@@ -229,6 +229,7 @@ class _EventsPageState extends State<EventsPage> {
                 setState(() {
                   _activeFilters = filters;
                 });
+                if (!context.mounted) return;
                 _loadEvents(context);
               }
             },

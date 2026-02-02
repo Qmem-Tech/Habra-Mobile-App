@@ -114,7 +114,7 @@ class _InterestsSelectionPageState extends State<InterestsSelectionPage> {
                       padding: const EdgeInsets.all(AppResources.spacingM),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? AppColors.brandPrimaryLight.withOpacity(0.1)
+                            ? AppColors.brandPrimaryLight.withValues(alpha:0.1)
                             : AppColors.backgroundWhite,
                         border: Border.all(
                           color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,
@@ -132,7 +132,7 @@ class _InterestsSelectionPageState extends State<InterestsSelectionPage> {
                                 width: 56,
                                 height: 56,
                                 decoration: BoxDecoration(
-                                  color: AppColors.brandSecondary.withOpacity(0.2),
+                                  color: AppColors.brandSecondary.withValues(alpha:0.2),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(

@@ -94,7 +94,7 @@ class EventDetailPage extends StatelessWidget {
         icon: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha:0.5),
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.arrow_back, color: Colors.white),
@@ -106,7 +106,7 @@ class EventDetailPage extends StatelessWidget {
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha:0.5),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.share, color: Colors.white),
@@ -158,9 +158,7 @@ class EventDetailPage extends StatelessWidget {
           _buildInfoRow(
             Icons.calendar_today,
             DateFormat('EEE, MMM d').format(event.startDate),
-            DateFormat('h:mm a').format(event.startDate) +
-                ' - ' +
-                DateFormat('h:mm a').format(event.endDate),
+            '${DateFormat('h:mm a').format(event.startDate)} - ${DateFormat('h:mm a').format(event.endDate)}',
           ),
           const SizedBox(height: 16),
           _buildInfoRow(
@@ -180,7 +178,7 @@ class EventDetailPage extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppColors.brandPrimary.withOpacity(0.1),
+            color: AppColors.brandPrimary.withValues(alpha:0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: AppColors.brandPrimary, size: 20),

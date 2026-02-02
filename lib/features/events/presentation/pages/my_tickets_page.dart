@@ -102,7 +102,7 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.backgroundLight.withOpacity(0.8) : Colors.transparent,
+          color: isSelected ? AppColors.backgroundLight.withValues(alpha:0.8) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(

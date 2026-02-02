@@ -236,7 +236,7 @@ class NotificationPage extends StatelessWidget {
       width: 48,
       height: 48,
       decoration: BoxDecoration(
-        color: AppColors.brandPrimary.withOpacity(0.1),
+        color: AppColors.brandPrimary.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(iconData, color: iconColor, size: 24),

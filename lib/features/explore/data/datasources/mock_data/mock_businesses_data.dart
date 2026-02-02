@@ -1,7 +1,6 @@
 import '../../../domain/entities/business_list_item.dart';
 import '../../../domain/entities/business_detail.dart';
 import '../../../domain/entities/deal.dart';
-import '../../../domain/entities/review.dart';
 import '../../../domain/entities/business_category.dart';
 import '../../models/business_list_item_model.dart';
 import '../../models/deal_model.dart';
@@ -203,8 +202,6 @@ class MockBusinessesData {
   }
 
   static BusinessDetail getBusinessDetail(String businessId) {
-    final now = DateTime.now();
-
     if (businessId == 'business_7' || businessId == 'blue_nile_kitchen') {
       return BusinessDetail(
         id: 'business_7',

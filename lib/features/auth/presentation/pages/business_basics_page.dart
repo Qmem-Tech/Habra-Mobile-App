@@ -184,6 +184,7 @@ class _BusinessBasicsPageState extends State<BusinessBasicsPage> {
                 ),
                 const SizedBox(height: AppResources.spacingS),
                 DropdownButtonFormField<String>(
+                  // ignore: deprecated_member_use - use initialValue when form API is updated
                   value: _selectedCategory,
                   decoration: InputDecoration(
                     hintText: 'Select a category',

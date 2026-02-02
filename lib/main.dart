@@ -6,11 +6,8 @@ import 'package:habra_mobile_app/l10n/app_localizations.dart';
 
 import 'injection/injection_container.dart' as di;
 import 'core/network/firebase/firebase_config.dart';
-import 'core/theme/theme_cubit.dart';
-import 'core/theme/theme_state.dart';
 import 'core/theme/app_theme.dart';
 import 'core/localization/localization_cubit.dart';
-import 'features/auth/presentation/pages/sign_in_page.dart';
 import 'features/auth/presentation/bloc/auth_cubit.dart';
 import 'features/auth/domain/usecases/login_usecase.dart';
 import 'features/auth/domain/usecases/logout_usecase.dart';
@@ -42,9 +39,6 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => di.sl<ThemeCubit>(),
-        ),
-        BlocProvider(
           create: (_) => di.sl<LocalizationCubit>(),
         ),
         BlocProvider(
@@ -71,31 +65,25 @@ class MyApp extends StatelessWidget {
         builder: (context) {
           return BlocBuilder<LocalizationCubit, LocalizationState>(
             builder: (context, localeState) {
-              return BlocBuilder<ThemeCubit, ThemeState>(
-                builder: (context, themeState) {
-                  return MaterialApp(
-                    title: 'Habra',
-                    debugShowCheckedModeBanner: false,
+              return MaterialApp(
+                title: 'Habra',
+                debugShowCheckedModeBanner: false,
 
-                    // Theme
-                    theme: AppTheme.lightTheme,
-                    darkTheme: AppTheme.darkTheme,
-                    themeMode: context.read<ThemeCubit>().themeMode,
+                // Theme – single light theme only
+                theme: AppTheme.theme,
 
-                    // Localization
-                    locale: localeState.locale,
-                    localizationsDelegates: const [
-                      AppLocalizations.delegate,
-                      GlobalMaterialLocalizations.delegate,
-                      GlobalWidgetsLocalizations.delegate,
-                      GlobalCupertinoLocalizations.delegate,
-                    ],
-                    supportedLocales: context.read<LocalizationCubit>().supportedLocales,
+                // Localization
+                locale: localeState.locale,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                supportedLocales: context.read<LocalizationCubit>().supportedLocales,
 
-                    // Home - Start with splash screen
-                    home: const SplashPage(),
-                  );
-                },
+                // Home - Start with splash screen
+                home: const SplashPage(),
               );
             },
           );

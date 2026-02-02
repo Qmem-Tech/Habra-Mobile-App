@@ -1,5 +1,4 @@
 import '../../domain/entities/deal.dart';
-import '../../domain/entities/business_list_item.dart';
 import 'business_list_item_model.dart';
 class DealModel extends Deal {
   const DealModel({

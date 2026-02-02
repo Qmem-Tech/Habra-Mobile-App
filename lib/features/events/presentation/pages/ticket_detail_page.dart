@@ -5,7 +5,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/tickets_cubit.dart';
-import '../bloc/tickets_state.dart';
 import 'package:intl/intl.dart';
 
 class TicketDetailPage extends StatefulWidget {

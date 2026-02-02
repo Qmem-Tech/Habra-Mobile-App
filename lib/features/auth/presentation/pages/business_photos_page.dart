@@ -177,7 +177,7 @@ class _BusinessPhotosPageState extends State<BusinessPhotosPage> {
                               width: 60,
                               height: 60,
                               decoration: BoxDecoration(
-                                color: AppColors.brandSecondary.withOpacity(0.2),
+                                color: AppColors.brandSecondary.withValues(alpha:0.2),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(

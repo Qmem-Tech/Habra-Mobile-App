@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import '../resources/app_resources.dart';
 
 /// Custom progress indicator for onboarding and similar flows
 ///

@@ -41,7 +41,7 @@ class NavigationDrawer extends StatelessWidget {
         color: Colors.white,
         border: Border(
           bottom: BorderSide(
-            color: AppColors.backgroundGrey.withOpacity(0.3),
+            color: AppColors.backgroundGrey.withValues(alpha:0.3),
             width: 1,
           ),
         ),
@@ -61,7 +61,7 @@ class NavigationDrawer extends StatelessWidget {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.brandPrimary.withOpacity(0.2),
+                      color: AppColors.brandPrimary.withValues(alpha:0.2),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -92,7 +92,7 @@ class NavigationDrawer extends StatelessWidget {
                     border: Border.all(color: Colors.white, width: 3),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha:0.1),
                         blurRadius: 4,
                         offset: const Offset(0, 1),
                       ),
@@ -119,7 +119,7 @@ class NavigationDrawer extends StatelessWidget {
             userEmail.isNotEmpty ? userEmail : 'user@example.com',
             style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary.withOpacity(0.8),
+              color: AppColors.textSecondary.withValues(alpha:0.8),
               fontWeight: FontWeight.w400,
             ),
             maxLines: 1,
@@ -242,7 +242,7 @@ class NavigationDrawer extends StatelessWidget {
       separatorBuilder: (context, index) => Divider(
         height: 1,
         thickness: 1,
-        color: AppColors.backgroundGrey.withOpacity(0.3),
+        color: AppColors.backgroundGrey.withValues(alpha:0.3),
         indent: 72,
       ),
       itemBuilder: (context, index) {
@@ -300,7 +300,7 @@ class NavigationDrawer extends StatelessWidget {
         color: Colors.white,
         border: Border(
           top: BorderSide(
-            color: AppColors.backgroundGrey.withOpacity(0.3),
+            color: AppColors.backgroundGrey.withValues(alpha:0.3),
             width: 1,
           ),
         ),

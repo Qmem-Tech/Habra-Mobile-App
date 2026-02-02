@@ -4,8 +4,6 @@ import '../../domain/entities/business_filters.dart';
 import '../../domain/entities/business_category.dart';
 import '../../domain/entities/deal.dart';
 import '../../domain/entities/review.dart';
-import '../models/business_list_item_model.dart';
-import '../models/deal_model.dart';
 import '../models/review_model.dart';
 import 'mock_data/mock_businesses_data.dart';
 

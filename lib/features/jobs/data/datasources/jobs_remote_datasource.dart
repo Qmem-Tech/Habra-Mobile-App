@@ -1,4 +1,3 @@
-import '../../../../core/error/failures.dart';
 import '../../domain/entities/job_detail.dart';
 import '../../domain/entities/job_filters.dart';
 import '../../domain/entities/job_listing.dart';

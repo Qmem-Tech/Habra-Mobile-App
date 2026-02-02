@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
-import 'city_selection_page.dart';
 
 class EmailVerificationPage extends StatelessWidget {
   final String email;

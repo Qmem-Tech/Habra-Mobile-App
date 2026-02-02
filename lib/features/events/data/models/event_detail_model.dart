@@ -1,6 +1,5 @@
 import '../../domain/entities/event_detail.dart';
 import '../../domain/entities/event_category.dart';
-import '../../domain/entities/ticket_type.dart';
 import 'ticket_type_model.dart';
 
 class EventDetailModel extends EventDetail {

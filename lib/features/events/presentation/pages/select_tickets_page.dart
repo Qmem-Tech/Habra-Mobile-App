@@ -6,11 +6,9 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/event_detail.dart';
 import '../../domain/entities/ticket_type.dart';
-import '../../domain/entities/selected_ticket.dart';
 import '../bloc/events_cubit.dart';
 import '../bloc/events_state.dart';
 import '../bloc/tickets_cubit.dart';
-import '../bloc/tickets_state.dart';
 import 'checkout_page.dart';
 import 'package:intl/intl.dart';
 
@@ -391,7 +389,7 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha:0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),

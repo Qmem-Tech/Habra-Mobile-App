@@ -20,16 +20,16 @@ class JobCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.backgroundGrey.withOpacity(0.3)),
+          border: Border.all(color: AppColors.backgroundGrey.withValues(alpha:0.3)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha:0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
               spreadRadius: 0,
             ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha:0.04),
               blurRadius: 4,
               offset: const Offset(0, 1),
               spreadRadius: 0,

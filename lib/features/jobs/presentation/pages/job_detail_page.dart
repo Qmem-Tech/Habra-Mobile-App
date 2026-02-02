@@ -86,7 +86,7 @@ class JobDetailPage extends StatelessWidget {
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha:0.1),
                       blurRadius: 4,
                       offset: const Offset(0, -2),
                     ),
@@ -159,17 +159,10 @@ class JobDetailPage extends StatelessWidget {
         ),
         BlocBuilder<JobsCubit, JobsState>(
           builder: (context, state) {
-            bool isBookmarked = false;
-            if (state is JobDetailLoaded) {
-              // Check if bookmarked - would need to track this
-            }
+            // TODO: track bookmark from cubit and toggle on pressed
             return IconButton(
-              icon: Icon(
-                isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                color: isBookmarked
-                    ? AppColors.brandSecondary
-                    : AppColors.textPrimary,
-              ),
+              icon: const Icon(Icons.bookmark_border),
+              color: AppColors.textPrimary,
               onPressed: () {
                 // TODO: Toggle bookmark
               },
@@ -188,7 +181,7 @@ class JobDetailPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha:0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -440,7 +433,7 @@ class JobDetailPage extends StatelessWidget {
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.brandPrimaryLight.withOpacity(0.2),
+                color: AppColors.brandPrimaryLight.withValues(alpha:0.2),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(

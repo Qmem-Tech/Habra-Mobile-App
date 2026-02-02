@@ -3,7 +3,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../domain/entities/order.dart' as events;
-import '../../domain/entities/ticket.dart';
 import 'my_tickets_page.dart';
 import 'package:intl/intl.dart';
 

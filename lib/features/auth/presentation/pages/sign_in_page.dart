@@ -46,7 +46,6 @@ class _SignInPageState extends State<SignInPage> {
         destination = GuestHomePage(user: user);
         break;
       case UserRole.customer:
-      default:
         destination = CustomerHomePage(user: user);
         break;
     }
@@ -293,7 +292,7 @@ class _SignInPageState extends State<SignInPage> {
                     // OR separator
                     Row(
                       children: [
-                        Expanded(child: Divider(color: AppColors.textSecondary.withOpacity(0.3))),
+                        Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha:0.3))),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                           child: Text(
@@ -301,7 +300,7 @@ class _SignInPageState extends State<SignInPage> {
                             style: AppFonts.bodySmall(color: AppColors.textSecondary),
                           ),
                         ),
-                        Expanded(child: Divider(color: AppColors.textSecondary.withOpacity(0.3))),
+                        Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha:0.3))),
                       ],
                     ),
                     const SizedBox(height: AppResources.spacingXL),
@@ -383,7 +382,7 @@ class _SignInPageState extends State<SignInPage> {
               ),
                 if (isLoading)
                   Container(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha:0.3),
                     child: const Center(
                       child: CircularProgressIndicator(),
                     ),

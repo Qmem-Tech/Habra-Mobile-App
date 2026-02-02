@@ -43,18 +43,6 @@ class AppColors {
   static const Color lightOnSurface = textPrimary;
   static const Color lightOnError = textOnPrimary;
 
-  // ==================== Dark Theme Colors ====================
-  static const Color darkPrimary = Color(0xFF4CAF50); // Lighter green for dark theme
-  static const Color darkSecondary = brandSecondary;
-  static const Color darkBackground = Color(0xFF121212);
-  static const Color darkSurface = Color(0xFF1E1E1E);
-  static const Color darkError = Color(0xFFCF6679);
-  static const Color darkOnPrimary = textPrimary;
-  static const Color darkOnSecondary = textPrimary;
-  static const Color darkOnBackground = textOnPrimary;
-  static const Color darkOnSurface = textOnPrimary;
-  static const Color darkOnError = textPrimary;
-
   // ==================== Status Colors ====================
   static const Color success = Color(0xFF4CAF50);
   static const Color warning = Color(0xFFFF9800);

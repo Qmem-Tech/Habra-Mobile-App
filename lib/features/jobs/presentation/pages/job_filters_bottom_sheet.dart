@@ -150,7 +150,7 @@ class _JobFiltersBottomSheetState extends State<JobFiltersBottomSheet> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha:0.1),
                   blurRadius: 4,
                   offset: const Offset(0, -2),
                 ),
@@ -332,7 +332,7 @@ class _JobFiltersBottomSheetState extends State<JobFiltersBottomSheet> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.brandPrimaryLight.withOpacity(0.2)
+                      ? AppColors.brandPrimaryLight.withValues(alpha:0.2)
                       : Colors.white,
                   border: Border.all(
                     color: isSelected

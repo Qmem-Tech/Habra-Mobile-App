@@ -2,6 +2,26 @@
 
 This directory contains reusable widgets used throughout the app.
 
+## Responsive & Overflow Prevention
+
+### AppText
+
+Text with overflow-safe defaults (`TextOverflow.ellipsis`, `maxLines: 1`). Use in cards, list items, and constrained layouts to avoid overflow on small devices.
+
+```dart
+import 'package:habra_mobile_app/core/widgets/app_text.dart';
+
+// Single-line with ellipsis (default)
+AppText('Title that may be long')
+
+// Multi-line (no ellipsis)
+AppText.body('Long description...')
+```
+
+### AppScrollView & ResponsiveScaffold
+
+See `core/responsive/` for [AppScrollView] and [ResponsiveScaffold]. Use for form-like pages and scrollable bodies to prevent overflow.
+
 ## Loaders
 
 ### HabraCircularLoader

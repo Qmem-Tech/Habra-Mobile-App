@@ -20,7 +20,7 @@ class DealsPage extends StatefulWidget {
 class _DealsPageState extends State<DealsPage> {
   final TextEditingController _searchController = TextEditingController();
   BusinessCategory _selectedCategory = BusinessCategory.all;
-  String? _currentLocation = 'Washington, D.C.';
+  final String _currentLocation = 'Washington, D.C.';
 
   @override
   void dispose() {
@@ -94,11 +94,11 @@ class _DealsPageState extends State<DealsPage> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.backgroundGrey.withOpacity(0.5)),
+                border: Border.all(color: AppColors.backgroundGrey.withValues(alpha:0.5)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.search, color: AppColors.textSecondary.withOpacity(0.7), size: 20),
+                  Icon(Icons.search, color: AppColors.textSecondary.withValues(alpha:0.7), size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: TextField(

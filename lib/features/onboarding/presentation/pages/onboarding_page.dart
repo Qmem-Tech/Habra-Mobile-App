@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../bloc/onboarding_cubit.dart';
 import '../bloc/onboarding_state.dart';
 import '../../domain/entities/onboarding_page_data.dart';
@@ -187,7 +186,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Illustration
-          Expanded(
+          Flexible(
             flex: 4,
             child: Image.asset(
               pageData.imageAsset,
@@ -211,34 +210,40 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
           const SizedBox(height: AppResources.spacingM),
 
-          // Title
-          Text(
-            pageData.title,
-            style: AppTextStyles.largeTitle(context, color: AppColors.textPrimary),
-            textAlign: TextAlign.center,
-          ),
-
-          const SizedBox(height: AppResources.spacingM),
-
-          // Description
-          Text(
-            pageData.description,
-            style: AppTextStyles.bodyDescription(context),
-            textAlign: TextAlign.center,
-          ),
-
-          // Tagline for last page
-          if (pageData.pageIndex == 2) ...[
-            const SizedBox(height: AppResources.spacingM),
-            Text(
-              '(Together we succeed)',
-              style: AppTextStyles.bodyDescription(
-                context,
-                color: AppColors.textTertiary,
+          // Title + description (scrollable on small screens)
+          Flexible(
+            flex: 1,
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    pageData.title,
+                    style: AppTextStyles.largeTitle(context, color: AppColors.textPrimary),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppResources.spacingM),
+                  Text(
+                    pageData.description,
+                    style: AppTextStyles.bodyDescription(context),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (pageData.pageIndex == 2) ...[
+                    const SizedBox(height: AppResources.spacingM),
+                    Text(
+                      '(Together we succeed)',
+                      style: AppTextStyles.bodyDescription(
+                        context,
+                        color: AppColors.textTertiary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ],
               ),
-              textAlign: TextAlign.center,
             ),
-          ],
+          ),
         ],
       ),
     );

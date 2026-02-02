@@ -151,7 +151,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
       if (!doc.exists) {
         // Create user profile in Firestore
+        // ignore: dead_null_aware_expression - both can be null across providers
         final displayName = user.displayName ?? googleUser.displayName ?? '';
+        // ignore: dead_null_aware_expression - both can be null across providers
         final email = user.email ?? googleUser.email ?? '';
         
         final data = {
@@ -174,7 +176,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
       // Update user profile if needed
       final data = doc.data()!;
+      // ignore: dead_null_aware_expression - multiple fallbacks for different providers
       final displayName = user.displayName ?? googleUser.displayName ?? data['name'] as String? ?? '';
+      // ignore: dead_null_aware_expression - multiple fallbacks for different providers
       final email = user.email ?? googleUser.email ?? data['email'] as String? ?? '';
       
       // Update if name or email changed

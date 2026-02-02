@@ -47,7 +47,7 @@ class AppButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppResources.radiusM),
           ),
-          disabledBackgroundColor: AppColors.brandPrimary.withOpacity(AppResources.opacityDisabled),
+          disabledBackgroundColor: AppColors.brandPrimary.withValues(alpha: AppResources.opacityDisabled),
         ),
         child: isLoading
             ? SizedBox(

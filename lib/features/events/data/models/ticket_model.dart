@@ -1,5 +1,4 @@
 import '../../domain/entities/ticket.dart';
-import '../../domain/entities/event_detail.dart';
 import 'event_detail_model.dart';
 
 class TicketModel extends Ticket {

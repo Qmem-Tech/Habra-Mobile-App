@@ -11,6 +11,7 @@ Welcome to the Habra Mobile App documentation! This folder contains all document
 ### Architecture & Design
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Clean Architecture overview and principles
 - **[NAMING_CONVENTIONS.md](./NAMING_CONVENTIONS.md)** - Code naming conventions and standards
+- **[DEVELOPMENT_RULES.md](./DEVELOPMENT_RULES.md)** - App development general rules we must always follow (e.g. who runs commands)
 
 ### Implementation Guides
 - **[APP_IMPLEMENTATION_GUIDE.md](./APP_IMPLEMENTATION_GUIDE.md)** - Comprehensive implementation guide for all features (Customer, Business Owner, Admin)

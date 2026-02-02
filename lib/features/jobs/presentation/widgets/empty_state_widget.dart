@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/resources/app_assets.dart';
 
 class EmptyStateWidget extends StatelessWidget {
   final String illustrationPath;

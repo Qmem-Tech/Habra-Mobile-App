@@ -5,8 +5,6 @@ import '../../models/ticket_model.dart';
 import '../../models/order_model.dart';
 import '../../../domain/entities/event_category.dart';
 import '../../../domain/entities/ticket_type.dart';
-import '../../../domain/entities/event_detail.dart';
-import '../../../domain/entities/ticket.dart';
 import '../../../domain/entities/order.dart' as events;
 import '../../../domain/entities/selected_ticket.dart';
 
@@ -338,9 +336,7 @@ class MockEventsData {
     required Map<String, dynamic> paymentMethod,
     String? promoCode,
   }) {
-    // Simulate payment processing
-    final now = DateTime.now();
-    // In real app, this would fetch the order from storage/API
+    // Simulate payment processing. In real app, this would fetch the order from storage/API
     final order = createOrder(
       eventId: 'event_4',
       tickets: [
@@ -350,7 +346,6 @@ class MockEventsData {
     );
 
     // Simulate payment success/failure
-    final paymentType = paymentMethod['type'] as String?;
     final shouldFail = paymentMethod['cardNumber']?.toString().endsWith('0000') ?? false;
 
     return OrderModel(

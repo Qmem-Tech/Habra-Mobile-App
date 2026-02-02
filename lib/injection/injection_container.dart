@@ -6,7 +6,6 @@ import 'package:dio/dio.dart';
 import '../core/network/api_client.dart';
 import '../core/network/network_info.dart';
 import '../core/storage/local_storage.dart';
-import '../core/theme/theme_cubit.dart';
 import '../core/localization/localization_cubit.dart';
 import '../core/network/firebase/firebase_services.dart';
 import '../features/auth/data/datasources/auth_remote_datasource.dart';
@@ -112,8 +111,7 @@ Future<void> init() async {
     () => NetworkInfoImpl(sl<Connectivity>()),
   );
 
-  // Theme & Localization
-  sl.registerFactory(() => ThemeCubit(localStorage: sl<LocalStorage>()));
+  // Localization
   sl.registerFactory(() => LocalizationCubit(localStorage: sl<LocalStorage>()));
 
   // Features - Auth

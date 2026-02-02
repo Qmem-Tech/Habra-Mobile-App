@@ -1,7 +1,5 @@
 import '../../domain/entities/order.dart' as events;
-import '../../domain/entities/event_detail.dart';
 import '../../domain/entities/selected_ticket.dart';
-import '../../domain/entities/ticket_type.dart';
 import 'event_detail_model.dart';
 import 'ticket_type_model.dart';
 

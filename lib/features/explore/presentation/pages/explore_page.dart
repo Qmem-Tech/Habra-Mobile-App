@@ -29,6 +29,7 @@ class ExplorePage extends StatefulWidget {
 class _ExplorePageState extends State<ExplorePage> {
   final TextEditingController _searchController = TextEditingController();
   String? _currentLocation;
+  // ignore: unused_field - used when filtering by category
   BusinessCategory _selectedCategory = BusinessCategory.all;
 
   @override
@@ -192,11 +193,11 @@ class _ExplorePageState extends State<ExplorePage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.backgroundGrey.withOpacity(0.5)),
+            border: Border.all(color: AppColors.backgroundGrey.withValues(alpha:0.5)),
           ),
           child: Row(
             children: [
-              Icon(Icons.search, color: AppColors.textSecondary.withOpacity(0.7), size: 20),
+              Icon(Icons.search, color: AppColors.textSecondary.withValues(alpha:0.7), size: 20),
               const SizedBox(width: 12),
               Text(
                 'Find business, event...',

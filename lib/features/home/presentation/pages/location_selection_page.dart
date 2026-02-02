@@ -171,7 +171,7 @@ class _LocationSelectionPageState extends State<LocationSelectionPage> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.brandPrimary.withOpacity(0.1),
+            color: AppColors.brandPrimary.withValues(alpha:0.1),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.brandPrimary),
           ),

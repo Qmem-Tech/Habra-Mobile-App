@@ -1,4 +1,3 @@
-import '../../../../core/error/exceptions.dart';
 import '../models/event_model.dart';
 import '../models/deal_model.dart';
 import '../models/business_model.dart';

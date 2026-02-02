@@ -1,8 +1,4 @@
-import '../../../../core/error/exceptions.dart';
 import '../../domain/repositories/search_repository.dart';
-import '../models/event_model.dart';
-import '../models/business_model.dart';
-import '../models/job_model.dart';
 import 'mock_data/mock_search_data.dart';
 
 abstract class SearchRemoteDataSource {
