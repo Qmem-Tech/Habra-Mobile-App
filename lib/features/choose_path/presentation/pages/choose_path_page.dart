@@ -39,7 +39,7 @@ class _ChoosePathViewState extends State<_ChoosePathView> {
     if (_selectedRole != null) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => const SignUpOptionsPage(),
+          builder: (_) => SignUpOptionsPage(selectedRole: _selectedRole!),
         ),
       );
     }

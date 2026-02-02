@@ -27,8 +27,9 @@ Map<String, dynamic> _$EventListItemModelToJson(EventListItemModel instance) =>
       'id': instance.id,
       'title': instance.title,
       'imageUrl': instance.imageUrl,
-      'categories':
-          instance.categories.map((e) => _$EventCategoryEnumMap[e]!).toList(),
+      'categories': instance.categories
+          .map((e) => _$EventCategoryEnumMap[e]!)
+          .toList(),
       'dateTime': instance.dateTime.toIso8601String(),
       'venue': instance.venue,
       'location': instance.location,

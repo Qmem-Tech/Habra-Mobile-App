@@ -20,9 +20,9 @@ JobApplicationModel _$JobApplicationModelFromJson(Map<String, dynamic> json) =>
       coverLetter: json['coverLetter'] as String?,
       screeningAnswers:
           (json['screeningAnswers'] as Map<String, dynamic>?)?.map(
-                (k, e) => MapEntry(k, e as String),
-              ) ??
-              const {},
+            (k, e) => MapEntry(k, e as String),
+          ) ??
+          const {},
       status: $enumDecode(_$ApplicationStatusEnumMap, json['status']),
       appliedDate: DateTime.parse(json['appliedDate'] as String),
       reviewedDate: json['reviewedDate'] == null
@@ -32,24 +32,24 @@ JobApplicationModel _$JobApplicationModelFromJson(Map<String, dynamic> json) =>
     );
 
 Map<String, dynamic> _$JobApplicationModelToJson(
-        JobApplicationModel instance) =>
-    <String, dynamic>{
-      'id': instance.id,
-      'jobId': instance.jobId,
-      'jobTitle': instance.jobTitle,
-      'companyName': instance.companyName,
-      'userId': instance.userId,
-      'fullName': instance.fullName,
-      'email': instance.email,
-      'phoneNumber': instance.phoneNumber,
-      'resumeUrl': instance.resumeUrl,
-      'coverLetter': instance.coverLetter,
-      'screeningAnswers': instance.screeningAnswers,
-      'status': _$ApplicationStatusEnumMap[instance.status]!,
-      'appliedDate': instance.appliedDate.toIso8601String(),
-      'reviewedDate': instance.reviewedDate?.toIso8601String(),
-      'notes': instance.notes,
-    };
+  JobApplicationModel instance,
+) => <String, dynamic>{
+  'id': instance.id,
+  'jobId': instance.jobId,
+  'jobTitle': instance.jobTitle,
+  'companyName': instance.companyName,
+  'userId': instance.userId,
+  'fullName': instance.fullName,
+  'email': instance.email,
+  'phoneNumber': instance.phoneNumber,
+  'resumeUrl': instance.resumeUrl,
+  'coverLetter': instance.coverLetter,
+  'screeningAnswers': instance.screeningAnswers,
+  'status': _$ApplicationStatusEnumMap[instance.status]!,
+  'appliedDate': instance.appliedDate.toIso8601String(),
+  'reviewedDate': instance.reviewedDate?.toIso8601String(),
+  'notes': instance.notes,
+};
 
 const _$ApplicationStatusEnumMap = {
   ApplicationStatus.pending: 'pending',

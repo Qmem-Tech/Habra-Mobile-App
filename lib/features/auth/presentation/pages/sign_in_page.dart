@@ -7,11 +7,12 @@ import '../bloc/auth_cubit.dart';
 import '../bloc/auth_state.dart';
 import '../../domain/entities/user.dart';
 import '../../../home/presentation/pages/customer_home_page.dart';
-import '../../../home/presentation/pages/business_owner_home_page.dart';
+import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
 import 'sign_up_options_page.dart';
 import 'forgot_password_page.dart';
+import '../../../choose_path/presentation/pages/choose_path_page.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -37,7 +38,7 @@ class _SignInPageState extends State<SignInPage> {
     Widget destination;
     switch (user.role) {
       case UserRole.businessOwner:
-        destination = BusinessOwnerHomePage(user: user);
+        destination = BusinessOwnerWrapperPage(user: user);
         break;
       case UserRole.admin:
         destination = AdminHomePage(user: user);
@@ -57,21 +58,34 @@ class _SignInPageState extends State<SignInPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundWhite,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const ChoosePathPage()),
+          );
+        }
+      },
+      child: Scaffold(
         backgroundColor: AppColors.backgroundWhite,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: AppColors.textPrimary,
+        appBar: AppBar(
+          backgroundColor: AppColors.backgroundWhite,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppColors.textPrimary,
+            ),
+            onPressed: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const ChoosePathPage()),
+              );
+            },
           ),
-          onPressed: () => Navigator.of(context).pop(),
         ),
-      ),
-      body: SafeArea(
-        child: BlocConsumer<AuthCubit, AuthState>(
+        body: SafeArea(
+          child: BlocConsumer<AuthCubit, AuthState>(
           listener: (context, state) {
             if (state is AuthError) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -391,6 +405,7 @@ class _SignInPageState extends State<SignInPage> {
             );
           },
         ),
+      ),
       ),
     );
   }

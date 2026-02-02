@@ -7,20 +7,25 @@ import '../bloc/auth_cubit.dart';
 import '../bloc/auth_state.dart';
 import '../../domain/entities/user.dart';
 import '../../../home/presentation/pages/customer_home_page.dart';
-import '../../../home/presentation/pages/business_owner_home_page.dart';
+import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
 import 'email_sign_up_page.dart';
 import 'sign_in_page.dart';
+import '../../../choose_path/presentation/pages/choose_path_page.dart';
 
 class SignUpOptionsPage extends StatelessWidget {
-  const SignUpOptionsPage({super.key});
+  const SignUpOptionsPage({super.key, this.selectedRole});
+
+  /// Role chosen on ChoosePathPage (business owner vs community member).
+  /// When null (e.g. opened from sign-in "Sign up" link), defaults to customer.
+  final UserRole? selectedRole;
 
   void _handleNavigationForUser(BuildContext context, User user) {
     Widget destination;
     switch (user.role) {
       case UserRole.businessOwner:
-        destination = BusinessOwnerHomePage(user: user);
+        destination = BusinessOwnerWrapperPage(user: user);
         break;
       case UserRole.admin:
         destination = AdminHomePage(user: user);
@@ -52,20 +57,33 @@ class SignUpOptionsPage extends StatelessWidget {
       },
       builder: (context, state) {
         final isLoading = state is AuthLoading;
-        return Scaffold(
-      backgroundColor: AppColors.backgroundWhite,
-      appBar: AppBar(
-        backgroundColor: AppColors.backgroundWhite,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: AppColors.textPrimary,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: SafeArea(
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const ChoosePathPage()),
+              );
+            }
+          },
+          child: Scaffold(
+            backgroundColor: AppColors.backgroundWhite,
+            appBar: AppBar(
+              backgroundColor: AppColors.backgroundWhite,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: AppColors.textPrimary,
+                ),
+                onPressed: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const ChoosePathPage()),
+                  );
+                },
+              ),
+            ),
+            body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
             horizontal: AppResources.spacingL,
@@ -108,7 +126,9 @@ class SignUpOptionsPage extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const EmailSignUpPage(),
+                      builder: (_) => EmailSignUpPage(
+                        selectedRole: selectedRole ?? UserRole.customer,
+                      ),
                     ),
                   );
                 },
@@ -193,7 +213,8 @@ class SignUpOptionsPage extends StatelessWidget {
             ],
           ),
         ),
-      ),
+            ),
+          ),
         );
       },
     );

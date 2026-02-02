@@ -7,18 +7,18 @@ part of 'review_model.dart';
 // **************************************************************************
 
 ReviewModel _$ReviewModelFromJson(Map<String, dynamic> json) => ReviewModel(
-      id: json['id'] as String,
-      userId: json['userId'] as String,
-      userName: json['userName'] as String,
-      userAvatarUrl: json['userAvatarUrl'] as String?,
-      rating: (json['rating'] as num).toInt(),
-      comment: json['comment'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      photoUrls: (json['photoUrls'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
-      isVerified: json['isVerified'] as bool? ?? false,
-    );
+  id: json['id'] as String,
+  userId: json['userId'] as String,
+  userName: json['userName'] as String,
+  userAvatarUrl: json['userAvatarUrl'] as String?,
+  rating: (json['rating'] as num).toInt(),
+  comment: json['comment'] as String,
+  createdAt: DateTime.parse(json['createdAt'] as String),
+  photoUrls: (json['photoUrls'] as List<dynamic>?)
+      ?.map((e) => e as String)
+      .toList(),
+  isVerified: json['isVerified'] as bool? ?? false,
+);
 
 Map<String, dynamic> _$ReviewModelToJson(ReviewModel instance) =>
     <String, dynamic>{

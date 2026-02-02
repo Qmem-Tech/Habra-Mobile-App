@@ -67,6 +67,21 @@ class AppAssets {
   /// Expected path: assets/images/home/no_results.png
   static const String noResults = '$_imagesPath/home/no_results.png';
 
+  // ==================== Business Owner Feature Assets ====================
+  /// Business owner: placeholder for business cover/banner (use business_placeholder if no custom)
+  static const String businessOwnerCoverPlaceholder = '$_imagesPath/home/business_placeholder.png';
+  /// Business owner: placeholder for business logo
+  static const String businessOwnerLogoPlaceholder = '$_imagesPath/home/business_placeholder.png';
+  /// Business owner: new business / storefront illustration (add custom when provided)
+  static const String businessOwnerNewBusiness = '$_imagesPath/home/business_placeholder.png';
+  /// Business owner: new location / map pin illustration (add custom when provided)
+  static const String businessOwnerNewLocation = '$_imagesPath/home/business_placeholder.png';
+  /// Business owner: verification success / verified badge
+  static const String businessOwnerVerifiedBadge = '$_iconsPath/success_icon.png';
+  /// Business owner: camera/upload icon for Add Photos (use Material icon or add path when provided)
+  /// Placeholder path for custom upload illustration
+  static const String businessOwnerUploadPhoto = '$_imagesPath/home/business_placeholder.png';
+
   // ==================== Jobs Feature Assets ====================
   /// Jobs folder base path
   static const String _jobsPath = '$_imagesPath/jobs';

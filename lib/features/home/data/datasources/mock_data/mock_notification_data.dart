@@ -54,6 +54,24 @@ class MockNotificationData {
         isRead: false,
         actionId: 'j4',
       ),
+      NotificationModel(
+        id: 'n6',
+        title: 'New 5-star rating',
+        description: 'Great service and authentic food! The doro wat was incredible. Will come back!',
+        type: NotificationType.review,
+        createdAt: now.subtract(const Duration(hours: 2)),
+        isRead: false,
+        actionId: 'r1',
+      ),
+      NotificationModel(
+        id: 'n7',
+        title: 'New Applicant: Dawit A.',
+        description: 'Applied for the Head Chef position. Resume included.',
+        type: NotificationType.job,
+        createdAt: now.subtract(const Duration(hours: 5)),
+        isRead: false,
+        actionId: 'app1',
+      ),
     ];
   }
 }

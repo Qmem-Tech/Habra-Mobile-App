@@ -225,11 +225,14 @@ class _EventsPageState extends State<EventsPage> {
                   builder: (_) => EventFiltersPage(initialFilters: _activeFilters),
                 ),
               );
+              if (!context.mounted) return;
               if (filters != null) {
                 setState(() {
                   _activeFilters = filters;
                 });
-                if (!context.mounted) return;
+              }
+              if (!context.mounted) return;
+              if (filters != null) {
                 _loadEvents(context);
               }
             },

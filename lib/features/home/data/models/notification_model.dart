@@ -37,6 +37,8 @@ class NotificationModel extends NotificationEntity {
         return NotificationType.event;
       case 'job':
         return NotificationType.job;
+      case 'review':
+        return NotificationType.review;
       default:
         return NotificationType.general;
     }

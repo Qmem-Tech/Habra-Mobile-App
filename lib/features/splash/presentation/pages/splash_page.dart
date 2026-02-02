@@ -9,6 +9,7 @@ import '../bloc/splash_state.dart';
 import '../../../onboarding/presentation/pages/onboarding_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import '../../../home/presentation/pages/customer_home_page.dart';
+import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -120,11 +121,26 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
           );
         } else if (status.isAuthenticated) {
           // Navigate to appropriate home based on user role
-          // For now, default to customer home
-          // This can be enhanced to check user role
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const CustomerHomePage(user: User(id: 'id', email: 'abec@gmail.com', name: "Abel", role: UserRole.customer),)),
+          // TODO: Get current user from auth/storage when available
+          const user = User(
+            id: 'id',
+            email: 'abec@gmail.com',
+            name: 'Abel',
+            role: UserRole.customer,
           );
+          if (user.isBusinessOwner) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => BusinessOwnerWrapperPage(user: user),
+              ),
+            );
+          } else {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => CustomerHomePage(user: user),
+              ),
+            );
+          }
         } else {
           // Navigate to choose path (user not authenticated)
           Navigator.of(context).pushReplacement(

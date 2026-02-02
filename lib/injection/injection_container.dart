@@ -48,6 +48,7 @@ import '../features/home/domain/usecases/get_notifications_usecase.dart';
 import '../features/home/presentation/bloc/home_cubit.dart';
 import '../features/home/presentation/bloc/search_cubit.dart';
 import '../features/home/presentation/bloc/notification_cubit.dart';
+import '../features/home/presentation/bloc/business_owner_home_cubit.dart';
 
 // Events feature
 import '../features/events/data/datasources/events_remote_datasource.dart';
@@ -208,6 +209,7 @@ Future<void> init() async {
     getNotificationsUseCase: sl<GetNotificationsUseCase>(),
     notificationRepository: sl<NotificationRepository>(),
   ));
+  sl.registerFactory(() => BusinessOwnerHomeCubit());
 
   // Features - Events
   // Data sources

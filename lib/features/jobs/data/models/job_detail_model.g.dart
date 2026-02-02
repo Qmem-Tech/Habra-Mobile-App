@@ -21,11 +21,13 @@ JobDetailModel _$JobDetailModelFromJson(Map<String, dynamic> json) =>
           ? null
           : DateTime.parse(json['postedDate'] as String),
       description: json['description'] as String?,
-      requirements: (json['requirements'] as List<dynamic>?)
+      requirements:
+          (json['requirements'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           const [],
-      benefits: (json['benefits'] as List<dynamic>?)
+      benefits:
+          (json['benefits'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           const [],

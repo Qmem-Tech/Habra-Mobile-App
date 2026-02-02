@@ -3,7 +3,7 @@ import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
 import '../../domain/entities/user.dart';
-import '../../../home/presentation/pages/business_owner_home_page.dart';
+import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 
 class BusinessLivePage extends StatelessWidget {
   const BusinessLivePage({super.key});
@@ -19,7 +19,7 @@ class BusinessLivePage extends StatelessWidget {
 
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => BusinessOwnerHomePage(user: user),
+        builder: (_) => BusinessOwnerWrapperPage(user: user),
       ),
       (route) => false,
     );

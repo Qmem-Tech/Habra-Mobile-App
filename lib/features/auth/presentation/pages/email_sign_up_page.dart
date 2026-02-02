@@ -7,12 +7,15 @@ import '../bloc/auth_cubit.dart';
 import '../bloc/auth_state.dart';
 import '../../domain/entities/user.dart';
 import '../../../home/presentation/pages/customer_home_page.dart';
-import '../../../home/presentation/pages/business_owner_home_page.dart';
+import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
 
 class EmailSignUpPage extends StatefulWidget {
-  const EmailSignUpPage({super.key});
+  const EmailSignUpPage({super.key, this.selectedRole = UserRole.customer});
+
+  /// Role chosen on ChoosePathPage; used when registering.
+  final UserRole selectedRole;
 
   @override
   State<EmailSignUpPage> createState() => _EmailSignUpPageState();
@@ -41,7 +44,7 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
     Widget destination;
     switch (user.role) {
       case UserRole.businessOwner:
-        destination = BusinessOwnerHomePage(user: user);
+        destination = BusinessOwnerWrapperPage(user: user);
         break;
       case UserRole.admin:
         destination = AdminHomePage(user: user);
@@ -65,7 +68,7 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
             _emailController.text.trim(),
             _passwordController.text,
             _nameController.text.trim(),
-            UserRole.customer,
+            widget.selectedRole,
           );
     } else if (!_agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(

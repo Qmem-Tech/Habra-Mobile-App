@@ -62,11 +62,14 @@ class _JobsPageState extends State<JobsPage> {
       ),
     );
 
+    if (!context.mounted) return;
     if (filters != null) {
       setState(() {
         _activeFilters = filters;
       });
-      if (!context.mounted) return;
+    }
+    if (!context.mounted) return;
+    if (filters != null) {
       _loadJobs(context, null);
     }
   }

@@ -5,6 +5,7 @@ enum NotificationType {
   deal,
   event,
   job,
+  review,
   general,
 }
 
