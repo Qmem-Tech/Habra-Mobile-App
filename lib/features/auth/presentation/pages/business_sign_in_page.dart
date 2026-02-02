@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import 'business_basics_page.dart';
 
 class BusinessSignInPage extends StatelessWidget {
@@ -9,20 +10,33 @@ class BusinessSignInPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundWhite,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const ChoosePathPage()),
+          );
+        }
+      },
+      child: Scaffold(
         backgroundColor: AppColors.backgroundWhite,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: AppColors.textPrimary,
+        appBar: AppBar(
+          backgroundColor: AppColors.backgroundWhite,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back,
+              color: AppColors.textPrimary,
+            ),
+            onPressed: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const ChoosePathPage()),
+              );
+            },
           ),
-          onPressed: () => Navigator.of(context).pop(),
         ),
-      ),
-      body: SafeArea(
+        body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
             horizontal: AppResources.spacingL,
@@ -150,6 +164,7 @@ class BusinessSignInPage extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }
