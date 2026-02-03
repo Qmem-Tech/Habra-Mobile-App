@@ -260,13 +260,21 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _navigateToApplicants(DashboardJob job) {
+    final dashboardCubit = context.read<DashboardCubit>();
+    final homeCubit = context.read<BusinessOwnerHomeCubit>();
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => JobApplicantsPage(
-          jobId: job.id,
-          jobTitle: job.title,
-          jobSubtitle: '${job.location} • ${job.postedTimeAgo}',
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+            BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+          ],
+          child: JobApplicantsPage(
+            jobId: job.id,
+            jobTitle: job.title,
+            jobSubtitle: '${job.location} • ${job.postedTimeAgo}',
+          ),
         ),
       ),
     );
