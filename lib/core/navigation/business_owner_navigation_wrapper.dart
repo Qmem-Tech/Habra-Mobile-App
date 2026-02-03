@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../../features/home/presentation/pages/business_owner_home_page.dart';
+import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/auth/domain/entities/user.dart';
 
 /// Bottom nav for business owner: Home, Dash, Boosts, Messages, Profile.
@@ -73,7 +74,7 @@ class _BusinessOwnerNavigationWrapperState
         },
         children: [
           BusinessOwnerHomePage(user: widget.user),
-          _buildPlaceholderPage('Dash'),
+          DashboardPage(user: widget.user),
           _buildPlaceholderPage('Boosts'),
           _buildPlaceholderPage('Messages'),
           _buildPlaceholderPage('Profile'),

@@ -5,6 +5,7 @@ import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../bloc/business_owner_home_cubit.dart';
 import '../bloc/notification_cubit.dart';
+import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 
 /// Wraps business owner flow with cubits and bottom nav (Home, Dash, Boosts, Messages, Profile).
 class BusinessOwnerWrapperPage extends StatelessWidget {
@@ -21,6 +22,9 @@ class BusinessOwnerWrapperPage extends StatelessWidget {
         ),
         BlocProvider(
           create: (_) => di.sl<NotificationCubit>(),
+        ),
+        BlocProvider(
+          create: (_) => di.sl<DashboardCubit>(),
         ),
       ],
       child: BusinessOwnerNavigationWrapper(

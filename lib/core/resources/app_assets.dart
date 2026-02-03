@@ -110,6 +110,18 @@ class AppAssets {
   /// Success icon/illustration for application submitted
   static const String applicationSubmitted = jobsCulturalNightHero;
 
+  // ==================== Dashboard (Business Owner) Empty States ====================
+  /// Empty state: no deals yet. Replace with custom asset when provided.
+  static const String dashboardNoDeals = '$_imagesPath/home/no_results.png';
+  /// Empty state: no job posts yet. Replace with custom asset when provided.
+  static const String dashboardNoJobs = '$_imagesPath/home/no_results.png';
+  /// Empty state: no analytics yet. Replace with custom asset when provided.
+  static const String dashboardNoAnalytics = '$_imagesPath/home/no_results.png';
+  /// Empty state: no reviews yet. Replace with custom asset when provided.
+  static const String dashboardNoReviews = '$_imagesPath/home/no_results.png';
+  /// Boost listing: rocket/visibility illustration. Replace with custom asset when provided.
+  static const String dashboardBoostRocket = '$_imagesPath/home/business_placeholder.png';
+
   // ==================== Helper Methods ====================
   /// Get asset path with optional fallback
   ///

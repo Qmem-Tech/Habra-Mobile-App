@@ -49,6 +49,10 @@ import '../features/home/presentation/bloc/home_cubit.dart';
 import '../features/home/presentation/bloc/search_cubit.dart';
 import '../features/home/presentation/bloc/notification_cubit.dart';
 import '../features/home/presentation/bloc/business_owner_home_cubit.dart';
+import '../features/dashboard/data/datasources/dashboard_remote_datasource.dart';
+import '../features/dashboard/data/repositories/dashboard_repository_impl.dart';
+import '../features/dashboard/domain/repositories/dashboard_repository.dart';
+import '../features/dashboard/presentation/bloc/dashboard_cubit.dart';
 
 // Events feature
 import '../features/events/data/datasources/events_remote_datasource.dart';
@@ -210,6 +214,15 @@ Future<void> init() async {
     notificationRepository: sl<NotificationRepository>(),
   ));
   sl.registerFactory(() => BusinessOwnerHomeCubit());
+
+  // Features - Dashboard (Business Owner)
+  sl.registerLazySingleton<DashboardRemoteDataSource>(
+    () => DashboardRemoteDataSourceImpl(),
+  );
+  sl.registerLazySingleton<DashboardRepository>(
+    () => DashboardRepositoryImpl(remoteDataSource: sl<DashboardRemoteDataSource>()),
+  );
+  sl.registerFactory(() => DashboardCubit(sl<DashboardRepository>()));
 
   // Features - Events
   // Data sources
