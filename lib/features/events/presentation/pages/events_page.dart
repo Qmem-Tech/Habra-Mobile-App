@@ -219,21 +219,22 @@ class _EventsPageState extends State<EventsPage> {
           IconButton(
             icon: const Icon(Icons.tune, color: AppColors.textPrimary),
             onPressed: () async {
+              final ctx = context;
               final filters = await Navigator.push<EventFilters>(
-                context,
+                ctx,
                 MaterialPageRoute(
                   builder: (_) => EventFiltersPage(initialFilters: _activeFilters),
                 ),
               );
-              if (!context.mounted) return;
+              if (!ctx.mounted) return;
               if (filters != null) {
                 setState(() {
                   _activeFilters = filters;
                 });
               }
-              if (!context.mounted) return;
+              if (!ctx.mounted) return;
               if (filters != null) {
-                _loadEvents(context);
+                _loadEvents(ctx);
               }
             },
           ),

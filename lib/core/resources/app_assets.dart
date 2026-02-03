@@ -81,6 +81,8 @@ class AppAssets {
   /// Business owner: camera/upload icon for Add Photos (use Material icon or add path when provided)
   /// Placeholder path for custom upload illustration
   static const String businessOwnerUploadPhoto = '$_imagesPath/home/business_placeholder.png';
+  /// Business owner: pending review (document + clock). Replace with custom asset when provided.
+  static const String businessOwnerPendingReview = '$_iconsPath/success_icon.png';
 
   // ==================== Jobs Feature Assets ====================
   /// Jobs folder base path

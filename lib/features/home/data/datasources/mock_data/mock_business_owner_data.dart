@@ -1,4 +1,5 @@
 import '../../../domain/entities/business_presence.dart';
+import '../../../domain/entities/business_brand_entity.dart';
 import '../../../domain/entities/owner_snapshot_metrics.dart';
 import '../../../domain/entities/owner_activity_item.dart';
 import '../../../domain/entities/setup_task.dart';
@@ -215,6 +216,35 @@ class MockBusinessOwnerData {
         jobType: 'Full-time',
         location: 'Seattle, WA',
         postedDate: DateTime.now().subtract(const Duration(days: 3)),
+      ),
+    ];
+  }
+
+  /// Business name shown on "Your Business Is Pending!" screen (under review).
+  static const String mockPendingBusinessName = 'Abyssinia Coffee House';
+
+  /// Business brands for "Choose business brand for this new location" (Add New Location flow).
+  static List<BusinessBrandEntity> getMockBusinessBrands() {
+    return const [
+      BusinessBrandEntity(
+        id: 'queen-of-sheba',
+        name: 'Queen of Sheba',
+        activeLocationsCount: 3,
+      ),
+      BusinessBrandEntity(
+        id: 'addis-market',
+        name: 'Addis Market',
+        activeLocationsCount: 1,
+      ),
+      BusinessBrandEntity(
+        id: 'habesha-coffee',
+        name: 'Habesha Coffee House',
+        activeLocationsCount: 0,
+      ),
+      BusinessBrandEntity(
+        id: 'nile-gift-shop',
+        name: 'Nile Gift Shop',
+        activeLocationsCount: 2,
       ),
     ];
   }

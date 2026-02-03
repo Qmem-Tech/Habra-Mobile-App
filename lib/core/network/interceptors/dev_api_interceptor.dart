@@ -66,9 +66,7 @@ class DevApiInterceptor extends Interceptor {
       requestData: _safeData(options.data),
       responseStatus: statusCode,
       responseTime: DateTime.now(),
-      responseHeaders: responseHeaders != null
-          ? responseHeaders.map((k, v) => MapEntry(k, v.join(', ')))
-          : null,
+      responseHeaders: responseHeaders?.map((k, v) => MapEntry(k, v.join(', '))),
       responseData: _safeData(responseData),
       errorMessage: errorMessage,
     );

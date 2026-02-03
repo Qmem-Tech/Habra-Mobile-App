@@ -120,14 +120,16 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
                       children: [
                         const SizedBox(height: AppResources.spacingXL),
 
-                        // Title with highlighted "user"
+                        // Title: "Business account" when business owner journey, else "user account"
                         RichText(
                           text: TextSpan(
                             style: AppFonts.largeTitle(
                                 color: AppColors.textPrimary),
                             children: [
                               TextSpan(
-                                text: 'user ',
+                                text: widget.selectedRole == UserRole.businessOwner
+                                    ? 'Business '
+                                    : 'user ',
                                 style: AppFonts.largeTitle(
                                     color: AppColors.brandSecondary),
                               ),
@@ -137,7 +139,9 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
                         ),
                         const SizedBox(height: AppResources.spacingS),
                         Text(
-                          'Create your user account',
+                          widget.selectedRole == UserRole.businessOwner
+                              ? 'Create your business account'
+                              : 'Create your user account',
                           style:
                               AppFonts.largeTitle(color: AppColors.textPrimary),
                         ),

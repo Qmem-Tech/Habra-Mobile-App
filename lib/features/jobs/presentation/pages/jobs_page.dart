@@ -53,8 +53,9 @@ class _JobsPageState extends State<JobsPage> {
   }
 
   void _showFilters() async {
+    final ctx = context;
     final filters = await showModalBottomSheet<JobFilters>(
-      context: context,
+      context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => JobFiltersBottomSheet(
@@ -62,15 +63,15 @@ class _JobsPageState extends State<JobsPage> {
       ),
     );
 
-    if (!context.mounted) return;
+    if (!ctx.mounted) return;
     if (filters != null) {
       setState(() {
         _activeFilters = filters;
       });
     }
-    if (!context.mounted) return;
+    if (!ctx.mounted) return;
     if (filters != null) {
-      _loadJobs(context, null);
+      _loadJobs(ctx, null);
     }
   }
 

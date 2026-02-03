@@ -13,7 +13,6 @@ import '../../../home/presentation/pages/guest_home_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import 'email_sign_up_page.dart';
 import 'forgot_password_page.dart';
-import 'sign_in_page.dart';
 
 class BusinessSignInPage extends StatefulWidget {
   const BusinessSignInPage({super.key});
@@ -276,41 +275,7 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
                           ),
                           const SizedBox(height: AppResources.spacingM),
 
-                          // Already have account - go to normal sign-in page
-                          Center(
-                            child: InkWell(
-                              onTap: () {
-                                Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (_) => const SignInPage(),
-                                  ),
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(4),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppResources.spacingS,
-                                  vertical: AppResources.spacingXS,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Already have an account? ',
-                                      style: AppFonts.body(color: AppColors.textSecondary),
-                                    ),
-                                    Text(
-                                      'Log in',
-                                      style: AppFonts.body(color: AppColors.brandPrimary),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: AppResources.spacingXL),
-
-                          // New business sign up - uses Firebase register with UserRole.businessOwner
+                          // New business sign up - stay in business owner journey
                           Center(
                             child: InkWell(
                               onTap: () {
@@ -340,6 +305,29 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
                                       style: AppFonts.body(color: AppColors.brandPrimary),
                                     ),
                                   ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppResources.spacingM),
+
+                          // Different path - go back to choose path (community vs business)
+                          Center(
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(builder: (_) => const ChoosePathPage()),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppResources.spacingS,
+                                  vertical: AppResources.spacingXS,
+                                ),
+                                child: Text(
+                                  'Not a business owner? Choose a different path',
+                                  style: AppFonts.bodySmall(color: AppColors.textSecondary),
                                 ),
                               ),
                             ),

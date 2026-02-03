@@ -4,6 +4,7 @@ import '../../../../core/resources/app_resources.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/widgets/app_button.dart';
 import 'business_details_step1_page.dart';
+import 'choose_business_brand_page.dart';
 
 /// Add New Presence: choose New Business or New Location, then Continue.
 class AddNewPresencePage extends StatefulWidget {
@@ -182,11 +183,10 @@ class _AddNewPresencePageState extends State<AddNewPresencePage> {
         ),
       );
     } else {
-      // TODO: Navigate to "Select existing business" then location step
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const BusinessDetailsStep1Page(),
+          builder: (_) => const ChooseBusinessBrandPage(),
         ),
       );
     }
