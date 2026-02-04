@@ -13,6 +13,7 @@ import '../../../home/presentation/pages/business_locations_page.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
 import '../../../home/presentation/widgets/business_owner_drawer.dart';
 import '../../../dashboard/presentation/widgets/empty_state_widget.dart';
+import '../../domain/entities/boost_filter.dart';
 import '../bloc/boosts_cubit.dart';
 import '../bloc/boosts_state.dart';
 import '../widgets/active_boost_card.dart';
@@ -44,41 +45,50 @@ class _BoostsPageState extends State<BoostsPage> {
           context.read<BoostsCubit>().loadBoosts(homeState.selectedPresence!.id);
         }
       },
-      child: Scaffold(
-        key: _scaffoldKey,
-        drawer: BlocBuilder<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
-          builder: (context, state) {
-            final selected = state is BusinessOwnerHomeLoaded ? state.selectedPresence : null;
-            return BusinessOwnerDrawer(
-              userId: widget.user.id,
-              userName: widget.user.name,
-              userEmail: widget.user.email,
-              selectedBusiness: selected,
-            );
-          },
-        ),
-        appBar: _buildAppBar(context),
-        body: BlocConsumer<BoostsCubit, BoostsState>(
-          listener: (context, state) {
-            if (state is! BoostsLoaded && state is! BoostsLoading && state is! BoostsInitial) {
-              final homeState = context.read<BusinessOwnerHomeCubit>().state;
-              if (homeState is BusinessOwnerHomeLoaded &&
-                  homeState.selectedPresence != null &&
-                  homeState.selectedPresence!.id != 'all') {
-                context.read<BoostsCubit>().loadBoosts(homeState.selectedPresence!.id);
+      builder: (context, homeState) {
+        return Scaffold(
+          key: _scaffoldKey,
+          drawer: BlocBuilder<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
+            builder: (context, state) {
+              final selected =
+                  state is BusinessOwnerHomeLoaded ? state.selectedPresence : null;
+              return BusinessOwnerDrawer(
+                userId: widget.user.id,
+                userName: widget.user.name,
+                userEmail: widget.user.email,
+                selectedBusiness: selected,
+              );
+            },
+          ),
+          appBar: _buildAppBar(context),
+          body: BlocConsumer<BoostsCubit, BoostsState>(
+            listener: (context, state) {
+              if (state is! BoostsLoaded &&
+                  state is! BoostsLoading &&
+                  state is! BoostsInitial) {
+                final refreshedHomeState =
+                    context.read<BusinessOwnerHomeCubit>().state;
+                if (refreshedHomeState is BusinessOwnerHomeLoaded &&
+                    refreshedHomeState.selectedPresence != null &&
+                    refreshedHomeState.selectedPresence!.id != 'all') {
+                  context
+                      .read<BoostsCubit>()
+                      .loadBoosts(refreshedHomeState.selectedPresence!.id);
+                }
               }
-            }
-          },
-          child: BlocBuilder<BoostsCubit, BoostsState>(
+            },
             builder: (context, state) {
               if (state is BoostsLoading || state is BoostsInitial) {
                 if (state is BoostsInitial) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    final homeState = context.read<BusinessOwnerHomeCubit>().state;
-                    if (homeState is BusinessOwnerHomeLoaded &&
-                        homeState.selectedPresence != null &&
-                        homeState.selectedPresence!.id != 'all') {
-                      context.read<BoostsCubit>().loadBoosts(homeState.selectedPresence!.id);
+                    final initialHomeState =
+                        context.read<BusinessOwnerHomeCubit>().state;
+                    if (initialHomeState is BusinessOwnerHomeLoaded &&
+                        initialHomeState.selectedPresence != null &&
+                        initialHomeState.selectedPresence!.id != 'all') {
+                      context
+                          .read<BoostsCubit>()
+                          .loadBoosts(initialHomeState.selectedPresence!.id);
                     }
                   });
                 }
@@ -99,10 +109,13 @@ class _BoostsPageState extends State<BoostsPage> {
                         const SizedBox(height: 16),
                         TextButton(
                           onPressed: () {
-                            final homeState = context.read<BusinessOwnerHomeCubit>().state;
+                            final homeState =
+                                context.read<BusinessOwnerHomeCubit>().state;
                             if (homeState is BusinessOwnerHomeLoaded &&
                                 homeState.selectedPresence != null) {
-                              context.read<BoostsCubit>().loadBoosts(homeState.selectedPresence!.id);
+                              context
+                                  .read<BoostsCubit>()
+                                  .loadBoosts(homeState.selectedPresence!.id);
                             }
                           },
                           child: const Text('Retry'),
@@ -117,15 +130,20 @@ class _BoostsPageState extends State<BoostsPage> {
               }
 
               final filter = state.filter;
-              final showActive = (filter == BoostFilter.all || filter == BoostFilter.active) && state.hasActiveBoosts;
-              final showPast = (filter == BoostFilter.all || filter == BoostFilter.past) && state.hasPastBoosts;
+              final showActive =
+                  (filter == BoostFilter.all || filter == BoostFilter.active) &&
+                      state.hasActiveBoosts;
+              final showPast =
+                  (filter == BoostFilter.all || filter == BoostFilter.past) &&
+                      state.hasPastBoosts;
 
               if (state.isEmpty || (!showActive && !showPast)) {
                 return Column(
                   children: [
                     BoostFilterChips(
                       currentFilter: state.filter,
-                      onFilterChanged: (f) => context.read<BoostsCubit>().setFilter(f),
+                      onFilterChanged: (f) =>
+                          context.read<BoostsCubit>().setFilter(f),
                     ),
                     Expanded(
                       child: EmptyStateWidget(
@@ -146,7 +164,8 @@ class _BoostsPageState extends State<BoostsPage> {
                 children: [
                   BoostFilterChips(
                     currentFilter: state.filter,
-                    onFilterChanged: (f) => context.read<BoostsCubit>().setFilter(f),
+                    onFilterChanged: (f) =>
+                        context.read<BoostsCubit>().setFilter(f),
                   ),
                   Expanded(
                     child: SingleChildScrollView(
@@ -173,10 +192,12 @@ class _BoostsPageState extends State<BoostsPage> {
                             ),
                             ...state.displayedActive.map(
                               (boost) => Padding(
-                                padding: const EdgeInsets.only(bottom: AppResources.spacingM),
+                                padding: const EdgeInsets.only(
+                                    bottom: AppResources.spacingM),
                                 child: ActiveBoostCard(
                                   boost: boost,
-                                  onTap: () => _openActiveBoostDetails(context, boost.id),
+                                  onTap: () =>
+                                      _openActiveBoostDetails(context, boost.id),
                                 ),
                               ),
                             ),
@@ -200,7 +221,8 @@ class _BoostsPageState extends State<BoostsPage> {
                             ),
                             ...state.displayedPast.map(
                               (boost) => Padding(
-                                padding: const EdgeInsets.only(bottom: AppResources.spacingS),
+                                padding: const EdgeInsets.only(
+                                    bottom: AppResources.spacingS),
                                 child: PastBoostItem(
                                   boost: boost,
                                   onReBoost: () => _openBoostOptions(context),
@@ -217,8 +239,8 @@ class _BoostsPageState extends State<BoostsPage> {
               );
             },
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -275,9 +297,8 @@ class _BoostsPageState extends State<BoostsPage> {
   }
 
   Widget _buildBusinessSelector(BusinessPresence? presence) {
-    final label = presence != null
-        ? '${presence.shortDisplayName}'
-        : 'All Businesses';
+    final label =
+        presence != null ? presence.shortDisplayName : 'All Businesses';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(

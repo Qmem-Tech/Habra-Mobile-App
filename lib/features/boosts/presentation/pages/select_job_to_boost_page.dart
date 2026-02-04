@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart';
 import '../../../dashboard/domain/entities/dashboard_job.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
@@ -56,7 +57,7 @@ class _SelectJobToBoostPageState extends State<SelectJobToBoostPage> {
       body: BlocBuilder<BoostsCubit, BoostsState>(
         builder: (context, state) {
           if (state is! BoostJobsLoaded) {
-            return const Center(child: CircularProgressIndicator());
+            return const HabraCircularLoader(fullScreen: true);
           }
           final jobs = state.jobs;
           final selectedId = state.selectedId;
@@ -129,9 +130,9 @@ class _SelectJobToBoostPageState extends State<SelectJobToBoostPage> {
           create: (_) => sl<DashboardCubit>(),
           child: BoostListingPage(
             boostType: 'job',
-            selectedId: selected.id,
-            selectedTitle: selected.title,
-            jobEmployerName: selected.employerName,
+            selectedId: selected?.id,
+            selectedTitle: selected?.title,
+            jobEmployerName: selected?.employerName,
           ),
         ),
       ),

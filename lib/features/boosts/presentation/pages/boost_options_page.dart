@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/widgets/habra_circular_loader.dart';
+import '../../domain/entities/boost_option.dart';
 import '../bloc/boosts_cubit.dart';
 import '../bloc/boosts_state.dart';
 import '../widgets/boost_option_card.dart';
@@ -48,7 +50,7 @@ class _BoostOptionsPageState extends State<BoostOptionsPage> {
       body: BlocBuilder<BoostsCubit, BoostsState>(
         builder: (context, state) {
           if (state is! BoostOptionsLoaded) {
-            return const Center(child: CircularProgressIndicator());
+            return const HabraCircularLoader(fullScreen: true);
           }
           final options = state.options;
           return SingleChildScrollView(
@@ -122,7 +124,7 @@ class _BoostOptionsPageState extends State<BoostOptionsPage> {
     );
   }
 
-  void _onOptionTap(BuildContext context, option) {
+  void _onOptionTap(BuildContext context, BoostOption option) {
     switch (option.type) {
       case BoostOptionType.businessListing:
         Navigator.push(

@@ -1,6 +1,6 @@
-import '../../dashboard/domain/entities/dashboard_deal.dart';
-import '../../dashboard/domain/entities/dashboard_job.dart';
-import '../../dashboard/domain/repositories/dashboard_repository.dart';
+import '../../../dashboard/domain/entities/dashboard_deal.dart';
+import '../../../dashboard/domain/entities/dashboard_job.dart';
+import '../../../dashboard/domain/repositories/dashboard_repository.dart';
 import '../../domain/entities/active_boost.dart';
 import '../../domain/entities/boost_location.dart';
 import '../../domain/entities/boost_option.dart';

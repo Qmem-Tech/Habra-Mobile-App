@@ -1,7 +1,7 @@
-import '../../../../domain/entities/active_boost.dart';
-import '../../../../domain/entities/boost_location.dart';
-import '../../../../domain/entities/boost_option.dart';
-import '../../../../domain/entities/past_boost.dart';
+import '../../../domain/entities/active_boost.dart';
+import '../../../domain/entities/boost_location.dart';
+import '../../../domain/entities/boost_option.dart';
+import '../../../domain/entities/past_boost.dart';
 
 /// Mock data for boosts feature.
 class MockBoostsData {

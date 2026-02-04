@@ -5,8 +5,8 @@ import '../../domain/entities/boost_filter.dart';
 import '../../domain/entities/boost_location.dart';
 import '../../domain/entities/boost_option.dart';
 import '../../domain/entities/past_boost.dart';
-import '../../../../dashboard/domain/entities/dashboard_deal.dart';
-import '../../../../dashboard/domain/entities/dashboard_job.dart';
+import '../../../dashboard/domain/entities/dashboard_deal.dart';
+import '../../../dashboard/domain/entities/dashboard_job.dart';
 
 abstract class BoostsState extends Equatable {
   const BoostsState();

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart';
 import '../../../dashboard/domain/entities/dashboard_deal.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
@@ -56,7 +57,7 @@ class _SelectDealToBoostPageState extends State<SelectDealToBoostPage> {
       body: BlocBuilder<BoostsCubit, BoostsState>(
         builder: (context, state) {
           if (state is! BoostDealsLoaded) {
-            return const Center(child: CircularProgressIndicator());
+            return const HabraCircularLoader(fullScreen: true);
           }
           final deals = state.deals;
           final selectedId = state.selectedId;
@@ -138,11 +139,11 @@ class _SelectDealToBoostPageState extends State<SelectDealToBoostPage> {
           create: (_) => sl<DashboardCubit>(),
           child: BoostListingPage(
             boostType: 'deal',
-            selectedId: selected.id,
-            selectedTitle: selected.title,
-            dealImageUrl: selected.imageUrl,
-            dealMerchantName: selected.merchantName,
-            dealExpiresInDays: selected.expiresInDays,
+            selectedId: selected?.id,
+            selectedTitle: selected?.title,
+            dealImageUrl: selected?.imageUrl,
+            dealMerchantName: selected?.merchantName,
+            dealExpiresInDays: selected?.expiresInDays,
           ),
         ),
       ),

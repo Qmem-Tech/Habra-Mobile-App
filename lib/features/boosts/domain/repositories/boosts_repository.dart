@@ -1,5 +1,5 @@
-import '../../dashboard/domain/entities/dashboard_deal.dart';
-import '../../dashboard/domain/entities/dashboard_job.dart';
+import '../../../dashboard/domain/entities/dashboard_deal.dart';
+import '../../../dashboard/domain/entities/dashboard_job.dart';
 import '../entities/active_boost.dart';
 import '../entities/boost_location.dart';
 import '../entities/boost_option.dart';

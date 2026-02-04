@@ -427,13 +427,19 @@ class _ActiveBoostDetailsPageState extends State<ActiveBoostDetailsPage> {
           Switch(
             value: boost.autoRenew,
             onChanged: (v) async {
+              if (!mounted) return;
               LoaderHelper.show(context, message: 'Updating...');
-              await context.read<BoostsCubit>().setAutoRenew(boost.id, v);
-              if (!context.mounted) return;
+              final cubit = context.read<BoostsCubit>();
+              await cubit.setAutoRenew(boost.id, v);
+              if (!mounted) return;
               LoaderHelper.hide(context);
-              context.read<BoostsCubit>().loadActiveBoostDetail(boost.id);
+              cubit.loadActiveBoostDetail(boost.id);
             },
-            activeColor: AppColors.brandPrimary,
+            thumbColor: MaterialStateProperty.resolveWith(
+              (states) => states.contains(MaterialState.selected)
+                  ? AppColors.brandPrimary
+                  : AppColors.backgroundGrey,
+            ),
           ),
         ],
       ),
@@ -465,15 +471,17 @@ class _ActiveBoostDetailsPageState extends State<ActiveBoostDetailsPage> {
         listingSubtitle: 'Ethiopian Cuisine • WB',
         listingImageUrl: null,
         onCancelBoost: () async {
+          if (!mounted) return;
           LoaderHelper.show(context, message: 'Cancelling...');
-          await context.read<BoostsCubit>().cancelBoost(boostId);
-          if (!context.mounted) return;
+          final cubit = context.read<BoostsCubit>();
+          await cubit.cancelBoost(boostId);
+          if (!mounted) return;
           LoaderHelper.hide(context);
           Navigator.pop(context, true);
         },
       ),
     );
-    if (cancelled == true && context.mounted) {
+    if (cancelled == true && mounted) {
       Navigator.pop(context);
     }
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
-import '../../../../dashboard/domain/entities/dashboard_deal.dart';
+import '../../../dashboard/domain/entities/dashboard_deal.dart';
 
 class DealSelectionCard extends StatelessWidget {
   const DealSelectionCard({

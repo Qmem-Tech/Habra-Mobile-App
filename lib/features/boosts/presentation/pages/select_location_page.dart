@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../dashboard/presentation/pages/boost_listing_page.dart';
@@ -56,7 +57,7 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
       body: BlocBuilder<BoostsCubit, BoostsState>(
         builder: (context, state) {
           if (state is! BoostLocationsLoaded) {
-            return const Center(child: CircularProgressIndicator());
+            return const HabraCircularLoader(fullScreen: true);
           }
           final locations = state.locations;
           final selectedId = state.selectedId;
@@ -138,8 +139,8 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
           create: (_) => sl<DashboardCubit>(),
           child: BoostListingPage(
             boostType: 'business_listing',
-            selectedId: selected.id,
-            selectedTitle: selected.name,
+            selectedId: selected?.id,
+            selectedTitle: selected?.name,
           ),
         ),
       ),

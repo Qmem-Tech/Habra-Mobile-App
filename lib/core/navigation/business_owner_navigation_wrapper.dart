@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../theme/app_colors.dart';
-import '../injection/injection_container.dart';
+import '../../injection/injection_container.dart';
 import '../../features/home/presentation/pages/business_owner_home_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/boosts/presentation/bloc/boosts_cubit.dart';

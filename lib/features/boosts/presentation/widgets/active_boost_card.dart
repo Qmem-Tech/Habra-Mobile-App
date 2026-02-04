@@ -138,7 +138,11 @@ class ActiveBoostCard extends StatelessWidget {
                         Switch(
                           value: boost.autoRenew,
                           onChanged: onAutoRenewChanged,
-                          activeColor: AppColors.brandPrimary,
+                          thumbColor: MaterialStateProperty.resolveWith(
+                            (states) => states.contains(MaterialState.selected)
+                                ? AppColors.brandPrimary
+                                : AppColors.backgroundGrey,
+                          ),
                         ),
                       ],
                     ),
