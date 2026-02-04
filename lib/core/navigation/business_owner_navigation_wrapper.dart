@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../theme/app_colors.dart';
+import '../injection/injection_container.dart';
 import '../../features/home/presentation/pages/business_owner_home_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
+import '../../features/boosts/presentation/bloc/boosts_cubit.dart';
+import '../../features/boosts/presentation/pages/boosts_page.dart';
 import '../../features/auth/domain/entities/user.dart';
 
 /// Bottom nav for business owner: Home, Dash, Boosts, Messages, Profile.
@@ -75,7 +79,10 @@ class _BusinessOwnerNavigationWrapperState
         children: [
           BusinessOwnerHomePage(user: widget.user),
           DashboardPage(user: widget.user),
-          _buildPlaceholderPage('Boosts'),
+          BlocProvider(
+            create: (_) => sl<BoostsCubit>(),
+            child: BoostsPage(user: widget.user),
+          ),
           _buildPlaceholderPage('Messages'),
           _buildPlaceholderPage('Profile'),
         ],

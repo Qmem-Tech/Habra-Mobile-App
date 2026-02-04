@@ -53,6 +53,10 @@ import '../features/dashboard/data/datasources/dashboard_remote_datasource.dart'
 import '../features/dashboard/data/repositories/dashboard_repository_impl.dart';
 import '../features/dashboard/domain/repositories/dashboard_repository.dart';
 import '../features/dashboard/presentation/bloc/dashboard_cubit.dart';
+import '../features/boosts/data/datasources/boosts_remote_datasource.dart';
+import '../features/boosts/data/repositories/boosts_repository_impl.dart';
+import '../features/boosts/domain/repositories/boosts_repository.dart';
+import '../features/boosts/presentation/bloc/boosts_cubit.dart';
 
 // Events feature
 import '../features/events/data/datasources/events_remote_datasource.dart';
@@ -223,6 +227,18 @@ Future<void> init() async {
     () => DashboardRepositoryImpl(remoteDataSource: sl<DashboardRemoteDataSource>()),
   );
   sl.registerFactory(() => DashboardCubit(sl<DashboardRepository>()));
+
+  // Features - Boosts (Business Owner)
+  sl.registerLazySingleton<BoostsRemoteDataSource>(
+    () => BoostsRemoteDataSourceImpl(),
+  );
+  sl.registerLazySingleton<BoostsRepository>(
+    () => BoostsRepositoryImpl(
+      remoteDataSource: sl<BoostsRemoteDataSource>(),
+      dashboardRepository: sl<DashboardRepository>(),
+    ),
+  );
+  sl.registerFactory(() => BoostsCubit(sl<BoostsRepository>()));
 
   // Features - Events
   // Data sources

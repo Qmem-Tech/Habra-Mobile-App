@@ -122,6 +122,14 @@ class AppAssets {
   /// Boost listing: rocket/visibility illustration. Replace with custom asset when provided.
   static const String dashboardBoostRocket = '$_imagesPath/home/business_placeholder.png';
 
+  // ==================== Boosts Feature ====================
+  /// Boosts empty state: no boosts used. Replace with custom asset when provided.
+  static const String boostsEmptyState = '$_imagesPath/home/no_results.png';
+  /// Boost order/payment success (gold checkmark). Use successIcon or replace when provided.
+  static const String boostsOrderSuccess = '$_iconsPath/success_icon.png';
+  /// Cancel boost modal: restaurant/listing image placeholder
+  static const String boostsCancelListingPlaceholder = '$_imagesPath/home/business_placeholder.png';
+
   // ==================== Helper Methods ====================
   /// Get asset path with optional fallback
   ///

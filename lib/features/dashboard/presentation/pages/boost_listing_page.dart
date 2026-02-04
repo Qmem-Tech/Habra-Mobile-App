@@ -7,11 +7,29 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/loader_helper.dart';
+import '../../../boosts/presentation/pages/order_confirmation_page.dart';
 import '../bloc/dashboard_cubit.dart';
 import '../bloc/dashboard_state.dart';
 
 class BoostListingPage extends StatefulWidget {
-  const BoostListingPage({super.key});
+  const BoostListingPage({
+    super.key,
+    this.boostType,
+    this.selectedId,
+    this.selectedTitle,
+    this.dealImageUrl,
+    this.dealMerchantName,
+    this.dealExpiresInDays,
+    this.jobEmployerName,
+  });
+
+  final String? boostType;
+  final String? selectedId;
+  final String? selectedTitle;
+  final String? dealImageUrl;
+  final String? dealMerchantName;
+  final String? dealExpiresInDays;
+  final String? jobEmployerName;
 
   @override
   State<BoostListingPage> createState() => _BoostListingPageState();
@@ -30,7 +48,25 @@ class _BoostListingPageState extends State<BoostListingPage> {
     await Future<void>.delayed(const Duration(seconds: 2));
     if (!ctx.mounted) return;
     LoaderHelper.hide(ctx);
-    Navigator.pop(ctx, true);
+    if (!ctx.mounted) return;
+    if (widget.boostType != null) {
+      Navigator.pushReplacement(
+        ctx,
+        MaterialPageRoute(
+          builder: (_) => OrderConfirmationPage(
+            dealTitle: widget.selectedTitle,
+            merchantName: widget.dealMerchantName,
+            dealImageUrl: widget.dealImageUrl,
+            expiresInDays: widget.dealExpiresInDays,
+            jobTitle: widget.selectedTitle,
+            employerName: widget.jobEmployerName,
+            listingTitle: widget.selectedTitle,
+          ),
+        ),
+      );
+    } else {
+      Navigator.pop(ctx, true);
+    }
   }
 
   @override

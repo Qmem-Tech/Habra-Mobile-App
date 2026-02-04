@@ -41,14 +41,15 @@ class MockDashboardData {
     final active = [
       DashboardDeal(
         id: 'd1',
-        title: 'Weekend Coffee Special',
+        title: 'Buy 1 Get 1 Coffee',
         description: 'Valid Sat-Sun • All espresso drinks',
         imageUrl: 'https://picsum.photos/200/200?random=deal1',
         dealTypeLabel: 'Buy 1 Get 1',
         validityDescription: 'Valid Sat-Sun • All espresso drinks',
         redeemedCount: 142,
-        expiryDate: DateTime.now().add(const Duration(days: 5)),
+        expiryDate: DateTime.now().add(const Duration(days: 10)),
         status: DashboardDealStatus.active,
+        merchantName: 'Tomoca Coffee',
       ),
       DashboardDeal(
         id: 'd2',
@@ -60,6 +61,7 @@ class MockDashboardData {
         redeemedCount: 89,
         expiryDate: DateTime.now().add(const Duration(days: 20)),
         status: DashboardDealStatus.active,
+        merchantName: 'Abyssinia Restaurant',
       ),
       DashboardDeal(
         id: 'd3',
@@ -71,6 +73,7 @@ class MockDashboardData {
         redeemedCount: 24,
         expiryDate: DateTime.now().add(const Duration(days: 10)),
         status: DashboardDealStatus.active,
+        merchantName: 'Ethiopian Market',
       ),
     ];
     final expired = [
@@ -84,6 +87,7 @@ class MockDashboardData {
         redeemedCount: 56,
         expiryDate: DateTime.now().subtract(const Duration(days: 5)),
         status: DashboardDealStatus.expired,
+        merchantName: 'Tomoca Coffee',
       ),
     ];
     final drafts = [
@@ -96,6 +100,7 @@ class MockDashboardData {
         validityDescription: 'Draft',
         redeemedCount: 0,
         status: DashboardDealStatus.draft,
+        merchantName: null,
       ),
     ];
     if (status == null) {
@@ -110,13 +115,14 @@ class MockDashboardData {
     return [
       const DashboardJob(
         id: 'j1',
-        title: 'Truck Driver',
+        title: 'Server Position',
         jobType: 'Full-Time',
-        location: 'WA',
-        salaryDisplay: '100k',
+        location: 'DC',
+        salaryDisplay: 'Hourly',
         viewsCount: 142,
         applicantsCount: 12,
-        postedTimeAgo: 'Posted 2d ago',
+        postedTimeAgo: '2d ago',
+        employerName: 'Habesha Restaurant',
       ),
       const DashboardJob(
         id: 'j2',
@@ -126,7 +132,8 @@ class MockDashboardData {
         salaryDisplay: 'Hourly',
         viewsCount: 89,
         applicantsCount: 4,
-        postedTimeAgo: 'Posted 3d ago',
+        postedTimeAgo: '3d ago',
+        employerName: 'Tomoca Coffee',
       ),
     ];
   }

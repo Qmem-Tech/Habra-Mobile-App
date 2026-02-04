@@ -13,6 +13,8 @@ class DashboardDeal extends Equatable {
   final int redeemedCount;
   final DateTime? expiryDate;
   final DashboardDealStatus status;
+  /// Business/merchant name for display (e.g. in Select Deal to Boost, Order Confirmation).
+  final String? merchantName;
 
   const DashboardDeal({
     required this.id,
@@ -24,13 +26,15 @@ class DashboardDeal extends Equatable {
     required this.redeemedCount,
     this.expiryDate,
     this.status = DashboardDealStatus.active,
+    this.merchantName,
   });
 
-  String get expiryDateShort {
+  /// "Expires in X days" for display.
+  String get expiresInDays {
     if (expiryDate == null) return '';
-    final d = expiryDate!;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${months[d.month - 1]} ${d.day}';
+    final diff = expiryDate!.difference(DateTime.now()).inDays;
+    if (diff <= 0) return 'Expired';
+    return 'Expires in $diff days';
   }
 
   @override
@@ -44,5 +48,13 @@ class DashboardDeal extends Equatable {
         redeemedCount,
         expiryDate,
         status,
+        merchantName,
       ];
+
+  String get expiryDateShort {
+    if (expiryDate == null) return '';
+    final d = expiryDate!;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[d.month - 1]} ${d.day}';
+  }
 }
