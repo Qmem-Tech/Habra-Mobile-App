@@ -13,6 +13,10 @@ Welcome to the Habra Mobile App documentation! This folder contains all document
 - **[NAMING_CONVENTIONS.md](./NAMING_CONVENTIONS.md)** - Code naming conventions and standards
 - **[DEVELOPMENT_RULES.md](./DEVELOPMENT_RULES.md)** - App development general rules we must always follow (e.g. who runs commands)
 
+### Backend
+- **[SUPABASE_BACKEND_DESIGN.md](./SUPABASE_BACKEND_DESIGN.md)** - Supabase backend design: schema, RLS, user flows (Community + Business Owner), migration, and implementation phases
+- **[FIREBASE_BACKEND_DEVELOPMENT_GUIDE.md](./FIREBASE_BACKEND_DEVELOPMENT_GUIDE.md)** - Firebase backend setup (current/auth); see Supabase doc for migration path
+
 ### Implementation Guides
 - **[APP_IMPLEMENTATION_GUIDE.md](./APP_IMPLEMENTATION_GUIDE.md)** - Comprehensive implementation guide for all features (Customer, Business Owner, Admin)
 - **[HOME_FEATURE_IMPLEMENTATION.md](./HOME_FEATURE_IMPLEMENTATION.md)** - Home feature implementation details
