@@ -1,10 +1,10 @@
 # Habra Mobile App — Supabase Backend Design & Implementation Guide
 
-This document provides a **project-level analysis**, **detailed step-by-step guideline**, and **scalable backend design** for handling the Habra app backend with **Supabase**. It covers both **Business Owner** and **Community Member** flows end-to-end, with features, schema, security, and recommendations.
+This document provides a **project-level analysis**, **detailed step-by-step guideline**, and **scalable backend design** for handling the Habra backend with **Supabase**. It covers **Community Member**, **Business Owner**, and **Super Admin** flows end-to-end, and supports **three client applications**: mobile app (Flutter), business owner web app, and super admin web app.
 
 | Attribute | Value |
 |----------|--------|
-| **Document version** | 1.1 |
+| **Document version** | 1.3 |
 | **Last updated** | 2025-02 |
 | **Status** | Approved for implementation |
 | **Audience** | Development team, product/tech leads |
@@ -31,10 +31,11 @@ This document provides a **project-level analysis**, **detailed step-by-step gui
 
 ### What Habra Is
 
-- **Super app** for the Habesha community: events, deals, businesses, jobs, and (for business owners) dashboard, boosts, and listings.
-- **Two main user types** with different entry points and UIs:
-  - **Community Member (customer/guest)**: Browse events, deals, businesses; apply for jobs; redeem deals; write reviews.
-  - **Business Owner**: Manage business profile, create deals/jobs, view analytics, manage applicants, run boosts.
+- **Super app** for the Habesha community: events, deals, businesses, jobs, and (for business owners) dashboard, boosts, and listings. **One Supabase backend** serves all clients below.
+- **Three user types** with different entry points and UIs:
+  - **Community Member (customer/guest)**: Browse events, deals, businesses; apply for jobs; redeem deals; write reviews. Uses **mobile app**.
+  - **Business Owner**: Manage business profile, create deals/jobs, view analytics, manage applicants, run boosts. Uses **mobile app** and/or **business owner web app**.
+  - **Super Admin**: Platform oversight, user/business moderation, content and boost plan management, reporting. Uses **super admin web app** only.
 
 ### Current State (from codebase)
 
@@ -46,17 +47,27 @@ This document provides a **project-level analysis**, **detailed step-by-step gui
 
 | Area | Plan |
 |------|------|
-| **Auth** | Supabase Auth (email/password, Google, anonymous). Profile + role in `public.profiles`. |
+| **Auth** | Supabase Auth (email/password, Google, anonymous). Profile + role in `public.profiles`. **Email verification** required for business owners (§4.5); optional mirror `profiles.email_verified_at`. |
 | **Database** | PostgreSQL: profiles, businesses, deals, events, jobs, reviews, orders, tickets, notifications, boosts, job_applications, etc. |
 | **Storage** | Buckets for avatars, business images, deal/event images, review photos. |
 | **Security** | RLS on all tables so users only access allowed rows. |
 | **Optional** | Edge Functions for payment webhooks, aggregate updates (e.g. business rating), scheduled jobs. Realtime for notifications or live updates. |
+| **Admin** | Super admin web app: user/business management, moderation, boost plans, reporting; RLS and tables for `role = 'admin'`. |
+| **Web clients** | Same Supabase project (same Auth, DB, Storage) used by business owner web app and super admin web app; clients differ by role and UI. |
+
+### Client applications (who uses this backend)
+
+| Client | Users | Primary use |
+|--------|--------|-------------|
+| **Mobile app (Flutter)** | Community members, Business owners | Consumer: Home, Events, Explore, Jobs. Business: Dashboard, Deals, Jobs, Reviews, Applicants, Boosts. |
+| **Business owner web app** | Business owners | Same data as mobile dashboard: manage businesses, deals, jobs, reviews, applicants, boosts (desktop-friendly). |
+| **Super admin web app** | Super admins (`role = admin`) | User management, business approval/verification, content moderation, boost plan CRUD, reports/analytics, audit log. |
 
 ### Out of Scope (for this doc)
 
 - Full payment provider integration (Stripe/etc.) — only order/payment data model and placeholders.
-- Admin dashboard or admin-only APIs (schema can support `role = 'admin'` later).
 - Messaging feature (schema can reserve a `conversations`/`messages` design for later).
+- Detailed UI/UX specs for web apps (this doc defines backend only).
 
 ---
 
@@ -107,8 +118,8 @@ This document provides a **project-level analysis**, **detailed step-by-step gui
 |------|----------------|--------------------|
 | 1 | **Choose path** → “Business Owner” | No backend. |
 | 2 | **Business sign in** (email/password) | Auth: `signInWithPassword`. Profile must have `role = businessOwner` (or redirect to “wrong path” / upgrade flow). |
-| 3 | **Business onboarding** (if new) | Create `businesses` row with `owner_id = auth.uid()`. Optionally link in `profiles` (e.g. `primary_business_id`). |
-| 4 | **Business owner home** | Dashboard summary: analytics, recent activity. Read `businesses` (own), `deals`, `jobs`, `reviews` for that business. |
+| 3 | **Business onboarding** (if new) | Create `businesses` row with `owner_id = auth.uid()`, `approval_status = 'pending'`. Optionally link in `profiles` (e.g. `primary_business_id`). Business is **not** visible in Explore/Home/Deals/Jobs until admin sets `approval_status = 'approved'`. |
+| 4 | **Business owner home** | Dashboard summary: analytics, recent activity. Read `businesses` (own; any `approval_status`). Owner sees “Pending approval” state until `approval_status = 'approved'`; after approval, business appears in Explore/Home for community. |
 | 5 | **Dashboard – Analytics** | Views, clicks, messages (if you store them), rating, review count, active deals/jobs. Stored in `businesses` and/or `dashboard_analytics` (or computed via views/functions). |
 | 6 | **Dashboard – Deals** | List/create/edit deals for own business → `deals` (where `business_id` in own businesses). |
 | 7 | **Dashboard – Jobs** | List/create/edit job posts → `jobs` (where `business_id` in own businesses). |
@@ -117,9 +128,28 @@ This document provides a **project-level analysis**, **detailed step-by-step gui
 | 10 | **Boosts** | List boost plans → `boost_plans`. Create boost for deal/job → `boosts` (references deal or job, business, plan, duration, status). Optional: payments via Edge Function. |
 | 11 | **Messages / Profile** | Placeholder today; later: `conversations`, `messages`; profile from `profiles`. |
 
+**Note:** The same backend and RLS apply whether the business owner uses the **mobile app** or the **business owner web app**; both use Supabase Auth and the same `profiles` / `businesses` data.
+
 ---
 
-### 2.3 Feature–Table Mapping (Quick Reference)
+### 2.3 Super Admin (Admin Dashboard) Flow
+
+Super admins sign in to the **super admin web app** only (no admin entry in the mobile app). The backend identifies them by `profiles.role = 'admin'` and grants broad read/write via RLS.
+
+| Step | Screen / Action | Backend (Supabase) |
+|------|----------------|--------------------|
+| 1 | **Admin sign-in** (web) | Auth: `signInWithPassword` (or SSO if configured). Profile must have `role = admin`; else deny access to admin UI. |
+| 2 | **Dashboard overview** | Aggregates: total users, businesses, deals, events, jobs, orders; optional time range. Read from `profiles`, `businesses`, `deals`, `events`, `jobs`, `orders` (admin RLS allows all). |
+| 3 | **User management** | List/filter `profiles` (role, email, created_at). View detail; update role, suspend (e.g. `is_suspended` on profile), or delete. |
+| 4 | **Business management & approval** | List/filter `businesses` (including `approval_status = 'pending'`). View detail; **approve** (`approval_status = 'approved'`, set `reviewed_at`, `reviewed_by`) or **reject** (`approval_status = 'rejected'`, optional `rejection_reason`, `reviewed_at`, `reviewed_by`). Optionally verify (`is_verified`), feature (`is_featured`), deactivate (`is_active`). Only approved businesses appear in community-facing listing. |
+| 5 | **Content moderation** | List `deals`, `events`, `jobs`, `reviews`; hide/remove or flag; update status. |
+| 6 | **Boost plans** | CRUD on `boost_plans` (admin-only table or admin-only RLS). List `boosts` across all businesses. |
+| 7 | **Reports / analytics** | Read-only aggregates (e.g. sign-ups over time, redemptions, ticket sales). Optional: materialized views or Edge Function for heavy reports. |
+| 8 | **Audit log** | List `audit_log` (admin actions and sensitive changes) for compliance and debugging. |
+
+---
+
+### 2.4 Feature–Table Mapping (Quick Reference)
 
 | Feature | Main tables |
 |---------|-------------|
@@ -134,8 +164,9 @@ This document provides a **project-level analysis**, **detailed step-by-step gui
 | Notifications | `notifications` |
 | Boosts | `boost_plans`, `boosts` (FK business, deal or job) |
 | Search | Full-text / filters on `businesses`, `deals`, `events`, `jobs` |
+| **Admin dashboard** | `profiles`, `businesses`, `deals`, `events`, `jobs`, `reviews`, `orders`, `boost_plans`, `boosts`, `audit_log`, `app_settings` |
 
-### 2.4 Feature coverage (implementation traceability)
+### 2.5 Feature coverage (implementation traceability)
 
 Every app feature is explicitly covered in this document as follows:
 
@@ -144,6 +175,7 @@ Every app feature is explicitly covered in this document as follows:
 | Splash, onboarding | §2.1 step 1–2, §4.3 | Session, `profiles`, local onboarding flag |
 | Choose path | §2.1, §2.2 | Client-only; role set at sign-up |
 | Sign up / Sign in / Guest | §2.1 step 4, §4 | Auth + `profiles` insert |
+| **Email verification** | §4.5 | Supabase Auth confirm email; `auth.users.email_confirmed_at`; optional `profiles.email_verified_at`; gate business owner flows until verified |
 | Home (events, deals, businesses, jobs) | §2.1 step 5, §10 Phase 2 | `events`, `deals`, `businesses`, `jobs` |
 | Events list, detail, tickets, buy | §2.1 step 6–7, §10 Phase 2 | `events`, `event_tickets`, `orders`, `tickets` |
 | Explore (businesses, deals, reviews, redeem) | §2.1 step 8–10, §10 Phase 2 | `businesses`, `deals`, `reviews`, `deal_redemptions` |
@@ -151,9 +183,12 @@ Every app feature is explicitly covered in this document as follows:
 | Search | §2.1 step 12, §10 Phase 4 | Full-text / filters |
 | Notifications | §2.1 step 13, §10 Phase 4 | `notifications` |
 | Business sign-in, onboarding | §2.2 step 2–3 | Auth, `profiles`, `businesses` |
+| **Business pending / approval (admin)** | §2.2 step 3–4, §2.3 step 4, §5.2, §6 | `businesses.approval_status` (pending/approved/rejected), `reviewed_at`, `reviewed_by`, `rejection_reason`; RLS: only approved businesses visible to community; admin approves/rejects |
 | Dashboard (analytics, deals, jobs, reviews, applicants) | §2.2 step 4–9, §10 Phase 3 | `businesses`, `deals`, `jobs`, `reviews`, `job_applications`, `review_replies` |
 | Boosts | §2.2 step 10, §10 Phase 3 | `boost_plans`, `boosts` |
 | Storage (avatars, business/deal/event images) | §7, §10 Phase 4 | Supabase Storage buckets |
+| **Admin dashboard (web)** | §2.3, §10 Phase 5 | All tables (admin RLS), `audit_log`, `app_settings` |
+| **Business owner web app** | §2.2 (same as mobile) | Same as Dashboard; same Supabase project and RLS |
 
 ---
 
@@ -191,6 +226,8 @@ await Supabase.initialize(
 
 Use env or flavor for URL/keys so you can switch staging/production.
 
+**Web apps (business owner and super admin):** Use the same Supabase project URL and **anon** key. Authenticate with `supabase.auth.signInWithPassword()` (or OAuth). RLS applies: business owners see only their data; admins see all when `is_admin()` is true. Do not use the **service_role** key in any client app.
+
 ---
 
 ## 4. Authentication Design
@@ -216,6 +253,28 @@ Use env or flavor for URL/keys so you can switch staging/production.
 
 - `supabase.auth.signOut()`. Clear any local caches (e.g. stored user profile).
 
+### 4.5 Email verification flow
+
+**Recommendation:** Require verified email for **business owners** (and optionally for community sign-up). Use Supabase’s built-in email confirmation; gate sensitive actions on verification status.
+
+| Step | Action | Backend (Supabase) |
+|------|--------|--------------------|
+| 1 | **Sign up (email/password)** | `supabase.auth.signUp(email, password, options)`. Supabase sends confirmation email if “Confirm email” is enabled in Dashboard → Auth → Providers → Email. |
+| 2 | **User clicks link in email** | Supabase confirms the user; `auth.users.email_confirmed_at` is set. Redirect to app (e.g. deep link or redirect URL configured in Auth settings). |
+| 3 | **Session after confirm** | On next sign-in (or token refresh), `session.user.email_confirmed_at` is non-null. App can read this and optionally mirror to `profiles.email_verified_at` for easy RLS/queries. |
+| 4 | **Gate by verification** | **Business owner:** Allow full dashboard and business creation only when `email_confirmed_at` is set (or `profiles.email_verified_at`). Show “Verify your email” banner and resend option until then. **Community:** Optional: restrict deals/orders/reviews until verified, or allow all. |
+| 5 | **Resend confirmation** | `supabase.auth.resend(type: OtpType.signup)` (or equivalent) to send a new confirmation email. |
+
+**Configuration (Supabase Dashboard):**
+
+- **Auth → Providers → Email**: Enable “Confirm email” so new sign-ups receive a confirmation link.
+- **Auth → URL configuration**: Set “Site URL” and “Redirect URLs” (e.g. `https://yourapp.com/auth/callback`, `habra://auth/callback` for mobile) so the confirmation link lands in your app.
+- **Auth → Email templates**: Customize “Confirm signup” template (subject, body, link).
+
+**Profile mirror (optional):** Add `profiles.email_verified_at TIMESTAMPTZ` and keep it in sync via Auth hook or Edge Function on `auth.users` update (when `email_confirmed_at` is set), so RLS or app logic can use `profiles.email_verified_at` without reading `auth.users` directly.
+
+**Summary:** Enable “Confirm email” in Supabase; use `session.user.email_confirmed_at` (or `profiles.email_verified_at`) to show “Verify your email” and block business-owner actions until verified; provide resend confirmation in the app.
+
 ---
 
 ## 5. Database Schema (PostgreSQL)
@@ -231,6 +290,7 @@ CREATE TYPE ticket_status AS ENUM ('valid', 'used', 'cancelled');
 CREATE TYPE deal_status AS ENUM ('draft', 'active', 'expired', 'inactive');
 CREATE TYPE job_application_status AS ENUM ('pending', 'reviewed', 'shortlisted', 'rejected', 'hired');
 CREATE TYPE boost_status AS ENUM ('active', 'paused', 'completed', 'cancelled');
+CREATE TYPE business_approval_status AS ENUM ('pending', 'approved', 'rejected');
 ```
 
 ### 5.2 Core tables
@@ -244,6 +304,8 @@ CREATE TABLE public.profiles (
   avatar_url TEXT,
   role app_role NOT NULL DEFAULT 'customer',
   phone TEXT,
+  is_suspended BOOLEAN DEFAULT false,
+  email_verified_at TIMESTAMPTZ,
   locale TEXT DEFAULT 'en',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -274,6 +336,10 @@ CREATE TABLE public.businesses (
   is_active BOOLEAN DEFAULT true,
   is_verified BOOLEAN DEFAULT false,
   is_featured BOOLEAN DEFAULT false,
+  approval_status business_approval_status NOT NULL DEFAULT 'pending',
+  reviewed_at TIMESTAMPTZ,
+  reviewed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  rejection_reason TEXT,
   opening_time TIME,
   closing_time TIME,
   price_range TEXT,
@@ -479,6 +545,25 @@ CREATE TABLE public.boosts (
 
 -- Ensure at least one of deal_id or job_id when applicable (optional check)
 -- ALTER TABLE public.boosts ADD CONSTRAINT boosts_target_check CHECK (deal_id IS NOT NULL OR job_id IS NOT NULL);
+
+-- Audit log (admin actions and sensitive changes; optional but recommended for super admin)
+CREATE TABLE public.audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  resource_type TEXT NOT NULL,
+  resource_id TEXT,
+  old_data JSONB,
+  new_data JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- App-wide settings (super admin only; e.g. maintenance mode, feature flags)
+CREATE TABLE public.app_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 ```
 
 ### 5.3 Schema creation order
@@ -490,8 +575,9 @@ Apply schema in this order to respect foreign keys:
 3. `businesses` (FK to `profiles`)
 4. `ALTER TABLE public.profiles ADD COLUMN primary_business_id UUID REFERENCES public.businesses(id);`
 5. `categories`, `business_categories`, `deals`, `events`, `event_tickets`, `jobs`, `reviews`, `review_replies`, `deal_redemptions`, `orders`, `tickets`, `job_applications`, `job_bookmarks`, `notifications`, `boost_plans`, `boosts`
-6. Indexes (§5.4)
-7. RLS policies (§6)
+6. `audit_log`, `app_settings`
+7. Indexes (§5.5)
+8. RLS policies (§6)
 
 ### 5.4 Triggers and helpers
 
@@ -504,6 +590,7 @@ Apply schema in this order to respect foreign keys:
 ```sql
 CREATE INDEX idx_businesses_owner ON public.businesses(owner_id);
 CREATE INDEX idx_businesses_city_active ON public.businesses(address_city, is_active);
+CREATE INDEX idx_businesses_approval_status ON public.businesses(approval_status) WHERE approval_status = 'pending';
 CREATE INDEX idx_deals_business_valid ON public.deals(business_id, valid_until) WHERE status = 'active';
 CREATE INDEX idx_events_start ON public.events(start_at) WHERE is_active;
 CREATE INDEX idx_jobs_business_posted ON public.jobs(business_id, posted_at DESC);
@@ -511,6 +598,8 @@ CREATE INDEX idx_reviews_business ON public.reviews(business_id);
 CREATE INDEX idx_orders_user ON public.orders(user_id);
 CREATE INDEX idx_notifications_user_unread ON public.notifications(user_id, is_read);
 CREATE INDEX idx_job_applications_job ON public.job_applications(job_id);
+CREATE INDEX idx_audit_log_created_at ON public.audit_log(created_at DESC);
+CREATE INDEX idx_audit_log_actor ON public.audit_log(actor_id);
 ```
 
 Full-text (optional):
@@ -529,19 +618,33 @@ Enable RLS on all public tables; then add policies so the **anon** key (used by 
 
 ### 6.1 Principles
 
-- **profiles**: Users read any profile (for display names); insert/update/delete only own row (`id = auth.uid()`).
-- **businesses**: Everyone can read active businesses; insert only when `auth.uid() = owner_id` and profile has role businessOwner; update/delete only owner.
-- **deals, events, jobs**: Read for active/visible rows; create/update/delete only for the owning business/organizer.
-- **reviews**: Read all; insert with `user_id = auth.uid()`; update/delete own.
-- **orders, tickets**: User sees only own orders.
-- **notifications**: User sees only own.
-- **job_applications**: Applicant sees own; business owner sees for their jobs.
-- **boosts**: Business owner sees own.
+- **profiles**: Users read any profile (for display names); insert/update/delete only own row (`id = auth.uid()`). **Admin** can read/update all (e.g. change role, suspend).
+- **businesses**: Everyone can read active businesses; insert only when `auth.uid() = owner_id` and profile has role businessOwner; update/delete only owner. **Admin** can read/update/delete all (verify, feature, deactivate).
+- **deals, events, jobs**: Read for active/visible rows; create/update/delete only for the owning business/organizer. **Admin** can read/update/delete all (moderation).
+- **reviews**: Read all; insert with `user_id = auth.uid()`; update/delete own. **Admin** can read/delete all.
+- **orders, tickets**: User sees only own orders. **Admin** can read all (reports).
+- **notifications**: User sees only own. **Admin** can read all if needed.
+- **job_applications**: Applicant sees own; business owner sees for their jobs. **Admin** can read/update all.
+- **boosts**: Business owner sees own. **Admin** can read all; **boost_plans** admin-only write.
+- **audit_log**: **Admin** read-only (writes via trigger or Edge Function with service role).
+- **app_settings**: **Admin** read/write only.
 
-### 6.2 Example policies (copy and adapt)
+### 6.2 Admin helper (use in policies)
+
+Define once; then use `is_admin()` in admin policies for all tables:
 
 ```sql
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+```
+
+**Important:** Restrict admin creation to a single, secure path (e.g. run a one-off script with `service_role` to set the first admin, or use Supabase Dashboard to set `profiles.role = 'admin'` for a known user). Do not allow self-sign-up as admin from the app.
+
+### 6.3 Example policies (copy and adapt)
 
 CREATE POLICY "Public profiles are viewable by everyone"
   ON public.profiles FOR SELECT USING (true);
@@ -552,11 +655,16 @@ CREATE POLICY "Users can insert own profile"
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
+CREATE POLICY "Admin can update any profile"
+  ON public.profiles FOR UPDATE USING (public.is_admin());
+
 -- Businesses
 ALTER TABLE public.businesses ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Active businesses are viewable by everyone"
-  ON public.businesses FOR SELECT USING (is_active = true OR owner_id = auth.uid());
+CREATE POLICY "Approved active businesses are viewable by everyone"
+  ON public.businesses FOR SELECT USING (
+    (approval_status = 'approved' AND is_active = true) OR owner_id = auth.uid()
+  );
 
 CREATE POLICY "Business owners can insert own business"
   ON public.businesses FOR INSERT
@@ -573,8 +681,11 @@ CREATE POLICY "Business owners can delete own business"
 
 -- Deals: read active; write by business owner
 ALTER TABLE public.deals ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Deals readable by all when active"
-  ON public.deals FOR SELECT USING (status = 'active' OR EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid()));
+CREATE POLICY "Deals readable when active and business approved (or owner)"
+  ON public.deals FOR SELECT USING (
+    (status = 'active' AND EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.approval_status = 'approved' AND b.is_active = true))
+    OR EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid())
+  );
 CREATE POLICY "Deals insert by business owner"
   ON public.deals FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid()));
 CREATE POLICY "Deals update/delete by business owner"
@@ -623,7 +734,11 @@ CREATE POLICY "Organizer can manage event tickets" ON public.event_tickets FOR A
 
 -- Jobs: read active; write by business owner
 ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Jobs readable when active" ON public.jobs FOR SELECT USING (is_active = true OR EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid()));
+CREATE POLICY "Jobs readable when active and business approved (or owner)"
+  ON public.jobs FOR SELECT USING (
+    (is_active = true AND EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.approval_status = 'approved' AND b.is_active = true))
+    OR EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid())
+  );
 CREATE POLICY "Business owner can manage jobs" ON public.jobs FOR ALL USING (EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid()));
 
 -- Tickets: read/update with order ownership
@@ -643,12 +758,56 @@ CREATE POLICY "Business owner can insert boosts" ON public.boosts FOR INSERT WIT
 CREATE POLICY "Business owner can update own boosts" ON public.boosts FOR UPDATE USING (EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid()));
 CREATE POLICY "Business owner can delete own boosts" ON public.boosts FOR DELETE USING (EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid()));
 
--- boost_plans: read-only for all
+-- boost_plans: read-only for all; admin can manage (CRUD)
 ALTER TABLE public.boost_plans ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Boost plans readable by all" ON public.boost_plans FOR SELECT USING (true);
+CREATE POLICY "Admin can manage boost plans" ON public.boost_plans FOR ALL USING (public.is_admin());
+
+-- audit_log: admin read-only; inserts via trigger or Edge Function (service_role)
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin can read audit log" ON public.audit_log FOR SELECT USING (public.is_admin());
+
+-- app_settings: admin only
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin can manage app settings" ON public.app_settings FOR ALL USING (public.is_admin());
 ```
 
-Use helper functions if you prefer:
+### 6.4 Admin override policies (super admin full access)
+
+Add the following so that users with `role = 'admin'` can read and, where needed, update/delete rows on all operational tables. These policies are **OR**ed with the existing role-specific policies.
+
+```sql
+-- Admin override: read/update/delete on core tables (add after the table-specific policies above)
+CREATE POLICY "Admin read all businesses" ON public.businesses FOR SELECT USING (public.is_admin());
+CREATE POLICY "Admin update/delete businesses" ON public.businesses FOR ALL USING (public.is_admin());
+
+CREATE POLICY "Admin read all deals" ON public.deals FOR SELECT USING (public.is_admin());
+CREATE POLICY "Admin update/delete deals" ON public.deals FOR ALL USING (public.is_admin());
+
+CREATE POLICY "Admin read all events" ON public.events FOR SELECT USING (public.is_admin());
+CREATE POLICY "Admin update/delete events" ON public.events FOR ALL USING (public.is_admin());
+
+CREATE POLICY "Admin read all event_tickets" ON public.event_tickets FOR SELECT USING (public.is_admin());
+CREATE POLICY "Admin update/delete event_tickets" ON public.event_tickets FOR ALL USING (public.is_admin());
+
+CREATE POLICY "Admin read all jobs" ON public.jobs FOR SELECT USING (public.is_admin());
+CREATE POLICY "Admin update/delete jobs" ON public.jobs FOR ALL USING (public.is_admin());
+
+CREATE POLICY "Admin read/delete reviews" ON public.reviews FOR ALL USING (public.is_admin());
+CREATE POLICY "Admin read/delete review_replies" ON public.review_replies FOR ALL USING (public.is_admin());
+
+CREATE POLICY "Admin read all orders" ON public.orders FOR SELECT USING (public.is_admin());
+CREATE POLICY "Admin read all tickets" ON public.tickets FOR SELECT USING (public.is_admin());
+
+CREATE POLICY "Admin read all notifications" ON public.notifications FOR SELECT USING (public.is_admin());
+CREATE POLICY "Admin read/update job_applications" ON public.job_applications FOR ALL USING (public.is_admin());
+CREATE POLICY "Admin read all boosts" ON public.boosts FOR SELECT USING (public.is_admin());
+CREATE POLICY "Admin update/delete boosts" ON public.boosts FOR ALL USING (public.is_admin());
+```
+
+**audit_log inserts:** Use a database trigger (e.g. on `profiles`, `businesses` updates) or an Edge Function with `service_role` to write to `audit_log`, so that admin actions are recorded without exposing insert to the anon key.
+
+Use helper functions if you prefer (e.g. for business-owner checks):
 
 ```sql
 CREATE OR REPLACE FUNCTION public.is_business_owner(bid UUID)
@@ -743,9 +902,10 @@ Phases are ordered by dependency. Each phase has **deliverables** (what to produ
 | 1.4 | Profile on sign-up | New user (email or Google or anonymous) gets a row in `profiles` with correct `role` (trigger or app logic). |
 | 1.5 | **AuthRemoteDataSource** uses Supabase Auth | Email/password, Google, anonymous sign-in/sign-up work; same `AuthRepository` contract; Firebase auth code removed or behind feature flag. |
 | 1.6 | Splash uses session + profile | `getSession()` and fetch `profiles` by `id`; route to Customer shell vs Business Owner shell by `role`; remove hardcoded `User`. |
-| 1.7 | (Optional) Firebase user migration | If production users exist: script and run one-time migration; document password reset expectation. |
+| 1.7 | **Email verification** (§4.5) | “Confirm email” enabled in Supabase Auth; redirect URLs configured; app shows “Verify your email” and resend for business owners until `email_confirmed_at` is set; optionally mirror to `profiles.email_verified_at`; gate business-owner dashboard/creation until verified. |
+| 1.8 | (Optional) Firebase user migration | If production users exist: script and run one-time migration; document password reset expectation. |
 
-**Phase 1 done when:** User can sign up/in as customer or business owner, and splash navigates to the correct shell; profile and role persist across restarts.
+**Phase 1 done when:** User can sign up/in as customer or business owner, and splash navigates to the correct shell; profile and role persist across restarts; business owners are prompted to verify email and cannot use full dashboard until verified.
 
 ---
 
@@ -755,8 +915,8 @@ Phases are ordered by dependency. Each phase has **deliverables** (what to produ
 
 | # | Deliverable | Acceptance criteria |
 |---|-------------|---------------------|
-| 2.1 | Core tables created (§5.2, §5.3 order) | `businesses`, `categories`, `business_categories`, `deals`, `events`, `event_tickets`, `jobs`, `reviews`, `review_replies`, `deal_redemptions`, `orders`, `tickets`, `job_applications`, `job_bookmarks` exist with FKs and indexes (§5.5). |
-| 2.2 | RLS for Phase 2 tables (§6) | All policies applied; customer/guest cannot see other users’ orders or write to others’ data; business owner can manage only own business data. |
+| 2.1 | Core tables created (§5.2, §5.3 order) | `businesses` (with `approval_status`, `reviewed_at`, `reviewed_by`, `rejection_reason`), `categories`, `business_categories`, `deals`, `events`, `event_tickets`, `jobs`, `reviews`, `review_replies`, `deal_redemptions`, `orders`, `tickets`, `job_applications`, `job_bookmarks` exist with FKs and indexes (§5.5). |
+| 2.2 | RLS for Phase 2 tables (§6) | All policies applied; **only approved businesses** visible to community (Explore/Home/Jobs/Deals); owner sees own business in any approval state; customer/guest cannot see other users’ orders or write to others’ data. |
 | 2.3 | **Explore**: BusinessesRemoteDataSource → Supabase | List businesses (filter/category), business detail, deals list/detail, reviews list; write review; redeem deal. |
 | 2.4 | **Home**: HomeRemoteDataSource → Supabase | “Happening this week”, hot deals, popular businesses, latest jobs from DB (or seeded data). |
 | 2.5 | **Events**: EventsRemoteDataSource → Supabase | List events (filters), event detail, event tickets; create order + tickets; user can see own tickets. |
@@ -777,7 +937,7 @@ Phases are ordered by dependency. Each phase has **deliverables** (what to produ
 | 3.3 | `boost_plans` and `boosts` tables + RLS | Tables created and secured; business owner can list plans and create a boost for a deal or job (status, dates). |
 | 3.4 | Boosts UI → Supabase | List active/past boosts; create boost flow writes to `boosts`; payment is placeholder if needed. |
 
-**Phase 3 done when:** Business owner sees real dashboard data, can create/edit deals and jobs, reply to reviews, and create and view boosts.
+**Phase 3 done when:** Business owner sees real dashboard data, can create/edit deals and jobs, reply to reviews, and create and view boosts. The **business owner web app** can be built in parallel or after Phase 3; it uses the same Supabase project and the same RLS (business owners see only their own data).
 
 ---
 
@@ -798,14 +958,30 @@ Phases are ordered by dependency. Each phase has **deliverables** (what to produ
 
 ---
 
+### Phase 5: Admin dashboard and web apps (2–3 weeks)
+
+**Objective:** Super admin web app can manage users, businesses, content, boost plans, and settings. Business owner web app (if not done in Phase 3) uses the same backend.
+
+| # | Deliverable | Acceptance criteria |
+|----|-------------|---------------------|
+| 5.1 | **Admin schema and RLS** | `audit_log`, `app_settings` created; `profiles.is_suspended` added; `is_admin()` function and admin override policies (§6.2, §6.4) applied. First admin user created via secure one-off (no self-sign-up as admin). |
+| 5.2 | **Super admin web app** (backend readiness) | Admin can sign in (role = admin); RLS allows read/update on `profiles`, `businesses`, `deals`, `events`, `jobs`, `reviews`, `orders`, `boost_plans`, `boosts`; read on `audit_log`; read/write on `app_settings`. |
+| 5.3 | **Admin features** (backend) | User management (list/update profiles, suspend); **business approval**: list/filter businesses by `approval_status` (pending/approved/rejected), approve (set `approval_status = 'approved'`, `reviewed_at`, `reviewed_by`) or reject (set `approval_status = 'rejected'`, optional `rejection_reason`, `reviewed_at`, `reviewed_by`); verify, feature, deactivate; content moderation (deals, events, jobs, reviews); boost plan CRUD; optional audit log writes via trigger or Edge Function. |
+| 5.4 | **Business owner web app** (if separate) | Same Supabase project and Auth; business owner signs in and sees same data as mobile dashboard (RLS already allows). No backend changes beyond what Phase 3 provides. |
+
+**Phase 5 done when:** Super admin can use the web app to manage users, **approve or reject pending businesses** (with reviewed_at/reviewed_by/rejection_reason), manage content and boost plans; audit log and app_settings are in place; business owner web app (if built) can sign in and use dashboard data.
+
+---
+
 ### Phase summary (checklist)
 
 | Phase | Focus | Key tables/areas |
 |-------|--------|-------------------|
 | 1 | Auth + profile + routing | `profiles`, Supabase Auth, splash |
 | 2 | Community content | `businesses`, `deals`, `events`, `jobs`, `reviews`, `orders`, `tickets`, `job_applications`, `job_bookmarks`, `deal_redemptions` |
-| 3 | Business owner | Dashboard, `review_replies`, `boost_plans`, `boosts` |
+| 3 | Business owner (mobile + web) | Dashboard, `review_replies`, `boost_plans`, `boosts` |
 | 4 | Storage, notifications, search, optional backend | Storage buckets, `notifications`, search indexes, Edge Functions, Realtime |
+| 5 | Admin dashboard + web apps | `audit_log`, `app_settings`, `is_admin()`, admin RLS; super admin web app; business owner web app (same backend as Phase 3) |
 
 ---
 
@@ -837,26 +1013,28 @@ Phases are ordered by dependency. Each phase has **deliverables** (what to produ
 
 ### Testing
 
-- Use a **staging** Supabase project (e.g. `habra-app-staging`) with same schema; point dev/debug builds to it.
-- Test RLS with different roles (customer, businessOwner, guest) and ensure no cross-tenant data leak.
+- Use a **staging** Supabase project (e.g. `habra-app-staging`) with same schema; point dev/debug builds and web apps to it.
+- Test RLS with different roles (customer, businessOwner, guest, **admin**) and ensure no cross-tenant data leak; verify admin can read/update only where intended (e.g. no customer self-escalation to admin).
 
 ---
 
 ## Summary
 
-- **Backend**: Supabase (Auth, Postgres, Storage, optional Edge Functions and Realtime) as the single backend for Habra.
-- **Flows**: Community members use Home, Events, Explore, Jobs, Search, Notifications; business owners use Dashboard, Deals, Jobs, Reviews, Applicants, Boosts. Both are covered by the same schema and RLS.
-- **Schema**: Normalized, with clear ownership (profiles, businesses, deals, events, jobs, reviews, orders, tickets, notifications, boosts). Creation order is documented (§5.3); RLS and indexes keep it secure and performant.
+- **Backend**: Supabase (Auth, Postgres, Storage, optional Edge Functions and Realtime) as the single backend for Habra. It serves **three clients**: mobile app (Flutter), business owner web app, and super admin web app.
+- **Flows**: Community members use Home, Events, Explore, Jobs, Search, Notifications; business owners use Dashboard, Deals, Jobs, Reviews, Applicants, Boosts (mobile and/or web); super admins use the admin web app for user/business/content management, boost plans, and settings (§2.1–2.3).
+- **Schema**: Normalized, with clear ownership; includes `audit_log` and `app_settings` for admin; `profiles.is_suspended` and optional `profiles.email_verified_at` for moderation and email verification; **businesses** have `approval_status` (pending/approved/rejected), `reviewed_at`, `reviewed_by`, `rejection_reason` for admin approval. Creation order is documented (§5.3); RLS and indexes keep it secure and performant; admin access is gated by `role = 'admin'` and `is_admin()` (§6.2, §6.4).
+- **Email verification**: Required for business owners (§4.5); Supabase “Confirm email” and optional `profiles.email_verified_at`; gate dashboard until verified.
+- **Business approval**: New businesses start as `pending`; only `approved` businesses appear in community listing; admin approves/rejects in super admin web app (§2.3 step 4, Phase 5).
 - **Migration**: Replace Firebase Auth/Firestore in the app stepwise; migrate existing users if needed; keep your Clean Architecture and swap only the data layer.
-- **Implementation**: Four phases with explicit deliverables and acceptance criteria (§10); every app feature is traceable via the feature coverage table (§2.4).
+- **Implementation**: Five phases (§10): Foundation, Community content, Business owner, Polish, **Admin dashboard and web apps**. Every app feature is traceable via the feature coverage table (§2.5).
 
-Following the phases above will give you a **detailed, scalable, and maintainable** backend on Supabase aligned with your current app structure and user flows.
+Following the phases above will give you a **detailed, scalable, and maintainable** backend on Supabase aligned with your current app structure, admin dashboard, and web apps.
 
 ---
 
 ## Document standards (how to use this doc)
 
-- **Traceability**: Every app feature maps to a user-flow step (§2.1, §2.2), a feature–table mapping (§2.3), and a feature-coverage row (§2.4), and to implementation phases (§10).
-- **Implementability**: Schema is executable SQL in order (§5.2, §5.3); RLS is copy-pasteable with policies for all main tables (§6); phases list deliverables and “done when” criteria.
-- **Maintainability**: Version and last-updated are at the top; scope and out-of-scope are stated; recommendations and cost notes are in §11 and “Why Supabase”.
-- **Consistency**: Naming is `snake_case` and `_at` for timestamps; roles and enums are defined once and referenced throughout.
+- **Traceability**: Every app feature (including admin dashboard and web apps) maps to a user-flow step (§2.1, §2.2, §2.3), a feature–table mapping (§2.4), and a feature-coverage row (§2.5), and to implementation phases (§10).
+- **Implementability**: Schema is executable SQL in order (§5.2, §5.3); RLS is copy-pasteable with policies for all main tables and admin overrides (§6); phases list deliverables and “done when” criteria.
+- **Maintainability**: Version and last-updated are at the top; scope and out-of-scope are stated; client applications are listed (§1); recommendations and cost notes are in §11 and “Why Supabase”.
+- **Consistency**: Naming is `snake_case` and `_at` for timestamps; roles and enums are defined once and referenced throughout; admin is consistently gated by `is_admin()`.
