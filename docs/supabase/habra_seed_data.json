@@ -1,0 +1,25 @@
+{
+  "categories": [
+    { "name": "Restaurant", "slug": "restaurant" },
+    { "name": "Cafe", "slug": "cafe" },
+    { "name": "Retail", "slug": "retail" },
+    { "name": "Events & Entertainment", "slug": "events-entertainment" },
+    { "name": "Health & Beauty", "slug": "health-beauty" },
+    { "name": "Professional Services", "slug": "professional-services" },
+    { "name": "Food & Grocery", "slug": "food-grocery" },
+    { "name": "Arts & Culture", "slug": "arts-culture" }
+  ],
+  "boost_plans": [
+    { "title": "Starter", "description": "Get your listing in front of more people for 1 week.", "price_cents": 999, "duration_weeks": 1, "is_active": true },
+    { "title": "Growth", "description": "2 weeks of boosted visibility. Best for new promotions.", "price_cents": 1999, "duration_weeks": 2, "is_active": true },
+    { "title": "Pro", "description": "1 month of prime placement. Save 20% vs weekly.", "price_cents": 6999, "duration_weeks": 4, "is_active": true },
+    { "title": "Scale", "description": "3 months. Maximum reach for serious growth.", "price_cents": 14999, "duration_weeks": 12, "is_active": true }
+  ],
+  "app_settings": [
+    { "key": "maintenance_mode", "value": false },
+    { "key": "min_app_version_android", "value": "1.0.0" },
+    { "key": "min_app_version_ios", "value": "1.0.0" },
+    { "key": "feature_boosts_enabled", "value": true },
+    { "key": "feature_messages_enabled", "value": false }
+  ]
+}

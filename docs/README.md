@@ -14,7 +14,15 @@ Welcome to the Habra Mobile App documentation! This folder contains all document
 - **[DEVELOPMENT_RULES.md](./DEVELOPMENT_RULES.md)** - App development general rules we must always follow (e.g. who runs commands)
 
 ### Backend
-- **[SUPABASE_BACKEND_DESIGN.md](./SUPABASE_BACKEND_DESIGN.md)** - Supabase backend design: schema, RLS, user flows (Community + Business Owner), migration, and implementation phases
+- **[SUPABASE_BACKEND_DESIGN.md](./SUPABASE_BACKEND_DESIGN.md)** - Supabase backend design: schema, RLS, user flows (Community + Business Owner + Admin), migration, and implementation phases
+- **[SUPABASE_BACKEND_BUILD_GUIDE.md](./SUPABASE_BACKEND_BUILD_GUIDE.md)** - Step-by-step backend build: project setup, migrations, RLS, Auth, Storage, Edge Functions, and testing
+- **[supabase/habra_full_schema.sql](./supabase/habra_full_schema.sql)** - Single copy-paste SQL file: full schema, RLS, triggers (run in Supabase SQL Editor **once**)
+- **[supabase/habra_teardown_schema.sql](./supabase/habra_teardown_schema.sql)** - Reset script: drops all Habra tables/functions/enums so you can run the full schema again (use if you ran the schema twice or need a clean slate)
+- **[supabase/HABRA_SUPABASE_CONFIG.md](./supabase/HABRA_SUPABASE_CONFIG.md)** - Dashboard configuration after running schema: Auth, redirect URLs, Storage buckets, first admin; what to do if you ran the schema twice
+- **[supabase/habra_seed.sql](./supabase/habra_seed.sql)** - Optional seed: categories, boost_plans, app_settings (run in SQL Editor after schema)
+- **[supabase/habra_seed_data.json](./supabase/habra_seed_data.json)** - Same seed data in JSON (reference or for scripts)
+- **[SUPABASE_CLIENT_INTEGRATION_GUIDE.md](./SUPABASE_CLIENT_INTEGRATION_GUIDE.md)** - Integrating the Supabase backend with the Flutter mobile app and business owner / super admin web apps
+- **[SUPABASE_STAGING_AND_PRODUCTION_GUIDE.md](./SUPABASE_STAGING_AND_PRODUCTION_GUIDE.md)** - Staging and production environment setup: two Supabase projects, app config per environment, workflow, and testing
 - **[FIREBASE_BACKEND_DEVELOPMENT_GUIDE.md](./FIREBASE_BACKEND_DEVELOPMENT_GUIDE.md)** - Firebase backend setup (current/auth); see Supabase doc for migration path
 
 ### Implementation Guides
