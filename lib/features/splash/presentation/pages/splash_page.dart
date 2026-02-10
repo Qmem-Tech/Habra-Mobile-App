@@ -120,14 +120,13 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             MaterialPageRoute(builder: (_) => const OnboardingPage()),
           );
         } else if (status.isAuthenticated) {
-          // Navigate to appropriate home based on user role
-          // TODO: Get current user from auth/storage when available
-          const user = User(
-            id: 'id',
-            email: 'abec@gmail.com',
-            name: 'Abel',
-            role: UserRole.customer,
-          );
+          final user = status.currentUser;
+          if (user == null) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const ChoosePathPage()),
+            );
+            return;
+          }
           if (user.isBusinessOwner) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(

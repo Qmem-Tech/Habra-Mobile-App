@@ -7,7 +7,9 @@ import 'package:habra_mobile_app/l10n/app_localizations.dart';
 
 import 'injection/injection_container.dart' as di;
 import 'core/network/firebase/firebase_config.dart';
+import 'core/supabase/supabase_config.dart';
 import 'core/theme/app_theme.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/widgets/dev_api_overlay.dart';
 import 'core/localization/localization_cubit.dart';
 import 'features/auth/presentation/bloc/auth_cubit.dart';
@@ -24,8 +26,16 @@ import 'features/onboarding/domain/usecases/complete_onboarding_usecase.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
+  // Initialize Firebase (e.g. Crashlytics)
   await FirebaseConfig.initialize();
+
+  // Initialize Supabase when URL and anon key are provided (e.g. --dart-define)
+  if (SupabaseConfig.isConfigured) {
+    await Supabase.initialize(
+      url: SupabaseConfig.supabaseUrl,
+      anonKey: SupabaseConfig.supabaseAnonKey,
+    );
+  }
 
   // Initialize Dependency Injection
   await di.init();

@@ -22,9 +22,12 @@ Welcome to the Habra Mobile App documentation! This folder contains all document
 - **[supabase/habra_seed.sql](./supabase/habra_seed.sql)** - Optional seed: categories, boost_plans, app_settings (run in SQL Editor after schema)
 - **[supabase/habra_seed_data.json](./supabase/habra_seed_data.json)** - Same seed data in JSON (reference or for scripts)
 - **[SUPABASE_CLIENT_INTEGRATION_GUIDE.md](./SUPABASE_CLIENT_INTEGRATION_GUIDE.md)** - Integrating the Supabase backend with the Flutter mobile app and business owner / super admin web apps
+- **[SUPABASE_APP_INTEGRATION.md](./SUPABASE_APP_INTEGRATION.md)** - Mobile app backend integration: what to provide from Supabase, error handling, cache for static data, Auth + Splash wiring
 - **[SUPABASE_STAGING_AND_PRODUCTION_GUIDE.md](./SUPABASE_STAGING_AND_PRODUCTION_GUIDE.md)** - Staging and production environment setup: two Supabase projects, app config per environment, workflow, and testing
 - **[WEB_APP_BUSINESS_OWNER_IMPLEMENTATION.md](./WEB_APP_BUSINESS_OWNER_IMPLEMENTATION.md)** - Business owner web app: theme/UI aligned to mobile, end-to-end Supabase integration (Auth, businesses, deals, jobs, reviews, applicants, boosts, Storage)
 - **[WEB_APP_ADMIN_IMPLEMENTATION.md](./WEB_APP_ADMIN_IMPLEMENTATION.md)** - Super admin web app: theme/UI aligned to mobile, end-to-end Supabase integration (users, business approval, content moderation, boost plans, audit log, app settings)
+- **[WEB_APP_BUILD_PROMPTS.md](./WEB_APP_BUILD_PROMPTS.md)** - Copy-paste prompts to use in **other folders** (business web app / admin web app) to build each app with UI and backend integration
+- **[WEB_APP_SETUP_AND_ARCHITECTURE.md](./WEB_APP_SETUP_AND_ARCHITECTURE.md)** - Setup commands to run inside each web app folder + scalable folder structure and architecture
 - **[FIREBASE_BACKEND_DEVELOPMENT_GUIDE.md](./FIREBASE_BACKEND_DEVELOPMENT_GUIDE.md)** - Firebase backend setup (current/auth); see Supabase doc for migration path
 
 ### Implementation Guides

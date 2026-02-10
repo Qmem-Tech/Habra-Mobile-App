@@ -26,6 +26,20 @@ class UserModel extends User {
     };
   }
 
+  /// From Supabase profiles row (id, email, full_name, role).
+  factory UserModel.fromSupabaseProfile(Map<String, dynamic> profile) {
+    final id = profile['id'] as String? ?? '';
+    final email = profile['email'] as String? ?? '';
+    final name = profile['full_name'] as String? ?? '';
+    final roleString = profile['role'] as String? ?? 'customer';
+    return UserModel(
+      id: id,
+      email: email,
+      name: name,
+      role: _roleFromString(roleString),
+    );
+  }
+
   /// Helper to create a [UserModel] from Firebase Auth + Firestore data.
   factory UserModel.fromFirebase({
     required String uid,

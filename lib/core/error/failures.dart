@@ -19,3 +19,13 @@ class CacheFailure extends Failure {
 class NetworkFailure extends Failure {
   const NetworkFailure(super.message);
 }
+
+/// Auth-related failures (invalid credentials, email not confirmed)
+class AuthFailure extends Failure {
+  const AuthFailure(super.message);
+}
+
+/// RLS / permission denied
+class ForbiddenFailure extends Failure {
+  const ForbiddenFailure(super.message);
+}

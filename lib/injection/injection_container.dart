@@ -8,8 +8,10 @@ import '../core/network/network_info.dart';
 import '../core/storage/local_storage.dart';
 import '../core/localization/localization_cubit.dart';
 import '../core/network/firebase/firebase_services.dart';
+import '../core/supabase/supabase_config.dart';
 import '../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../features/auth/data/datasources/auth_local_datasource.dart';
+import '../features/auth/data/datasources/auth_supabase_remote_datasource.dart';
 import '../features/auth/data/repositories/auth_repository_impl.dart';
 import '../features/auth/domain/repositories/auth_repository.dart';
 import '../features/auth/domain/usecases/login_usecase.dart';
@@ -20,6 +22,7 @@ import '../features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 
 // Splash feature
 import '../features/splash/data/repositories/splash_repository_impl.dart';
+import '../features/splash/data/repositories/splash_repository_supabase_impl.dart';
 import '../features/splash/domain/repositories/splash_repository.dart';
 import '../features/splash/domain/usecases/get_splash_status_usecase.dart';
 
@@ -124,9 +127,11 @@ Future<void> init() async {
   sl.registerFactory(() => LocalizationCubit(localStorage: sl<LocalStorage>()));
 
   // Features - Auth
-  // Data sources
+  // Data sources (Supabase when configured, else Firebase)
   sl.registerLazySingleton<AuthRemoteDataSource>(
-    () => AuthRemoteDataSourceImpl(FirebaseServices()),
+    () => SupabaseConfig.isConfigured
+        ? AuthSupabaseRemoteDataSource()
+        : AuthRemoteDataSourceImpl(FirebaseServices()),
   );
   sl.registerLazySingleton<AuthLocalDataSource>(
     () => AuthLocalDataSourceImpl(sl<LocalStorage>()),
@@ -148,12 +153,17 @@ Future<void> init() async {
   sl.registerLazySingleton(() => LoginAsGuestUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => SignInWithGoogleUseCase(sl<AuthRepository>()));
 
-  // Features - Splash
+  // Features - Splash (Supabase when configured, else Firebase)
   sl.registerLazySingleton<SplashRepository>(
-    () => SplashRepositoryImpl(
-      localStorage: sl<LocalStorage>(),
-      firebaseServices: FirebaseServices(),
-    ),
+    () => SupabaseConfig.isConfigured
+        ? SplashRepositorySupabaseImpl(
+            localStorage: sl<LocalStorage>(),
+            authLocalDataSource: sl<AuthLocalDataSource>(),
+          )
+        : SplashRepositoryImpl(
+            localStorage: sl<LocalStorage>(),
+            firebaseServices: FirebaseServices(),
+          ),
   );
   sl.registerLazySingleton(() => GetSplashStatusUseCase(sl<SplashRepository>()));
 

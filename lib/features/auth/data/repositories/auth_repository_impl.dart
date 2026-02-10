@@ -27,6 +27,10 @@ class AuthRepositoryImpl implements AuthRepository {
         return Right(user);
       } on ServerException catch (e) {
         return Left(ServerFailure(e.message));
+      } on AuthException catch (e) {
+        return Left(AuthFailure(e.message));
+      } on ForbiddenException catch (e) {
+        return Left(ForbiddenFailure(e.message));
       }
     } else {
       return const Left(NetworkFailure('No Internet Connection'));
@@ -42,6 +46,10 @@ class AuthRepositoryImpl implements AuthRepository {
         return Right(user);
       } on ServerException catch (e) {
         return Left(ServerFailure(e.message));
+      } on AuthException catch (e) {
+        return Left(AuthFailure(e.message));
+      } on ForbiddenException catch (e) {
+        return Left(ForbiddenFailure(e.message));
       }
     } else {
       return const Left(NetworkFailure('No Internet Connection'));
@@ -57,6 +65,10 @@ class AuthRepositoryImpl implements AuthRepository {
         return Right(user);
       } on ServerException catch (e) {
         return Left(ServerFailure(e.message));
+      } on AuthException catch (e) {
+        return Left(AuthFailure(e.message));
+      } on ForbiddenException catch (e) {
+        return Left(ForbiddenFailure(e.message));
       }
     } else {
       return const Left(NetworkFailure('No Internet Connection'));
@@ -71,6 +83,10 @@ class AuthRepositoryImpl implements AuthRepository {
       return const Right(null);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
+    } on AuthException catch (e) {
+      return Left(AuthFailure(e.message));
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
     }
   }
 
@@ -93,9 +109,23 @@ class AuthRepositoryImpl implements AuthRepository {
         return Right(user);
       } on ServerException catch (e) {
         return Left(ServerFailure(e.message));
+      } on AuthException catch (e) {
+        return Left(AuthFailure(e.message));
+      } on ForbiddenException catch (e) {
+        return Left(ForbiddenFailure(e.message));
       }
     } else {
       return const Left(NetworkFailure('No Internet Connection'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, User?>> getCurrentUser() async {
+    try {
+      final user = await localDataSource.getCachedUser();
+      return Right(user);
+    } on CacheException catch (e) {
+      return Left(CacheFailure(e.message));
     }
   }
 }
