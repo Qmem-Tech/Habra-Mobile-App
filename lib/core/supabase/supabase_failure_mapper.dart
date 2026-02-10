@@ -16,8 +16,8 @@ class SupabaseFailureMapper {
     }
     if (error is supabase.FunctionException) {
       throw ServerException(
-        error.message,
-        error.statusCode,
+        error.toString(),
+        null,
       );
     }
     if (error is supabase.PostgrestException) {
@@ -44,13 +44,6 @@ class SupabaseFailureMapper {
         error.statusCode,
       );
     }
-    if (error is supabase.RealtimeException) {
-      throw ServerException(
-        _userFriendly(error.message),
-        error.code,
-      );
-    }
-
     final message = error.toString();
     if (message.contains('SocketException') ||
         message.contains('TimeoutException') ||

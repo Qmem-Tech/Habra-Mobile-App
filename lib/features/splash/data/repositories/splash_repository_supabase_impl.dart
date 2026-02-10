@@ -1,12 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/storage_keys.dart';
-import '../../../../core/storage/local_storage.dart';
+import '../../../../core/storage/local_storage.dart' as app_storage;
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../domain/entities/splash_status.dart';
 import '../../domain/repositories/splash_repository.dart';
 import '../../../auth/data/datasources/auth_local_datasource.dart';
 import '../../../auth/data/models/user_model.dart';
+import '../../../auth/domain/entities/user.dart' as app_auth;
 
 /// Splash repository using Supabase for auth state.
 /// When session exists, fetches profile, caches user, and returns currentUser in status.
@@ -16,7 +17,7 @@ class SplashRepositorySupabaseImpl implements SplashRepository {
     required this.authLocalDataSource,
   });
 
-  final LocalStorage localStorage;
+  final app_storage.LocalStorage localStorage;
   final AuthLocalDataSource authLocalDataSource;
 
   @override
@@ -41,10 +42,10 @@ class SplashRepositorySupabaseImpl implements SplashRepository {
     final session = Supabase.instance.client.auth.currentSession;
     final isAuth = session != null;
 
-    User? currentUser;
-    if (isAuth) {
+    app_auth.User? currentUser;
+    if (session != null) {
       try {
-        final userId = session!.user.id;
+        final userId = session.user.id;
         final res = await SupabaseFailureMapper.guard(() => Supabase
             .instance.client
             .from('profiles')
@@ -52,7 +53,7 @@ class SplashRepositorySupabaseImpl implements SplashRepository {
             .eq('id', userId)
             .maybeSingle());
         if (res != null) {
-          final profile = res as Map<String, dynamic>;
+          final profile = Map<String, dynamic>.from(res as Map);
           final userModel = UserModel.fromSupabaseProfile(profile);
           await authLocalDataSource.cacheUser(userModel);
           currentUser = userModel;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -427,16 +428,16 @@ class _ActiveBoostDetailsPageState extends State<ActiveBoostDetailsPage> {
           Switch(
             value: boost.autoRenew,
             onChanged: (v) async {
-              if (!mounted) return;
+              if (!context.mounted) return;
               LoaderHelper.show(context, message: 'Updating...');
               final cubit = context.read<BoostsCubit>();
               await cubit.setAutoRenew(boost.id, v);
-              if (!mounted) return;
+              if (!context.mounted) return;
               LoaderHelper.hide(context);
               cubit.loadActiveBoostDetail(boost.id);
             },
-            thumbColor: MaterialStateProperty.resolveWith(
-              (states) => states.contains(MaterialState.selected)
+            thumbColor: WidgetStateProperty.resolveWith(
+              (states) => states.contains(WidgetState.selected)
                   ? AppColors.brandPrimary
                   : AppColors.backgroundGrey,
             ),
@@ -471,17 +472,17 @@ class _ActiveBoostDetailsPageState extends State<ActiveBoostDetailsPage> {
         listingSubtitle: 'Ethiopian Cuisine • WB',
         listingImageUrl: null,
         onCancelBoost: () async {
-          if (!mounted) return;
+          if (!context.mounted) return;
           LoaderHelper.show(context, message: 'Cancelling...');
           final cubit = context.read<BoostsCubit>();
           await cubit.cancelBoost(boostId);
-          if (!mounted) return;
+          if (!context.mounted) return;
           LoaderHelper.hide(context);
           Navigator.pop(context, true);
         },
       ),
     );
-    if (cancelled == true && mounted) {
+    if (cancelled == true && context.mounted) {
       Navigator.pop(context);
     }
   }

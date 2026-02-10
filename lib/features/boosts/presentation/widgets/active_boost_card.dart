@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../domain/entities/active_boost.dart';
@@ -138,8 +139,8 @@ class ActiveBoostCard extends StatelessWidget {
                         Switch(
                           value: boost.autoRenew,
                           onChanged: onAutoRenewChanged,
-                          thumbColor: MaterialStateProperty.resolveWith(
-                            (states) => states.contains(MaterialState.selected)
+                          thumbColor: WidgetStateProperty.resolveWith(
+                            (states) => states.contains(WidgetState.selected)
                                 ? AppColors.brandPrimary
                                 : AppColors.backgroundGrey,
                           ),

@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth_remote_datasource.dart';
 import '../models/user_model.dart';
-import '../../../../core/error/exceptions.dart';
+import '../../../../core/error/exceptions.dart' as app_errors;
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../domain/entities/user.dart';
 
@@ -18,7 +18,7 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
   Future<UserModel> _sessionToUser() async {
     final session = _client.auth.currentSession;
     final userId = session?.user.id;
-    if (userId == null) throw AuthException('No session');
+    if (userId == null) throw app_errors.AuthException('No session');
 
     final res = await SupabaseFailureMapper.guard(() => _client
         .from('profiles')
@@ -27,12 +27,11 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
         .maybeSingle());
 
     if (res == null) {
-      throw ServerException(
+      throw app_errors.ServerException(
         'Profile not found. Please try again or contact support.',
       );
     }
-    final profile = res as Map<String, dynamic>;
-    return UserModel.fromSupabaseProfile(profile);
+    return UserModel.fromSupabaseProfile(Map<String, dynamic>.from(res));
   }
 
   @override
@@ -60,12 +59,12 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
     try {
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        throw AuthException('Google sign-in was cancelled');
+        throw app_errors.AuthException('Google sign-in was cancelled');
       }
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
       if (idToken == null || idToken.isEmpty) {
-        throw AuthException('Google sign-in did not return an ID token');
+        throw app_errors.AuthException('Google sign-in did not return an ID token');
       }
       await _client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
@@ -73,7 +72,6 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
       );
       return _sessionToUser();
     } catch (e) {
-      if (e is AuthException) rethrow;
       SupabaseFailureMapper.throwFromError(e);
     }
   }

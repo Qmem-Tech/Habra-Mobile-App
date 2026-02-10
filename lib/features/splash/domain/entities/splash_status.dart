@@ -1,4 +1,4 @@
-import '../../auth/domain/entities/user.dart';
+import '../../../auth/domain/entities/user.dart';
 
 /// Entity representing splash screen status.
 /// When [isAuthenticated] is true, [currentUser] is set (from cache after profile refresh).
