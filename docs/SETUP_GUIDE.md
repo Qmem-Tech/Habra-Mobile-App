@@ -235,9 +235,19 @@ flutter pub get
 flutter pub upgrade
 ```
 
-### Issue 5: Android Build Errors
+### Issue 5: Android NDK Clang Not Found
 
-**Error**: Gradle build failures
+**Error**: `Target dart_build failed: Error: Android NDK Clang could not be found.`
+
+**Solution**:
+1. Open **Android Studio** → **Settings** → **Android SDK** → **SDK Tools**
+2. Enable **NDK (Side by side)**, **CMake**, and **Android SDK Command-line Tools**
+3. Check **Show Package Details** → install **NDK 25.2.9519653** → Apply
+4. Run: `flutter clean && flutter pub get && flutter run`
+
+### Issue 6: Android Build Errors (Gradle)
+
+**Error**: Gradle build failures (other than NDK)
 
 **Solution**:
 1. Update `android/gradle/wrapper/gradle-wrapper.properties`:
@@ -247,7 +257,7 @@ flutter pub upgrade
 2. Update Android SDK tools
 3. Run `flutter clean` and rebuild
 
-### Issue 6: iOS Build Errors
+### Issue 7: iOS Build Errors
 
 **Error**: CocoaPods issues
 

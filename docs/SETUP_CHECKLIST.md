@@ -9,6 +9,7 @@ Use this checklist to verify your project setup is complete.
 - [ ] Android Studio / VS Code with Flutter extensions
 - [ ] Git installed
 - [ ] Firebase account created
+- [ ] **Android NDK** installed (see [ANDROID_NDK_SETUP.md](ANDROID_NDK_SETUP.md) for "Android NDK Clang could not be found" fix)
 
 ## ✅ Project Setup
 

@@ -11,6 +11,14 @@ rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
+    // Force older AndroidX versions compatible with AGP 8.7
+    configurations.all {
+        resolutionStrategy {
+            force("androidx.core:core:1.13.1")
+            force("androidx.core:core-ktx:1.13.1")
+            force("androidx.browser:browser:1.8.0")
+        }
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")
