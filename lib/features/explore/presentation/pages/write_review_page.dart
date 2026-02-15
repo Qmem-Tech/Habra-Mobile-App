@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/services/image_picker_service.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/reviews_cubit.dart';
 import '../bloc/reviews_state.dart';
@@ -23,7 +26,7 @@ class WriteReviewPage extends StatefulWidget {
 class _WriteReviewPageState extends State<WriteReviewPage> {
   int _rating = 4;
   final TextEditingController _commentController = TextEditingController();
-  final List<String> _photos = [];
+  final List<File> _photoFiles = [];
 
   @override
   void dispose() {
@@ -60,7 +63,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
               onPressed: () {
                 _rating = 4;
                 _commentController.clear();
-                _photos.clear();
+                _photoFiles.clear();
                 setState(() {});
               },
               child: const Text(
@@ -227,7 +230,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
               ),
             ),
             Text(
-              '${_photos.length}/5',
+              '${_photoFiles.length}/5',
               style: const TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,
@@ -236,38 +239,72 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
           ],
         ),
         const SizedBox(height: 12),
-        GestureDetector(
-          onTap: () {
-            // Handle photo selection
-            if (_photos.length < 5) {
-              setState(() {
-                _photos.add('photo_${_photos.length + 1}');
-              });
-            }
-          },
-          child: Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: AppColors.backgroundLight,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.backgroundGrey),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add_a_photo, color: AppColors.brandPrimary, size: 32),
-                const SizedBox(height: 8),
-                const Text(
-                  'Add',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.brandPrimary,
-                    fontWeight: FontWeight.w600,
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ..._photoFiles.asMap().entries.map((e) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          e.value,
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() => _photoFiles.removeAt(e.key));
+                          },
+                          child: const Icon(Icons.close, size: 20, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              if (_photoFiles.length < 5)
+                GestureDetector(
+                  onTap: () async {
+                    final file = await di.sl<ImagePickerService>().pickImage(context);
+                    if (file != null && mounted) {
+                      setState(() => _photoFiles.add(file));
+                    }
+                  },
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: AppColors.backgroundLight,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.backgroundGrey),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_a_photo, color: AppColors.brandPrimary, size: 32),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Add',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.brandPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
         ),
       ],
@@ -294,7 +331,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
                         businessId: widget.businessId,
                         rating: _rating,
                         comment: _commentController.text,
-                        photoUrls: _photos.isEmpty ? null : _photos,
+                        photoUrls: null,
                       );
                 },
         );

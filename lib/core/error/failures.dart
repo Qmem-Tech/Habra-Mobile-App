@@ -29,3 +29,8 @@ class AuthFailure extends Failure {
 class ForbiddenFailure extends Failure {
   const ForbiddenFailure(super.message);
 }
+
+/// Location / GPS / geocoding failures
+class LocationFailure extends Failure {
+  const LocationFailure(super.message);
+}

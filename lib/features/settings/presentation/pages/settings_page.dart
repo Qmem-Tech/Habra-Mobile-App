@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:habra_mobile_app/l10n/app_localizations.dart';
 import '../../../../core/localization/localization_cubit.dart';
 import '../../../../core/localization/localization_cubit.dart' as loc;
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/permission_list_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -27,6 +29,20 @@ class SettingsPage extends StatelessWidget {
             ),
             trailing: const Icon(Icons.language),
             onTap: () => _showLanguageDialog(context),
+          ),
+          // Permissions Section
+          ListTile(
+            title: const Text('Permissions'),
+            subtitle: const Text('Manage location, camera, photos & more'),
+            trailing: Icon(Icons.security, color: AppColors.brandSecondary),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PermissionListPage(),
+                ),
+              );
+            },
           ),
         ],
       ),

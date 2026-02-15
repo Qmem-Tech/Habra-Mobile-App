@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -15,24 +16,22 @@ class _PhoneSignUpPageState extends State<PhoneSignUpPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _phoneController = TextEditingController();
   bool _obscurePassword = true;
-  String _selectedCountryCode = '+65';
+  String _completePhoneNumber = '';
 
   @override
   void dispose() {
     _nameController.dispose();
     _passwordController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
   void _onSendCode() {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState!.validate() && _completePhoneNumber.isNotEmpty) {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => AuthenticationCodePage(
-            phoneNumber: '$_selectedCountryCode${_phoneController.text}',
+            phoneNumber: _completePhoneNumber,
           ),
         ),
       );
@@ -168,96 +167,39 @@ class _PhoneSignUpPageState extends State<PhoneSignUpPage> {
                 ),
                 const SizedBox(height: AppResources.spacingL),
 
-                // Country and Phone fields
-                Row(
-                  children: [
-                    // Country code dropdown
-                    Expanded(
-                      flex: 2,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Country',
-                            style: AppFonts.body(color: AppColors.textPrimary),
-                          ),
-                          const SizedBox(height: AppResources.spacingS),
-                          DropdownButtonFormField<String>(
-                            // ignore: deprecated_member_use - use initialValue when form API is updated
-                            value: _selectedCountryCode,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                borderSide: BorderSide(color: AppColors.backgroundGrey),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                borderSide: BorderSide(color: AppColors.backgroundGrey),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                borderSide: const BorderSide(color: AppColors.brandPrimary),
-                              ),
-                            ),
-                            items: const [
-                              DropdownMenuItem(value: '+1', child: Text('+1')),
-                              DropdownMenuItem(value: '+65', child: Text('+65')),
-                              DropdownMenuItem(value: '+44', child: Text('+44')),
-                              DropdownMenuItem(value: '+91', child: Text('+91')),
-                            ],
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() {
-                                  _selectedCountryCode = value;
-                                });
-                              }
-                            },
-                          ),
-                        ],
-                      ),
+                // Phone field with country code
+                Text(
+                  'Phone',
+                  style: AppFonts.body(color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: AppResources.spacingS),
+                IntlPhoneField(
+                  decoration: InputDecoration(
+                    hintText: 'Enter your phone number',
+                    hintStyle: AppFonts.body(color: AppColors.textTertiary),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: BorderSide(color: AppColors.backgroundGrey),
                     ),
-                    const SizedBox(width: AppResources.spacingM),
-                    // Phone number field
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Phone',
-                            style: AppFonts.body(color: AppColors.brandPrimary),
-                          ),
-                          const SizedBox(height: AppResources.spacingS),
-                          TextFormField(
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                            decoration: InputDecoration(
-                              hintText: 'Enter your phone number',
-                              hintStyle: AppFonts.body(color: AppColors.textTertiary),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                borderSide: const BorderSide(color: AppColors.brandPrimary),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                borderSide: const BorderSide(color: AppColors.brandPrimary),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                borderSide: const BorderSide(color: AppColors.brandPrimary),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your phone number';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
-                      ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: BorderSide(color: AppColors.backgroundGrey),
                     ),
-                  ],
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.brandPrimary),
+                    ),
+                  ),
+                  initialCountryCode: 'US',
+                  onChanged: (phone) {
+                    setState(() => _completePhoneNumber = phone.completeNumber);
+                  },
+                  validator: (value) {
+                    if (value == null || value.number.isEmpty) {
+                      return 'Please enter your phone number';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: AppResources.spacingXXL),
 

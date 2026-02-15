@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/job_applications_cubit.dart';
@@ -26,9 +27,9 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _coverLetterController = TextEditingController();
 
+  String _phoneNumber = '';
   String? _resumePath;
   String? _selectedScreeningAnswer;
 
@@ -36,7 +37,6 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _coverLetterController.dispose();
     super.dispose();
   }
@@ -86,7 +86,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
           jobId: widget.jobId,
           fullName: _fullNameController.text,
           email: _emailController.text,
-          phoneNumber: _phoneController.text,
+          phoneNumber: _phoneNumber,
           resumeUrl: _resumePath,
           coverLetter: _coverLetterController.text.isEmpty
               ? null
@@ -287,15 +287,17 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
           },
         ),
         const SizedBox(height: 16),
-        TextFormField(
-          controller: _phoneController,
+        IntlPhoneField(
           decoration: const InputDecoration(
             labelText: 'Phone Number',
             border: OutlineInputBorder(),
           ),
-          keyboardType: TextInputType.phone,
+          initialCountryCode: 'US',
+          onChanged: (phone) {
+            setState(() => _phoneNumber = phone.completeNumber);
+          },
           validator: (value) {
-            if (value == null || value.isEmpty) {
+            if (value == null || value.number.isEmpty) {
               return 'Please enter your phone number';
             }
             return null;

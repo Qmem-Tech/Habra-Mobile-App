@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../../../core/services/image_picker_service.dart';
+import '../../../../injection/injection_container.dart' as di;
 import 'business_live_page.dart';
 
 class BusinessPhotosPage extends StatefulWidget {
@@ -12,21 +16,17 @@ class BusinessPhotosPage extends StatefulWidget {
 }
 
 class _BusinessPhotosPageState extends State<BusinessPhotosPage> {
-  String? _coverPhotoPath;
+  File? _coverPhotoFile;
 
-  void _onUploadCoverPhoto() {
-    // TODO: Implement image picker
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Image picker coming soon')),
-    );
-    // For now, simulate upload
-    setState(() {
-      _coverPhotoPath = 'uploaded';
-    });
+  Future<void> _onUploadCoverPhoto() async {
+    final file = await di.sl<ImagePickerService>().pickImage(context);
+    if (file != null && mounted) {
+      setState(() => _coverPhotoFile = file);
+    }
   }
 
   void _onCompleteRegistration() {
-    if (_coverPhotoPath == null) {
+    if (_coverPhotoFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please upload a cover photo')),
       );
@@ -145,15 +145,15 @@ class _BusinessPhotosPageState extends State<BusinessPhotosPage> {
                       style: BorderStyle.solid,
                     ),
                   ),
-                  child: _coverPhotoPath != null
+                  child: _coverPhotoFile != null
                       ? Stack(
+                          fit: StackFit.expand,
                           children: [
-                            // Placeholder for uploaded image
-                            Center(
-                              child: Icon(
-                                Icons.check_circle,
-                                size: 60,
-                                color: AppColors.brandPrimary,
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(AppResources.radiusL),
+                              child: Image.file(
+                                _coverPhotoFile!,
+                                fit: BoxFit.cover,
                               ),
                             ),
                             Positioned(
@@ -162,9 +162,7 @@ class _BusinessPhotosPageState extends State<BusinessPhotosPage> {
                               child: IconButton(
                                 icon: const Icon(Icons.close),
                                 onPressed: () {
-                                  setState(() {
-                                    _coverPhotoPath = null;
-                                  });
+                                  setState(() => _coverPhotoFile = null);
                                 },
                               ),
                             ),

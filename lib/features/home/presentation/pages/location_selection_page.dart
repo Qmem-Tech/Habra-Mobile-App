@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../../core/permissions/app_permission.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/services/location_service.dart';
+import '../../../../core/services/permission_service.dart';
+import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/location_entity.dart';
 
 class LocationSelectionPage extends StatefulWidget {
@@ -58,18 +62,42 @@ class _LocationSelectionPageState extends State<LocationSelectionPage> {
 
   LocationEntity? _selectedLocation;
   LocationEntity? _currentLocation;
+  bool _isLoadingLocation = true;
+  String? _locationError;
 
   @override
   void initState() {
     super.initState();
-    // TODO: Get current location from location service
-    _currentLocation = const LocationEntity(
-      id: '2',
-      city: 'Dallas',
-      state: 'TX',
-      country: 'USA',
+    _loadCurrentLocation();
+  }
+
+  Future<void> _loadCurrentLocation({bool requestPermissionFirst = false}) async {
+    if (requestPermissionFirst && mounted) {
+      final granted = await di.sl<PermissionService>().requestWithDialog(
+        context,
+        AppPermission.location,
+      );
+      if (!granted || !mounted) return;
+    }
+    final result = await di.sl<LocationService>().getCurrentLocation();
+    if (!mounted) return;
+    result.fold(
+      (failure) {
+        setState(() {
+          _locationError = failure.message;
+          _isLoadingLocation = false;
+          _currentLocation = null;
+          _selectedLocation = _locations.isNotEmpty ? _locations.first : null;
+        });
+      },
+      (location) {
+        setState(() {
+          _currentLocation = location;
+          _selectedLocation = location;
+          _isLoadingLocation = false;
+        });
+      },
     );
-    _selectedLocation = _currentLocation;
   }
 
   @override
@@ -157,21 +185,108 @@ class _LocationSelectionPageState extends State<LocationSelectionPage> {
   }
 
   Widget _buildCurrentLocationOption() {
-    if (_currentLocation == null) return const SizedBox.shrink();
+    if (_isLoadingLocation) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.backgroundLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.backgroundGrey),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Detecting your location...',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_currentLocation == null) {
+      if (_locationError != null) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: GestureDetector(
+            onTap: () => _loadCurrentLocation(requestPermissionFirst: true),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.backgroundGrey),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.location_off, color: AppColors.textSecondary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Use Current Location',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _locationError!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Tap to try again',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.brandPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: const EdgeInsets.all(16),
       child: GestureDetector(
         onTap: () {
-          setState(() {
-            _selectedLocation = _currentLocation;
-          });
+          setState(() => _selectedLocation = _currentLocation);
           _returnSelectedLocation();
         },
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.brandPrimary.withValues(alpha:0.1),
+            color: AppColors.brandPrimary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.brandPrimary),
           ),

@@ -215,6 +215,11 @@ class BusinessDetailPage extends StatelessWidget {
                       businessId: business.id,
                       latitude: business.latitude,
                       longitude: business.longitude,
+                      businessName: business.name,
+                      businessAddress: business.fullAddress,
+                      subtitle: business.categories.isNotEmpty
+                          ? '${business.categories.first.displayName} • ${business.rating.toStringAsFixed(1)} (${business.reviewCount})'
+                          : null,
                     ),
                   ),
                 );

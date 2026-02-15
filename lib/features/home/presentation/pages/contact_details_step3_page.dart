@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -14,7 +15,7 @@ class ContactDetailsStep3Page extends StatefulWidget {
 }
 
 class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
-  final _phoneController = TextEditingController();
+  String _phoneNumber = '';
   final _emailController = TextEditingController();
   final _websiteController = TextEditingController();
   bool _isLoading = false;
@@ -31,7 +32,6 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
 
   @override
   void dispose() {
-    _phoneController.dispose();
     _emailController.dispose();
     _websiteController.dispose();
     super.dispose();
@@ -83,7 +83,23 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
               const SizedBox(height: 24),
               _buildLabel('Business Phone'),
               const SizedBox(height: 8),
-              _buildTextField(_phoneController, 'Phone number'),
+              IntlPhoneField(
+                decoration: InputDecoration(
+                  hintText: 'Phone number',
+                  hintStyle: TextStyle(color: AppColors.textTertiary),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppResources.radiusM),
+                    borderSide: BorderSide(color: AppColors.backgroundGrey),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppResources.radiusM),
+                    borderSide: BorderSide(color: AppColors.backgroundGrey),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+                initialCountryCode: 'US',
+                onChanged: (phone) => setState(() => _phoneNumber = phone.completeNumber),
+              ),
               const SizedBox(height: 16),
               _buildLabel('Business Email'),
               const SizedBox(height: 8),
@@ -216,6 +232,13 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
       context,
       MaterialPageRoute(
         builder: (_) => const AddPhotosStep4Page(),
+        settings: RouteSettings(
+          arguments: {
+            'phone': _phoneNumber,
+            'email': _emailController.text,
+            'website': _websiteController.text,
+          },
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -13,7 +14,7 @@ class BusinessContactPage extends StatefulWidget {
 
 class _BusinessContactPageState extends State<BusinessContactPage> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
+  String _phoneNumber = '';
   final _emailController = TextEditingController();
   final _websiteController = TextEditingController();
 
@@ -29,7 +30,6 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
 
   @override
   void dispose() {
-    _phoneController.dispose();
     _emailController.dispose();
     _websiteController.dispose();
     super.dispose();
@@ -47,6 +47,14 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => const BusinessPhotosPage(),
+          settings: RouteSettings(
+            arguments: {
+              'phone': _phoneNumber,
+              'email': _emailController.text,
+              'website': _websiteController.text,
+              'hours': _businessHours,
+            },
+          ),
         ),
       );
     }
@@ -112,9 +120,7 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
                   style: AppFonts.body(color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: AppResources.spacingS),
-                TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
+                IntlPhoneField(
                   decoration: InputDecoration(
                     hintText: 'Enter business phone number',
                     hintStyle: AppFonts.body(color: AppColors.textTertiary),
@@ -131,8 +137,10 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
                       borderSide: const BorderSide(color: AppColors.brandPrimary),
                     ),
                   ),
+                  initialCountryCode: 'US',
+                  onChanged: (phone) => setState(() => _phoneNumber = phone.completeNumber),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
+                    if (value == null || value.number.isEmpty) {
                       return 'Please enter business phone number';
                     }
                     return null;

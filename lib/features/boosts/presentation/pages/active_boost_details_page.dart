@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -428,11 +427,10 @@ class _ActiveBoostDetailsPageState extends State<ActiveBoostDetailsPage> {
           Switch(
             value: boost.autoRenew,
             onChanged: (v) async {
-              if (!context.mounted) return;
               LoaderHelper.show(context, message: 'Updating...');
               final cubit = context.read<BoostsCubit>();
               await cubit.setAutoRenew(boost.id, v);
-              if (!context.mounted) return;
+              if (!mounted) return;
               LoaderHelper.hide(context);
               cubit.loadActiveBoostDetail(boost.id);
             },

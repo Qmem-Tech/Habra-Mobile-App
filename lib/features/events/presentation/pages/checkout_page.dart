@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
@@ -24,7 +25,7 @@ class CheckoutPage extends StatefulWidget {
 class _CheckoutPageState extends State<CheckoutPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController(text: 'abebe.kebede@gmail.com');
-  final _phoneController = TextEditingController(text: '0911111111');
+  String _phoneNumber = '';
   final _cardNumberController = TextEditingController();
   final _expiryController = TextEditingController();
   final _cvcController = TextEditingController();
@@ -36,7 +37,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
   @override
   void dispose() {
     _emailController.dispose();
-    _phoneController.dispose();
     _cardNumberController.dispose();
     _expiryController.dispose();
     _cvcController.dispose();
@@ -224,17 +224,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
             },
           ),
           const SizedBox(height: 16),
-          TextFormField(
-            controller: _phoneController,
-            decoration: InputDecoration(
+          IntlPhoneField(
+            decoration: const InputDecoration(
               labelText: 'Phone',
-              prefixIcon: const Icon(Icons.phone),
+              prefixIcon: Icon(Icons.phone),
               suffixIcon: Icon(Icons.check_circle, color: AppColors.brandSecondary),
-              border: const OutlineInputBorder(),
+              border: OutlineInputBorder(),
             ),
-            keyboardType: TextInputType.phone,
+            initialCountryCode: 'US',
+            onChanged: (phone) => setState(() => _phoneNumber = phone.completeNumber),
             validator: (value) {
-              if (value == null || value.isEmpty) {
+              if (value == null || value.number.isEmpty) {
                 return 'Please enter your phone number';
               }
               return null;
@@ -528,7 +528,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       tickets: widget.tickets,
       contactInfo: {
         'email': _emailController.text,
-        'phone': _phoneController.text,
+        'phone': _phoneNumber,
       },
     );
 

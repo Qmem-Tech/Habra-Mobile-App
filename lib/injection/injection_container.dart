@@ -7,6 +7,9 @@ import '../core/network/api_client.dart';
 import '../core/network/network_info.dart';
 import '../core/storage/local_storage.dart';
 import '../core/localization/localization_cubit.dart';
+import '../core/services/location_service.dart';
+import '../core/services/image_picker_service.dart';
+import '../core/services/permission_service.dart';
 import '../core/network/firebase/firebase_services.dart';
 import '../core/supabase/supabase_config.dart';
 import '../features/auth/data/datasources/auth_remote_datasource.dart';
@@ -125,6 +128,11 @@ Future<void> init() async {
 
   // Localization
   sl.registerFactory(() => LocalizationCubit(localStorage: sl<LocalStorage>()));
+
+  // Services
+  sl.registerLazySingleton<LocationService>(() => LocationService());
+  sl.registerLazySingleton<ImagePickerService>(() => ImagePickerService());
+  sl.registerLazySingleton<PermissionService>(() => PermissionService());
 
   // Features - Auth
   // Data sources (Supabase when configured, else Firebase)
