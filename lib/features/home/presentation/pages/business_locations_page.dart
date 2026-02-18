@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../data/datasources/mock_data/mock_business_owner_data.dart';
 import '../../domain/entities/business_presence.dart';
 import 'add_new_presence_page.dart';
 
@@ -24,7 +24,7 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
   @override
   void initState() {
     super.initState();
-    _presences = MockBusinessOwnerData.getMockPresences();
+    _presences = [];
     final nonAll = _presences.where((p) => p.id != 'all').toList();
     _selectedId = widget.currentPresenceId ??
         (nonAll.isNotEmpty ? nonAll.first.id : null);
@@ -250,7 +250,7 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
     );
     if (!context.mounted) return;
     setState(() {
-      _presences = MockBusinessOwnerData.getMockPresences();
+      _presences = [];
     });
   }
 }

@@ -302,7 +302,7 @@ class _EventFiltersPageState extends State<EventFiltersPage> {
   }
 
   int _getEventCount() {
-    // Mock count - in real app, this would be calculated
+    // TODO: get count from API when available
     return 24;
   }
 }

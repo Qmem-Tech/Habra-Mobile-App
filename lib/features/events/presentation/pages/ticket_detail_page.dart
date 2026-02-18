@@ -38,8 +38,14 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
               return const HabraCircularLoader(fullScreen: true);
             }
 
-            if (snapshot.hasError || !snapshot.hasData) {
-              return Center(child: Text('Error loading ticket: ${snapshot.error}'));
+            if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+              return Center(
+                child: Text(
+                  snapshot.hasError
+                      ? 'Error loading ticket: ${snapshot.error}'
+                      : 'Ticket not found',
+                ),
+              );
             }
 
             final ticket = snapshot.data!;
@@ -62,23 +68,9 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
   }
 
   Future<dynamic> _loadTicket() async {
-    // Mock ticket loading - in real app, use cubit
-    await Future.delayed(const Duration(milliseconds: 500));
-    return {
-      'ticketId': widget.ticketId,
-      'event': {
-        'title': 'Habesha Cultural Night 2024',
-        'imageUrl': 'assets/images/events/cultural_night.png',
-        'startDate': DateTime.now().add(const Duration(days: 30)),
-        'venue': 'Addis Hall',
-        'address': '123 Main St, Silver Spring, MD',
-      },
-      'policies': [
-        '21+ Event. ID Required for entry.',
-        'No Refunds or Exchanges.',
-        'Doors close strictly at 10 PM.',
-      ],
-    };
+    // TODO: load ticket via EventsRepository.getTicketDetail(widget.ticketId) or TicketsCubit
+    await Future.delayed(const Duration(milliseconds: 300));
+    return null;
   }
 
   Widget _buildEventSummary(dynamic ticket) {

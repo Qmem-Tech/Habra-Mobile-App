@@ -71,7 +71,7 @@ class _JobFiltersBottomSheetState extends State<JobFiltersBottomSheet> {
   }
 
   int _getJobCount() {
-    // Mock count - in real app, this would come from the API
+    // TODO: get count from API when available
     return 24;
   }
 

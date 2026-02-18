@@ -547,8 +547,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   double _calculateSubtotal(dynamic event) {
-    // Mock calculation - in real app, calculate from tickets
-    return 140.0;
+    // TODO: calculate from selected tickets when order is built
+    return 0.0;
   }
 
   double _calculateOrderTotal(dynamic event) {

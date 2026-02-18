@@ -185,7 +185,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
         address: listItem.address ?? '',
         city: listItem.city,
         state: listItem.state,
-        zipCode: parseString(row['address_zip']),
+        zipCode: parseString(row['address_zip']) ?? '',
         latitude: parseDouble(row['latitude']) ?? 0,
         longitude: parseDouble(row['longitude']) ?? 0,
         phoneNumber: parseString(row['phone']),

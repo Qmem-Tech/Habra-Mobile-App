@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../data/datasources/mock_data/mock_business_owner_data.dart';
 import '../../../auth/domain/entities/user.dart';
 import 'business_owner_wrapper_page.dart';
 
@@ -21,7 +21,7 @@ class BusinessPendingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = businessName ?? MockBusinessOwnerData.mockPendingBusinessName;
+    final name = businessName ?? 'Your business';
 
     return Scaffold(
       backgroundColor: AppColors.backgroundWhite,

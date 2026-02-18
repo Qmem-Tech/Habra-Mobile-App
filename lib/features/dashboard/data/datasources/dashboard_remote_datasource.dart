@@ -6,9 +6,7 @@ import '../../domain/entities/dashboard_deal.dart';
 import '../../domain/entities/dashboard_job.dart';
 import '../../domain/entities/job_applicant.dart';
 import '../../domain/repositories/dashboard_repository.dart';
-import 'mock_data/mock_dashboard_data.dart';
 
-/// Remote (mock) data source for dashboard. Replace with real API when backend is ready.
 abstract class DashboardRemoteDataSource {
   Future<DashboardAnalytics?> getAnalytics(String businessId);
   Future<List<DashboardDeal>> getDeals(String businessId, {DashboardDealStatus? status});
@@ -23,49 +21,41 @@ abstract class DashboardRemoteDataSource {
 class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
   @override
   Future<DashboardAnalytics?> getAnalytics(String businessId) async {
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    return MockDashboardData.getMockAnalytics();
+    return null;
   }
 
   @override
   Future<List<DashboardDeal>> getDeals(String businessId, {DashboardDealStatus? status}) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    return MockDashboardData.getMockDeals(status: status);
+    return [];
   }
 
   @override
   Future<List<DashboardJob>> getJobs(String businessId) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    return MockDashboardData.getMockJobs();
+    return [];
   }
 
   @override
   Future<RatingOverview?> getReviewsOverview(String businessId) async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    return MockDashboardData.getMockRatingOverview();
+    return null;
   }
 
   @override
   Future<List<BusinessReview>> getReviews(String businessId) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    return MockDashboardData.getMockReviews();
+    return [];
   }
 
   @override
   Future<List<JobApplicant>> getApplicants(String jobId, {ApplicantStatus? status}) async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    return MockDashboardData.getMockApplicants(jobId, status: status);
+    return [];
   }
 
   @override
   Future<ApplicantDetail?> getApplicantDetail(String applicantId, String jobId) async {
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    return MockDashboardData.getMockApplicantDetail(applicantId);
+    return null;
   }
 
   @override
   Future<List<BoostPlan>> getBoostPlans() async {
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    return MockDashboardData.getMockBoostPlans();
+    return [];
   }
 }

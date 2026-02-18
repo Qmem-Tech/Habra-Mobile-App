@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../data/datasources/mock_data/mock_business_owner_data.dart';
 import '../../domain/entities/business_brand_entity.dart';
 import 'add_location_page.dart';
 
@@ -31,7 +31,7 @@ class _ChooseBusinessBrandPageState extends State<ChooseBusinessBrandPage> {
   }
 
   List<BusinessBrandEntity> get _filteredBrands {
-    final all = MockBusinessOwnerData.getMockBusinessBrands();
+    const all = <BusinessBrandEntity>[];
     final q = _searchController.text.trim().toLowerCase();
     if (q.isEmpty) return all;
     return all.where((b) => b.name.toLowerCase().contains(q)).toList();
@@ -214,8 +214,10 @@ class _ChooseBusinessBrandPageState extends State<ChooseBusinessBrandPage> {
 
   void _onNext(BuildContext context) {
     if (_selectedBrandId == null) return;
-    final brands = MockBusinessOwnerData.getMockBusinessBrands();
-    final brand = brands.firstWhere((b) => b.id == _selectedBrandId);
+    final brands = _filteredBrands;
+    final index = brands.indexWhere((b) => b.id == _selectedBrandId);
+    if (index == -1) return;
+    final brand = brands[index];
     Navigator.push(
       context,
       MaterialPageRoute(

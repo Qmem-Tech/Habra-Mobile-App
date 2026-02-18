@@ -1,22 +1,31 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../domain/entities/listing_status_entity.dart';
-import '../../data/datasources/mock_data/mock_business_owner_data.dart';
 
 /// Listing Status: shows Verification Pending or Live and Verified with business card.
 class ListingStatusPage extends StatelessWidget {
+  const ListingStatusPage({super.key, this.isVerified = false});
+
   final bool isVerified;
 
-  const ListingStatusPage({super.key, this.isVerified = false});
+  ListingStatusEntity _listingEntity(BuildContext context) {
+    return ListingStatusEntity(
+      businessId: '',
+      businessName: 'Your business',
+      locationText: null,
+      imageUrl: '',
+      status: isVerified ? ListingStatusType.verified : ListingStatusType.pending,
+      isNewBusiness: false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final entity = isVerified
-        ? MockBusinessOwnerData.getMockListingStatusVerified()
-        : MockBusinessOwnerData.getMockListingStatusPending();
+    final entity = _listingEntity(context);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundWhite,

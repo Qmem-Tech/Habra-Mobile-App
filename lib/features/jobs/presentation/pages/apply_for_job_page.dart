@@ -56,27 +56,9 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
             onPressed: () => Navigator.pop(context, 'skip'),
             child: const Text('Skip'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, 'mock'),
-            child: const Text('Use Mock File'),
-          ),
         ],
       ),
     );
-
-    if (result == 'mock') {
-      setState(() {
-        _resumePath = 'mock_resume.pdf';
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Mock resume file selected'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    }
   }
 
   void _submitApplication() {

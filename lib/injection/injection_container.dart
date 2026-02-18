@@ -34,6 +34,7 @@ import '../features/onboarding/domain/usecases/complete_onboarding_usecase.dart'
 
 // Home feature
 import '../features/home/data/datasources/home_remote_datasource.dart';
+import '../features/home/data/datasources/home_supabase_datasource.dart';
 import '../features/home/data/datasources/search_remote_datasource.dart';
 import '../features/home/data/datasources/search_local_datasource.dart';
 import '../features/home/data/datasources/notification_remote_datasource.dart';
@@ -64,6 +65,7 @@ import '../features/boosts/presentation/bloc/boosts_cubit.dart';
 
 // Events feature
 import '../features/events/data/datasources/events_remote_datasource.dart';
+import '../features/events/data/datasources/events_supabase_datasource.dart';
 import '../features/events/data/repositories/events_repository_impl.dart';
 import '../features/events/domain/repositories/events_repository.dart';
 import '../features/events/domain/usecases/get_events_usecase.dart';
@@ -76,6 +78,7 @@ import '../features/events/presentation/bloc/tickets_cubit.dart';
 
 // Explore feature
 import '../features/explore/data/datasources/businesses_remote_datasource.dart';
+import '../features/explore/data/datasources/businesses_supabase_datasource.dart';
 import '../features/explore/data/repositories/businesses_repository_impl.dart';
 import '../features/explore/domain/repositories/businesses_repository.dart';
 import '../features/explore/domain/usecases/get_businesses_usecase.dart';
@@ -91,8 +94,10 @@ import '../features/explore/presentation/bloc/reviews_cubit.dart';
 
 // Jobs feature
 import '../features/jobs/data/datasources/jobs_remote_datasource.dart';
+import '../features/jobs/data/datasources/jobs_supabase_datasource.dart';
 import '../features/jobs/data/datasources/jobs_local_datasource.dart';
 import '../features/jobs/data/datasources/job_applications_remote_datasource.dart';
+import '../features/jobs/data/datasources/job_applications_supabase_datasource.dart';
 import '../features/jobs/data/repositories/jobs_repository_impl.dart';
 import '../features/jobs/data/repositories/job_applications_repository_impl.dart';
 import '../features/jobs/domain/repositories/jobs_repository.dart';
@@ -177,7 +182,7 @@ Future<void> init() async {
   // Features - Home
   // Data sources
   sl.registerLazySingleton<HomeRemoteDataSource>(
-    () => HomeRemoteDataSourceImpl(),
+    () => HomeSupabaseDataSource(),
   );
   sl.registerLazySingleton<SearchRemoteDataSource>(
     () => SearchRemoteDataSourceImpl(),
@@ -252,7 +257,7 @@ Future<void> init() async {
   // Features - Events
   // Data sources
   sl.registerLazySingleton<EventsRemoteDataSource>(
-    () => EventsRemoteDataSourceImpl(),
+    () => EventsSupabaseDataSource(),
   );
 
   // Repositories
@@ -281,7 +286,7 @@ Future<void> init() async {
   // Features - Explore
   // Data sources
   sl.registerLazySingleton<BusinessesRemoteDataSource>(
-    () => BusinessesRemoteDataSourceImpl(),
+    () => BusinessesSupabaseDataSource(),
   );
 
   // Repositories
@@ -316,13 +321,13 @@ Future<void> init() async {
   // Features - Jobs
   // Data sources
   sl.registerLazySingleton<JobsRemoteDataSource>(
-    () => JobsRemoteDataSourceImpl(),
+    () => JobsSupabaseDataSource(),
   );
   sl.registerLazySingleton<JobsLocalDataSource>(
     () => JobsLocalDataSourceImpl(sl<LocalStorage>()),
   );
   sl.registerLazySingleton<JobApplicationsRemoteDataSource>(
-    () => JobApplicationsRemoteDataSourceImpl(),
+    () => JobApplicationsSupabaseDataSource(),
   );
 
   // Repositories

@@ -166,8 +166,8 @@ class OrderConfirmationPage extends StatelessWidget {
   }
 
   Widget _buildTicketInfo() {
-    // Mock ticket IDs - in real app, these would come from the order
-    final ticketIds = ['HB-89204', 'HB-89205'];
+    // TODO: pass ticket IDs from the order when navigating to this page
+    final ticketIds = <String>[];
 
     return Container(
       margin: const EdgeInsets.all(16),
