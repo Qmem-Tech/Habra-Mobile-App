@@ -12,8 +12,8 @@ abstract class HomeRemoteDataSource {
 }
 
 class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
-  // TODO: Replace with Firebase/API calls
-  // Currently using mock data for UI/UX testing
+  // TODO: Replace with Supabase when home_supabase_datasource is wired in DI.
+  // Currently using mock data for UI/UX testing.
 
   @override
   Future<List<EventModel>> getHappeningThisWeek(String location) async {

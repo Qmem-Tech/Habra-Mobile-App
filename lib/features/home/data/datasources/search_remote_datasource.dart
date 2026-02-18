@@ -11,8 +11,8 @@ abstract class SearchRemoteDataSource {
 }
 
 class SearchRemoteDataSourceImpl implements SearchRemoteDataSource {
-  // TODO: Replace with Firebase/API calls
-  // Currently using mock data for UI/UX testing
+  // TODO: Replace with Supabase when search_supabase_datasource is implemented and wired in DI.
+  // Currently using mock data for UI/UX testing.
 
   @override
   Future<SearchResults> search(

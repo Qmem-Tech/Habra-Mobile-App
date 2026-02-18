@@ -1,5 +1,5 @@
 name: habra_mobile_app
-description: "A Flutter super app with Clean Architecture, Firebase, Theme Management, and Localization"
+description: "A Flutter super app with Clean Architecture, Supabase backend, Theme Management, and Localization"
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -21,15 +21,7 @@ dependencies:
   # Dependency Injection
   get_it: ^7.6.4
 
-  # Firebase (FlutterFire BoM 4.8.0 – iOS SDK 12.8, compatible with google_sign_in)
-  firebase_core: ^4.4.0
-  firebase_auth: ^6.1.4
-  cloud_firestore: ^6.1.2
-  firebase_storage: ^13.0.6
-  firebase_messaging: ^16.1.1
-  firebase_analytics: ^12.1.1
-  firebase_crashlytics: ^5.0.7
-  firebase_remote_config: ^6.1.4
+  # Google Sign-In (used by Supabase for OAuth)
   google_sign_in: ^6.1.6
 
   # Networking
@@ -90,6 +82,7 @@ flutter:
     - assets/images/jobs/
     - assets/icons/
     - assets/logos/
+    - assets/illustration/
 
 # Flutter Launcher Icons configuration
 flutter_launcher_icons:

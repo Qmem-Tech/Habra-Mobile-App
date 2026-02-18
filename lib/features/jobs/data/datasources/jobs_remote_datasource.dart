@@ -16,6 +16,11 @@ abstract class JobsRemoteDataSource {
   Future<List<String>> getJobCategories();
 
   Future<List<String>> getJobTypes();
+
+  /// Bookmarked job IDs for the current user (from backend when using Supabase).
+  Future<List<String>> getBookmarkedJobIds();
+
+  Future<void> toggleBookmark(String jobId, bool isBookmarked);
 }
 
 class JobsRemoteDataSourceImpl implements JobsRemoteDataSource {
@@ -57,4 +62,10 @@ class JobsRemoteDataSourceImpl implements JobsRemoteDataSource {
     await Future.delayed(const Duration(milliseconds: 300));
     return MockJobsData.getJobTypes();
   }
+
+  @override
+  Future<List<String>> getBookmarkedJobIds() async => [];
+
+  @override
+  Future<void> toggleBookmark(String jobId, bool isBookmarked) async {}
 }

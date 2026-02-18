@@ -21,6 +21,12 @@ class AuthException implements Exception {
   AuthException(this.message, [this.code]);
 }
 
+/// Thrown when sign-up succeeds but Supabase requires email confirmation (session is null).
+class EmailVerificationRequiredException implements Exception {
+  final String email;
+  EmailVerificationRequiredException(this.email);
+}
+
 /// RLS / permission denied (403, PGRST301)
 class ForbiddenException implements Exception {
   final String message;

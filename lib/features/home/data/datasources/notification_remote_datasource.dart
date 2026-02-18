@@ -9,8 +9,8 @@ abstract class NotificationRemoteDataSource {
 }
 
 class NotificationRemoteDataSourceImpl implements NotificationRemoteDataSource {
-  // TODO: Replace with Firebase/API calls
-  // Currently using mock data for UI/UX testing
+  // TODO: Replace with Supabase when notification_supabase_datasource is implemented and wired in DI.
+  // Currently using mock data for UI/UX testing.
 
   static final List<NotificationModel> _mockNotifications = [];
 

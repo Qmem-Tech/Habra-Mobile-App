@@ -15,4 +15,7 @@ abstract class AuthRepository {
   );
   /// Current user from local cache (after login or splash refresh).
   Future<Either<Failure, User?>> getCurrentUser();
+
+  /// Resends the signup confirmation email to [email].
+  Future<Either<Failure, void>> resendVerificationEmail(String email);
 }

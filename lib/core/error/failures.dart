@@ -25,6 +25,17 @@ class AuthFailure extends Failure {
   const AuthFailure(super.message);
 }
 
+/// Sign-up succeeded but user must verify email before signing in.
+class EmailVerificationPendingFailure extends Failure {
+  final String email;
+
+  const EmailVerificationPendingFailure(this.email)
+      : super('Please check your email to verify your account.');
+
+  @override
+  List<Object> get props => [email, message];
+}
+
 /// RLS / permission denied
 class ForbiddenFailure extends Failure {
   const ForbiddenFailure(super.message);

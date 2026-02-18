@@ -6,7 +6,6 @@ import 'package:habra_mobile_app/features/auth/domain/usecases/sign_in_with_goog
 import 'package:habra_mobile_app/l10n/app_localizations.dart';
 
 import 'injection/injection_container.dart' as di;
-import 'core/network/firebase/firebase_config.dart';
 import 'core/supabase/supabase_config.dart';
 import 'core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -17,6 +16,7 @@ import 'features/auth/domain/usecases/login_usecase.dart';
 import 'features/auth/domain/usecases/logout_usecase.dart';
 import 'features/auth/domain/usecases/register_usecase.dart';
 import 'features/auth/domain/usecases/login_as_guest_usecase.dart';
+import 'features/auth/domain/usecases/resend_verification_email_usecase.dart';
 import 'features/splash/presentation/pages/splash_page.dart';
 import 'features/splash/presentation/bloc/splash_cubit.dart';
 import 'features/splash/domain/usecases/get_splash_status_usecase.dart';
@@ -26,16 +26,12 @@ import 'features/onboarding/domain/usecases/complete_onboarding_usecase.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase (e.g. Crashlytics)
-  await FirebaseConfig.initialize();
-
-  // Initialize Supabase when URL and anon key are provided (e.g. --dart-define)
-  if (SupabaseConfig.isConfigured) {
-    await Supabase.initialize(
-      url: SupabaseConfig.supabaseUrl,
-      anonKey: SupabaseConfig.supabaseAnonKey,
-    );
-  }
+  // Supabase is the only backend; require it at startup.
+  SupabaseConfig.assertConfigured();
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    anonKey: SupabaseConfig.supabaseAnonKey,
+  );
 
   // Initialize Dependency Injection
   await di.init();
@@ -60,6 +56,7 @@ class MyApp extends StatelessWidget {
             registerUseCase: di.sl<RegisterUseCase>(),
             loginAsGuestUseCase: di.sl<LoginAsGuestUseCase>(),
             signInWithGoogleUseCase: di.sl<SignInWithGoogleUseCase>(),
+            resendVerificationEmailUseCase: di.sl<ResendVerificationEmailUseCase>(),
           ),
         ),
         BlocProvider(

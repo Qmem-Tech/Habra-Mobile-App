@@ -10,6 +10,7 @@ import '../../../home/presentation/pages/customer_home_page.dart';
 import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
+import 'email_verification_page.dart';
 
 class EmailSignUpPage extends StatefulWidget {
   const EmailSignUpPage({super.key, this.selectedRole = UserRole.customer});
@@ -85,6 +86,13 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
         if (state is AuthError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message)),
+          );
+        } else if (state is AuthEmailVerificationPending) {
+          if (!context.mounted) return;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => EmailVerificationPage(email: state.email),
+            ),
           );
         } else if (state is AuthAuthenticated) {
           _handleNavigationForUser(context, state.user);

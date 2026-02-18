@@ -4,7 +4,9 @@ import '../../domain/usecases/logout_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
 import '../../domain/usecases/login_as_guest_usecase.dart';
 import '../../domain/usecases/sign_in_with_google_usecase.dart';
+import '../../domain/usecases/resend_verification_email_usecase.dart';
 import '../../domain/entities/user.dart';
+import '../../../../core/error/failures.dart';
 import 'auth_state.dart';
 
 class AuthCubit extends Cubit<AuthState> {
@@ -13,6 +15,7 @@ class AuthCubit extends Cubit<AuthState> {
   final RegisterUseCase registerUseCase;
   final LoginAsGuestUseCase loginAsGuestUseCase;
   final SignInWithGoogleUseCase signInWithGoogleUseCase;
+  final ResendVerificationEmailUseCase resendVerificationEmailUseCase;
 
   AuthCubit({
     required this.loginUseCase,
@@ -20,6 +23,7 @@ class AuthCubit extends Cubit<AuthState> {
     required this.registerUseCase,
     required this.loginAsGuestUseCase,
     required this.signInWithGoogleUseCase,
+    required this.resendVerificationEmailUseCase,
   }) : super(AuthInitial());
 
   Future<void> login(String email, String password) async {
@@ -40,8 +44,25 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthLoading());
     final result = await registerUseCase(email, password, name, role);
     result.fold(
-      (failure) => emit(AuthError(failure.message)),
+      (failure) {
+        if (failure is EmailVerificationPendingFailure) {
+          emit(AuthEmailVerificationPending(failure.email));
+        } else {
+          emit(AuthError(failure.message));
+        }
+      },
       (user) => emit(AuthAuthenticated(user)),
+    );
+  }
+
+  Future<void> resendVerificationEmail(String email) async {
+    final result = await resendVerificationEmailUseCase(email);
+    result.fold(
+      (failure) => emit(AuthError(failure.message)),
+      (_) {
+        emit(const AuthResendVerificationSuccess());
+        emit(AuthEmailVerificationPending(email));
+      },
     );
   }
 

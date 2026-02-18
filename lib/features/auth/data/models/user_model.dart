@@ -40,22 +40,6 @@ class UserModel extends User {
     );
   }
 
-  /// Helper to create a [UserModel] from Firebase Auth + Firestore data.
-  factory UserModel.fromFirebase({
-    required String uid,
-    required String email,
-    required String name,
-    required String roleString,
-  }) {
-    final role = _roleFromString(roleString);
-    return UserModel(
-      id: uid,
-      email: email,
-      name: name,
-      role: role,
-    );
-  }
-
   static UserRole _roleFromString(String value) {
     switch (value) {
       case 'businessOwner':

@@ -10,8 +10,6 @@ import '../core/localization/localization_cubit.dart';
 import '../core/services/location_service.dart';
 import '../core/services/image_picker_service.dart';
 import '../core/services/permission_service.dart';
-import '../core/network/firebase/firebase_services.dart';
-import '../core/supabase/supabase_config.dart';
 import '../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../features/auth/data/datasources/auth_local_datasource.dart';
 import '../features/auth/data/datasources/auth_supabase_remote_datasource.dart';
@@ -22,9 +20,9 @@ import '../features/auth/domain/usecases/logout_usecase.dart';
 import '../features/auth/domain/usecases/register_usecase.dart';
 import '../features/auth/domain/usecases/login_as_guest_usecase.dart';
 import '../features/auth/domain/usecases/sign_in_with_google_usecase.dart';
+import '../features/auth/domain/usecases/resend_verification_email_usecase.dart';
 
 // Splash feature
-import '../features/splash/data/repositories/splash_repository_impl.dart';
 import '../features/splash/data/repositories/splash_repository_supabase_impl.dart';
 import '../features/splash/domain/repositories/splash_repository.dart';
 import '../features/splash/domain/usecases/get_splash_status_usecase.dart';
@@ -134,12 +132,9 @@ Future<void> init() async {
   sl.registerLazySingleton<ImagePickerService>(() => ImagePickerService());
   sl.registerLazySingleton<PermissionService>(() => PermissionService());
 
-  // Features - Auth
-  // Data sources (Supabase when configured, else Firebase)
+  // Features - Auth (Supabase only)
   sl.registerLazySingleton<AuthRemoteDataSource>(
-    () => SupabaseConfig.isConfigured
-        ? AuthSupabaseRemoteDataSource()
-        : AuthRemoteDataSourceImpl(FirebaseServices()),
+    () => AuthSupabaseRemoteDataSource(),
   );
   sl.registerLazySingleton<AuthLocalDataSource>(
     () => AuthLocalDataSourceImpl(sl<LocalStorage>()),
@@ -160,18 +155,14 @@ Future<void> init() async {
   sl.registerLazySingleton(() => RegisterUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => LoginAsGuestUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => SignInWithGoogleUseCase(sl<AuthRepository>()));
+  sl.registerLazySingleton(() => ResendVerificationEmailUseCase(sl<AuthRepository>()));
 
-  // Features - Splash (Supabase when configured, else Firebase)
+  // Features - Splash (Supabase only)
   sl.registerLazySingleton<SplashRepository>(
-    () => SupabaseConfig.isConfigured
-        ? SplashRepositorySupabaseImpl(
-            localStorage: sl<LocalStorage>(),
-            authLocalDataSource: sl<AuthLocalDataSource>(),
-          )
-        : SplashRepositoryImpl(
-            localStorage: sl<LocalStorage>(),
-            firebaseServices: FirebaseServices(),
-          ),
+    () => SplashRepositorySupabaseImpl(
+      localStorage: sl<LocalStorage>(),
+      authLocalDataSource: sl<AuthLocalDataSource>(),
+    ),
   );
   sl.registerLazySingleton(() => GetSplashStatusUseCase(sl<SplashRepository>()));
 

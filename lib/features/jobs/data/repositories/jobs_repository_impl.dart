@@ -34,8 +34,11 @@ class JobsRepositoryImpl implements JobsRepository {
         featuredOnly: featuredOnly,
       );
 
-      // Load bookmarks and update job listings
-      final bookmarkedIds = await localDataSource.getBookmarkedJobIds();
+      // Load bookmarks from remote (Supabase) or local cache
+      final bookmarkedIds = await remoteDataSource.getBookmarkedJobIds();
+      final ids = bookmarkedIds.isNotEmpty
+          ? bookmarkedIds
+          : await localDataSource.getBookmarkedJobIds();
       final jobsWithBookmarks = jobs.map((job) {
         return JobListing(
           id: job.id,
@@ -48,7 +51,7 @@ class JobsRepositoryImpl implements JobsRepository {
           postedDate: job.postedDate,
           category: job.category,
           isFeatured: job.isFeatured,
-          isBookmarked: bookmarkedIds.contains(job.id),
+          isBookmarked: ids.contains(job.id),
         );
       }).toList();
 
@@ -72,25 +75,27 @@ class JobsRepositoryImpl implements JobsRepository {
   Future<Either<Failure, void>> toggleBookmark(
       String jobId, bool isBookmarked) async {
     try {
+      await remoteDataSource.toggleBookmark(jobId, isBookmarked);
       await localDataSource.toggleBookmark(jobId, isBookmarked);
       return const Right(null);
     } catch (e) {
-      return Left(CacheFailure(e.toString()));
+      return Left(ServerFailure(e.toString()));
     }
   }
 
   @override
   Future<Either<Failure, List<JobListing>>> getBookmarkedJobs() async {
     try {
-      final bookmarkedIds = await localDataSource.getBookmarkedJobIds();
-      if (bookmarkedIds.isEmpty) {
-        return const Right([]);
-      }
+      final bookmarkedIds = await remoteDataSource.getBookmarkedJobIds();
+      final ids = bookmarkedIds.isNotEmpty
+          ? bookmarkedIds
+          : await localDataSource.getBookmarkedJobIds();
+      if (ids.isEmpty) return const Right([]);
 
       // Get all jobs and filter by bookmarked IDs
       final allJobs = await remoteDataSource.getJobs();
       final bookmarkedJobs = allJobs
-          .where((job) => bookmarkedIds.contains(job.id))
+          .where((job) => ids.contains(job.id))
           .map((job) => JobListing(
                 id: job.id,
                 title: job.title,

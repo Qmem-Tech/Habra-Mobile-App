@@ -85,12 +85,31 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
   ) async {
     try {
       final roleString = UserModel.roleToString(role);
-      await _client.auth.signUp(
+      final response = await _client.auth.signUp(
         email: email,
         password: password,
         data: {'full_name': name, 'role': roleString},
       );
+      // When "Confirm email" is enabled in Supabase, session is null until user confirms.
+      if (response.session == null && response.user != null) {
+        throw app_errors.EmailVerificationRequiredException(
+          response.user!.email ?? email,
+        );
+      }
       return _sessionToUser();
+    } catch (e) {
+      if (e is app_errors.EmailVerificationRequiredException) rethrow;
+      SupabaseFailureMapper.throwFromError(e);
+    }
+  }
+
+  @override
+  Future<void> resendVerificationEmail(String email) async {
+    try {
+      await _client.auth.resend(
+        type: OtpType.signup,
+        email: email,
+      );
     } catch (e) {
       SupabaseFailureMapper.throwFromError(e);
     }
