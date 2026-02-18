@@ -68,13 +68,17 @@ class EmailVerificationPage extends StatelessWidget {
                     backgroundColor: AppColors.brandPrimary,
                     foregroundColor: AppColors.textOnPrimary,
                     elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppResources.radiusM),
                     ),
                   ),
                   child: Text(
                     'Check my inbox',
-                    style: AppFonts.button(color: AppColors.textOnPrimary),
+                    style: AppFonts.button(color: AppColors.textOnPrimary).copyWith(
+                      height: 1.0,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
@@ -94,13 +98,17 @@ class EmailVerificationPage extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
                     side: BorderSide(color: AppColors.backgroundGrey),
+                    padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppResources.radiusM),
                     ),
                   ),
                   child: Text(
                     'Resend email',
-                    style: AppFonts.button(color: AppColors.textPrimary),
+                    style: AppFonts.button(color: AppColors.textPrimary).copyWith(
+                      height: 1.0,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),

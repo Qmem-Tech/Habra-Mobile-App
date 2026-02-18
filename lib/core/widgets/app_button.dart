@@ -44,6 +44,7 @@ class AppButton extends StatelessWidget {
           backgroundColor: backgroundColor ?? AppColors.brandPrimary,
           foregroundColor: textColor ?? AppColors.textOnPrimary,
           elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppResources.radiusM),
           ),
@@ -71,9 +72,12 @@ class AppButton extends StatelessWidget {
                   Flexible(
                     child: Text(
                       text,
-                      style: AppTextStyles.buttonText(context, color: textColor),
+                      style: AppTextStyles.buttonText(context, color: textColor).copyWith(
+                        height: 1.0,
+                      ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ],
@@ -117,6 +121,7 @@ class AppOutlinedButton extends StatelessWidget {
             color: borderColor ?? AppColors.brandPrimary,
             width: 1.5,
           ),
+          padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppResources.radiusM),
           ),
@@ -137,7 +142,10 @@ class AppOutlinedButton extends StatelessWidget {
                 style: AppTextStyles.buttonText(
                   context,
                   color: textColor ?? AppColors.brandPrimary,
+                ).copyWith(
+                  height: 1.0,
                 ),
+                textAlign: TextAlign.center,
               ),
       ),
     );

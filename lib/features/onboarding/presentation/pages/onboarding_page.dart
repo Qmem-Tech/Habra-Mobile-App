@@ -149,13 +149,17 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       backgroundColor: AppColors.brandPrimary,
                       foregroundColor: AppColors.textOnPrimary,
                       elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppResources.radiusM),
                       ),
                     ),
                     child: Text(
                       _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
-                      style: AppTextStyles.buttonText(context),
+                      style: AppTextStyles.buttonText(context).copyWith(
+                        height: 1.0,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),

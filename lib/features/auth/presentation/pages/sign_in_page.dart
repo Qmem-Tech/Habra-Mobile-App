@@ -253,6 +253,7 @@ class _SignInPageState extends State<SignInPage> {
                           backgroundColor: AppColors.brandPrimary,
                           foregroundColor: AppColors.textOnPrimary,
                           elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(AppResources.radiusM),
                           ),
@@ -268,7 +269,10 @@ class _SignInPageState extends State<SignInPage> {
                               )
                             : Text(
                                 'Sign In',
-                                style: AppFonts.button(color: AppColors.textOnPrimary),
+                                style: AppFonts.button(color: AppColors.textOnPrimary).copyWith(
+                                  height: 1.0,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
                       ),
                     ),
@@ -331,6 +335,7 @@ class _SignInPageState extends State<SignInPage> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.textSecondary,
                           side: BorderSide(color: AppColors.backgroundGrey),
+                          padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(AppResources.radiusM),
                           ),
@@ -349,7 +354,10 @@ class _SignInPageState extends State<SignInPage> {
                             const SizedBox(width: AppResources.spacingM),
                             Text(
                               'Sign In with Google',
-                              style: AppFonts.button(color: AppColors.textSecondary),
+                              style: AppFonts.button(color: AppColors.textSecondary).copyWith(
+                                height: 1.0,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ],
                         ),
@@ -372,6 +380,7 @@ class _SignInPageState extends State<SignInPage> {
                           backgroundColor: AppColors.textPrimary,
                           foregroundColor: AppColors.textOnPrimary,
                           elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(AppResources.radiusM),
                           ),
@@ -383,7 +392,10 @@ class _SignInPageState extends State<SignInPage> {
                             const SizedBox(width: AppResources.spacingM),
                             Text(
                               'Sign In with Apple',
-                              style: AppFonts.button(color: AppColors.textOnPrimary),
+                              style: AppFonts.button(color: AppColors.textOnPrimary).copyWith(
+                                height: 1.0,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ],
                         ),

@@ -197,13 +197,17 @@ class _InterestsSelectionPageState extends State<InterestsSelectionPage> {
                     backgroundColor: AppColors.brandPrimary,
                     foregroundColor: AppColors.textOnPrimary,
                     elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(AppResources.radiusM),
                     ),
                   ),
                   child: Text(
                     'Continue',
-                    style: AppFonts.button(color: AppColors.textOnPrimary),
+                    style: AppFonts.button(color: AppColors.textOnPrimary).copyWith(
+                      height: 1.0,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),

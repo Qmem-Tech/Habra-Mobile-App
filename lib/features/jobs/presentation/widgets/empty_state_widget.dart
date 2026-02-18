@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/resources/app_resources.dart';
 
 class EmptyStateWidget extends StatelessWidget {
   final String illustrationPath;
@@ -77,7 +78,7 @@ class EmptyStateWidget extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.brandPrimary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM, vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -87,7 +88,9 @@ class EmptyStateWidget extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
+                      height: 1.0,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),

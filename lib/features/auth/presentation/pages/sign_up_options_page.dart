@@ -238,6 +238,7 @@ class SignUpOptionsPage extends StatelessWidget {
           backgroundColor: backgroundColor,
           foregroundColor: textColor,
           elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
           side: borderColor != null
               ? BorderSide(color: borderColor, width: 1)
               : null,
@@ -252,7 +253,10 @@ class SignUpOptionsPage extends StatelessWidget {
             const SizedBox(width: AppResources.spacingM),
             Text(
               label,
-              style: AppFonts.button(color: textColor),
+              style: AppFonts.button(color: textColor).copyWith(
+                height: 1.0,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

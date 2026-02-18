@@ -112,12 +112,16 @@ class _BusinessLocationPageState extends State<BusinessLocationPage> {
                     ),
                     label: Text(
                       'Use Current Location',
-                      style: AppFonts.button(color: AppColors.brandPrimary),
+                      style: AppFonts.button(color: AppColors.brandPrimary).copyWith(
+                        height: 1.0,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                     style: OutlinedButton.styleFrom(
                       backgroundColor: AppColors.brandPrimaryLight.withValues(alpha:0.1),
                       foregroundColor: AppColors.brandPrimary,
                       side: BorderSide(color: AppColors.brandPrimaryLight),
+                      padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppResources.radiusM),
                       ),
@@ -315,13 +319,17 @@ class _BusinessLocationPageState extends State<BusinessLocationPage> {
                       backgroundColor: AppColors.brandPrimary,
                       foregroundColor: AppColors.textOnPrimary,
                       elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppResources.radiusM),
                       ),
                     ),
                     child: Text(
                       'Next',
-                      style: AppFonts.button(color: AppColors.textOnPrimary),
+                      style: AppFonts.button(color: AppColors.textOnPrimary).copyWith(
+                        height: 1.0,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
