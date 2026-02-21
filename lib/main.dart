@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -9,7 +8,6 @@ import 'injection/injection_container.dart' as di;
 import 'core/supabase/supabase_config.dart';
 import 'core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'core/widgets/dev_api_overlay.dart';
 import 'core/localization/localization_cubit.dart';
 import 'features/auth/presentation/bloc/auth_cubit.dart';
 import 'features/auth/domain/usecases/login_usecase.dart';
@@ -93,16 +91,6 @@ class MyApp extends StatelessWidget {
 
                 // Home - Start with splash screen
                 home: const SplashPage(),
-                // Dev overlay above all routes when debug
-                builder: (context, child) {
-                  if (!kDebugMode) return child!;
-                  return Stack(
-                    children: [
-                      child!,
-                      const DevApiOverlay(),
-                    ],
-                  );
-                },
               );
             },
           );
