@@ -5,6 +5,7 @@ import '../entities/user_profile.dart';
 abstract class ProfileRepository {
   Future<Either<Failure, UserProfile>> getProfile(String userId);
   Future<Either<Failure, UserProfile>> updateProfile(String userId, UserProfileUpdate update);
+  Future<Either<Failure, String>> uploadAvatar(String userId, dynamic imageFile);
 }
 
 /// Partial update payload for profile.

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
@@ -47,6 +49,22 @@ class ProfileSupabaseDataSource implements ProfileRemoteDataSource {
 
       await _client.from('profiles').update(payload).eq('id', userId);
       return getProfile(userId);
+    });
+  }
+
+  static const String _avatarsBucket = 'avatars';
+
+  @override
+  Future<String> uploadAvatar(String userId, File imageFile) async {
+    return SupabaseFailureMapper.guard(() async {
+      final path = '$userId/avatar.jpg';
+      await _client.storage.from(_avatarsBucket).upload(
+            path,
+            imageFile,
+            fileOptions: const FileOptions(upsert: true),
+          );
+      final url = _client.storage.from(_avatarsBucket).getPublicUrl(path);
+      return url;
     });
   }
 }

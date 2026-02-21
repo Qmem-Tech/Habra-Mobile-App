@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/user_profile.dart';
@@ -25,6 +27,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
     try {
       final profile = await remoteDataSource.updateProfile(userId, update);
       return Right(profile);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> uploadAvatar(String userId, dynamic imageFile) async {
+    try {
+      final url = await remoteDataSource.uploadAvatar(userId, imageFile as File);
+      return Right(url);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

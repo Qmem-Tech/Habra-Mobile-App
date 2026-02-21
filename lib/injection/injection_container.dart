@@ -128,6 +128,7 @@ import '../features/profile/data/repositories/profile_repository_impl.dart';
 import '../features/profile/domain/repositories/profile_repository.dart';
 import '../features/profile/domain/usecases/get_profile_usecase.dart';
 import '../features/profile/domain/usecases/update_profile_usecase.dart';
+import '../features/profile/domain/usecases/upload_avatar_usecase.dart';
 import '../features/profile/presentation/bloc/edit_profile_cubit.dart';
 import '../features/saved_items/data/datasources/saved_items_remote_datasource.dart';
 import '../features/saved_items/data/datasources/saved_items_supabase_datasource.dart';
@@ -418,9 +419,11 @@ Future<void> init() async {
   );
   sl.registerLazySingleton(() => GetProfileUseCase(sl<ProfileRepository>()));
   sl.registerLazySingleton(() => UpdateProfileUseCase(sl<ProfileRepository>()));
+  sl.registerLazySingleton(() => UploadAvatarUseCase(sl<ProfileRepository>()));
   sl.registerFactory(() => EditProfileCubit(
     getProfileUseCase: sl<GetProfileUseCase>(),
     updateProfileUseCase: sl<UpdateProfileUseCase>(),
+    uploadAvatarUseCase: sl<UploadAvatarUseCase>(),
   ));
 
   // Features - Saved Items
