@@ -191,10 +191,11 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         query = query.gte('created_at', DateTime.now().subtract(const Duration(days: 365)).toIso8601String());
       }
       final ordersRes = await query;
-      if (ordersRes is! List || ordersRes.isEmpty) return <TicketModel>[];
+      final ordersList = ordersRes is List ? ordersRes as List : <dynamic>[];
+      if (ordersList.isEmpty) return <TicketModel>[];
 
       final tickets = <TicketModel>[];
-      for (final orderRow in ordersRes as List) {
+      for (final orderRow in ordersList) {
         final orderMap = Map<String, dynamic>.from(orderRow as Map);
         final eventId = parseString(orderMap['event_id']);
         if (eventId == null) continue;

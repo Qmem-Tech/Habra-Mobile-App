@@ -7,8 +7,12 @@ import '../bloc/splash_cubit.dart';
 import '../bloc/splash_state.dart';
 import '../../../onboarding/presentation/pages/onboarding_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
-import '../../../home/presentation/pages/customer_home_page.dart';
+import '../../../auth/domain/entities/user.dart';
+import '../../../auth/presentation/bloc/auth_cubit.dart';
+import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
+import '../../../home/presentation/pages/customer_home_page.dart';
+import '../../../home/presentation/pages/guest_home_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -126,19 +130,26 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             );
             return;
           }
-          if (user.isBusinessOwner) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => BusinessOwnerWrapperPage(user: user),
-              ),
-            );
-          } else {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => CustomerHomePage(user: user),
-              ),
-            );
+          // Restore auth state so the app sees the user as signed in (persisted session).
+          context.read<AuthCubit>().restoreUser(user);
+          final Widget destination;
+          switch (user.role) {
+            case UserRole.businessOwner:
+              destination = BusinessOwnerWrapperPage(user: user);
+              break;
+            case UserRole.admin:
+              destination = AdminHomePage(user: user);
+              break;
+            case UserRole.guest:
+              destination = GuestHomePage(user: user);
+              break;
+            case UserRole.customer:
+              destination = CustomerHomePage(user: user);
+              break;
           }
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => destination),
+          );
         } else {
           // Navigate to choose path (user not authenticated)
           Navigator.of(context).pushReplacement(

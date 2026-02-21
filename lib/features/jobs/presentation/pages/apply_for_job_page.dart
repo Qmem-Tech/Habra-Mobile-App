@@ -44,7 +44,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
   Future<void> _pickResume() async {
     // TODO: Implement file picker when ready
     // For now, show a dialog to simulate file selection
-    final result = await showDialog<String>(
+    await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Resume Upload'),

@@ -11,6 +11,7 @@ import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
 import 'forgot_password_page.dart';
+import 'wrong_path_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
 
 class SignInPage extends StatefulWidget {
@@ -34,6 +35,16 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   void _handleNavigationForUser(BuildContext context, User user) {
+    // Business owner signed in via community path — show helpful message and go back.
+    if (user.role == UserRole.businessOwner || user.role == UserRole.admin) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const WrongPathPage(usedBusinessPath: false),
+        ),
+      );
+      return;
+    }
+
     Widget destination;
     switch (user.role) {
       case UserRole.businessOwner:

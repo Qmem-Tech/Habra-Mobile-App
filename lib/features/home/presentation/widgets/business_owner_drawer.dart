@@ -195,15 +195,6 @@ class BusinessOwnerDrawer extends StatelessWidget {
         },
       ),
       _DrawerMenuItemData(
-        icon: Icons.message_outlined,
-        activeIcon: Icons.message,
-        title: 'Messages',
-        onTap: () {
-          Navigator.pop(context);
-          onMessagesTap?.call();
-        },
-      ),
-      _DrawerMenuItemData(
         icon: Icons.edit_outlined,
         activeIcon: Icons.edit,
         title: 'Edit Business Info',

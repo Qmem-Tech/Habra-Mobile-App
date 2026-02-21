@@ -182,7 +182,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
         description: parseStringRequired(row['description']),
         imageUrls: allImages,
         categories: listItem.categories,
-        address: listItem.address ?? '',
+        address: listItem.address,
         city: listItem.city,
         state: listItem.state,
         zipCode: parseString(row['address_zip']) ?? '',
@@ -276,8 +276,9 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
             .select('id')
             .eq('approval_status', 'approved')
             .or('address_city.ilike.%$location%,address_state.ilike.%$location%');
-        if (bizRes is List && bizRes.isNotEmpty) {
-          final ids = (bizRes as List).map((e) => (e as Map)['id']).whereType<String>().toList();
+        final bizList = bizRes is List ? bizRes as List : <dynamic>[];
+        if (bizList.isNotEmpty) {
+          final ids = bizList.map((e) => (e as Map)['id']).whereType<String>().toList();
           if (ids.isNotEmpty) query = query.inFilter('business_id', ids);
         }
       }

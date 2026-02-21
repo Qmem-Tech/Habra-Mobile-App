@@ -69,8 +69,9 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
             .select('id')
             .eq('approval_status', 'approved')
             .or('address_city.ilike.%$location%,address_state.ilike.%$location%');
-        if (bizRes is List && bizRes.isNotEmpty) {
-          final ids = (bizRes as List).map((e) => (e as Map)['id']).whereType<String>().toList();
+        final bizList = bizRes is List ? bizRes as List : <dynamic>[];
+        if (bizList.isNotEmpty) {
+          final ids = bizList.map((e) => (e as Map)['id']).whereType<String>().toList();
           if (ids.isNotEmpty) query = query.inFilter('business_id', ids);
         }
       }
@@ -143,8 +144,9 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
             .select('id')
             .eq('approval_status', 'approved')
             .or('address_city.ilike.%$location%,address_state.ilike.%$location%');
-        if (bizRes is List && bizRes.isNotEmpty) {
-          final ids = (bizRes as List).map((e) => (e as Map)['id']).whereType<String>().toList();
+        final bizList = bizRes is List ? bizRes as List : <dynamic>[];
+        if (bizList.isNotEmpty) {
+          final ids = bizList.map((e) => (e as Map)['id']).whereType<String>().toList();
           if (ids.isNotEmpty) query = query.inFilter('business_id', ids);
         }
       }

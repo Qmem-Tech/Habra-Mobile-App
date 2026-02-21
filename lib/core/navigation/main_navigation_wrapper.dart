@@ -76,7 +76,6 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
           widget.homePage,
           EventsPage(location: widget.eventsLocation ?? 'Washington, D.C.'),
           const ExplorePage(),
-          _buildPlaceholderPage('Messages'),
           JobsPage(initialLocation: widget.eventsLocation ?? 'Washington, D.C.'),
         ],
       ),
@@ -100,10 +99,6 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
             label: 'Explore',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.message),
-            label: 'Messages',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.work),
             label: 'Jobs',
           ),
@@ -112,21 +107,4 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
     );
   }
 
-  Widget _buildPlaceholderPage(String title) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-      ),
-      body: Center(
-        child: Text(
-          '$title Page\nComing Soon',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 24,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
 }

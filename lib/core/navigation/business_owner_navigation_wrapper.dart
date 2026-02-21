@@ -7,8 +7,9 @@ import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/boosts/presentation/bloc/boosts_cubit.dart';
 import '../../features/boosts/presentation/pages/boosts_page.dart';
 import '../../features/auth/domain/entities/user.dart';
+import '../../features/home/presentation/pages/profile_page.dart';
 
-/// Bottom nav for business owner: Home, Dash, Boosts, Messages, Profile.
+/// Bottom nav for business owner: Home, Dash, Boosts, Profile.
 class BusinessOwnerNavigationWrapper extends StatefulWidget {
   final User user;
   final int initialIndex;
@@ -83,8 +84,7 @@ class _BusinessOwnerNavigationWrapperState
             create: (_) => sl<BoostsCubit>(),
             child: BoostsPage(user: widget.user),
           ),
-          _buildPlaceholderPage('Messages'),
-          _buildPlaceholderPage('Profile'),
+          ProfilePage(user: widget.user),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -110,11 +110,6 @@ class _BusinessOwnerNavigationWrapperState
             label: 'Boosts',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.message_outlined),
-            activeIcon: Icon(Icons.message),
-            label: 'Messages',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),
             label: 'Profile',
@@ -124,23 +119,4 @@ class _BusinessOwnerNavigationWrapperState
     );
   }
 
-  Widget _buildPlaceholderPage(String title) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        backgroundColor: AppColors.backgroundWhite,
-        foregroundColor: AppColors.textPrimary,
-      ),
-      body: Center(
-        child: Text(
-          '$title\nComing Soon',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 20,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
 }

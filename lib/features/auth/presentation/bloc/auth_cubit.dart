@@ -91,4 +91,10 @@ class AuthCubit extends Cubit<AuthState> {
       (_) => emit(AuthUnauthenticated()),
     );
   }
+
+  /// Restores auth state from a cached/session user (e.g. after app cold start).
+  /// Keeps the app in sync so the user stays signed in without being asked again.
+  void restoreUser(User user) {
+    emit(AuthAuthenticated(user));
+  }
 }

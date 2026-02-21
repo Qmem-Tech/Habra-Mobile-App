@@ -3,7 +3,6 @@ import '../models/event_detail_model.dart';
 import '../models/ticket_model.dart';
 import '../models/order_model.dart';
 import '../../domain/entities/event_filters.dart';
-import 'mock_data/mock_events_data.dart';
 
 abstract class EventsRemoteDataSource {
   Future<List<EventListItemModel>> getEvents({
@@ -40,38 +39,31 @@ class EventsRemoteDataSourceImpl implements EventsRemoteDataSource {
     EventFilters? filters,
     String? searchQuery,
   }) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    return MockEventsData.getMockEvents(
-      location: location,
-      categories: filters?.eventTypes,
-      searchQuery: searchQuery,
-    );
+    return [];
   }
 
   @override
   Future<EventDetailModel> getEventDetail(String eventId) async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    return MockEventsData.getEventDetail(eventId);
+    throw UnimplementedError(
+      'Use EventsSupabaseDataSource; backend must provide event $eventId',
+    );
   }
 
   @override
   Future<List<EventListItemModel>> getSimilarEvents(String eventId) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    return MockEventsData.getSimilarEvents(eventId);
+    return [];
   }
 
   @override
   Future<List<TicketModel>> getUserTickets({bool upcomingOnly = true}) async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    return MockEventsData.getUserTickets(upcomingOnly: upcomingOnly);
+    return [];
   }
 
   @override
   Future<TicketModel> getTicketDetail(String ticketId) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    return MockEventsData.getTicketDetail(ticketId);
+    throw UnimplementedError(
+      'Use EventsSupabaseDataSource; backend must provide ticket $ticketId',
+    );
   }
 
   @override
@@ -80,11 +72,8 @@ class EventsRemoteDataSourceImpl implements EventsRemoteDataSource {
     required List<Map<String, dynamic>> tickets,
     required Map<String, dynamic> contactInfo,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 1000));
-    return MockEventsData.createOrder(
-      eventId: eventId,
-      tickets: tickets,
-      contactInfo: contactInfo,
+    throw UnimplementedError(
+      'Use EventsSupabaseDataSource; backend must handle createOrder.',
     );
   }
 
@@ -94,11 +83,8 @@ class EventsRemoteDataSourceImpl implements EventsRemoteDataSource {
     required Map<String, dynamic> paymentMethod,
     String? promoCode,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 2000));
-    return MockEventsData.processPayment(
-      orderId: orderId,
-      paymentMethod: paymentMethod,
-      promoCode: promoCode,
+    throw UnimplementedError(
+      'Use EventsSupabaseDataSource; backend must handle processPayment.',
     );
   }
 }

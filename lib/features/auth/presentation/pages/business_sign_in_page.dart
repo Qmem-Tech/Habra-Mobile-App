@@ -9,10 +9,10 @@ import '../../domain/entities/user.dart';
 import '../../../home/presentation/pages/customer_home_page.dart';
 import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
-import '../../../home/presentation/pages/guest_home_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import 'email_sign_up_page.dart';
 import 'forgot_password_page.dart';
+import 'wrong_path_page.dart';
 
 class BusinessSignInPage extends StatefulWidget {
   const BusinessSignInPage({super.key});
@@ -35,6 +35,16 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
   }
 
   void _handleNavigationForUser(BuildContext context, User user) {
+    // Community member signed in via business path — show helpful message and go back.
+    if (user.role == UserRole.customer || user.role == UserRole.guest) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const WrongPathPage(usedBusinessPath: true),
+        ),
+      );
+      return;
+    }
+
     Widget destination;
     switch (user.role) {
       case UserRole.businessOwner:
@@ -44,8 +54,6 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
         destination = AdminHomePage(user: user);
         break;
       case UserRole.guest:
-        destination = GuestHomePage(user: user);
-        break;
       case UserRole.customer:
         destination = CustomerHomePage(user: user);
         break;

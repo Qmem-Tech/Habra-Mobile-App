@@ -181,15 +181,6 @@ class NavigationDrawer extends StatelessWidget {
         },
       ),
       _MenuItemData(
-        icon: Icons.message_outlined,
-        activeIcon: Icons.message,
-        title: 'Messages',
-        onTap: () {
-          Navigator.pop(context);
-          // TODO: Navigate to messages
-        },
-      ),
-      _MenuItemData(
         icon: Icons.confirmation_number_outlined,
         activeIcon: Icons.confirmation_number,
         title: 'My Tickets',

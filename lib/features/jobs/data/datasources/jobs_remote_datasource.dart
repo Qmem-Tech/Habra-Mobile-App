@@ -1,7 +1,6 @@
 import '../../domain/entities/job_detail.dart';
 import '../../domain/entities/job_filters.dart';
 import '../../domain/entities/job_listing.dart';
-import 'mock_data/mock_jobs_data.dart';
 
 abstract class JobsRemoteDataSource {
   Future<List<JobListing>> getJobs({
@@ -31,36 +30,24 @@ class JobsRemoteDataSourceImpl implements JobsRemoteDataSource {
     String? searchQuery,
     bool featuredOnly = false,
   }) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    return MockJobsData.getMockJobListings(
-      location: location ?? filters?.location,
-      categories: filters?.categories,
-      jobTypes: filters?.jobTypes,
-      searchQuery: searchQuery,
-      featuredOnly: featuredOnly,
-    );
+    return [];
   }
 
   @override
   Future<JobDetail> getJobDetail(String jobId) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    return MockJobsData.getJobDetail(jobId);
+    throw UnimplementedError(
+      'Use JobsSupabaseDataSource; backend must provide job detail for $jobId',
+    );
   }
 
   @override
   Future<List<String>> getJobCategories() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return MockJobsData.getJobCategories();
+    return [];
   }
 
   @override
   Future<List<String>> getJobTypes() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return MockJobsData.getJobTypes();
+    return [];
   }
 
   @override
