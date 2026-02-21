@@ -41,6 +41,8 @@ class LocalizationCubit extends Cubit<LocalizationState> {
 
   List<Locale> get supportedLocales => const [
         Locale('en'),
+        Locale('am'),
+        Locale('ti'),
         Locale('ar'),
         Locale('fr'),
       ];

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/navigation/main_nav_scope.dart';
+import '../../features/auth/domain/entities/user.dart';
 import '../../features/events/presentation/pages/events_page.dart';
 import '../../features/explore/presentation/pages/explore_page.dart';
 import '../../features/home/presentation/pages/navigation_drawer.dart' as app_drawer;
+import '../../features/home/presentation/pages/profile_tab_page.dart';
 import '../../features/jobs/presentation/pages/jobs_page.dart';
 
 // Global key to access navigation from anywhere
@@ -17,6 +19,8 @@ class MainNavigationWrapper extends StatefulWidget {
   final String? userId;
   final String? userName;
   final String? userEmail;
+  /// Full user for Profile tab. When null, Profile tab still shown but may show placeholder.
+  final User? user;
 
   const MainNavigationWrapper({
     super.key,
@@ -26,6 +30,7 @@ class MainNavigationWrapper extends StatefulWidget {
     this.userId,
     this.userName,
     this.userEmail,
+    this.user,
   });
 
   static void navigateToTab(BuildContext context, int index) {
@@ -101,6 +106,7 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
             EventsPage(location: widget.eventsLocation ?? 'Washington, D.C.'),
             const ExplorePage(),
             JobsPage(initialLocation: widget.eventsLocation ?? 'Washington, D.C.'),
+            ProfileTabPage(user: widget.user),
           ],
         ),
       ),
@@ -112,20 +118,29 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
         onTap: _onTabTapped,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
+            icon: Icon(Icons.calendar_today_outlined),
+            activeIcon: Icon(Icons.calendar_today),
             label: 'Events',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.explore),
+            icon: Icon(Icons.explore_outlined),
+            activeIcon: Icon(Icons.explore),
             label: 'Explore',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.work),
+            icon: Icon(Icons.work_outline),
+            activeIcon: Icon(Icons.work),
             label: 'Jobs',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),

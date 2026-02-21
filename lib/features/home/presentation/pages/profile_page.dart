@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
+import '../../../profile/presentation/bloc/edit_profile_cubit.dart';
+import 'edit_profile_page.dart';
 
 /// Profile tab content: shows current user profile data (in sync with auth).
 class ProfilePage extends StatelessWidget {
@@ -87,6 +91,25 @@ class ProfilePage extends StatelessWidget {
                   _roleLabel(user.role),
                   style: AppFonts.bodySmall(color: AppColors.textSecondary),
                   textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: AppResources.spacingXL),
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BlocProvider(
+                        create: (_) => di.sl<EditProfileCubit>(),
+                        child: EditProfilePage(user: user),
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                label: const Text('Edit Profile'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.brandPrimary,
                 ),
               ),
             ],

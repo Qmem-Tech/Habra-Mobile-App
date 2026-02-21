@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
 import '../../../auth/presentation/pages/sign_in_page.dart';
+import '../../../../injection/injection_container.dart' as di;
+import 'profile_page.dart';
+import '../../../settings/presentation/pages/settings_page.dart';
+import '../../../saved_items/presentation/bloc/saved_items_cubit.dart';
+import '../../../saved_items/presentation/pages/saved_items_page.dart';
+import '../../../explore/presentation/pages/my_reviews_page.dart';
+import '../../../jobs/presentation/pages/my_applications_page.dart';
+import '../../../jobs/presentation/bloc/job_applications_cubit.dart';
 
 class NavigationDrawer extends StatelessWidget {
   final String userId;
@@ -130,7 +139,19 @@ class NavigationDrawer extends StatelessWidget {
           InkWell(
             onTap: () {
               Navigator.pop(context);
-              // TODO: Navigate to profile page
+              final user = User(
+                id: userId,
+                email: userEmail.isNotEmpty ? userEmail : 'user@example.com',
+                name: userName,
+                role: UserRole.customer,
+              );
+              if (!context.mounted) return;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProfilePage(user: user),
+                ),
+              );
             },
             borderRadius: BorderRadius.circular(6),
             child: Padding(
@@ -195,7 +216,16 @@ class NavigationDrawer extends StatelessWidget {
         title: 'Saved Items',
         onTap: () {
           Navigator.pop(context);
-          // TODO: Navigate to saved items
+          if (!context.mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BlocProvider(
+                create: (_) => di.sl<SavedItemsCubit>()..loadSavedItems(),
+                child: const SavedItemsPage(),
+              ),
+            ),
+          );
         },
       ),
       _MenuItemData(
@@ -204,7 +234,11 @@ class NavigationDrawer extends StatelessWidget {
         title: 'My Review',
         onTap: () {
           Navigator.pop(context);
-          // TODO: Navigate to reviews
+          if (!context.mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MyReviewsPage()),
+          );
         },
       ),
       _MenuItemData(
@@ -213,7 +247,16 @@ class NavigationDrawer extends StatelessWidget {
         title: 'My Applications',
         onTap: () {
           Navigator.pop(context);
-          // TODO: Navigate to applications
+          if (!context.mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BlocProvider(
+                create: (_) => di.sl<JobApplicationsCubit>(),
+                child: const MyApplicationsPage(),
+              ),
+            ),
+          );
         },
       ),
       _MenuItemData(
@@ -222,7 +265,11 @@ class NavigationDrawer extends StatelessWidget {
         title: 'Settings',
         onTap: () {
           Navigator.pop(context);
-          // TODO: Navigate to settings
+          if (!context.mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SettingsPage()),
+          );
         },
       ),
     ];

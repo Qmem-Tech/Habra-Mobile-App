@@ -122,6 +122,12 @@ class AppAssets {
   /// Boost listing: rocket/visibility illustration. Replace with custom asset when provided.
   static const String dashboardBoostRocket = '$_imagesPath/home/business_placeholder.png';
 
+  // ==================== Community / Sidebar Flows ====================
+  /// Saved Items empty state (bookmark illustration). Replace with custom asset when provided.
+  static const String savedItemsEmpty = '$_imagesPath/home/no_results.png';
+  /// My Reviews empty state (documents/magnifier). Replace with custom asset when provided.
+  static const String myReviewsEmpty = '$_imagesPath/home/no_results.png';
+
   // ==================== Boosts Feature ====================
   /// Boosts empty state: no boosts used. Replace with custom asset when provided.
   static const String boostsEmptyState = '$_imagesPath/home/no_results.png';

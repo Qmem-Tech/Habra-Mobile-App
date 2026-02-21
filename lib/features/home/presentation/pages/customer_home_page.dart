@@ -26,6 +26,7 @@ class CustomerHomePage extends StatelessWidget {
         userId: user.id,
         userName: user.name,
         userEmail: user.email,
+        user: user,
         homePage: HomePage(
           userId: user.id,
           userName: user.name,

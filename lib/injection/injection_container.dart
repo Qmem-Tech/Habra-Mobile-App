@@ -88,9 +88,13 @@ import '../features/explore/domain/usecases/get_deal_detail_usecase.dart';
 import '../features/explore/domain/usecases/get_business_reviews_usecase.dart';
 import '../features/explore/domain/usecases/write_review_usecase.dart';
 import '../features/explore/domain/usecases/redeem_deal_usecase.dart';
+import '../features/explore/domain/usecases/get_my_reviews_usecase.dart';
+import '../features/explore/domain/usecases/update_my_review_usecase.dart';
+import '../features/explore/domain/usecases/delete_my_review_usecase.dart';
 import '../features/explore/presentation/bloc/businesses_cubit.dart';
 import '../features/explore/presentation/bloc/deals_cubit.dart';
 import '../features/explore/presentation/bloc/reviews_cubit.dart';
+import '../features/explore/presentation/bloc/my_reviews_cubit.dart';
 
 // Jobs feature
 import '../features/jobs/data/datasources/jobs_remote_datasource.dart';
@@ -110,6 +114,29 @@ import '../features/jobs/domain/usecases/submit_application_usecase.dart';
 import '../features/jobs/domain/usecases/get_applications_usecase.dart';
 import '../features/jobs/presentation/bloc/jobs_cubit.dart';
 import '../features/jobs/presentation/bloc/job_applications_cubit.dart';
+
+// Feedback feature
+import '../features/feedback/data/datasources/feedback_remote_datasource.dart';
+import '../features/feedback/data/datasources/feedback_supabase_datasource.dart';
+import '../features/feedback/data/repositories/feedback_repository_impl.dart';
+import '../features/feedback/domain/repositories/feedback_repository.dart';
+import '../features/feedback/domain/usecases/submit_feedback_usecase.dart';
+import '../features/feedback/presentation/bloc/feedback_cubit.dart';
+import '../features/profile/data/datasources/profile_remote_datasource.dart';
+import '../features/profile/data/datasources/profile_supabase_datasource.dart';
+import '../features/profile/data/repositories/profile_repository_impl.dart';
+import '../features/profile/domain/repositories/profile_repository.dart';
+import '../features/profile/domain/usecases/get_profile_usecase.dart';
+import '../features/profile/domain/usecases/update_profile_usecase.dart';
+import '../features/profile/presentation/bloc/edit_profile_cubit.dart';
+import '../features/saved_items/data/datasources/saved_items_remote_datasource.dart';
+import '../features/saved_items/data/datasources/saved_items_supabase_datasource.dart';
+import '../features/saved_items/data/repositories/saved_items_repository_impl.dart';
+import '../features/saved_items/domain/repositories/saved_items_repository.dart';
+import '../features/saved_items/domain/usecases/get_saved_items_usecase.dart';
+import '../features/saved_items/domain/usecases/remove_saved_item_usecase.dart';
+import '../features/saved_items/domain/usecases/save_item_usecase.dart';
+import '../features/saved_items/presentation/bloc/saved_items_cubit.dart';
 
 final sl = GetIt.instance;
 
@@ -302,6 +329,9 @@ Future<void> init() async {
   sl.registerLazySingleton(() => GetBusinessReviewsUseCase(sl<BusinessesRepository>()));
   sl.registerLazySingleton(() => WriteReviewUseCase(sl<BusinessesRepository>()));
   sl.registerLazySingleton(() => RedeemDealUseCase(sl<BusinessesRepository>()));
+  sl.registerLazySingleton(() => GetMyReviewsUseCase(sl<BusinessesRepository>()));
+  sl.registerLazySingleton(() => UpdateMyReviewUseCase(sl<BusinessesRepository>()));
+  sl.registerLazySingleton(() => DeleteMyReviewUseCase(sl<BusinessesRepository>()));
 
   // Cubits
   sl.registerFactory(() => BusinessesCubit(
@@ -316,6 +346,11 @@ Future<void> init() async {
   sl.registerFactory(() => ReviewsCubit(
     getBusinessReviewsUseCase: sl<GetBusinessReviewsUseCase>(),
     writeReviewUseCase: sl<WriteReviewUseCase>(),
+  ));
+  sl.registerFactory(() => MyReviewsCubit(
+    getMyReviewsUseCase: sl<GetMyReviewsUseCase>(),
+    updateMyReviewUseCase: sl<UpdateMyReviewUseCase>(),
+    deleteMyReviewUseCase: sl<DeleteMyReviewUseCase>(),
   ));
 
   // Features - Jobs
@@ -362,5 +397,44 @@ Future<void> init() async {
   sl.registerFactory(() => JobApplicationsCubit(
     submitApplicationUseCase: sl<SubmitApplicationUseCase>(),
     getApplicationsUseCase: sl<GetApplicationsUseCase>(),
+  ));
+
+  // Features - Feedback
+  sl.registerLazySingleton<FeedbackRemoteDataSource>(
+    () => FeedbackSupabaseDataSource(),
+  );
+  sl.registerLazySingleton<FeedbackRepository>(
+    () => FeedbackRepositoryImpl(remoteDataSource: sl<FeedbackRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(() => SubmitFeedbackUseCase(sl<FeedbackRepository>()));
+  sl.registerFactory(() => FeedbackCubit(submitFeedbackUseCase: sl<SubmitFeedbackUseCase>()));
+
+  // Features - Profile
+  sl.registerLazySingleton<ProfileRemoteDataSource>(
+    () => ProfileSupabaseDataSource(),
+  );
+  sl.registerLazySingleton<ProfileRepository>(
+    () => ProfileRepositoryImpl(remoteDataSource: sl<ProfileRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(() => GetProfileUseCase(sl<ProfileRepository>()));
+  sl.registerLazySingleton(() => UpdateProfileUseCase(sl<ProfileRepository>()));
+  sl.registerFactory(() => EditProfileCubit(
+    getProfileUseCase: sl<GetProfileUseCase>(),
+    updateProfileUseCase: sl<UpdateProfileUseCase>(),
+  ));
+
+  // Features - Saved Items
+  sl.registerLazySingleton<SavedItemsRemoteDataSource>(
+    () => SavedItemsSupabaseDataSource(),
+  );
+  sl.registerLazySingleton<SavedItemsRepository>(
+    () => SavedItemsRepositoryImpl(remoteDataSource: sl<SavedItemsRemoteDataSource>()),
+  );
+  sl.registerLazySingleton(() => GetSavedItemsUseCase(sl<SavedItemsRepository>()));
+  sl.registerLazySingleton(() => SaveItemUseCase(sl<SavedItemsRepository>()));
+  sl.registerLazySingleton(() => RemoveSavedItemUseCase(sl<SavedItemsRepository>()));
+  sl.registerFactory(() => SavedItemsCubit(
+    getSavedItemsUseCase: sl<GetSavedItemsUseCase>(),
+    removeSavedItemUseCase: sl<RemoveSavedItemUseCase>(),
   ));
 }

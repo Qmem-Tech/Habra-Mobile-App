@@ -7,6 +7,7 @@ import '../../domain/entities/business_detail.dart';
 import '../../domain/entities/business_filters.dart';
 import '../../domain/entities/business_list_item.dart';
 import '../../domain/entities/deal.dart';
+import '../../domain/entities/my_review.dart';
 import '../../domain/entities/review.dart';
 import '../models/review_model.dart';
 import 'businesses_remote_datasource.dart';
@@ -447,6 +448,96 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
       }
 
       return 'HAB-${DateTime.now().millisecondsSinceEpoch}';
+    });
+  }
+
+  @override
+  Future<List<MyReview>> getMyReviews() async {
+    return SupabaseFailureMapper.guard(() async {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return <MyReview>[];
+
+      final res = await _client
+          .from('reviews')
+          .select('*, businesses!reviews_business_id_fkey(id, name, logo_url)')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+      final list = (res as List).cast<Map<String, dynamic>>();
+      return list.map(_rowToMyReview).toList();
+    });
+  }
+
+  MyReview _rowToMyReview(Map<String, dynamic> row) {
+    final id = parseStringRequired(row['id']);
+    final businessId = parseStringRequired(row['business_id']);
+    final rating = parseInt(row['rating']) ?? 5;
+    final comment = parseStringRequired(row['comment']);
+    final createdAt = parseTimestampRequired(row['created_at']);
+    String businessName = 'Business';
+    String? businessImageUrl;
+    final biz = row['businesses'];
+    if (biz is Map<String, dynamic>) {
+      businessName = parseStringRequired(biz['name'], 'Business');
+      businessImageUrl = parseString(biz['logo_url']);
+    }
+    return MyReview(
+      id: id,
+      businessId: businessId,
+      businessName: businessName,
+      businessImageUrl: businessImageUrl,
+      rating: rating,
+      comment: comment,
+      createdAt: createdAt,
+    );
+  }
+
+  @override
+  Future<MyReview> updateReview(String reviewId, {int? rating, String? comment}) async {
+    return SupabaseFailureMapper.guard(() async {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) throw Exception('Not authenticated');
+
+      final Map<String, dynamic> payload = {};
+      if (rating != null) payload['rating'] = rating;
+      if (comment != null) payload['comment'] = comment;
+      if (payload.isEmpty) {
+        final res = await _client
+            .from('reviews')
+            .select('*, businesses!reviews_business_id_fkey(id, name, logo_url)')
+            .eq('id', reviewId)
+            .eq('user_id', userId)
+            .maybeSingle();
+        if (res == null) throw Exception('Review not found');
+        return _rowToMyReview(Map<String, dynamic>.from(res as Map));
+      }
+
+      await _client
+          .from('reviews')
+          .update(payload)
+          .eq('id', reviewId)
+          .eq('user_id', userId);
+
+      final res = await _client
+          .from('reviews')
+          .select('*, businesses!reviews_business_id_fkey(id, name, logo_url)')
+          .eq('id', reviewId)
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (res == null) throw Exception('Review not found');
+      return _rowToMyReview(Map<String, dynamic>.from(res as Map));
+    });
+  }
+
+  @override
+  Future<void> deleteReview(String reviewId) async {
+    return SupabaseFailureMapper.guard(() async {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) throw Exception('Not authenticated');
+      await _client
+          .from('reviews')
+          .delete()
+          .eq('id', reviewId)
+          .eq('user_id', userId);
     });
   }
 }
