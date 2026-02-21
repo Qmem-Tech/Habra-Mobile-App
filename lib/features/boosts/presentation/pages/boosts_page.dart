@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -12,6 +13,7 @@ import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../../../home/presentation/pages/business_locations_page.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
 import '../../../home/presentation/widgets/business_owner_drawer.dart';
+import '../../../settings/presentation/pages/settings_page.dart';
 import '../../../dashboard/presentation/widgets/empty_state_widget.dart';
 import '../../domain/entities/boost_filter.dart';
 import '../bloc/boosts_cubit.dart';
@@ -57,6 +59,25 @@ class _BoostsPageState extends State<BoostsPage> {
                 userName: widget.user.name,
                 userEmail: widget.user.email,
                 selectedBusiness: selected,
+                onHomeTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 0),
+                onDashboardTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1),
+                onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
+                onEditBusinessTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Edit business — coming soon')),
+                  );
+                },
+                onUpdateHoursTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Update hours — coming soon')),
+                  );
+                },
+                onSettingsTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsPage()),
+                  );
+                },
               );
             },
           ),

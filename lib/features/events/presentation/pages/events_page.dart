@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/navigation/main_nav_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../home/presentation/pages/notification_page.dart';
 import '../../domain/entities/event_list_item.dart';
 import '../../domain/entities/event_category.dart';
 import '../../domain/entities/event_filters.dart';
@@ -107,8 +109,7 @@ class _EventsPageState extends State<EventsPage> {
           IconButton(
             icon: const Icon(Icons.menu, color: AppColors.textPrimary),
             onPressed: () {
-              // Open drawer
-              Scaffold.of(context).openDrawer();
+              MainNavScope.maybeOf(context)?.scaffoldKey.currentState?.openDrawer();
             },
           ),
           Expanded(
@@ -163,7 +164,12 @@ class _EventsPageState extends State<EventsPage> {
               ],
             ),
             onPressed: () {
-              // Navigate to notifications
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => NotificationPage(userId: MainNavScope.maybeOf(context)?.userId),
+                ),
+              );
             },
           ),
         ],

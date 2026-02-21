@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:open_mail_launcher/open_mail_launcher.dart';
 
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -31,13 +31,10 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   }
 
   Future<void> _openEmailApp(BuildContext context) async {
-    final uri = Uri(scheme: 'mailto', path: widget.email);
     try {
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched && context.mounted) {
+      // Open the mail app to inbox (no compose / mailto)
+      final result = await OpenMailLauncher.openMailApp();
+      if (!result.didOpen && context.mounted) {
         _showOpenEmailFallback(context);
       }
     } catch (_) {

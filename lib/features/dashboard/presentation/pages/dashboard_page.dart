@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../auth/domain/entities/user.dart';
@@ -7,9 +8,10 @@ import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
 import '../../../home/presentation/pages/business_locations_page.dart';
+import '../../../home/presentation/widgets/business_owner_drawer.dart';
+import '../../../settings/presentation/pages/settings_page.dart';
 import '../bloc/dashboard_cubit.dart';
 import '../bloc/dashboard_state.dart';
-import '../../../home/presentation/widgets/business_owner_drawer.dart';
 import '../widgets/dashboard_app_bar.dart';
 import '../widgets/dashboard_tab_bar.dart';
 import 'dashboard_analytics_tab.dart';
@@ -74,6 +76,25 @@ class _DashboardPageState extends State<DashboardPage> {
               userName: widget.user.name,
               userEmail: widget.user.email,
               selectedBusiness: selectedPresence,
+              onHomeTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 0),
+              onDashboardTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1),
+              onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
+              onEditBusinessTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Edit business — coming soon')),
+                );
+              },
+              onUpdateHoursTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Update hours — coming soon')),
+                );
+              },
+              onSettingsTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsPage()),
+                );
+              },
             );
           },
         ),

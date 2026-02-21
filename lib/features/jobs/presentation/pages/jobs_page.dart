@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/navigation/main_nav_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../home/presentation/pages/notification_page.dart';
 import '../bloc/jobs_cubit.dart';
 import '../bloc/jobs_state.dart';
 import '../widgets/featured_job_card.dart';
@@ -162,7 +164,7 @@ class _JobsPageState extends State<JobsPage> {
         children: [
           IconButton(
             onPressed: () {
-              Scaffold.of(context).openDrawer();
+              MainNavScope.maybeOf(context)?.scaffoldKey.currentState?.openDrawer();
             },
             icon: const Icon(Icons.menu),
             color: AppColors.textPrimary,
@@ -208,7 +210,12 @@ class _JobsPageState extends State<JobsPage> {
           ),
           IconButton(
             onPressed: () {
-              // TODO: Navigate to notifications
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => NotificationPage(userId: MainNavScope.maybeOf(context)?.userId),
+                ),
+              );
             },
             icon: Stack(
               children: [

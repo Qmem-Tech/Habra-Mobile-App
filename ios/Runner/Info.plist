@@ -53,5 +53,13 @@
 	<string>Habra needs photo library access to add photos to reviews and business profiles.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Habra uses contacts to help you invite friends and share with people you know.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>mailto</string>
+		<string>googlegmail</string>
+		<string>ms-outlook</string>
+		<string>ymail</string>
+		<string>readdle-spark</string>
+	</array>
 </dict>
 </plist>

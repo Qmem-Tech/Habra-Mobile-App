@@ -47,6 +47,7 @@ dependencies:
   geolocator: ^11.0.0
   geocoding: ^2.1.1
   url_launcher: ^6.2.0
+  open_mail_launcher: ^0.1.2
 
   # Photos
   image_picker: ^1.0.7

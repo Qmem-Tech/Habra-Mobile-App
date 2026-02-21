@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/navigation/main_nav_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../home/presentation/pages/notification_page.dart';
 import '../../domain/entities/business_category.dart';
 import '../../domain/entities/deal.dart';
 import '../bloc/businesses_cubit.dart';
@@ -113,7 +115,7 @@ class _ExplorePageState extends State<ExplorePage> {
           IconButton(
             icon: const Icon(Icons.menu, color: AppColors.textPrimary),
             onPressed: () {
-              // Open drawer
+              MainNavScope.maybeOf(context)?.scaffoldKey.currentState?.openDrawer();
             },
           ),
           Expanded(
@@ -170,7 +172,12 @@ class _ExplorePageState extends State<ExplorePage> {
               ],
             ),
             onPressed: () {
-              // Navigate to notifications
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => NotificationPage(userId: MainNavScope.maybeOf(context)?.userId),
+                ),
+              );
             },
           ),
         ],

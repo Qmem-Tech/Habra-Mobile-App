@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/navigation/main_nav_scope.dart';
 import '../../features/events/presentation/pages/events_page.dart';
 import '../../features/explore/presentation/pages/explore_page.dart';
+import '../../features/home/presentation/pages/navigation_drawer.dart' as app_drawer;
 import '../../features/jobs/presentation/pages/jobs_page.dart';
 
 // Global key to access navigation from anywhere
@@ -11,12 +13,19 @@ class MainNavigationWrapper extends StatefulWidget {
   final Widget homePage;
   final int initialIndex;
   final String? eventsLocation;
+  /// User info for drawer and notifications. If null, no drawer is shown.
+  final String? userId;
+  final String? userName;
+  final String? userEmail;
 
   const MainNavigationWrapper({
     super.key,
     required this.homePage,
     this.initialIndex = 0,
     this.eventsLocation,
+    this.userId,
+    this.userName,
+    this.userEmail,
   });
 
   static void navigateToTab(BuildContext context, int index) {
@@ -31,6 +40,7 @@ class MainNavigationWrapper extends StatefulWidget {
 class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   late int _currentIndex;
   late PageController _pageController;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -64,20 +74,35 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    final hasUser = widget.userId != null && widget.userName != null;
     return Scaffold(
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        children: [
-          widget.homePage,
-          EventsPage(location: widget.eventsLocation ?? 'Washington, D.C.'),
-          const ExplorePage(),
-          JobsPage(initialLocation: widget.eventsLocation ?? 'Washington, D.C.'),
-        ],
+      key: _scaffoldKey,
+      drawer: hasUser
+          ? app_drawer.NavigationDrawer(
+              userId: widget.userId!,
+              userName: widget.userName!,
+              userEmail: widget.userEmail ?? '',
+            )
+          : null,
+      body: MainNavScope(
+        scaffoldKey: _scaffoldKey,
+        userId: widget.userId,
+        userName: widget.userName,
+        userEmail: widget.userEmail,
+        child: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          children: [
+            widget.homePage,
+            EventsPage(location: widget.eventsLocation ?? 'Washington, D.C.'),
+            const ExplorePage(),
+            JobsPage(initialLocation: widget.eventsLocation ?? 'Washington, D.C.'),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,

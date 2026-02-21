@@ -23,6 +23,9 @@ class CustomerHomePage extends StatelessWidget {
       ],
       child: MainNavigationWrapper(
         initialIndex: 0,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
         homePage: HomePage(
           userId: user.id,
           userName: user.name,

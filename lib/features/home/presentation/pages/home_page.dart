@@ -16,8 +16,8 @@ import '../widgets/business_card.dart';
 import '../widgets/job_card.dart';
 import 'search_page.dart';
 import 'location_selection_page.dart';
+import '../../../../core/navigation/main_nav_scope.dart';
 import 'notification_page.dart';
-import 'navigation_drawer.dart' as custom;
 
 class HomePage extends StatefulWidget {
   final String userId;
@@ -36,7 +36,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   LocationEntity? _currentLocation;
 
   @override
@@ -59,12 +58,6 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _scaffoldKey,
-      drawer: custom.NavigationDrawer(
-        userId: widget.userId,
-        userName: widget.userName,
-        userEmail: '', // TODO: Get from user data
-      ),
       body: SafeArea(
         child: BlocBuilder<HomeCubit, HomeState>(
           builder: (context, state) {
@@ -117,7 +110,9 @@ class _HomePageState extends State<HomePage> {
       elevation: 0,
       leading: IconButton(
         icon: const Icon(Icons.menu, color: AppColors.textPrimary),
-        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+        onPressed: () {
+          MainNavScope.maybeOf(context)?.scaffoldKey.currentState?.openDrawer();
+        },
       ),
       centerTitle: false,
       title: GestureDetector(
@@ -168,10 +163,15 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const NotificationPage()),
-          ),
+          onPressed: () {
+            final scope = MainNavScope.maybeOf(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => NotificationPage(userId: scope?.userId),
+              ),
+            );
+          },
         ),
       ],
     );
