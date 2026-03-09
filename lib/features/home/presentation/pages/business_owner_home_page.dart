@@ -903,12 +903,13 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           );
           return;
         }
+        final cubit = context.read<BusinessOwnerHomeCubit>();
         await Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const CreateDealPage()),
         );
         if (!context.mounted) return;
-        context.read<BusinessOwnerHomeCubit>().loadOwnerHome(ownerId: widget.user.id);
+        cubit.loadOwnerHome(ownerId: widget.user.id);
       }),
       (Icons.work_outline, 'Post Job', AppColors.textPrimary, () async {
         if (!hasSpecificBusiness) {
@@ -917,12 +918,13 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           );
           return;
         }
+        final cubit = context.read<BusinessOwnerHomeCubit>();
         await Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const CreateJobPostPage()),
         );
         if (!context.mounted) return;
-        context.read<BusinessOwnerHomeCubit>().loadOwnerHome(ownerId: widget.user.id);
+        cubit.loadOwnerHome(ownerId: widget.user.id);
       }),
       (Icons.campaign_outlined, 'Promote', AppColors.textPrimary, () {
         BusinessOwnerNavigationWrapper.navigateToTab(context, 2);
@@ -937,7 +939,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => UpdateHoursPage(businessId: selectedPresence!.id),
+            builder: (_) => UpdateHoursPage(businessId: selectedPresence.id),
           ),
         );
       }),

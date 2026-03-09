@@ -4,6 +4,7 @@ import '../../domain/repositories/search_repository.dart';
 import '../widgets/event_card.dart';
 import '../widgets/business_card.dart';
 import '../widgets/job_card.dart';
+import '../../../jobs/presentation/pages/job_detail_page.dart';
 
 class SearchResultsPage extends StatelessWidget {
   final SearchResults results;
@@ -23,7 +24,7 @@ class SearchResultsPage extends StatelessWidget {
       children: [
         _buildResultsHeader(),
         Expanded(
-          child: _buildResultsContent(),
+          child: _buildResultsContent(context),
         ),
       ],
     );
@@ -69,19 +70,19 @@ class SearchResultsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildResultsContent() {
+  Widget _buildResultsContent(BuildContext context) {
     if (category == SearchCategory.all) {
-      return _buildAllResults();
+      return _buildAllResults(context);
     } else if (category == SearchCategory.events) {
       return _buildEventsResults();
     } else if (category == SearchCategory.business) {
       return _buildBusinessesResults();
     } else {
-      return _buildJobsResults();
+      return _buildJobsResults(context);
     }
   }
 
-  Widget _buildAllResults() {
+  Widget _buildAllResults(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -100,7 +101,15 @@ class SearchResultsPage extends StatelessWidget {
         if (results.jobs.isNotEmpty) ...[
           _buildSectionTitle('Jobs'),
           const SizedBox(height: 12),
-          ...results.jobs.map((job) => JobCard(job: job)),
+          ...results.jobs.map((job) => JobCard(
+            job: job,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => JobDetailPage(jobId: job.id),
+              ),
+            ),
+          )),
         ],
       ],
     );
@@ -137,13 +146,21 @@ class SearchResultsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildJobsResults() {
+  Widget _buildJobsResults(BuildContext context) {
     if (results.jobs.isEmpty) {
       return _buildEmptyState('No jobs found');
     }
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: results.jobs.map((job) => JobCard(job: job)).toList(),
+      children: results.jobs.map((job) => JobCard(
+        job: job,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => JobDetailPage(jobId: job.id),
+          ),
+        ),
+      )).toList(),
     );
   }
 

@@ -16,6 +16,7 @@ import '../widgets/business_card.dart';
 import '../widgets/job_card.dart';
 import 'search_page.dart';
 import 'location_selection_page.dart';
+import '../../../jobs/presentation/pages/job_detail_page.dart';
 import '../../../../core/navigation/main_nav_scope.dart';
 import 'notification_page.dart';
 
@@ -433,7 +434,16 @@ class _HomePageState extends State<HomePage> {
               physics: const NeverScrollableScrollPhysics(),
               itemCount: jobs.length,
               itemBuilder: (context, index) {
-                return JobCard(job: jobs[index]);
+                final job = jobs[index];
+                return JobCard(
+                  job: job,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => JobDetailPage(jobId: job.id),
+                    ),
+                  ),
+                );
               },
             ),
           ),

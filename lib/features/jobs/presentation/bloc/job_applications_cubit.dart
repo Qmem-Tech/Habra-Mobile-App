@@ -1,16 +1,29 @@
+import 'dart:io';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/submit_application_usecase.dart';
 import '../../domain/usecases/get_applications_usecase.dart';
+import '../../domain/usecases/upload_resume_usecase.dart';
 import 'job_applications_state.dart';
 
 class JobApplicationsCubit extends Cubit<JobApplicationsState> {
   final SubmitApplicationUseCase submitApplicationUseCase;
   final GetApplicationsUseCase getApplicationsUseCase;
+  final UploadResumeUseCase uploadResumeUseCase;
 
   JobApplicationsCubit({
     required this.submitApplicationUseCase,
     required this.getApplicationsUseCase,
+    required this.uploadResumeUseCase,
   }) : super(JobApplicationsInitial());
+
+  Future<String?> uploadResume(String userId, String jobId, File file) async {
+    final result = await uploadResumeUseCase(userId: userId, jobId: jobId, file: file);
+    return result.fold(
+      (failure) => null,
+      (url) => url,
+    );
+  }
 
   Future<void> loadApplications({bool activeOnly = false}) async {
     emit(JobApplicationsLoading());

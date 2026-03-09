@@ -1,6 +1,11 @@
+import 'dart:io';
+
 import '../../domain/entities/job_application.dart';
 
 abstract class JobApplicationsRemoteDataSource {
+  /// Upload resume to storage. Returns public URL.
+  Future<String> uploadResume(String userId, String jobId, File file);
+
   Future<JobApplication> submitApplication({
     required String jobId,
     required String fullName,
@@ -20,6 +25,11 @@ abstract class JobApplicationsRemoteDataSource {
 
 class JobApplicationsRemoteDataSourceImpl
     implements JobApplicationsRemoteDataSource {
+  @override
+  Future<String> uploadResume(String userId, String jobId, File file) async {
+    throw UnimplementedError('Use JobApplicationsSupabaseDataSource');
+  }
+
   @override
   Future<JobApplication> submitApplication({
     required String jobId,

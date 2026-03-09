@@ -1,8 +1,15 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../auth/presentation/bloc/auth_cubit.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../profile/domain/repositories/profile_repository.dart';
 import '../bloc/job_applications_cubit.dart';
 import '../bloc/job_applications_state.dart';
 import 'application_submitted_page.dart';
@@ -30,8 +37,32 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
   final _coverLetterController = TextEditingController();
 
   String _phoneNumber = '';
-  String? _resumePath;
+  File? _resumeFile;
   String? _selectedScreeningAnswer;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillFromProfile();
+  }
+
+  Future<void> _prefillFromProfile() async {
+    final authState = context.read<AuthCubit>().state;
+    if (authState is AuthAuthenticated) {
+      _fullNameController.text = authState.user.name;
+      _emailController.text = authState.user.email;
+      final result = await di.sl<ProfileRepository>().getProfile(authState.user.id);
+      result.fold(
+        (_) {},
+        (profile) {
+          if (profile.phone != null && profile.phone!.isNotEmpty) {
+            _phoneNumber = profile.phone!;
+          }
+        },
+      );
+    }
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
@@ -42,34 +73,59 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
   }
 
   Future<void> _pickResume() async {
-    // TODO: Implement file picker when ready
-    // For now, show a dialog to simulate file selection
-    await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Resume Upload'),
-        content: const Text(
-          'File picker will be implemented later. For now, you can proceed without uploading a resume.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, 'skip'),
-            child: const Text('Skip'),
-          ),
-        ],
-      ),
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx'],
+      withData: false,
     );
+    if (!mounted) return;
+    if (result != null && result.files.single.path != null) {
+      final file = File(result.files.single.path!);
+      if (await file.length() > 5 * 1024 * 1024) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File must be under 5MB')),
+        );
+        return;
+      }
+      setState(() => _resumeFile = file);
+    }
   }
 
-  void _submitApplication() {
+  Future<void> _submitApplication() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to apply')),
+      );
+      return;
+    }
+
+    String? resumeUrl;
+    if (_resumeFile != null) {
+      final url = await context.read<JobApplicationsCubit>().uploadResume(
+            userId,
+            widget.jobId,
+            _resumeFile!,
+          );
+      if (url == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to upload resume. Please try again.')),
+        );
+        return;
+      }
+      resumeUrl = url;
+    }
+
+    if (!mounted) return;
     context.read<JobApplicationsCubit>().submitApplication(
           jobId: widget.jobId,
           fullName: _fullNameController.text,
           email: _emailController.text,
           phoneNumber: _phoneNumber,
-          resumeUrl: _resumePath,
+          resumeUrl: resumeUrl,
           coverLetter: _coverLetterController.text.isEmpty
               ? null
               : _coverLetterController.text,
@@ -340,10 +396,10 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                if (_resumePath != null) ...[
+                if (_resumeFile != null) ...[
                   const SizedBox(height: 12),
                   Text(
-                    'Selected: ${_resumePath!.split('/').last}',
+                    'Selected: ${_resumeFile!.path.split('/').last}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.brandPrimary,

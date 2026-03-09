@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/job_application.dart';
@@ -8,6 +10,16 @@ class JobApplicationsRepositoryImpl implements JobApplicationsRepository {
   final JobApplicationsRemoteDataSource remoteDataSource;
 
   JobApplicationsRepositoryImpl({required this.remoteDataSource});
+
+  @override
+  Future<Either<Failure, String>> uploadResume(String userId, String jobId, File file) async {
+    try {
+      final url = await remoteDataSource.uploadResume(userId, jobId, file);
+      return Right(url);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
 
   @override
   Future<Either<Failure, JobApplication>> submitApplication({

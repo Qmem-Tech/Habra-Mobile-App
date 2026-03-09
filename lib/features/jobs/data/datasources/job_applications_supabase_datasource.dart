@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/supabase/supabase_failure_mapper.dart';
@@ -6,11 +8,33 @@ import '../../domain/entities/job_application.dart';
 import '../models/job_application_model.dart';
 import 'job_applications_remote_datasource.dart';
 
+const String _resumesBucket = 'resumes';
+
 /// Supabase implementation of [JobApplicationsRemoteDataSource].
 class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSource {
   JobApplicationsSupabaseDataSource();
 
   SupabaseClient get _client => Supabase.instance.client;
+
+  @override
+  Future<String> uploadResume(String userId, String jobId, File file) async {
+    return SupabaseFailureMapper.guard(() async {
+      final ext = file.path.split('.').last.toLowerCase();
+      if (!['pdf', 'doc', 'docx'].contains(ext)) {
+        throw Exception('Please upload PDF, DOC, or DOCX (max 5MB)');
+      }
+      if (await file.length() > 5 * 1024 * 1024) {
+        throw Exception('File must be under 5MB');
+      }
+      final path = '$userId/$jobId/${DateTime.now().millisecondsSinceEpoch}.$ext';
+      await _client.storage.from(_resumesBucket).upload(
+            path,
+            file,
+            fileOptions: const FileOptions(upsert: true),
+          );
+      return _client.storage.from(_resumesBucket).getPublicUrl(path);
+    });
+  }
 
   static ApplicationStatus _statusFromString(String? s) {
     if (s == null) return ApplicationStatus.pending;

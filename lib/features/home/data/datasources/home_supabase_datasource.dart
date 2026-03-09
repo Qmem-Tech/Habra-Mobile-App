@@ -134,22 +134,26 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
   @override
   Future<List<JobModel>> getLatestJobs(String location) async {
     return SupabaseFailureMapper.guard(() async {
+      // Only jobs from approved businesses
+      var bizQuery = _client
+          .from('businesses')
+          .select('id')
+          .eq('approval_status', 'approved')
+          .eq('is_active', true);
+      if (location.isNotEmpty) {
+        bizQuery = bizQuery.or('address_city.ilike.%$location%,address_state.ilike.%$location%');
+      }
+      final bizRes = await bizQuery;
+      final bizList = bizRes as List;
+      if (bizList.isEmpty) return [];
+      final ids = bizList.map((e) => (e as Map)['id']).whereType<String>().toList();
+      if (ids.isEmpty) return [];
+
       var query = _client
           .from('jobs')
           .select('*, businesses!jobs_business_id_fkey(id, name, logo_url)')
-          .eq('is_active', true);
-      if (location.isNotEmpty) {
-        final bizRes = await _client
-            .from('businesses')
-            .select('id')
-            .eq('approval_status', 'approved')
-            .or('address_city.ilike.%$location%,address_state.ilike.%$location%');
-        final bizList = bizRes as List;
-        if (bizList.isNotEmpty) {
-          final ids = bizList.map((e) => (e as Map)['id']).whereType<String>().toList();
-          if (ids.isNotEmpty) query = query.inFilter('business_id', ids);
-        }
-      }
+          .eq('is_active', true)
+          .inFilter('business_id', ids);
       final res = await query.order('posted_at', ascending: false).limit(10);
       final list = (res as List).cast<Map<String, dynamic>>();
       return list.map((row) {

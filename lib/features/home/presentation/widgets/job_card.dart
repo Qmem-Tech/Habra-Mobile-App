@@ -4,17 +4,21 @@ import '../../../../core/theme/app_colors.dart';
 
 class JobCard extends StatelessWidget {
   final Job job;
+  final VoidCallback? onTap;
   final VoidCallback? onApply;
 
   const JobCard({
     super.key,
     required this.job,
+    this.onTap,
     this.onApply,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -62,7 +66,7 @@ class JobCard extends StatelessWidget {
             ),
           ),
           ElevatedButton(
-            onPressed: onApply,
+            onPressed: onApply ?? onTap,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.brandPrimary,
               foregroundColor: Colors.white,
@@ -81,6 +85,7 @@ class JobCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }

@@ -114,6 +114,7 @@ import '../features/jobs/domain/usecases/toggle_bookmark_usecase.dart';
 import '../features/jobs/domain/usecases/get_job_categories_usecase.dart';
 import '../features/jobs/domain/usecases/submit_application_usecase.dart';
 import '../features/jobs/domain/usecases/get_applications_usecase.dart';
+import '../features/jobs/domain/usecases/upload_resume_usecase.dart';
 import '../features/jobs/presentation/bloc/jobs_cubit.dart';
 import '../features/jobs/presentation/bloc/job_applications_cubit.dart';
 
@@ -391,6 +392,7 @@ Future<void> init() async {
   sl.registerLazySingleton(() => GetJobCategoriesUseCase(sl<JobsRepository>()));
   sl.registerLazySingleton(() => SubmitApplicationUseCase(sl<JobApplicationsRepository>()));
   sl.registerLazySingleton(() => GetApplicationsUseCase(sl<JobApplicationsRepository>()));
+  sl.registerLazySingleton(() => UploadResumeUseCase(sl<JobApplicationsRepository>()));
 
   // Cubits
   sl.registerFactory(() => JobsCubit(
@@ -402,6 +404,7 @@ Future<void> init() async {
   sl.registerFactory(() => JobApplicationsCubit(
     submitApplicationUseCase: sl<SubmitApplicationUseCase>(),
     getApplicationsUseCase: sl<GetApplicationsUseCase>(),
+    uploadResumeUseCase: sl<UploadResumeUseCase>(),
   ));
 
   // Features - Feedback

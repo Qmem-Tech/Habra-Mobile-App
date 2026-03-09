@@ -30,10 +30,22 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
         bookmarkedJobIds = bmList.map((e) => (e as Map)['job_id']?.toString() ?? '').where((s) => s.isNotEmpty).toList();
       }
 
+      // Only show jobs from approved businesses
+      final approvedBizRes = await _client
+          .from('businesses')
+          .select('id')
+          .eq('approval_status', 'approved')
+          .eq('is_active', true);
+      final approvedBizList = approvedBizRes as List;
+      if (approvedBizList.isEmpty) return [];
+      final approvedIds = approvedBizList.map((e) => (e as Map)['id']).whereType<String>().toList();
+      if (approvedIds.isEmpty) return [];
+
       var query = _client
           .from('jobs')
           .select('*, businesses!jobs_business_id_fkey(id, name, logo_url, address_city, address_state)')
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .inFilter('business_id', approvedIds);
 
       if (featuredOnly) query = query.eq('is_featured', true);
       if (location != null && location.isNotEmpty) {
@@ -45,7 +57,11 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
         final bizList = bizRes as List;
         if (bizList.isNotEmpty) {
           final ids = bizList.map((e) => (e as Map)['id']).whereType<String>().toList();
-          if (ids.isNotEmpty) query = query.inFilter('business_id', ids);
+          if (ids.isNotEmpty) {
+            final locationIds = approvedIds.where((id) => ids.contains(id)).toList();
+            if (locationIds.isEmpty) return [];
+            query = query.inFilter('business_id', locationIds);
+          }
         }
       }
       if (searchQuery != null && searchQuery.isNotEmpty) {
@@ -93,12 +109,15 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from('jobs')
-          .select('*, businesses!jobs_business_id_fkey(id, name, logo_url, address_city, address_state, rating)')
+          .select('*, businesses!jobs_business_id_fkey(id, name, logo_url, address_city, address_state, rating, approval_status)')
           .eq('id', jobId)
           .maybeSingle();
       if (res == null) throw Exception('Job not found');
       final row = Map<String, dynamic>.from(res as Map);
       final biz = row['businesses'];
+      if (biz is Map<String, dynamic> && parseString(biz['approval_status']) != 'approved') {
+        throw Exception('Job not found');
+      }
       String companyName = '';
       String companyId = parseStringRequired(row['business_id']);
       String? companyLogoUrl;

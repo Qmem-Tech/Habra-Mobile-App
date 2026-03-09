@@ -196,10 +196,10 @@ class JobDetailPage extends StatelessWidget {
               color: AppColors.backgroundLight,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: job.companyLogoUrl != null
+            child: job.companyLogoUrl != null && job.companyLogoUrl!.startsWith('http')
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.asset(
+                    child: Image.network(
                       job.companyLogoUrl!,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
