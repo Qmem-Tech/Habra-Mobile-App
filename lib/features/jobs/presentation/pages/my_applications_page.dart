@@ -8,7 +8,6 @@ import '../../../../core/resources/app_assets.dart';
 import '../../domain/entities/job_application.dart';
 import '../bloc/job_applications_cubit.dart';
 import '../bloc/job_applications_state.dart';
-import '../../../../injection/injection_container.dart' as di;
 
 /// Community member's job applications list with status (Application Sent, Under Review, Interview Scheduled).
 class MyApplicationsPage extends StatefulWidget {
@@ -191,6 +190,8 @@ class _ApplicationCard extends StatelessWidget {
         return (label: 'Under Review', color: AppColors.warning, isPrimary: false);
       case ApplicationStatus.accepted:
         return (label: 'Interview Scheduled', color: AppColors.brandPrimary, isPrimary: true);
+      case ApplicationStatus.hired:
+        return (label: 'Hired', color: AppColors.success, isPrimary: true);
       case ApplicationStatus.rejected:
         return (label: 'Closed', color: AppColors.textSecondary, isPrimary: false);
     }

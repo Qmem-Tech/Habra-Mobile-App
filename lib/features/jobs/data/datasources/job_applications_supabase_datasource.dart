@@ -22,6 +22,8 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
       case 'rejected':
         return ApplicationStatus.rejected;
       case 'hired':
+        return ApplicationStatus.hired;
+      case 'accepted':
         return ApplicationStatus.accepted;
       default:
         return ApplicationStatus.pending;

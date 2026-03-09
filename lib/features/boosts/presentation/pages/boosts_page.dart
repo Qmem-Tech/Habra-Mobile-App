@@ -14,6 +14,8 @@ import '../../../home/presentation/pages/business_locations_page.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
 import '../../../home/presentation/widgets/business_owner_drawer.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
+import '../../../dashboard/presentation/pages/edit_business_page.dart';
+import '../../../dashboard/presentation/pages/update_hours_page.dart';
 import '../../../dashboard/presentation/widgets/empty_state_widget.dart';
 import '../../domain/entities/boost_filter.dart';
 import '../bloc/boosts_cubit.dart';
@@ -63,14 +65,24 @@ class _BoostsPageState extends State<BoostsPage> {
                 onDashboardTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1),
                 onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
                 onEditBusinessTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Edit business — coming soon')),
-                  );
+                  if (selected != null && selected.id != 'all') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditBusinessPage(business: selected),
+                      ),
+                    );
+                  }
                 },
                 onUpdateHoursTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Update hours — coming soon')),
-                  );
+                  if (selected != null && selected.id != 'all') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => UpdateHoursPage(businessId: selected.id),
+                      ),
+                    );
+                  }
                 },
                 onSettingsTap: () {
                   Navigator.push(
@@ -361,13 +373,14 @@ class _BoostsPageState extends State<BoostsPage> {
 
   Future<void> _openBusinessLocations(BuildContext context) async {
     final cubit = context.read<BusinessOwnerHomeCubit>();
+    final state = cubit.state;
+    final loaded = state is BusinessOwnerHomeLoaded ? state : null;
     final result = await Navigator.push<String?>(
       context,
       MaterialPageRoute(
         builder: (_) => BusinessLocationsPage(
-          currentPresenceId: (cubit.state is BusinessOwnerHomeLoaded)
-              ? (cubit.state as BusinessOwnerHomeLoaded).selectedPresenceId
-              : null,
+          presences: loaded?.presences ?? const <BusinessPresence>[],
+          currentPresenceId: loaded?.selectedPresenceId,
         ),
       ),
     );

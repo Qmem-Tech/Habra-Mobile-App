@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum DashboardDealStatus { active, expired, draft }
+enum DashboardDealStatus { active, expired, draft, inactive }
 
 /// Deal as shown on business owner dashboard (with status, redemption count, expiry).
 class DashboardDeal extends Equatable {

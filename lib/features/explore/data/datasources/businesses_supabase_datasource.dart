@@ -277,7 +277,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
             .select('id')
             .eq('approval_status', 'approved')
             .or('address_city.ilike.%$location%,address_state.ilike.%$location%');
-        final bizList = bizRes is List ? bizRes as List : <dynamic>[];
+        final bizList = bizRes as List;
         if (bizList.isNotEmpty) {
           final ids = bizList.map((e) => (e as Map)['id']).whereType<String>().toList();
           if (ids.isNotEmpty) query = query.inFilter('business_id', ids);

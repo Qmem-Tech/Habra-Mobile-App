@@ -17,6 +17,12 @@ import '../../domain/entities/job.dart';
 import '../bloc/business_owner_home_cubit.dart';
 import '../bloc/business_owner_home_state.dart';
 import '../widgets/business_owner_drawer.dart';
+import '../../../dashboard/presentation/pages/edit_business_page.dart';
+import '../../../dashboard/presentation/pages/update_hours_page.dart';
+import '../../../dashboard/presentation/pages/create_deal_page.dart';
+import '../../../dashboard/presentation/pages/create_job_post_page.dart';
+import '../../../dashboard/presentation/pages/job_applicants_page.dart';
+import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import 'business_owner_notification_page.dart';
 import 'business_locations_page.dart';
@@ -38,6 +44,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   void initState() {
     super.initState();
     context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
+          ownerId: widget.user.id,
           showSetupIncomplete: false,
         );
   }
@@ -59,14 +66,32 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             onDashboardTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1),
             onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
             onEditBusinessTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Edit business — coming soon')),
-              );
+              if (selectedPresence != null && selectedPresence.id != 'all') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EditBusinessPage(business: selectedPresence),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Select a business first')),
+                );
+              }
             },
             onUpdateHoursTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Update hours — coming soon')),
-              );
+              if (selectedPresence != null && selectedPresence.id != 'all') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => UpdateHoursPage(businessId: selectedPresence.id),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Select a business first')),
+                );
+              }
             },
             onSettingsTap: () {
               Navigator.push(
@@ -235,7 +260,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 child: _buildSectionHeader(
                   'Today\'s Snapshot',
                   actionLabel: 'View Reports',
-                  onActionTap: () {},
+                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 0),
                 ),
               ),
               _buildSnapshotCards(state.snapshot),
@@ -249,16 +274,19 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 child: _buildSectionHeader(
                   'Recent Activity',
                   actionLabel: 'View All >',
-                  onActionTap: () {},
+                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 3),
                 ),
               ),
-              _buildRecentActivityList(state.recentActivity),
+              _buildRecentActivityList(
+                state.recentActivity,
+                onReplyToReview: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 3),
+              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 24, AppResources.spacingM, 12),
                 child: _buildSectionHeader(
                   'Your Active Deals',
                   actionLabel: 'Manage',
-                  onActionTap: () {},
+                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 1),
                 ),
               ),
               _buildActiveDealsList(state.activeDeals),
@@ -267,7 +295,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 child: _buildSectionHeader(
                   'Your Job Posts',
                   actionLabel: 'Manage',
-                  onActionTap: () {},
+                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 2),
                 ),
               ),
               _buildJobPostsList(state.jobPosts),
@@ -292,7 +320,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 child: _buildSectionHeader(
                   'This Month (All Businesses)',
                   actionLabel: 'View Reports',
-                  onActionTap: () {},
+                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 0),
                 ),
               ),
               _buildSnapshotCards(state.snapshot),
@@ -326,10 +354,13 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 child: _buildSectionHeader(
                   'Recent Activity',
                   actionLabel: 'View All >',
-                  onActionTap: () {},
+                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 3),
                 ),
               ),
-              _buildRecentActivityList(state.recentActivity),
+              _buildRecentActivityList(
+                state.recentActivity,
+                onReplyToReview: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 3),
+              ),
               const SizedBox(height: 32),
             ],
           ),
@@ -354,27 +385,30 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             icon: const Icon(Icons.menu, color: AppColors.textPrimary),
             onPressed: () => _scaffoldKey.currentState?.openDrawer(),
           ),
-          title: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.brandPrimary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.storefront, size: 18, color: AppColors.brandPrimary),
-                const SizedBox(width: 6),
-                Text(
-                  state.selectedPresence?.shortDisplayName ?? 'My Business',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.brandPrimary,
+          title: GestureDetector(
+            onTap: _openBusinessLocations,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.brandPrimary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.storefront, size: 18, color: AppColors.brandPrimary),
+                  const SizedBox(width: 6),
+                  Text(
+                    state.selectedPresence?.shortDisplayName ?? 'My Business',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.brandPrimary,
+                    ),
                   ),
-                ),
-                const Icon(Icons.arrow_drop_down, size: 20, color: AppColors.brandPrimary),
-              ],
+                  const Icon(Icons.arrow_drop_down, size: 20, color: AppColors.brandPrimary),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -467,7 +501,12 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 const SizedBox(height: 12),
                 ...state.setupTasks.asMap().entries.map((entry) {
                   final task = entry.value;
-                  return _buildSetupTaskCard(task, isFirst: entry.key == 0);
+                  return _buildSetupTaskCard(
+                    context,
+                    task,
+                    state: state,
+                    isFirst: entry.key == 0,
+                  );
                 }),
                 const SizedBox(height: 32),
               ],
@@ -478,7 +517,42 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     );
   }
 
-  Widget _buildSetupTaskCard(SetupTask task, {bool isFirst = false}) {
+  Widget _buildSetupTaskCard(
+    BuildContext context,
+    SetupTask task, {
+    required BusinessOwnerHomeLoaded state,
+    bool isFirst = false,
+  }) {
+    VoidCallback? onTap;
+    VoidCallback? onButtonPressed;
+    if (!task.isLocked) {
+      switch (task.id) {
+        case SetupTaskId.completeProfile:
+          final presence = state.selectedPresence;
+          if (presence != null && presence.id != 'all') {
+            onTap = () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => EditBusinessPage(business: presence),
+              ),
+            );
+          }
+          break;
+        case SetupTaskId.postFirstDeal:
+          final presence = state.selectedPresence;
+          if (presence != null && presence.id != 'all') {
+            onTap = () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreateDealPage()),
+            );
+          }
+          break;
+        case SetupTaskId.shareListing:
+          onTap = () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2);
+          break;
+      }
+      onButtonPressed = onTap;
+    }
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: AppCard(
@@ -488,7 +562,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             ? AppColors.backgroundWhite
             : AppColors.backgroundLight,
         borderRadius: BorderRadius.circular(AppResources.radiusL),
-        onTap: task.isLocked ? null : () {},
+        onTap: task.isLocked ? null : onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -544,7 +618,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                           width: double.infinity,
                           child: AppButton(
                             text: task.actionLabel!,
-                            onPressed: () {},
+                            onPressed: onButtonPressed,
                             height: 44,
                           ),
                         ),
@@ -656,20 +730,51 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     if (presence == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 36, AppResources.spacingM, 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(
-              presence.name,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  presence.name,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              if (presence.isVerified)
+                const Icon(Icons.verified, color: AppColors.brandSecondary, size: 24),
+            ],
+          ),
+          if (presence.isPendingApproval) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.brandPrimary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.schedule, size: 16, color: AppColors.brandPrimary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Pending for approval',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.brandPrimary,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          if (presence.isVerified)
-            const Icon(Icons.verified, color: AppColors.brandSecondary, size: 24),
+          ],
         ],
       ),
     );
@@ -786,47 +891,102 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   }
 
   Widget _buildQuickActions() {
+    final state = context.read<BusinessOwnerHomeCubit>().state;
+    final selectedPresence = state is BusinessOwnerHomeLoaded ? state.selectedPresence : null;
+    final hasSpecificBusiness = selectedPresence != null && selectedPresence.id != 'all';
+
     final actions = [
-      (Icons.sell, 'Post Deal', AppColors.brandPrimary),
-      (Icons.work_outline, 'Post Job', AppColors.textPrimary),
-      (Icons.campaign_outlined, 'Promote', AppColors.textPrimary),
-      (Icons.schedule, 'Hours', AppColors.textPrimary),
+      (Icons.sell, 'Post Deal', AppColors.brandPrimary, () async {
+        if (!hasSpecificBusiness) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Select a business first')),
+          );
+          return;
+        }
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CreateDealPage()),
+        );
+        if (!context.mounted) return;
+        context.read<BusinessOwnerHomeCubit>().loadOwnerHome(ownerId: widget.user.id);
+      }),
+      (Icons.work_outline, 'Post Job', AppColors.textPrimary, () async {
+        if (!hasSpecificBusiness) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Select a business first')),
+          );
+          return;
+        }
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CreateJobPostPage()),
+        );
+        if (!context.mounted) return;
+        context.read<BusinessOwnerHomeCubit>().loadOwnerHome(ownerId: widget.user.id);
+      }),
+      (Icons.campaign_outlined, 'Promote', AppColors.textPrimary, () {
+        BusinessOwnerNavigationWrapper.navigateToTab(context, 2);
+      }),
+      (Icons.schedule, 'Hours', AppColors.textPrimary, () {
+        if (!hasSpecificBusiness) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Select a business first')),
+          );
+          return;
+        }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => UpdateHoursPage(businessId: selectedPresence!.id),
+          ),
+        );
+      }),
     ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: actions.map((a) {
-          return Column(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: a.$3 == AppColors.brandPrimary
-                      ? AppColors.brandPrimary
-                      : AppColors.backgroundLight,
-                  shape: BoxShape.circle,
+          return GestureDetector(
+            onTap: a.$4,
+            child: Column(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: a.$3 == AppColors.brandPrimary
+                        ? AppColors.brandPrimary
+                        : AppColors.backgroundLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    a.$1,
+                    color: a.$3 == AppColors.brandPrimary ? AppColors.textOnPrimary : AppColors.textPrimary,
+                    size: 26,
+                  ),
                 ),
-                child: Icon(a.$1, color: a.$3 == AppColors.brandPrimary ? AppColors.textOnPrimary : AppColors.textPrimary, size: 26),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                a.$2,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+                const SizedBox(height: 8),
+                Text(
+                  a.$2,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         }).toList(),
       ),
     );
   }
 
-  Widget _buildRecentActivityList(List<OwnerActivityItem> items) {
+  Widget _buildRecentActivityList(
+    List<OwnerActivityItem> items, {
+    VoidCallback? onReplyToReview,
+  }) {
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -835,12 +995,12 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final item = items[index];
-        return _buildActivityCard(item);
+        return _buildActivityCard(item, onReplyToReview: onReplyToReview);
       },
     );
   }
 
-  Widget _buildActivityCard(OwnerActivityItem item) {
+  Widget _buildActivityCard(OwnerActivityItem item, {VoidCallback? onReplyToReview}) {
     IconData iconData;
     Color iconBg;
     switch (item.type) {
@@ -924,7 +1084,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton(
-                      onPressed: () {},
+                      onPressed: onReplyToReview,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.brandPrimary,
                         side: const BorderSide(color: AppColors.brandPrimary),
@@ -965,7 +1125,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         return AppCard(
           margin: EdgeInsets.zero,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          onTap: () {},
+          onTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 1),
           child: Row(
             children: [
               Icon(Icons.sell, color: AppColors.brandPrimary, size: 24),
@@ -1021,7 +1181,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         return AppCard(
           margin: EdgeInsets.zero,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          onTap: () {},
+          onTap: () => _openJobApplicants(context, job),
           child: Row(
             children: [
               Container(
@@ -1106,7 +1266,9 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                       ),
                     ),
                     Text(
-                      '${p.category} • ${p.locationDisplay}',
+                      p.isPendingApproval
+                          ? 'Pending for approval • ${p.locationDisplay}'
+                          : '${p.category} • ${p.locationDisplay}',
                       style: TextStyle(
                         fontSize: 13,
                         color: AppColors.textSecondary,
@@ -1132,7 +1294,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
               const SizedBox(width: 12),
               AppButton(
                 text: 'Manage',
-                onPressed: () {},
+                onPressed: () => _manageBusiness(p),
                 width: 90,
                 height: 36,
               ),
@@ -1174,7 +1336,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             AppButton(
               text: 'Retry',
               onPressed: () {
-                context.read<BusinessOwnerHomeCubit>().loadOwnerHome();
+                context.read<BusinessOwnerHomeCubit>().loadOwnerHome(ownerId: widget.user.id);
               },
             ),
           ],
@@ -1185,13 +1347,14 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
 
   Future<void> _openBusinessLocations() async {
     final cubit = context.read<BusinessOwnerHomeCubit>();
+    final state = cubit.state;
+    final loaded = state is BusinessOwnerHomeLoaded ? state : null;
     final result = await Navigator.push<String?>(
       context,
       MaterialPageRoute(
         builder: (_) => BusinessLocationsPage(
-          currentPresenceId: (cubit.state is BusinessOwnerHomeLoaded)
-              ? (cubit.state as BusinessOwnerHomeLoaded).selectedPresenceId
-              : null,
+          presences: loaded?.presences ?? const <BusinessPresence>[],
+          currentPresenceId: loaded?.selectedPresenceId,
         ),
       ),
     );
@@ -1208,5 +1371,31 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         builder: (_) => const AddNewPresencePage(),
       ),
     );
+  }
+
+  void _openJobApplicants(BuildContext context, Job job) {
+    final dashboardCubit = context.read<DashboardCubit>();
+    final homeCubit = context.read<BusinessOwnerHomeCubit>();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+            BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+          ],
+          child: JobApplicantsPage(
+            jobId: job.id,
+            jobTitle: job.title,
+            jobSubtitle: '${job.jobType} • ${job.location ?? job.companyName}',
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _manageBusiness(BusinessPresence p) {
+    context.read<BusinessOwnerHomeCubit>().setSelectedPresenceId(p.id);
+    BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 0);
   }
 }

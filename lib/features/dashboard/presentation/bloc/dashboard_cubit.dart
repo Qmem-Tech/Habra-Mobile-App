@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../home/domain/entities/business_presence.dart';
 import '../../domain/entities/dashboard_deal.dart';
+import '../../domain/entities/dashboard_job.dart';
 import '../../domain/entities/job_applicant.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import 'dashboard_state.dart';
@@ -8,6 +10,10 @@ class DashboardCubit extends Cubit<DashboardState> {
   DashboardCubit(this._repository) : super(DashboardInitial());
 
   final DashboardRepository _repository;
+
+  Future<List<BusinessPresence>> getOwnerBusinesses(String ownerId) {
+    return _repository.getOwnerBusinesses(ownerId);
+  }
 
   Future<void> loadDashboard(String businessId) async {
     emit(DashboardLoading());
@@ -81,6 +87,58 @@ class DashboardCubit extends Cubit<DashboardState> {
       emit(BoostPlansLoaded(plans, selectedIndex: selectedIndex));
     } catch (e) {
       emit(DashboardError(e.toString()));
+    }
+  }
+
+  Future<DashboardDeal?> createDeal(
+      String businessId, Map<String, dynamic> data) async {
+    try {
+      return await _repository.createDeal(businessId, data);
+    } catch (e) {
+      emit(DashboardError(e.toString()));
+      return null;
+    }
+  }
+
+  Future<DashboardJob?> createJob(
+      String businessId, Map<String, dynamic> data) async {
+    try {
+      return await _repository.createJob(businessId, data);
+    } catch (e) {
+      emit(DashboardError(e.toString()));
+      return null;
+    }
+  }
+
+  Future<bool> replyToReview(String reviewId, String replyText) async {
+    try {
+      await _repository.replyToReview(reviewId, replyText);
+      return true;
+    } catch (e) {
+      emit(DashboardError(e.toString()));
+      return false;
+    }
+  }
+
+  Future<bool> updateBusiness(
+      String businessId, Map<String, dynamic> data) async {
+    try {
+      await _repository.updateBusiness(businessId, data);
+      return true;
+    } catch (e) {
+      emit(DashboardError(e.toString()));
+      return false;
+    }
+  }
+
+  Future<bool> updateBusinessHours(
+      String businessId, Map<String, dynamic> hours) async {
+    try {
+      await _repository.updateBusinessHours(businessId, hours);
+      return true;
+    } catch (e) {
+      emit(DashboardError(e.toString()));
+      return false;
     }
   }
 

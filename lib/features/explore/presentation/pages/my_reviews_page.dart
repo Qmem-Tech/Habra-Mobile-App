@@ -161,7 +161,7 @@ class _ReviewCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${review.rating.toStringAsFixed(1)}',
+                      review.rating.toStringAsFixed(1),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppColors.textSecondary,
                           ),

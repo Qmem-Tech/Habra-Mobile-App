@@ -46,6 +46,16 @@ class BusinessPresence extends Equatable {
     return category;
   }
 
+  /// User-friendly status text. Shows "Pending for approval" when not yet approved.
+  String get statusDisplayText {
+    if (statusText == 'pending') return 'Pending for approval';
+    if (statusText == 'rejected') return 'Rejected';
+    return category;
+  }
+
+  /// True when the business is awaiting admin approval.
+  bool get isPendingApproval => statusText == 'pending';
+
   @override
   List<Object?> get props => [
         id,

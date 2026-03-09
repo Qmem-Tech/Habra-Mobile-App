@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../domain/entities/user_profile.dart';
 import '../../domain/repositories/profile_repository.dart';
 import '../../domain/usecases/get_profile_usecase.dart';
 import '../../domain/usecases/update_profile_usecase.dart';

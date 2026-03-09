@@ -8,9 +8,14 @@ import 'add_new_presence_page.dart';
 
 /// Business locations selector: list of businesses/locations + Add New Presence.
 class BusinessLocationsPage extends StatefulWidget {
+  final List<BusinessPresence> presences;
   final String? currentPresenceId;
 
-  const BusinessLocationsPage({super.key, this.currentPresenceId});
+  const BusinessLocationsPage({
+    super.key,
+    this.presences = const <BusinessPresence>[],
+    this.currentPresenceId,
+  });
 
   @override
   State<BusinessLocationsPage> createState() => _BusinessLocationsPageState();
@@ -24,7 +29,7 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
   @override
   void initState() {
     super.initState();
-    _presences = [];
+    _presences = List.from(widget.presences);
     final nonAll = _presences.where((p) => p.id != 'all').toList();
     _selectedId = widget.currentPresenceId ??
         (nonAll.isNotEmpty ? nonAll.first.id : null);
@@ -35,6 +40,20 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
       selected = null;
     }
     _groupName = selected?.businessGroupName ?? selected?.name;
+  }
+
+  @override
+  void didUpdateWidget(BusinessLocationsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.presences != widget.presences) {
+      _presences = List.from(widget.presences);
+    }
+  }
+
+  String get _selectedLocationName {
+    if (_selectedId == null) return '';
+    final match = _presences.where((p) => p.id == _selectedId);
+    return match.isEmpty ? '' : (match.first.locationName ?? '');
   }
 
   @override
@@ -75,13 +94,7 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
             if (_selectedId != null) ...[
               const SizedBox(height: 2),
               Text(
-                _presences
-                    .firstWhere(
-                      (p) => p.id == _selectedId,
-                      orElse: () => _presences.first,
-                    )
-                    .locationName ??
-                    '',
+                _selectedLocationName,
                 style: TextStyle(
                   fontSize: 14,
                   color: AppColors.textSecondary,
@@ -222,7 +235,7 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
                     ),
                   ),
                   Text(
-                    p.statusText ?? p.category,
+                    p.statusDisplayText,
                     style: TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
@@ -249,8 +262,6 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
       MaterialPageRoute(builder: (_) => const AddNewPresencePage()),
     );
     if (!context.mounted) return;
-    setState(() {
-      _presences = [];
-    });
+    // Presences stay as-is; parent will have fresh data on next open
   }
 }

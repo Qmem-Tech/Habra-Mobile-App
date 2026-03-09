@@ -148,17 +148,25 @@ class BusinessOwnerDrawer extends StatelessWidget {
                     Row(
                       children: [
                         Icon(
-                          Icons.check_circle,
+                          business?.isPendingApproval == true
+                              ? Icons.schedule
+                              : Icons.check_circle,
                           size: 18,
-                          color: AppColors.success,
+                          color: business?.isPendingApproval == true
+                              ? AppColors.brandPrimary
+                              : AppColors.success,
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'Listing Active',
+                          business?.isPendingApproval == true
+                              ? 'Pending for approval'
+                              : 'Listing Active',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.success,
+                            color: business?.isPendingApproval == true
+                                ? AppColors.brandPrimary
+                                : AppColors.success,
                           ),
                         ),
                       ],

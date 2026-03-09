@@ -20,10 +20,11 @@ class BusinessOwnerNavigationWrapper extends StatefulWidget {
     this.initialIndex = 0,
   });
 
-  static void navigateToTab(BuildContext context, int index) {
+  /// Navigate to tab. [dashboardTab] when [index] is 1: 0=Analytics, 1=Deals, 2=Jobs, 3=Reviews.
+  static void navigateToTab(BuildContext context, int index, {int? dashboardTab}) {
     final state =
         context.findAncestorStateOfType<_BusinessOwnerNavigationWrapperState>();
-    state?.navigateToTab(index);
+    state?.navigateToTab(index, dashboardTab: dashboardTab);
   }
 
   @override
@@ -35,6 +36,7 @@ class _BusinessOwnerNavigationWrapperState
     extends State<BusinessOwnerNavigationWrapper> {
   late int _currentIndex;
   late PageController _pageController;
+  int? _pendingDashboardTab;
 
   @override
   void initState() {
@@ -49,16 +51,27 @@ class _BusinessOwnerNavigationWrapperState
     super.dispose();
   }
 
-  void navigateToTab(int index) {
-    if (_currentIndex != index) {
-      setState(() {
+  void navigateToTab(int index, {int? dashboardTab}) {
+    final shouldAnimate = _currentIndex != index;
+    setState(() {
+      if (dashboardTab != null && index == 1) {
+        _pendingDashboardTab = dashboardTab;
+      }
+      if (shouldAnimate) {
         _currentIndex = index;
-      });
+      }
+    });
+    if (shouldAnimate) {
       _pageController.animateToPage(
         index,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
+    }
+    if (dashboardTab != null && index == 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _pendingDashboardTab = null);
+      });
     }
   }
 
@@ -79,7 +92,7 @@ class _BusinessOwnerNavigationWrapperState
         },
         children: [
           BusinessOwnerHomePage(user: widget.user),
-          DashboardPage(user: widget.user),
+          DashboardPage(user: widget.user, initialTabIndex: _pendingDashboardTab),
           BlocProvider(
             create: (_) => sl<BoostsCubit>(),
             child: BoostsPage(user: widget.user),

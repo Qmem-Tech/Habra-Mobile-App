@@ -4,6 +4,7 @@ import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../auth/domain/entities/user.dart';
+import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
@@ -20,6 +21,8 @@ import 'dashboard_jobs_tab.dart';
 import 'dashboard_reviews_tab.dart';
 import 'create_deal_page.dart';
 import 'create_job_post_page.dart';
+import 'edit_business_page.dart';
+import 'update_hours_page.dart';
 import 'job_applicants_page.dart';
 import 'reply_to_review_page.dart';
 import '../../domain/entities/dashboard_job.dart';
@@ -27,9 +30,11 @@ import '../../domain/entities/business_review.dart';
 
 /// Main dashboard page: Analytics, Deals, Jobs, Reviews tabs.
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key, required this.user});
+  const DashboardPage({super.key, required this.user, this.initialTabIndex});
 
   final User user;
+  /// When set, dashboard opens on this tab (0=Analytics, 1=Deals, 2=Jobs, 3=Reviews).
+  final int? initialTabIndex;
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -37,12 +42,22 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  int _tabIndex = 0;
+  late int _tabIndex;
 
   @override
   void initState() {
     super.initState();
+    _tabIndex = widget.initialTabIndex ?? 0;
     _loadDashboard();
+  }
+
+  @override
+  void didUpdateWidget(DashboardPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newTab = widget.initialTabIndex;
+    if (newTab != null && newTab != oldWidget.initialTabIndex) {
+      setState(() => _tabIndex = newTab);
+    }
   }
 
   void _loadDashboard() {
@@ -80,14 +95,24 @@ class _DashboardPageState extends State<DashboardPage> {
               onDashboardTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1),
               onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
               onEditBusinessTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Edit business — coming soon')),
-                );
+                if (selectedPresence != null && selectedPresence.id != 'all') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EditBusinessPage(business: selectedPresence),
+                    ),
+                  );
+                }
               },
               onUpdateHoursTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Update hours — coming soon')),
-                );
+                if (selectedPresence != null && selectedPresence.id != 'all') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => UpdateHoursPage(businessId: selectedPresence.id),
+                    ),
+                  );
+                }
               },
               onSettingsTap: () {
                 Navigator.push(
@@ -237,13 +262,14 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Future<void> _openBusinessLocations() async {
     final cubit = context.read<BusinessOwnerHomeCubit>();
+    final state = cubit.state;
+    final loaded = state is BusinessOwnerHomeLoaded ? state : null;
     final result = await Navigator.push<String?>(
       context,
       MaterialPageRoute(
         builder: (_) => BusinessLocationsPage(
-          currentPresenceId: (cubit.state is BusinessOwnerHomeLoaded)
-              ? (cubit.state as BusinessOwnerHomeLoaded).selectedPresenceId
-              : null,
+          presences: loaded?.presences ?? const <BusinessPresence>[],
+          currentPresenceId: loaded?.selectedPresenceId,
         ),
       ),
     );

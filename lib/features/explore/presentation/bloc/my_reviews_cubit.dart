@@ -1,5 +1,4 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../domain/entities/my_review.dart';
 import '../../domain/usecases/delete_my_review_usecase.dart';
 import '../../domain/usecases/get_my_reviews_usecase.dart';
 import '../../domain/usecases/update_my_review_usecase.dart';

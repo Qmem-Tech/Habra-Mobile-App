@@ -1,3 +1,4 @@
+import '../../../home/domain/entities/business_presence.dart';
 import '../../domain/entities/applicant_detail.dart';
 import '../../domain/entities/boost_plan.dart';
 import '../../domain/entities/business_review.dart';
@@ -8,6 +9,7 @@ import '../../domain/entities/job_applicant.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 
 abstract class DashboardRemoteDataSource {
+  Future<List<BusinessPresence>> getOwnerBusinesses(String ownerId);
   Future<DashboardAnalytics?> getAnalytics(String businessId);
   Future<List<DashboardDeal>> getDeals(String businessId, {DashboardDealStatus? status});
   Future<List<DashboardJob>> getJobs(String businessId);
@@ -16,46 +18,9 @@ abstract class DashboardRemoteDataSource {
   Future<List<JobApplicant>> getApplicants(String jobId, {ApplicantStatus? status});
   Future<ApplicantDetail?> getApplicantDetail(String applicantId, String jobId);
   Future<List<BoostPlan>> getBoostPlans();
-}
-
-class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
-  @override
-  Future<DashboardAnalytics?> getAnalytics(String businessId) async {
-    return null;
-  }
-
-  @override
-  Future<List<DashboardDeal>> getDeals(String businessId, {DashboardDealStatus? status}) async {
-    return [];
-  }
-
-  @override
-  Future<List<DashboardJob>> getJobs(String businessId) async {
-    return [];
-  }
-
-  @override
-  Future<RatingOverview?> getReviewsOverview(String businessId) async {
-    return null;
-  }
-
-  @override
-  Future<List<BusinessReview>> getReviews(String businessId) async {
-    return [];
-  }
-
-  @override
-  Future<List<JobApplicant>> getApplicants(String jobId, {ApplicantStatus? status}) async {
-    return [];
-  }
-
-  @override
-  Future<ApplicantDetail?> getApplicantDetail(String applicantId, String jobId) async {
-    return null;
-  }
-
-  @override
-  Future<List<BoostPlan>> getBoostPlans() async {
-    return [];
-  }
+  Future<DashboardDeal> createDeal(String businessId, Map<String, dynamic> data);
+  Future<DashboardJob> createJob(String businessId, Map<String, dynamic> data);
+  Future<void> replyToReview(String reviewId, String replyText);
+  Future<void> updateBusiness(String businessId, Map<String, dynamic> data);
+  Future<void> updateBusinessHours(String businessId, Map<String, dynamic> hours);
 }

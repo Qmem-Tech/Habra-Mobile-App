@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/loader_helper.dart';
 import '../../domain/entities/business_review.dart';
+import '../bloc/dashboard_cubit.dart';
 
 class ReplyToReviewPage extends StatefulWidget {
   const ReplyToReviewPage({super.key, required this.review});
@@ -26,12 +28,27 @@ class _ReplyToReviewPageState extends State<ReplyToReviewPage> {
   }
 
   Future<void> _postResponse() async {
+    if (_responseController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please write a response')),
+      );
+      return;
+    }
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Posting response...');
-    await Future<void>.delayed(const Duration(seconds: 1));
+    final success = await ctx.read<DashboardCubit>().replyToReview(
+          widget.review.id,
+          _responseController.text.trim(),
+        );
     if (!ctx.mounted) return;
     LoaderHelper.hide(ctx);
-    Navigator.pop(ctx, true);
+    if (success) {
+      Navigator.pop(ctx, true);
+    } else {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(content: Text('Failed to post response. Try again.')),
+      );
+    }
   }
 
   @override

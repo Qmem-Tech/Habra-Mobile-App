@@ -6,6 +6,7 @@ enum ApplicationStatus {
   shortlisted,
   rejected,
   accepted,
+  hired,
 }
 
 /// Job application entity
@@ -49,7 +50,8 @@ class JobApplication extends Equatable {
       status == ApplicationStatus.shortlisted;
 
   bool get isClosed => status == ApplicationStatus.rejected ||
-      status == ApplicationStatus.accepted;
+      status == ApplicationStatus.accepted ||
+      status == ApplicationStatus.hired;
 
   @override
   List<Object?> get props => [

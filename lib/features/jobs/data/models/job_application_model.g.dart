@@ -57,4 +57,5 @@ const _$ApplicationStatusEnumMap = {
   ApplicationStatus.shortlisted: 'shortlisted',
   ApplicationStatus.rejected: 'rejected',
   ApplicationStatus.accepted: 'accepted',
+  ApplicationStatus.hired: 'hired',
 };

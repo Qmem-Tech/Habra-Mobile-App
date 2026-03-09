@@ -55,10 +55,12 @@ import '../features/home/presentation/bloc/search_cubit.dart';
 import '../features/home/presentation/bloc/notification_cubit.dart';
 import '../features/home/presentation/bloc/business_owner_home_cubit.dart';
 import '../features/dashboard/data/datasources/dashboard_remote_datasource.dart';
+import '../features/dashboard/data/datasources/dashboard_supabase_datasource.dart';
 import '../features/dashboard/data/repositories/dashboard_repository_impl.dart';
 import '../features/dashboard/domain/repositories/dashboard_repository.dart';
 import '../features/dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../features/boosts/data/datasources/boosts_remote_datasource.dart';
+import '../features/boosts/data/datasources/boosts_supabase_datasource.dart';
 import '../features/boosts/data/repositories/boosts_repository_impl.dart';
 import '../features/boosts/domain/repositories/boosts_repository.dart';
 import '../features/boosts/presentation/bloc/boosts_cubit.dart';
@@ -259,20 +261,22 @@ Future<void> init() async {
     getNotificationsUseCase: sl<GetNotificationsUseCase>(),
     notificationRepository: sl<NotificationRepository>(),
   ));
-  sl.registerFactory(() => BusinessOwnerHomeCubit());
-
-  // Features - Dashboard (Business Owner)
+  // Features - Dashboard (Business Owner) — Supabase
   sl.registerLazySingleton<DashboardRemoteDataSource>(
-    () => DashboardRemoteDataSourceImpl(),
+    () => DashboardSupabaseDataSource(),
   );
   sl.registerLazySingleton<DashboardRepository>(
     () => DashboardRepositoryImpl(remoteDataSource: sl<DashboardRemoteDataSource>()),
   );
   sl.registerFactory(() => DashboardCubit(sl<DashboardRepository>()));
+  sl.registerFactory(() => BusinessOwnerHomeCubit(
+      sl<DashboardRepository>(),
+      sl<LocalStorage>(),
+    ));
 
-  // Features - Boosts (Business Owner)
+  // Features - Boosts (Business Owner) — Supabase
   sl.registerLazySingleton<BoostsRemoteDataSource>(
-    () => BoostsRemoteDataSourceImpl(),
+    () => BoostsSupabaseDataSource(),
   );
   sl.registerLazySingleton<BoostsRepository>(
     () => BoostsRepositoryImpl(

@@ -1,3 +1,4 @@
+import '../../../home/domain/entities/business_presence.dart';
 import '../../domain/entities/applicant_detail.dart';
 import '../../domain/entities/boost_plan.dart';
 import '../../domain/entities/business_review.dart';
@@ -13,6 +14,10 @@ class DashboardRepositoryImpl implements DashboardRepository {
       : _remote = remoteDataSource;
 
   final DashboardRemoteDataSource _remote;
+
+  @override
+  Future<List<BusinessPresence>> getOwnerBusinesses(String ownerId) =>
+      _remote.getOwnerBusinesses(ownerId);
 
   @override
   Future<DashboardAnalytics?> getAnalytics(String businessId) =>
@@ -44,4 +49,24 @@ class DashboardRepositoryImpl implements DashboardRepository {
 
   @override
   Future<List<BoostPlan>> getBoostPlans() => _remote.getBoostPlans();
+
+  @override
+  Future<DashboardDeal> createDeal(String businessId, Map<String, dynamic> data) =>
+      _remote.createDeal(businessId, data);
+
+  @override
+  Future<DashboardJob> createJob(String businessId, Map<String, dynamic> data) =>
+      _remote.createJob(businessId, data);
+
+  @override
+  Future<void> replyToReview(String reviewId, String replyText) =>
+      _remote.replyToReview(reviewId, replyText);
+
+  @override
+  Future<void> updateBusiness(String businessId, Map<String, dynamic> data) =>
+      _remote.updateBusiness(businessId, data);
+
+  @override
+  Future<void> updateBusinessHours(String businessId, Map<String, dynamic> hours) =>
+      _remote.updateBusinessHours(businessId, hours);
 }

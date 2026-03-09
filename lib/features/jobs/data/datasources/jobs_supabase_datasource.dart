@@ -26,7 +26,7 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
       List<String> bookmarkedJobIds = [];
       if (userId != null) {
         final bmRes = await _client.from('job_bookmarks').select('job_id').eq('user_id', userId);
-        final bmList = bmRes is List ? bmRes as List : <dynamic>[];
+        final bmList = bmRes as List;
         bookmarkedJobIds = bmList.map((e) => (e as Map)['job_id']?.toString() ?? '').where((s) => s.isNotEmpty).toList();
       }
 
@@ -42,7 +42,7 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
             .select('id')
             .eq('approval_status', 'approved')
             .or('address_city.ilike.%$location%,address_state.ilike.%$location%');
-        final bizList = bizRes is List ? bizRes as List : <dynamic>[];
+        final bizList = bizRes as List;
         if (bizList.isNotEmpty) {
           final ids = bizList.map((e) => (e as Map)['id']).whereType<String>().toList();
           if (ids.isNotEmpty) query = query.inFilter('business_id', ids);

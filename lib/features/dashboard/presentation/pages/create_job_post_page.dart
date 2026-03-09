@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
+import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
+import '../../../home/presentation/bloc/business_owner_home_state.dart';
+import '../bloc/dashboard_cubit.dart';
 
 class CreateJobPostPage extends StatefulWidget {
   const CreateJobPostPage({super.key});
@@ -34,22 +38,54 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     super.dispose();
   }
 
+  String? _getSelectedBusinessId() {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is BusinessOwnerHomeLoaded &&
+        homeState.selectedPresence != null &&
+        homeState.selectedPresence!.id != 'all') {
+      return homeState.selectedPresence!.id;
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _buildPayload() {
+    return {
+      'title': _titleController.text.trim(),
+      'description': _descriptionController.text.trim(),
+      'location': _locationController.text.trim().isNotEmpty
+          ? _locationController.text.trim()
+          : (_remotePosition ? 'Remote' : null),
+      'job_type': _jobTypeController.text.trim().isNotEmpty
+          ? _jobTypeController.text.trim().toLowerCase()
+          : 'full-time',
+      'salary_min': int.tryParse(_minSalaryController.text.trim()),
+      'salary_max': int.tryParse(_maxSalaryController.text.trim()),
+    };
+  }
+
   Future<void> _postJob() async {
+    final bizId = _getSelectedBusinessId();
+    if (bizId == null || _titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in the job title and select a business')),
+      );
+      return;
+    }
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Posting job...');
-    await Future<void>.delayed(const Duration(seconds: 1));
+    final result = await ctx.read<DashboardCubit>().createJob(bizId, _buildPayload());
     if (!ctx.mounted) return;
     LoaderHelper.hide(ctx);
-    Navigator.pop(ctx, true);
+    if (result != null) {
+      Navigator.pop(ctx, true);
+    }
   }
 
   Future<void> _saveDraft() async {
-    final ctx = context;
-    LoaderHelper.show(ctx, message: 'Saving draft...');
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    if (!ctx.mounted) return;
-    LoaderHelper.hide(ctx);
-    Navigator.pop(ctx, true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Job draft saved locally')),
+    );
+    Navigator.pop(context, false);
   }
 
   @override

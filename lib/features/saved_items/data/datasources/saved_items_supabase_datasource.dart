@@ -17,15 +17,6 @@ class SavedItemsSupabaseDataSource implements SavedItemsRemoteDataSource {
     return SavedItemType.event;
   }
 
-  static String _itemTypeToString(SavedItemType type) {
-    switch (type) {
-      case SavedItemType.event:
-        return 'event';
-      case SavedItemType.deal:
-        return 'deal';
-    }
-  }
-
   SavedItemModel _rowToModel(Map<String, dynamic> row) {
     return SavedItemModel(
       id: parseStringRequired(row['id']),

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart' show AppButton, AppOutlinedButton;
 import '../../../../core/widgets/loader_helper.dart';
+import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
+import '../../../home/presentation/bloc/business_owner_home_state.dart';
+import '../bloc/dashboard_cubit.dart';
 
 enum OfferType { percentOff, fixedAmount, freeItem }
 
@@ -41,22 +45,65 @@ class _CreateDealPageState extends State<CreateDealPage> {
     super.dispose();
   }
 
+  String? _getSelectedBusinessId() {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is BusinessOwnerHomeLoaded &&
+        homeState.selectedPresence != null &&
+        homeState.selectedPresence!.id != 'all') {
+      return homeState.selectedPresence!.id;
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _buildPayload(String status) {
+    return {
+      'title': _titleController.text.trim(),
+      'description': _descriptionController.text.trim(),
+      'discount_percentage': int.tryParse(_discountController.text.trim()),
+      'valid_from': _startDateController.text.trim().isNotEmpty
+          ? _startDateController.text.trim()
+          : null,
+      'valid_until': _endDateController.text.trim().isNotEmpty
+          ? _endDateController.text.trim()
+          : null,
+      'status': status,
+    };
+  }
+
   Future<void> _publishDeal() async {
+    final bizId = _getSelectedBusinessId();
+    if (bizId == null || _titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in the deal title and select a business')),
+      );
+      return;
+    }
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Publishing...');
-    await Future<void>.delayed(const Duration(seconds: 1));
+    final result = await ctx.read<DashboardCubit>().createDeal(bizId, _buildPayload('active'));
     if (!ctx.mounted) return;
     LoaderHelper.hide(ctx);
-    Navigator.pop(ctx, true);
+    if (result != null) {
+      Navigator.pop(ctx, true);
+    }
   }
 
   Future<void> _saveDraft() async {
+    final bizId = _getSelectedBusinessId();
+    if (bizId == null || _titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in the deal title and select a business')),
+      );
+      return;
+    }
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Saving draft...');
-    await Future<void>.delayed(const Duration(milliseconds: 800));
+    final result = await ctx.read<DashboardCubit>().createDeal(bizId, _buildPayload('draft'));
     if (!ctx.mounted) return;
     LoaderHelper.hide(ctx);
-    Navigator.pop(ctx, true);
+    if (result != null) {
+      Navigator.pop(ctx, true);
+    }
   }
 
   @override
