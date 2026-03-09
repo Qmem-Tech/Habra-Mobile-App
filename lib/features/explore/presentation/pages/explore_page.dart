@@ -334,7 +334,7 @@ class _ExplorePageState extends State<ExplorePage> {
                 ),
               ),
               SizedBox(
-                height: 200,
+                height: 230,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -512,7 +512,7 @@ class _ExplorePageState extends State<ExplorePage> {
                 ),
               ),
               SizedBox(
-                height: 200,
+                height: 230,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),

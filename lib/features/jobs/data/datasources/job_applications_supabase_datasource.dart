@@ -135,7 +135,7 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
 
       var query = _client
           .from('job_applications')
-          .select('*, jobs!job_applications_job_id_fkey(title, business_id), businesses!jobs_business_id_fkey(name)')
+          .select('*, jobs!job_applications_job_id_fkey(title, business_id, businesses!jobs_business_id_fkey(name))')
           .eq('user_id', userId);
       if (activeOnly) {
         query = query.inFilter('status', ['pending', 'reviewed', 'shortlisted']);

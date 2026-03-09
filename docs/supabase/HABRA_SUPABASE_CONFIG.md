@@ -119,6 +119,7 @@ The SQL file does **not** create Storage buckets; do this in the Dashboard.
 
 - **resumes**
   - **SELECT/INSERT/UPDATE**: `bucket_id = 'resumes'` and `auth.uid()::text = (storage.foldername(name))[1]`.
+  - **Quick fix:** Run **`habra_storage_resumes.sql`** in the SQL Editor to create the bucket and policies if resume upload fails.
 
 You can start with “Allow all for authenticated” and tighten later with custom policies.
 

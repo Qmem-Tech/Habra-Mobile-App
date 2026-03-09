@@ -105,14 +105,17 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
 
     String? resumeUrl;
     if (_resumeFile != null) {
-      final url = await context.read<JobApplicationsCubit>().uploadResume(
+      final (url, error) = await context.read<JobApplicationsCubit>().uploadResume(
             userId,
             widget.jobId,
             _resumeFile!,
           );
       if (url == null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to upload resume. Please try again.')),
+          SnackBar(
+            content: Text(error ?? 'Failed to upload resume. Please try again.'),
+            duration: const Duration(seconds: 5),
+          ),
         );
         return;
       }
@@ -140,9 +143,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => di.sl<JobApplicationsCubit>(),
-      child: BlocListener<JobApplicationsCubit, JobApplicationsState>(
+    return BlocListener<JobApplicationsCubit, JobApplicationsState>(
         listener: (context, state) {
           if (state is SubmitApplicationSuccess) {
             Navigator.pushReplacement(
@@ -160,7 +161,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
             );
           }
         },
-        child: Scaffold(
+      child: Scaffold(
           appBar: AppBar(
             title: const Text('Apply for Job'),
           ),
@@ -245,7 +246,6 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
             },
           ),
         ),
-      ),
     );
   }
 

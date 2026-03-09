@@ -55,9 +55,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
           .eq('is_active', true)
           .gte('start_at', DateTime.now().toIso8601String());
 
-      if (location != null && location.isNotEmpty) {
-        query = query.or('venue_name.ilike.%$location%,venue_address.ilike.%$location%');
-      }
+      // TODO: Add location filter when ready: query.or('venue_name.ilike.%$location%,venue_address.ilike.%$location%')
       if (searchQuery != null && searchQuery.isNotEmpty) {
         query = query.or('title.ilike.%$searchQuery%,description.ilike.%$searchQuery%');
       }

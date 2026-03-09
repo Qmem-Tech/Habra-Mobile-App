@@ -17,11 +17,12 @@ class JobApplicationsCubit extends Cubit<JobApplicationsState> {
     required this.uploadResumeUseCase,
   }) : super(JobApplicationsInitial());
 
-  Future<String?> uploadResume(String userId, String jobId, File file) async {
+  /// Returns (url, null) on success, (null, errorMessage) on failure.
+  Future<(String?, String?)> uploadResume(String userId, String jobId, File file) async {
     final result = await uploadResumeUseCase(userId: userId, jobId: jobId, file: file);
     return result.fold(
-      (failure) => null,
-      (url) => url,
+      (failure) => (null, failure.message),
+      (url) => (url, null),
     );
   }
 

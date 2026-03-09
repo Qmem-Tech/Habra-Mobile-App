@@ -109,9 +109,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
           .eq('is_active', true);
 
       if (featuredOnly) query = query.eq('is_featured', true);
-      if (location != null && location.isNotEmpty) {
-        query = query.or('address_city.ilike.%$location%,address_state.ilike.%$location%');
-      }
+      // TODO: Add location filter when ready: query.or('address_city.ilike.%$location%,address_state.ilike.%$location%')
       if (searchQuery != null && searchQuery.isNotEmpty) {
         query = query.or('name.ilike.%$searchQuery%,description.ilike.%$searchQuery%');
       }
@@ -265,24 +263,25 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
     DealType? dealType,
   }) async {
     return SupabaseFailureMapper.guard(() async {
+      // Only deals from approved businesses
+      final approvedBizRes = await _client
+          .from('businesses')
+          .select('id')
+          .eq('approval_status', 'approved')
+          .eq('is_active', true);
+      final approvedBizList = approvedBizRes as List;
+      if (approvedBizList.isEmpty) return [];
+      final approvedIds = approvedBizList.map((e) => (e as Map)['id']).whereType<String>().toList();
+      if (approvedIds.isEmpty) return [];
+
       var query = _client
           .from('deals')
           .select('*, businesses!deals_business_id_fkey(id, name, address_city, address_state, logo_url, image_urls)')
           .eq('status', 'active')
-          .gte('valid_until', DateTime.now().toIso8601String());
+          .gte('valid_until', DateTime.now().toIso8601String())
+          .inFilter('business_id', approvedIds);
 
-      if (location != null && location.isNotEmpty) {
-        final bizRes = await _client
-            .from('businesses')
-            .select('id')
-            .eq('approval_status', 'approved')
-            .or('address_city.ilike.%$location%,address_state.ilike.%$location%');
-        final bizList = bizRes as List;
-        if (bizList.isNotEmpty) {
-          final ids = bizList.map((e) => (e as Map)['id']).whereType<String>().toList();
-          if (ids.isNotEmpty) query = query.inFilter('business_id', ids);
-        }
-      }
+      // TODO: Add location filter when ready (filter businesses by address_city/address_state)
       if (category != null && category.isNotEmpty) {
         query = query.eq('category', category);
       }

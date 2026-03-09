@@ -37,20 +37,7 @@ class BusinessCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               child: Stack(
                 children: [
-                  Image.asset(
-                    business.imageUrl,
-                    width: double.infinity,
-                    height: 100,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: double.infinity,
-                        height: 140,
-                        color: AppColors.backgroundGrey,
-                        child: const Icon(Icons.store, size: 48, color: AppColors.textSecondary),
-                      );
-                    },
-                  ),
+                  _buildImage(business.imageUrl),
                   if (business.isVerified)
                     Positioned(
                       top: 8,
@@ -132,6 +119,35 @@ class BusinessCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImage(String imageUrl) {
+    const height = 100.0;
+    final isNetwork = imageUrl.startsWith('http://') || imageUrl.startsWith('https://');
+    return SizedBox(
+      width: double.infinity,
+      height: height,
+      child: isNetwork
+          ? Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => _buildPlaceholder(height),
+            )
+          : Image.asset(
+              imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => _buildPlaceholder(height),
+            ),
+    );
+  }
+
+  Widget _buildPlaceholder(double height) {
+    return Container(
+      width: double.infinity,
+      height: height,
+      color: AppColors.backgroundGrey,
+      child: const Icon(Icons.store, size: 48, color: AppColors.textSecondary),
     );
   }
 }

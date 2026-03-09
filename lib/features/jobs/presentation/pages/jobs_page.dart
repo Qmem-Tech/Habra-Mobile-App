@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../home/presentation/pages/notification_page.dart';
+import '../bloc/job_applications_cubit.dart';
 import '../bloc/jobs_cubit.dart';
 import '../bloc/jobs_state.dart';
 import '../widgets/featured_job_card.dart';
@@ -13,6 +14,7 @@ import '../widgets/job_category_chip.dart';
 import '../../domain/entities/job_filters.dart';
 import 'job_detail_page.dart';
 import 'job_filters_bottom_sheet.dart';
+import 'my_applications_page.dart';
 import 'no_jobs_found_page.dart';
 
 class JobsPage extends StatefulWidget {
@@ -207,6 +209,20 @@ class _JobsPageState extends State<JobsPage> {
                 ),
               ),
             ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider(
+                    create: (_) => di.sl<JobApplicationsCubit>(),
+                    child: const MyApplicationsPage(),
+                  ),
+                ),
+              );
+            },
+            child: const Text('My Applications'),
           ),
           IconButton(
             onPressed: () {

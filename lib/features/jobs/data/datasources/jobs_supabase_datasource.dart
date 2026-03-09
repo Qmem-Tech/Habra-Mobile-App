@@ -48,22 +48,7 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
           .inFilter('business_id', approvedIds);
 
       if (featuredOnly) query = query.eq('is_featured', true);
-      if (location != null && location.isNotEmpty) {
-        final bizRes = await _client
-            .from('businesses')
-            .select('id')
-            .eq('approval_status', 'approved')
-            .or('address_city.ilike.%$location%,address_state.ilike.%$location%');
-        final bizList = bizRes as List;
-        if (bizList.isNotEmpty) {
-          final ids = bizList.map((e) => (e as Map)['id']).whereType<String>().toList();
-          if (ids.isNotEmpty) {
-            final locationIds = approvedIds.where((id) => ids.contains(id)).toList();
-            if (locationIds.isEmpty) return [];
-            query = query.inFilter('business_id', locationIds);
-          }
-        }
-      }
+      // TODO: Add location filter when ready (filter by businesses in address_city/address_state)
       if (searchQuery != null && searchQuery.isNotEmpty) {
         query = query.or('title.ilike.%$searchQuery%,description.ilike.%$searchQuery%');
       }

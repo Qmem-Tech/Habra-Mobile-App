@@ -26,9 +26,7 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
           .eq('is_active', true)
           .gte('start_at', now.toIso8601String())
           .lte('start_at', endOfWeek.toIso8601String());
-      if (location.isNotEmpty) {
-        query = query.or('venue_name.ilike.%$location%,venue_address.ilike.%$location%');
-      }
+      // TODO: Add location filter when ready: query.or('venue_name.ilike.%$location%,venue_address.ilike.%$location%')
       final res = await query.order('start_at', ascending: true).limit(10);
       final list = (res as List).cast<Map<String, dynamic>>();
       return list.map((row) {
@@ -58,23 +56,24 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
   @override
   Future<List<DealModel>> getHotDealsNearYou(String location) async {
     return SupabaseFailureMapper.guard(() async {
+      // Only deals from approved businesses
+      final approvedBizRes = await _client
+          .from('businesses')
+          .select('id')
+          .eq('approval_status', 'approved')
+          .eq('is_active', true);
+      final approvedBizList = approvedBizRes as List;
+      if (approvedBizList.isEmpty) return [];
+      final approvedIds = approvedBizList.map((e) => (e as Map)['id']).whereType<String>().toList();
+      if (approvedIds.isEmpty) return [];
+
       var query = _client
           .from('deals')
           .select('*, businesses!deals_business_id_fkey(id, name)')
           .eq('status', 'active')
-          .gte('valid_until', DateTime.now().toIso8601String());
-      if (location.isNotEmpty) {
-        final bizRes = await _client
-            .from('businesses')
-            .select('id')
-            .eq('approval_status', 'approved')
-            .or('address_city.ilike.%$location%,address_state.ilike.%$location%');
-        final bizList = bizRes as List;
-        if (bizList.isNotEmpty) {
-          final ids = bizList.map((e) => (e as Map)['id']).whereType<String>().toList();
-          if (ids.isNotEmpty) query = query.inFilter('business_id', ids);
-        }
-      }
+          .gte('valid_until', DateTime.now().toIso8601String())
+          .inFilter('business_id', approvedIds);
+      // TODO: Add location filter when ready (filter businesses by address_city/address_state)
       final res = await query.order('valid_until', ascending: true).limit(10);
       final list = (res as List).cast<Map<String, dynamic>>();
       return list.map((row) {
@@ -108,9 +107,7 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
           .select('*')
           .eq('approval_status', 'approved')
           .eq('is_active', true);
-      if (location.isNotEmpty) {
-        query = query.or('address_city.ilike.%$location%,address_state.ilike.%$location%');
-      }
+      // TODO: Add location filter when ready: query.or('address_city.ilike.%$location%,address_state.ilike.%$location%')
       final res = await query.order('rating', ascending: false).limit(10);
       final list = (res as List).cast<Map<String, dynamic>>();
       return list.map((row) {
@@ -140,9 +137,7 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
           .select('id')
           .eq('approval_status', 'approved')
           .eq('is_active', true);
-      if (location.isNotEmpty) {
-        bizQuery = bizQuery.or('address_city.ilike.%$location%,address_state.ilike.%$location%');
-      }
+      // TODO: Add location filter when ready: bizQuery.or('address_city.ilike.%$location%,address_state.ilike.%$location%')
       final bizRes = await bizQuery;
       final bizList = bizRes as List;
       if (bizList.isEmpty) return [];

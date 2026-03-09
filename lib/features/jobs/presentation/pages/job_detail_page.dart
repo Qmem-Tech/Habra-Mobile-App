@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../bloc/job_applications_cubit.dart';
 import '../bloc/jobs_cubit.dart';
 import '../bloc/jobs_state.dart';
 import 'apply_for_job_page.dart';
@@ -100,10 +101,13 @@ class JobDetailPage extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ApplyForJobPage(
-                              jobId: jobId,
-                              jobTitle: state.jobDetail.title,
-                              companyName: state.jobDetail.companyName,
+                            builder: (context) => BlocProvider(
+                              create: (_) => di.sl<JobApplicationsCubit>(),
+                              child: ApplyForJobPage(
+                                jobId: jobId,
+                                jobTitle: state.jobDetail.title,
+                                companyName: state.jobDetail.companyName,
+                              ),
                             ),
                           ),
                         );
