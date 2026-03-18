@@ -504,7 +504,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   Icon(Icons.shield, size: 16, color: AppColors.textSecondary),
                   const SizedBox(width: 4),
                   Text(
-                    'Secured by Stripe',
+                    'Secured payment',
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,

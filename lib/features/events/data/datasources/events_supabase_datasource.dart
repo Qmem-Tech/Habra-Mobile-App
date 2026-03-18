@@ -1,7 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
+import '../../domain/entities/create_event_data.dart';
 import '../../domain/entities/event_category.dart';
 import '../../domain/entities/event_filters.dart';
 import '../../domain/entities/order.dart' as events_domain;
@@ -352,6 +354,48 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         createdAt: parseTimestampRequired(row['created_at']),
         status: events_domain.OrderStatus.completed,
       );
+    });
+  }
+
+  @override
+  Future<EventDetailModel> createEvent(CreateEventData data) async {
+    return SupabaseFailureMapper.guard(() async {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) throw Exception('Not authenticated');
+
+      if (data.ticketTypes.isEmpty) {
+        throw Exception('Add at least one ticket type');
+      }
+
+      final eventRes = await _client.from(SupabaseTables.events).insert({
+        'organizer_id': userId,
+        'business_id': data.businessId,
+        'title': data.title,
+        'description': data.description,
+        'venue_name': data.venueName,
+        'venue_address': data.venueAddress,
+        'venue_lat': data.venueLat,
+        'venue_lng': data.venueLng,
+        'start_at': data.startAt.toIso8601String(),
+        'end_at': data.endAt.toIso8601String(),
+        'image_url': data.imageUrl,
+        'category': data.category.name.toLowerCase(),
+        'is_active': true,
+      }).select('id').single();
+
+      final eventId = (eventRes as Map)['id'] as String;
+
+      for (final tt in data.ticketTypes) {
+        await _client.from(SupabaseTables.eventTickets).insert({
+          'event_id': eventId,
+          'name': tt.name,
+          'price': tt.price,
+          'quantity_available': tt.quantityAvailable,
+          'quantity_sold': 0,
+        });
+      }
+
+      return getEventDetail(eventId);
     });
   }
 }

@@ -53,6 +53,9 @@ dependencies:
   image_picker: ^1.0.7
   file_picker: ^10.0.0 # 8.x+ fixes linux/macos/windows plugin warnings
 
+  # Payments (RevenueCat - free tier for IAP)
+  purchases_flutter: ^8.0.0
+
   # Phone & Country Code
   intl_phone_field: ^3.1.0
 

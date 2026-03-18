@@ -395,17 +395,18 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           .from(SupabaseTables.boostPlans)
           .select('*')
           .eq('is_active', true)
-          .order('price', ascending: true);
+          .order('price_cents', ascending: true);
       final rows = (res as List).cast<Map<String, dynamic>>();
       return rows.map((row) {
-        final price = parseDouble(row['price']) ?? 0;
-        final durationDays = parseInt(row['duration_days']) ?? 7;
+        final priceCents = parseInt(row['price_cents']) ?? 0;
+        final price = priceCents / 100.0;
+        final durationWeeks = parseInt(row['duration_weeks']) ?? 1;
         return BoostPlan(
           id: parseStringRequired(row['id']),
-          title: parseStringRequired(row['name']),
-          description: parseStringRequired(row['description']),
+          title: parseStringRequired(row['title']),
+          description: parseString(row['description']) ?? '',
           priceFormatted: '\$${price.toStringAsFixed(2)}',
-          durationWeeks: (durationDays / 7).ceil(),
+          durationWeeks: durationWeeks,
         );
       }).toList();
     });

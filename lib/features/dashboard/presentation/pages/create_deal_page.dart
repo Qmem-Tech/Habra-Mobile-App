@@ -1,9 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart' show AppButton, AppOutlinedButton;
 import '../../../../core/widgets/loader_helper.dart';
+import '../../../../core/services/image_picker_service.dart';
+import '../../../../core/services/storage_service.dart';
+import '../../../../injection/injection_container.dart' as di;
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../bloc/dashboard_cubit.dart';
@@ -19,6 +26,7 @@ class CreateDealPage extends StatefulWidget {
 
 class _CreateDealPageState extends State<CreateDealPage> {
   OfferType _offerType = OfferType.percentOff;
+  File? _imageFile;
   final _titleController = TextEditingController();
   final _discountController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -55,18 +63,31 @@ class _CreateDealPageState extends State<CreateDealPage> {
     return null;
   }
 
-  Map<String, dynamic> _buildPayload(String status) {
+  Future<Map<String, dynamic>> _buildPayload(String status) async {
+    String? imageUrl;
+    if (_imageFile != null) {
+      final userId = Supabase.instance.client.auth.currentUser?.id ?? 'anon';
+      imageUrl = await di.sl<StorageService>().uploadImage(
+        SupabaseBuckets.deals,
+        userId,
+        _imageFile!,
+      );
+    }
+    final now = DateTime.now();
+    final validFrom = _startDateController.text.trim().isNotEmpty
+        ? DateTime.tryParse(_startDateController.text.trim()) ?? now
+        : now;
+    final validUntil = _endDateController.text.trim().isNotEmpty
+        ? DateTime.tryParse(_endDateController.text.trim()) ?? now.add(const Duration(days: 7))
+        : now.add(const Duration(days: 7));
     return {
       'title': _titleController.text.trim(),
       'description': _descriptionController.text.trim(),
       'discount_percentage': int.tryParse(_discountController.text.trim()),
-      'valid_from': _startDateController.text.trim().isNotEmpty
-          ? _startDateController.text.trim()
-          : null,
-      'valid_until': _endDateController.text.trim().isNotEmpty
-          ? _endDateController.text.trim()
-          : null,
+      'valid_from': validFrom.toIso8601String(),
+      'valid_until': validUntil.toIso8601String(),
       'status': status,
+      'image_url': imageUrl,
     };
   }
 
@@ -80,11 +101,22 @@ class _CreateDealPageState extends State<CreateDealPage> {
     }
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Publishing...');
-    final result = await ctx.read<DashboardCubit>().createDeal(bizId, _buildPayload('active'));
-    if (!ctx.mounted) return;
-    LoaderHelper.hide(ctx);
-    if (result != null) {
-      Navigator.pop(ctx, true);
+    try {
+      final payload = await _buildPayload('active');
+      if (!ctx.mounted) return;
+      final result = await ctx.read<DashboardCubit>().createDeal(bizId, payload);
+      if (!ctx.mounted) return;
+      LoaderHelper.hide(ctx);
+      if (result != null) {
+        Navigator.pop(ctx, true);
+      }
+    } catch (e) {
+      if (ctx.mounted) {
+        LoaderHelper.hide(ctx);
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
     }
   }
 
@@ -98,11 +130,29 @@ class _CreateDealPageState extends State<CreateDealPage> {
     }
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Saving draft...');
-    final result = await ctx.read<DashboardCubit>().createDeal(bizId, _buildPayload('draft'));
-    if (!ctx.mounted) return;
-    LoaderHelper.hide(ctx);
-    if (result != null) {
-      Navigator.pop(ctx, true);
+    try {
+      final payload = await _buildPayload('draft');
+      if (!ctx.mounted) return;
+      final result = await ctx.read<DashboardCubit>().createDeal(bizId, payload);
+      if (!ctx.mounted) return;
+      LoaderHelper.hide(ctx);
+      if (result != null) {
+        Navigator.pop(ctx, true);
+      }
+    } catch (e) {
+      if (ctx.mounted) {
+        LoaderHelper.hide(ctx);
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final file = await di.sl<ImagePickerService>().pickImage(context);
+    if (file != null && mounted) {
+      setState(() => _imageFile = file);
     }
   }
 
@@ -181,6 +231,37 @@ class _CreateDealPageState extends State<CreateDealPage> {
             _buildTextField(
               'Terms & Conditions (Optional)',
               controller: _termsController,
+            ),
+            const SizedBox(height: 16),
+            _sectionTitle('Deal Image'),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                width: double.infinity,
+                height: 140,
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundLight,
+                  borderRadius: BorderRadius.circular(AppResources.radiusM),
+                  border: Border.all(color: AppColors.backgroundGrey),
+                ),
+                child: _imageFile != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(AppResources.radiusM),
+                        child: Image.file(_imageFile!, fit: BoxFit.cover),
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_photo_alternate, size: 40, color: AppColors.brandPrimary),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Tap to add deal image',
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                          ),
+                        ],
+                      ),
+              ),
             ),
             const SizedBox(height: 24),
             _sectionTitle('Schedule'),

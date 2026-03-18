@@ -73,17 +73,19 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
   }
 
   Future<void> _pickResume() async {
+    final ctx = context;
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx'],
       withData: false,
     );
-    if (!mounted) return;
+    if (!ctx.mounted) return;
     if (result != null && result.files.single.path != null) {
       final file = File(result.files.single.path!);
-      if (await file.length() > 5 * 1024 * 1024) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+      final fileSize = await file.length();
+      if (fileSize > 5 * 1024 * 1024) {
+        if (!ctx.mounted) return;
+        ScaffoldMessenger.of(ctx).showSnackBar(
           const SnackBar(content: Text('File must be under 5MB')),
         );
         return;

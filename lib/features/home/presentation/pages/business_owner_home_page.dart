@@ -21,6 +21,7 @@ import '../../../dashboard/presentation/pages/edit_business_page.dart';
 import '../../../dashboard/presentation/pages/update_hours_page.dart';
 import '../../../dashboard/presentation/pages/create_deal_page.dart';
 import '../../../dashboard/presentation/pages/create_job_post_page.dart';
+import '../../../events/presentation/pages/create_event_page.dart';
 import '../../../dashboard/presentation/pages/job_applicants_page.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
@@ -896,7 +897,16 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     final hasSpecificBusiness = selectedPresence != null && selectedPresence.id != 'all';
 
     final actions = [
-      (Icons.sell, 'Post Deal', AppColors.brandPrimary, () async {
+      (Icons.event, 'Create Event', AppColors.brandPrimary, () async {
+        final cubit = context.read<BusinessOwnerHomeCubit>();
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CreateEventPage()),
+        );
+        if (!context.mounted) return;
+        cubit.loadOwnerHome(ownerId: widget.user.id);
+      }),
+      (Icons.sell, 'Post Deal', AppColors.textPrimary, () async {
         if (!hasSpecificBusiness) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Select a business first')),

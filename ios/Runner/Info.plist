@@ -53,6 +53,19 @@
 	<string>Habra needs photo library access to add photos to reviews and business profiles.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Habra uses contacts to help you invite friends and share with people you know.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>habra</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>auth</string>
+		</dict>
+	</array>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>mailto</string>

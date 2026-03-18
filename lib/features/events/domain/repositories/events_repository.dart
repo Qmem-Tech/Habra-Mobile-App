@@ -5,6 +5,7 @@ import '../entities/event_detail.dart';
 import '../entities/event_filters.dart';
 import '../entities/ticket.dart';
 import '../entities/order.dart' as events;
+import '../entities/create_event_data.dart';
 
 abstract class EventsRepository {
   Future<Either<Failure, List<EventListItem>>> getEvents({
@@ -34,4 +35,6 @@ abstract class EventsRepository {
     required Map<String, dynamic> paymentMethod,
     String? promoCode,
   });
+
+  Future<Either<Failure, EventDetail>> createEvent(CreateEventData data);
 }

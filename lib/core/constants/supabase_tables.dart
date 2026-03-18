@@ -13,6 +13,10 @@ class SupabaseTables {
   static const String boosts = 'boosts';
   static const String dealRedemptions = 'deal_redemptions';
   static const String events = 'events';
+  static const String eventTickets = 'event_tickets';
+  static const String orders = 'orders';
+  static const String tickets = 'tickets';
+  static const String ticketListings = 'ticket_listings';
   static const String feedback = 'feedback';
   static const String savedItems = 'saved_items';
   static const String categories = 'categories';
@@ -26,4 +30,6 @@ class SupabaseBuckets {
   static const String avatars = 'avatars';
   static const String businesses = 'businesses';
   static const String deals = 'deals';
+  static const String events = 'events';
+  static const String reviews = 'reviews';
 }

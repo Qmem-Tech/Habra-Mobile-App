@@ -3,6 +3,7 @@ import '../models/event_detail_model.dart';
 import '../models/ticket_model.dart';
 import '../models/order_model.dart';
 import '../../domain/entities/event_filters.dart';
+import '../../domain/entities/create_event_data.dart';
 
 abstract class EventsRemoteDataSource {
   Future<List<EventListItemModel>> getEvents({
@@ -30,6 +31,8 @@ abstract class EventsRemoteDataSource {
     required Map<String, dynamic> paymentMethod,
     String? promoCode,
   });
+
+  Future<EventDetailModel> createEvent(CreateEventData data);
 }
 
 class EventsRemoteDataSourceImpl implements EventsRemoteDataSource {
@@ -85,6 +88,13 @@ class EventsRemoteDataSourceImpl implements EventsRemoteDataSource {
   }) async {
     throw UnimplementedError(
       'Use EventsSupabaseDataSource; backend must handle processPayment.',
+    );
+  }
+
+  @override
+  Future<EventDetailModel> createEvent(CreateEventData data) async {
+    throw UnimplementedError(
+      'Use EventsSupabaseDataSource; backend must handle createEvent.',
     );
   }
 }

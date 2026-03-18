@@ -18,4 +18,10 @@ abstract class AuthRepository {
 
   /// Resends the signup confirmation email to [email].
   Future<Either<Failure, void>> resendVerificationEmail(String email);
+
+  /// Sends a password reset email to [email].
+  Future<Either<Failure, void>> resetPasswordForEmail(String email);
+
+  /// Updates the current user's password (requires recovery session from reset link).
+  Future<Either<Failure, void>> updatePassword(String newPassword);
 }

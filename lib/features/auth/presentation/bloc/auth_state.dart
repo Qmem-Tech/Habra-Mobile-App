@@ -46,3 +46,13 @@ class AuthEmailVerificationPending extends AuthState {
 class AuthResendVerificationSuccess extends AuthState {
   const AuthResendVerificationSuccess();
 }
+
+/// Password reset email sent successfully.
+class AuthResetEmailSent extends AuthState {
+  const AuthResetEmailSent();
+}
+
+/// Password updated successfully (recovery flow complete).
+class AuthPasswordUpdated extends AuthState {
+  const AuthPasswordUpdated();
+}

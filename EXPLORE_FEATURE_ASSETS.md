@@ -29,10 +29,41 @@ The mock data uses helper methods `_getBusinessImage(index)` and `_getDealImage(
 ## Notes
 
 - Images are automatically rotated/repeated across multiple businesses and deals
+
 - The app uses error builders to handle missing images gracefully (shows placeholder icons)
+
 - All images should be optimized for mobile display
 - Recommended dimensions:
   - Business cards: 280x140px
   - Deal cards: 280x120px
   - Business list items: 80x80px
   - Business detail hero: Full width, ~250px height
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

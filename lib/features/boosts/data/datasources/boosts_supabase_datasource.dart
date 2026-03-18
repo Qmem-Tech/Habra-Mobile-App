@@ -173,12 +173,13 @@ class BoostsSupabaseDataSource implements BoostsRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final planRes = await _client
           .from(SupabaseTables.boostPlans)
-          .select('duration_days')
+          .select('duration_weeks')
           .eq('id', planId)
           .maybeSingle();
-      final durationDays = planRes != null
-          ? parseInt(planRes['duration_days']) ?? 7
-          : 7;
+      final durationWeeks = planRes != null
+          ? parseInt(planRes['duration_weeks']) ?? 1
+          : 1;
+      final durationDays = durationWeeks * 7;
       final startsAt = DateTime.now();
       final endsAt = startsAt.add(Duration(days: durationDays));
       final payload = <String, dynamic>{

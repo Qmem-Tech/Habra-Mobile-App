@@ -12,6 +12,8 @@ import '../../domain/entities/user.dart';
 class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
   AuthSupabaseRemoteDataSource();
 
+  static const String _authRedirectUrl = 'habra://auth/callback';
+
   SupabaseClient get _client => Supabase.instance.client;
   GoogleSignIn get _googleSignIn => GoogleSignIn();
 
@@ -89,6 +91,7 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
         email: email,
         password: password,
         data: {'full_name': name, 'role': roleString},
+        emailRedirectTo: _authRedirectUrl,
       );
       // When "Confirm email" is enabled in Supabase, session is null until user confirms.
       if (response.session == null && response.user != null) {
@@ -110,6 +113,27 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
         type: OtpType.signup,
         email: email,
       );
+    } catch (e) {
+      SupabaseFailureMapper.throwFromError(e);
+    }
+  }
+
+  @override
+  Future<void> resetPasswordForEmail(String email) async {
+    try {
+      await _client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: _authRedirectUrl,
+      );
+    } catch (e) {
+      SupabaseFailureMapper.throwFromError(e);
+    }
+  }
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
     } catch (e) {
       SupabaseFailureMapper.throwFromError(e);
     }

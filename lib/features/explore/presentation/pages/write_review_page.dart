@@ -2,9 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/services/image_picker_service.dart';
+import '../../../../core/services/storage_service.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/reviews_cubit.dart';
 import '../bloc/reviews_state.dart';
@@ -32,6 +35,42 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
   void dispose() {
     _commentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _submitReview(BuildContext context) async {
+    if (_commentController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please write a review')),
+      );
+      return;
+    }
+
+    List<String>? photoUrls;
+    if (_photoFiles.isNotEmpty) {
+      try {
+        final userId = Supabase.instance.client.auth.currentUser?.id ?? 'anon';
+        final pathPrefix = '$userId/${widget.businessId}';
+        photoUrls = await di.sl<StorageService>().uploadImages(
+          SupabaseBuckets.reviews,
+          pathPrefix,
+          _photoFiles,
+        );
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Photo upload failed: $e')),
+        );
+        return;
+      }
+    }
+
+    if (!context.mounted) return;
+    context.read<ReviewsCubit>().writeReview(
+          businessId: widget.businessId,
+          rating: _rating,
+          comment: _commentController.text,
+          photoUrls: photoUrls,
+        );
   }
 
   String _getRatingText(int rating) {
@@ -320,20 +359,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
           isLoading: isLoading,
           onPressed: isLoading
               ? null
-              : () {
-                  if (_commentController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please write a review')),
-                    );
-                    return;
-                  }
-                  context.read<ReviewsCubit>().writeReview(
-                        businessId: widget.businessId,
-                        rating: _rating,
-                        comment: _commentController.text,
-                        photoUrls: null,
-                      );
-                },
+              : () => _submitReview(context),
         );
       },
     );

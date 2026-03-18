@@ -10,6 +10,8 @@ import '../core/localization/localization_cubit.dart';
 import '../core/services/location_service.dart';
 import '../core/services/image_picker_service.dart';
 import '../core/services/permission_service.dart';
+import '../core/services/storage_service.dart';
+import '../core/services/revenue_cat_service.dart';
 import '../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../features/auth/data/datasources/auth_local_datasource.dart';
 import '../features/auth/data/datasources/auth_supabase_remote_datasource.dart';
@@ -21,6 +23,8 @@ import '../features/auth/domain/usecases/register_usecase.dart';
 import '../features/auth/domain/usecases/login_as_guest_usecase.dart';
 import '../features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 import '../features/auth/domain/usecases/resend_verification_email_usecase.dart';
+import '../features/auth/domain/usecases/reset_password_for_email_usecase.dart';
+import '../features/auth/domain/usecases/update_password_usecase.dart';
 
 // Splash feature
 import '../features/splash/data/repositories/splash_repository_supabase_impl.dart';
@@ -68,6 +72,7 @@ import '../features/boosts/presentation/bloc/boosts_cubit.dart';
 // Events feature
 import '../features/events/data/datasources/events_remote_datasource.dart';
 import '../features/events/data/datasources/events_supabase_datasource.dart';
+import '../features/events/data/datasources/ticket_resale_datasource.dart';
 import '../features/events/data/repositories/events_repository_impl.dart';
 import '../features/events/domain/repositories/events_repository.dart';
 import '../features/events/domain/usecases/get_events_usecase.dart';
@@ -75,8 +80,10 @@ import '../features/events/domain/usecases/get_event_detail_usecase.dart';
 import '../features/events/domain/usecases/get_user_tickets_usecase.dart';
 import '../features/events/domain/usecases/create_order_usecase.dart';
 import '../features/events/domain/usecases/process_payment_usecase.dart';
+import '../features/events/domain/usecases/create_event_usecase.dart';
 import '../features/events/presentation/bloc/events_cubit.dart';
 import '../features/events/presentation/bloc/tickets_cubit.dart';
+import '../features/events/presentation/bloc/create_event_cubit.dart';
 
 // Explore feature
 import '../features/explore/data/datasources/businesses_remote_datasource.dart';
@@ -167,6 +174,8 @@ Future<void> init() async {
   sl.registerLazySingleton<LocationService>(() => LocationService());
   sl.registerLazySingleton<ImagePickerService>(() => ImagePickerService());
   sl.registerLazySingleton<PermissionService>(() => PermissionService());
+  sl.registerLazySingleton<StorageService>(() => StorageService());
+  sl.registerLazySingleton<RevenueCatService>(() => RevenueCatService());
 
   // Features - Auth (Supabase only)
   sl.registerLazySingleton<AuthRemoteDataSource>(
@@ -192,6 +201,8 @@ Future<void> init() async {
   sl.registerLazySingleton(() => LoginAsGuestUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => SignInWithGoogleUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => ResendVerificationEmailUseCase(sl<AuthRepository>()));
+  sl.registerLazySingleton(() => ResetPasswordForEmailUseCase(sl<AuthRepository>()));
+  sl.registerLazySingleton(() => UpdatePasswordUseCase(sl<AuthRepository>()));
 
   // Features - Splash (Supabase only)
   sl.registerLazySingleton<SplashRepository>(
@@ -292,6 +303,7 @@ Future<void> init() async {
   sl.registerLazySingleton<EventsRemoteDataSource>(
     () => EventsSupabaseDataSource(),
   );
+  sl.registerLazySingleton<TicketResaleDatasource>(() => TicketResaleDatasource());
 
   // Repositories
   sl.registerLazySingleton<EventsRepository>(
@@ -304,8 +316,10 @@ Future<void> init() async {
   sl.registerLazySingleton(() => GetUserTicketsUseCase(sl<EventsRepository>()));
   sl.registerLazySingleton(() => CreateOrderUseCase(sl<EventsRepository>()));
   sl.registerLazySingleton(() => ProcessPaymentUseCase(sl<EventsRepository>()));
+  sl.registerLazySingleton(() => CreateEventUseCase(sl<EventsRepository>()));
 
   // Cubits
+  sl.registerFactory(() => CreateEventCubit(sl<CreateEventUseCase>()));
   sl.registerFactory(() => EventsCubit(
     getEventsUseCase: sl<GetEventsUseCase>(),
     getEventDetailUseCase: sl<GetEventDetailUseCase>(),

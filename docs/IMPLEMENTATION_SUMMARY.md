@@ -1,218 +1,152 @@
-# Implementation Summary: Assets, Splash Screen & Onboarding
+# Implementation Summary – Habra Mobile App
 
-This document summarizes the implementation of centralized asset management, splash screen, and onboarding features.
-
-## ✅ What Was Implemented
-
-### 1. Centralized Asset Management System
-- **Location**: `lib/core/resources/app_assets.dart`
-- **Purpose**: Single source of truth for all asset paths
-- **Benefits**:
-  - Easy to update asset paths in one place
-  - Type-safe asset references
-  - Prevents typos and path errors
-
-### 2. Common App Resources
-- **Location**: `lib/core/resources/app_resources.dart`
-- **Contains**:
-  - Standard spacing values
-  - Border radius constants
-  - Icon sizes
-  - Button heights
-  - Animation durations
-  - Text styles helpers
-
-### 3. Updated Brand Colors
-- **Location**: `lib/core/theme/app_colors.dart`
-- **Changes**:
-  - Added brand primary color (Dark Green #1B5E20)
-  - Added brand secondary color (Golden Brown #D4A574)
-  - Updated theme to use brand colors
-  - Added progress indicator colors
-
-### 4. Splash Screen Feature
-Following Clean Architecture:
-- **Domain Layer**:
-  - `entities/splash_status.dart` - Splash status entity
-  - `repositories/splash_repository.dart` - Repository interface
-  - `usecases/get_splash_status_usecase.dart` - Business logic
-- **Data Layer**:
-  - `repositories/splash_repository_impl.dart` - Repository implementation
-- **Presentation Layer**:
-  - `bloc/splash_cubit.dart` - State management
-  - `bloc/splash_state.dart` - State classes
-  - `pages/splash_page.dart` - UI with animations
-
-**Features**:
-- Animated logo display
-- Checks onboarding completion status
-- Checks authentication status
-- Navigates to appropriate screen based on status
-
-### 5. Onboarding Feature
-Following Clean Architecture:
-- **Domain Layer**:
-  - `entities/onboarding_page_data.dart` - Page data entity
-  - `repositories/onboarding_repository.dart` - Repository interface
-  - `usecases/complete_onboarding_usecase.dart` - Business logic
-- **Data Layer**:
-  - `repositories/onboarding_repository_impl.dart` - Repository implementation
-- **Presentation Layer**:
-  - `bloc/onboarding_cubit.dart` - State management
-  - `bloc/onboarding_state.dart` - State classes
-  - `pages/onboarding_page.dart` - UI with 3 pages
-
-**Features**:
-- 3 onboarding screens with illustrations
-- Progress indicators
-- Skip/Close functionality
-- Smooth page transitions
-- Saves completion status to local storage
-
-## 📁 File Structure
-
-```
-lib/
-├── core/
-│   ├── resources/
-│   │   ├── app_assets.dart          # Centralized asset paths
-│   │   └── app_resources.dart       # Common resources (spacing, durations, etc.)
-│   └── theme/
-│       ├── app_colors.dart          # Updated with brand colors
-│       └── app_theme.dart           # Updated theme
-│
-├── features/
-│   ├── splash/
-│   │   ├── domain/
-│   │   │   ├── entities/
-│   │   │   ├── repositories/
-│   │   │   └── usecases/
-│   │   ├── data/
-│   │   │   └── repositories/
-│   │   └── presentation/
-│   │       ├── bloc/
-│   │       └── pages/
-│   │
-│   └── onboarding/
-│       ├── domain/
-│       │   ├── entities/
-│       │   ├── repositories/
-│       │   └── usecases/
-│       ├── data/
-│       │   └── repositories/
-│       └── presentation/
-│           ├── bloc/
-│           └── pages/
-│
-└── injection/
-    └── injection_container.dart     # Updated with new dependencies
-```
-
-## 🔄 App Flow
-
-1. **App Launch** → Splash Screen
-2. **Splash Screen** checks:
-   - Has user completed onboarding?
-   - Is user authenticated?
-3. **Navigation**:
-   - If onboarding not completed → Onboarding Flow
-   - If authenticated → Home Screen
-   - Otherwise → Login Screen
-4. **Onboarding** → After completion → Login Screen
-
-## 📦 Dependencies Added
-
-No new dependencies were required. All features use existing packages:
-- `flutter_bloc` - State management
-- `shared_preferences` - Local storage
-- `equatable` - Value equality
-- `dartz` - Either pattern for error handling
-
-## 🎨 Asset Requirements
-
-See `ASSETS_GUIDE.md` for complete asset requirements. Required assets:
-
-1. **Logos**:
-   - `assets/logos/app_logo.png`
-   - `assets/logos/splash_logo.png`
-
-2. **Onboarding Illustrations**:
-   - `assets/images/onboarding/onboarding_1_music_festival.png`
-   - `assets/images/onboarding/onboarding_2_coffee_shop.png`
-   - `assets/images/onboarding/onboarding_3_grow_together.png`
-
-3. **Icons**:
-   - `assets/icons/ic_close.png`
-
-## 🚀 Next Steps
-
-1. **Add Assets**:
-   - Download assets from Figma
-   - Place them in the specified directories (see `ASSETS_GUIDE.md`)
-   - Ensure file names match exactly
-
-2. **Test the Flow**:
-   - Run the app
-   - Verify splash screen appears
-   - Complete onboarding flow
-   - Verify navigation works correctly
-
-3. **Customize** (if needed):
-   - Adjust splash screen duration in `AppResources.splashScreenDuration`
-   - Modify onboarding page content in `onboarding_page.dart`
-   - Update colors in `app_colors.dart`
-
-## 🔧 Configuration
-
-### Splash Screen Duration
-Edit `lib/core/resources/app_resources.dart`:
-```dart
-static const Duration splashScreenDuration = Duration(seconds: 3);
-```
-
-### Onboarding Pages
-Edit `lib/features/onboarding/presentation/pages/onboarding_page.dart`:
-```dart
-final List<OnboardingPageData> _pages = [
-  // Modify or add pages here
-];
-```
-
-### Asset Paths
-Edit `lib/core/resources/app_assets.dart`:
-```dart
-static const String newAsset = '$_imagesPath/new_asset.png';
-```
-
-## 📝 Notes
-
-- All features follow Clean Architecture principles
-- State management uses Cubit pattern
-- Error handling uses Either pattern (Dartz)
-- Local storage is used for persistence
-- All navigation is handled through MaterialPageRoute
-- Assets have fallback widgets if not found
-
-## 🐛 Troubleshooting
-
-### Assets Not Showing
-- Check `pubspec.yaml` has asset directories listed
-- Verify file names match exactly (case-sensitive)
-- Run `flutter clean` and rebuild
-
-### Navigation Issues
-- Ensure all BlocProviders are registered in `main.dart`
-- Check dependency injection in `injection_container.dart`
-- Verify routes are correct
-
-### Onboarding Not Saving
-- Check `StorageKeys.hasCompletedOnboarding` is defined
-- Verify LocalStorage is working
-- Check for errors in console
+This document summarizes the features implemented in this session.
 
 ---
 
-**Implementation Date**: Current
-**Architecture**: Clean Architecture
-**State Management**: Cubit/Bloc
-**Status**: ✅ Complete and Ready for Assets
+## 1. Event Creation (Business Owner)
+
+**Status:** Implemented
+
+- **Create Event Page** (`lib/features/events/presentation/pages/create_event_page.dart`)
+  - Full form: title, description, venue, address, date/time, category, image upload
+  - Multiple ticket types (name, price, quantity)
+  - Image upload to Supabase `events` bucket
+- **Create Event** flow wired to Supabase (`events`, `event_tickets` tables)
+- **Quick action** on Business Owner Home: "Create Event" button
+- **New files:** `CreateEventData`, `CreateEventUseCase`, `CreateEventCubit`, `CreateEventState`
+
+---
+
+## 2. Boost / Advertisement (Business Owner)
+
+**Status:** Fixed and integrated
+
+- **Boost plans** loaded from Supabase `boost_plans` (price_cents, duration_weeks)
+- **Submit boost order** persists to `boosts` table
+- **Duration** uses `duration_weeks` (schema-aligned)
+- **Migration:** `add_boosts_auto_renew.sql` for `auto_renew` column
+
+---
+
+## 3. RevenueCat Payment Integration
+
+**Status:** Service added, ready for configuration
+
+- **RevenueCatService** (`lib/core/services/revenue_cat_service.dart`)
+  - `initialize()`, `getOfferings()`, `purchasePackage()`, `hasEntitlement()`
+- **Setup guide:** `docs/REVENUECAT_SETUP.md`
+- **Package:** `purchases_flutter: ^8.0.0` in `pubspec.yaml`
+- **Checkout UI:** "Secured by Stripe" replaced with "Secured payment"
+- **Note:** Add API keys in `main.dart` or via env vars (see `REVENUECAT_SETUP.md`)
+
+---
+
+## 4. Review Photo Upload
+
+**Status:** Implemented
+
+- **WriteReviewPage** uploads photos to Supabase `reviews` bucket
+- **StorageService** used for multi-image upload
+- **`image_urls`** array passed to `writeReview` and stored in `reviews` table
+
+---
+
+## 5. Deal Image Upload
+
+**Status:** Implemented
+
+- **Create Deal Page** image picker added
+- **Image upload** to Supabase `deals` bucket before creating deal
+- **`valid_from` / `valid_until`** default to now and now+7 days when empty (schema NOT NULL)
+
+---
+
+## 6. Ticket Reselling
+
+**Status:** Implemented (list for sale)
+
+- **Ticket listings** table: `docs/supabase/migrations/add_ticket_listings.sql`
+- **TicketResaleDatasource** for `listTicketForSale`, `cancelListing`
+- **ListTicketSheet** bottom sheet: set asking price and list ticket
+- **"Sell" button** on My Tickets page
+- **Note:** Buying resale tickets (browse + purchase) is not implemented yet
+
+---
+
+## 7. Storage & Infrastructure
+
+- **StorageService** (`lib/core/services/storage_service.dart`) for image uploads
+- **Supabase buckets:** `events`, `reviews` added to `SupabaseBuckets`
+- **Supabase table:** `ticket_listings` added to `SupabaseTables`
+
+---
+
+## Commands to Run
+
+1. **Install dependencies**
+   ```bash
+   flutter pub get
+   ```
+
+2. **Run migrations** (if using Supabase CLI)
+   ```bash
+   supabase db push
+   ```
+   Or run manually:
+   - `docs/supabase/migrations/add_boosts_auto_renew.sql`
+   - `docs/supabase/migrations/add_ticket_listings.sql`
+
+3. **Create storage buckets** in Supabase Dashboard (if missing):
+   - `events`
+   - `reviews`
+   - Set RLS policies for authenticated uploads
+
+4. **Analyze**
+   ```bash
+   flutter analyze
+   ```
+
+5. **Run app**
+   ```bash
+   flutter run
+   ```
+
+---
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| `lib/features/events/domain/entities/create_event_data.dart` | Event creation payload |
+| `lib/features/events/domain/usecases/create_event_usecase.dart` | Create event use case |
+| `lib/features/events/presentation/bloc/create_event_cubit.dart` | Create event cubit |
+| `lib/features/events/presentation/bloc/create_event_state.dart` | Create event states |
+| `lib/features/events/presentation/pages/create_event_page.dart` | Create event UI |
+| `lib/features/events/presentation/widgets/list_ticket_sheet.dart` | Sell ticket sheet |
+| `lib/features/events/data/datasources/ticket_resale_datasource.dart` | Ticket resale API |
+| `lib/core/services/storage_service.dart` | Image upload service |
+| `lib/core/services/revenue_cat_service.dart` | RevenueCat wrapper |
+| `docs/supabase/migrations/add_boosts_auto_renew.sql` | Boosts migration |
+| `docs/supabase/migrations/add_ticket_listings.sql` | Ticket listings migration |
+| `docs/REVENUECAT_SETUP.md` | RevenueCat setup guide |
+| `docs/IMPLEMENTATION_SUMMARY.md` | This summary |
+
+---
+
+## Files Modified
+
+- `pubspec.yaml` – `purchases_flutter`, `SupabaseBuckets`
+- `lib/core/constants/supabase_tables.dart` – `events`, `reviews`, `ticket_listings`
+- `lib/features/events/data/datasources/events_remote_datasource.dart` – `createEvent`
+- `lib/features/events/data/datasources/events_supabase_datasource.dart` – `createEvent`
+- `lib/features/events/domain/repositories/events_repository.dart` – `createEvent`
+- `lib/features/events/data/repositories/events_repository_impl.dart` – `createEvent`
+- `lib/features/boosts/data/datasources/boosts_supabase_datasource.dart` – `duration_weeks`
+- `lib/features/dashboard/data/datasources/dashboard_supabase_datasource.dart` – `getBoostPlans` (price_cents, duration_weeks)
+- `lib/features/dashboard/presentation/pages/create_deal_page.dart` – image upload, valid dates
+- `lib/features/explore/presentation/pages/write_review_page.dart` – photo upload
+- `lib/features/events/presentation/pages/checkout_page.dart` – payment label
+- `lib/features/events/presentation/pages/my_tickets_page.dart` – Sell button
+- `lib/features/home/presentation/pages/business_owner_home_page.dart` – Create Event action
+- `lib/injection/injection_container.dart` – new dependencies

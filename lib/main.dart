@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:habra_mobile_app/features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 import 'package:habra_mobile_app/l10n/app_localizations.dart';
-
+import 'core/services/revenue_cat_service.dart';
 import 'injection/injection_container.dart' as di;
 import 'core/supabase/supabase_config.dart';
 import 'core/theme/app_theme.dart';
@@ -15,6 +15,9 @@ import 'features/auth/domain/usecases/logout_usecase.dart';
 import 'features/auth/domain/usecases/register_usecase.dart';
 import 'features/auth/domain/usecases/login_as_guest_usecase.dart';
 import 'features/auth/domain/usecases/resend_verification_email_usecase.dart';
+import 'features/auth/domain/usecases/reset_password_for_email_usecase.dart';
+import 'features/auth/domain/usecases/update_password_usecase.dart';
+import 'features/auth/presentation/widgets/auth_deep_link_handler.dart';
 import 'features/splash/presentation/pages/splash_page.dart';
 import 'features/splash/presentation/bloc/splash_cubit.dart';
 import 'features/splash/domain/usecases/get_splash_status_usecase.dart';
@@ -33,7 +36,10 @@ void main() async {
 
   // Initialize Dependency Injection
   await di.init();
-
+await di.sl<RevenueCatService>().initialize(
+  androidApiKey: 'goog_nHVKdWnjfioxqUPHHWyqNCHGyje', // sandbox
+  iosApiKey: 'appl_QiOyMwzXQMBXebSnUfYYwXxJtgg',
+);
   runApp(const MyApp());
 }
 
@@ -55,6 +61,8 @@ class MyApp extends StatelessWidget {
             loginAsGuestUseCase: di.sl<LoginAsGuestUseCase>(),
             signInWithGoogleUseCase: di.sl<SignInWithGoogleUseCase>(),
             resendVerificationEmailUseCase: di.sl<ResendVerificationEmailUseCase>(),
+            resetPasswordForEmailUseCase: di.sl<ResetPasswordForEmailUseCase>(),
+            updatePasswordUseCase: di.sl<UpdatePasswordUseCase>(),
           ),
         ),
         BlocProvider(
@@ -89,8 +97,8 @@ class MyApp extends StatelessWidget {
                 ],
                 supportedLocales: context.read<LocalizationCubit>().supportedLocales,
 
-                // Home - Start with splash screen
-                home: const SplashPage(),
+                // Home - AuthDeepLinkHandler listens for password recovery links
+                home: const AuthDeepLinkHandler(child: SplashPage()),
               );
             },
           );

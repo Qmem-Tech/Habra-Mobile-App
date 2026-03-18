@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../domain/entities/create_event_data.dart';
 import '../../domain/entities/event_list_item.dart';
 import '../../domain/entities/event_detail.dart';
 import '../../domain/entities/event_filters.dart';
@@ -115,6 +116,18 @@ class EventsRepositoryImpl implements EventsRepository {
         promoCode: promoCode,
       );
       return Right(order);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, EventDetail>> createEvent(CreateEventData data) async {
+    try {
+      final event = await remoteDataSource.createEvent(data);
+      return Right(event);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {

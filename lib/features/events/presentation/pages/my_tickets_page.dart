@@ -6,6 +6,7 @@ import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/ticket.dart';
 import '../bloc/tickets_cubit.dart';
 import '../bloc/tickets_state.dart';
+import '../widgets/list_ticket_sheet.dart';
 import 'ticket_detail_page.dart';
 import 'package:intl/intl.dart';
 
@@ -290,7 +291,21 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                     ),
                     const SizedBox(width: 8),
                     OutlinedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        final ctx = context;
+                        showModalBottomSheet(
+                          context: ctx,
+                          builder: (_) => ListTicketSheet(
+                            ticketId: ticket.ticketId,
+                            ticketTypeName: ticket.ticketTypeName,
+                            eventTitle: ticket.event.title,
+                          ),
+                        ).then((result) {
+                          if (result == true && ctx.mounted) {
+                            ctx.read<TicketsCubit>().loadUserTickets(upcomingOnly: _isUpcoming);
+                          }
+                        });
+                      },
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: AppColors.brandPrimary),
                         foregroundColor: AppColors.brandPrimary,
@@ -300,7 +315,7 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                         ),
                       ),
                       child: const Text(
-                        'Directions',
+                        'Sell',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,

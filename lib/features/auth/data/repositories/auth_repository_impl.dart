@@ -138,6 +138,38 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, void>> resetPasswordForEmail(String email) async {
+    if (await networkInfo.isConnected) {
+      try {
+        await remoteDataSource.resetPasswordForEmail(email);
+        return const Right(null);
+      } on ServerException catch (e) {
+        return Left(ServerFailure(e.message));
+      } on AuthException catch (e) {
+        return Left(AuthFailure(e.message));
+      }
+    } else {
+      return const Left(NetworkFailure('No Internet Connection'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updatePassword(String newPassword) async {
+    if (await networkInfo.isConnected) {
+      try {
+        await remoteDataSource.updatePassword(newPassword);
+        return const Right(null);
+      } on ServerException catch (e) {
+        return Left(ServerFailure(e.message));
+      } on AuthException catch (e) {
+        return Left(AuthFailure(e.message));
+      }
+    } else {
+      return const Left(NetworkFailure('No Internet Connection'));
+    }
+  }
+
+  @override
   Future<Either<Failure, User?>> getCurrentUser() async {
     try {
       final user = await localDataSource.getCachedUser();
