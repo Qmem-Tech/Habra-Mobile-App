@@ -25,6 +25,9 @@ import '../../../events/presentation/pages/create_event_page.dart';
 import '../../../dashboard/presentation/pages/job_applicants_page.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../dashboard/presentation/widgets/business_images_upload_dialog.dart';
+import '../../../dashboard/presentation/widgets/choose_business_for_images_dialog.dart';
+import '../../../dashboard/presentation/widgets/choose_business_for_legal_docs_dialog.dart';
+import '../../../dashboard/presentation/widgets/legal_documents_upload_dialog.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import 'business_owner_notification_page.dart';
 import 'business_locations_page.dart';
@@ -42,6 +45,7 @@ class BusinessOwnerHomePage extends StatefulWidget {
 class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _imagesDialogShownThisSession = false;
+  bool _legalDocsDialogShownThisSession = false;
 
   @override
   void initState() {
@@ -52,49 +56,117 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         );
   }
 
-  void _checkAndShowImagesDialog(
+  /// Shows post-login dialogs in sequence: images first, then legal documents.
+  void _checkAndShowPostLoginDialogs(
     BuildContext context,
     BusinessOwnerHomeLoaded state,
   ) {
-    if (_imagesDialogShownThisSession) return;
+    if (_imagesDialogShownThisSession && _legalDocsDialogShownThisSession) return;
+
+    final businesses = state.presences.where((p) => p.id != 'all').toList();
+    if (businesses.isEmpty) return;
 
     final presencesNeedingImages = state.presences
         .where((p) => p.id != 'all' && !p.hasRequiredImages)
         .toList();
 
-    if (presencesNeedingImages.isEmpty) return;
-
-    final presence = state.selectedPresence != null &&
-            state.selectedPresence!.id != 'all' &&
-            !state.selectedPresence!.hasRequiredImages
-        ? state.selectedPresence!
-        : presencesNeedingImages.first;
-
-    _imagesDialogShownThisSession = true;
-
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!context.mounted) return;
+
+      // Step 1: Images dialog (if needed)
+      if (!_imagesDialogShownThisSession && presencesNeedingImages.isNotEmpty) {
+        _imagesDialogShownThisSession = true;
+
+        final selected = await showDialog<BusinessPresence>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => ChooseBusinessForImagesDialog(presences: businesses),
+        );
+
+        if (!context.mounted) return;
+
+        if (selected != null) {
+          if (selected.hasRequiredImages) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${selected.displayName} already has logo and cover photo.'),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          } else {
+            final result = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => BlocProvider.value(
+                value: context.read<DashboardCubit>(),
+                child: BusinessImagesUploadDialog(
+                  businessId: selected.id,
+                  businessName: selected.name,
+                  initialLogoUrl: selected.logoUrl,
+                  initialBackgroundUrl: selected.backgroundUrl,
+                ),
+              ),
+            );
+            if (!context.mounted) return;
+            if (result == true) {
+              context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
+                    ownerId: widget.user.id,
+                    showSetupIncomplete: false,
+                  );
+            }
+          }
+        }
+      }
+
+      if (!context.mounted) return;
+
+      // Step 2: Legal documents dialog (if needed)
+      if (_legalDocsDialogShownThisSession) return;
+
+      _legalDocsDialogShownThisSession = true; // Claim early to avoid duplicate on reload
+
+      List<String> idsNeedingDocs;
+      try {
+        idsNeedingDocs = await context.read<DashboardCubit>().getBusinessIdsNeedingLegalDocs(widget.user.id);
+      } catch (_) {
+        if (!context.mounted) return;
+        _legalDocsDialogShownThisSession = false; // Allow retry on next load
+        return;
+      }
+
+      if (!context.mounted) return;
+      if (idsNeedingDocs.isEmpty) return;
+
+      final presencesNeedingDocs = businesses.where((p) => idsNeedingDocs.contains(p.id)).toList();
+      if (presencesNeedingDocs.isEmpty) return;
+
+      final selected = await showDialog<BusinessPresence>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => ChooseBusinessForLegalDocsDialog(presences: presencesNeedingDocs),
+      );
+
+      if (!context.mounted) return;
+
+      if (selected == null) return;
+
       final result = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (_) => BlocProvider.value(
           value: context.read<DashboardCubit>(),
-          child: BusinessImagesUploadDialog(
-            businessId: presence.id,
-            businessName: presence.name,
-            initialLogoUrl: presence.logoUrl,
-            initialBackgroundUrl: presence.backgroundUrl,
+          child: LegalDocumentsUploadDialog(
+            businessId: selected.id,
+            businessName: selected.name,
           ),
         ),
       );
-      if (result == true && context.mounted) {
-        _imagesDialogShownThisSession = false;
+      if (!context.mounted) return;
+      if (result == true) {
         context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
               ownerId: widget.user.id,
               showSetupIncomplete: false,
             );
-      } else {
-        _imagesDialogShownThisSession = false;
       }
     });
   }
@@ -117,10 +189,14 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
             onEditBusinessTap: () {
               if (selectedPresence != null && selectedPresence.id != 'all') {
+                final dashboardCubit = context.read<DashboardCubit>();
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => EditBusinessPage(business: selectedPresence),
+                    builder: (_) => BlocProvider<DashboardCubit>.value(
+                      value: dashboardCubit,
+                      child: EditBusinessPage(business: selectedPresence),
+                    ),
                   ),
                 );
               } else {
@@ -166,7 +242,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
               return _buildErrorView(state.message);
             }
             if (state is BusinessOwnerHomeLoaded) {
-              _checkAndShowImagesDialog(context, state);
+              _checkAndShowPostLoginDialogs(context, state);
               if (state.isSetupIncomplete) {
                 return _buildSetupIncompleteView(state);
               }
@@ -585,21 +661,39 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         case SetupTaskId.completeProfile:
           final presence = state.selectedPresence;
           if (presence != null && presence.id != 'all') {
-            onTap = () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => EditBusinessPage(business: presence),
-              ),
-            );
+            onTap = () {
+              final dashboardCubit = context.read<DashboardCubit>();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider<DashboardCubit>.value(
+                    value: dashboardCubit,
+                    child: EditBusinessPage(business: presence),
+                  ),
+                ),
+              );
+            };
           }
           break;
         case SetupTaskId.postFirstDeal:
           final presence = state.selectedPresence;
           if (presence != null && presence.id != 'all') {
-            onTap = () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CreateDealPage()),
-            );
+            onTap = () {
+              final dashboardCubit = context.read<DashboardCubit>();
+              final homeCubit = context.read<BusinessOwnerHomeCubit>();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MultiBlocProvider(
+                    providers: [
+                      BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+                      BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+                    ],
+                    child: const CreateDealPage(),
+                  ),
+                ),
+              );
+            };
           }
           break;
         case SetupTaskId.shareListing:
@@ -952,13 +1046,22 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
 
     final actions = [
       (Icons.event, 'Create Event', AppColors.brandPrimary, () async {
-        final cubit = context.read<BusinessOwnerHomeCubit>();
+        final dashboardCubit = context.read<DashboardCubit>();
+        final homeCubit = context.read<BusinessOwnerHomeCubit>();
         await Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const CreateEventPage()),
+          MaterialPageRoute(
+            builder: (_) => MultiBlocProvider(
+              providers: [
+                BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+                BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+              ],
+              child: const CreateEventPage(),
+            ),
+          ),
         );
         if (!context.mounted) return;
-        cubit.loadOwnerHome(ownerId: widget.user.id);
+        homeCubit.loadOwnerHome(ownerId: widget.user.id);
       }),
       (Icons.sell, 'Post Deal', AppColors.textPrimary, () async {
         if (!hasSpecificBusiness) {
@@ -967,13 +1070,22 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           );
           return;
         }
-        final cubit = context.read<BusinessOwnerHomeCubit>();
+        final dashboardCubit = context.read<DashboardCubit>();
+        final homeCubit = context.read<BusinessOwnerHomeCubit>();
         await Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const CreateDealPage()),
+          MaterialPageRoute(
+            builder: (_) => MultiBlocProvider(
+              providers: [
+                BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+                BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+              ],
+              child: const CreateDealPage(),
+            ),
+          ),
         );
         if (!context.mounted) return;
-        cubit.loadOwnerHome(ownerId: widget.user.id);
+        homeCubit.loadOwnerHome(ownerId: widget.user.id);
       }),
       (Icons.work_outline, 'Post Job', AppColors.textPrimary, () async {
         if (!hasSpecificBusiness) {

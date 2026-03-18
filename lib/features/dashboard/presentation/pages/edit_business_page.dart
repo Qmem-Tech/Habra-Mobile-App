@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/file_utils.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/services/image_picker_service.dart';
 import '../../../../core/services/storage_service.dart';
@@ -41,9 +42,9 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
     super.initState();
     _nameController = TextEditingController(text: widget.business.name);
     _descriptionController = TextEditingController(text: widget.business.category);
-    _phoneController = TextEditingController();
-    _emailController = TextEditingController();
-    _websiteController = TextEditingController();
+    _phoneController = TextEditingController(text: widget.business.phone ?? '');
+    _emailController = TextEditingController(text: widget.business.email ?? '');
+    _websiteController = TextEditingController(text: widget.business.website ?? '');
     _streetController = TextEditingController(text: widget.business.locationName ?? '');
     _cityController = TextEditingController(text: widget.business.city ?? '');
     _stateController = TextEditingController(text: widget.business.state ?? '');
@@ -80,6 +81,20 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
       return;
     }
     final ctx = context;
+    for (final f in [_logoFile, _backgroundFile]) {
+      if (f != null) {
+        final size = await f.length();
+        if (size > FileUtils.maxImageBytes) {
+          ErrorDisplayHelper.show(
+            ctx,
+            message: 'Image is ${FileUtils.formatFileSize(size)}. Max 5 MB per file.',
+            title: 'File too large',
+          );
+          return;
+        }
+      }
+    }
+
     final cubit = ctx.read<DashboardCubit>();
     LoaderHelper.show(ctx, message: 'Saving...');
 
@@ -224,11 +239,44 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
                 border: Border.all(color: AppColors.backgroundGrey),
               ),
               child: hasImage
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(AppResources.radiusM),
-                      child: file != null
-                          ? Image.file(file, fit: BoxFit.cover)
-                          : Image.network(url!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image)),
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(AppResources.radiusM),
+                          child: file != null
+                              ? Image.file(file, fit: BoxFit.cover)
+                              : Image.network(url!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image)),
+                        ),
+                        if (file != null)
+                          Positioned(
+                            bottom: 4,
+                            left: 4,
+                            child: FutureBuilder<int>(
+                              future: file!.length(),
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData) return const SizedBox.shrink();
+                                final bytes = snapshot.data!;
+                                final overLimit = bytes > FileUtils.maxImageBytes;
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${FileUtils.formatFileSize(bytes)} / 5 MB',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: overLimit ? AppColors.error : Colors.white,
+                                      fontWeight: overLimit ? FontWeight.w600 : FontWeight.normal,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
                     )
                   : const Center(child: Icon(Icons.add_photo_alternate, color: AppColors.textTertiary)),
             ),

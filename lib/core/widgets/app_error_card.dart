@@ -11,12 +11,15 @@ class AppErrorCard extends StatelessWidget {
     super.key,
     required this.message,
     this.title = 'Something went wrong',
+    this.detailText,
     this.onRetry,
     this.onDismiss,
   });
 
   final String message;
   final String title;
+  /// Optional technical detail (e.g. raw error). Shown when non-null for debugging.
+  final String? detailText;
   final VoidCallback? onRetry;
   final VoidCallback? onDismiss;
 
@@ -85,6 +88,23 @@ class AppErrorCard extends StatelessWidget {
                             height: 1.4,
                           ),
                         ),
+                        if (detailText != null && detailText!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.backgroundLight,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              detailText!,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

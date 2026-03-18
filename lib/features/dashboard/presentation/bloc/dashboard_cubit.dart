@@ -158,6 +158,15 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
+  Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId) =>
+      _repository.getLegalDocumentsStatus(businessId);
+
+  Future<void> uploadLegalDocument(String businessId, String documentType, String fileUrl, {String? fileName}) =>
+      _repository.uploadLegalDocument(businessId, documentType, fileUrl, fileName: fileName);
+
+  Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId) =>
+      _repository.getBusinessIdsNeedingLegalDocs(ownerId);
+
   Future<String?> createBusiness(
       String ownerId, Map<String, dynamic> data) async {
     try {

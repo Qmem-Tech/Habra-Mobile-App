@@ -25,6 +25,25 @@ abstract class DashboardRepository {
   Future<void> updateBusinessHours(String businessId, Map<String, dynamic> hours);
   Future<Map<String, String?>?> getBusinessHours(String businessId);
   Future<String> createBusiness(String ownerId, Map<String, dynamic> data);
+  Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId);
+  Future<void> uploadLegalDocument(String businessId, String documentType, String fileUrl, {String? fileName});
+  Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId);
+}
+
+/// Status of legal documents for a business.
+class LegalDocumentsStatus {
+  final int uploadedCount;
+  final int approvedCount;
+  final bool hasRejected;
+
+  const LegalDocumentsStatus({
+    required this.uploadedCount,
+    required this.approvedCount,
+    this.hasRejected = false,
+  });
+
+  bool get hasRequiredUploaded => uploadedCount >= 2;
+  bool get isFullyApproved => approvedCount >= 2;
 }
 
 /// Rating overview for reviews tab.

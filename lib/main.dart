@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:habra_mobile_app/features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 import 'package:habra_mobile_app/l10n/app_localizations.dart';
+import 'core/services/push_notification_service.dart';
 import 'core/services/revenue_cat_service.dart';
 import 'injection/injection_container.dart' as di;
 import 'core/supabase/supabase_config.dart';
@@ -36,6 +37,9 @@ void main() async {
 
   // Initialize Dependency Injection
   await di.init();
+
+  // Push notifications - no-op until Firebase is configured (see PUSH_NOTIFICATIONS_SETUP.md)
+  await di.sl<PushNotificationService>().initialize();
 await di.sl<RevenueCatService>().initialize(
   androidApiKey: 'goog_nHVKdWnjfioxqUPHHWyqNCHGyje', // sandbox
   iosApiKey: 'appl_QiOyMwzXQMBXebSnUfYYwXxJtgg',

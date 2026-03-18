@@ -67,10 +67,14 @@ class _BoostsPageState extends State<BoostsPage> {
                 onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
                 onEditBusinessTap: () {
                   if (selected != null && selected.id != 'all') {
+                    final dashboardCubit = context.read<DashboardCubit>();
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => EditBusinessPage(business: selected),
+                        builder: (_) => BlocProvider<DashboardCubit>.value(
+                          value: dashboardCubit,
+                          child: EditBusinessPage(business: selected),
+                        ),
                       ),
                     );
                   }

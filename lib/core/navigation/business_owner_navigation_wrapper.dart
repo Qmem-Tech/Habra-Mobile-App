@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../theme/app_colors.dart';
-import '../../injection/injection_container.dart';
+import '../../core/services/push_notification_service.dart';
+import '../../injection/injection_container.dart' as di;
 import '../../features/home/presentation/pages/business_owner_home_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/boosts/presentation/bloc/boosts_cubit.dart';
@@ -43,6 +44,7 @@ class _BusinessOwnerNavigationWrapperState
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
+    di.sl<PushNotificationService>().registerTokenForUser(widget.user.id);
   }
 
   @override
@@ -94,7 +96,7 @@ class _BusinessOwnerNavigationWrapperState
           BusinessOwnerHomePage(user: widget.user),
           DashboardPage(user: widget.user, initialTabIndex: _pendingDashboardTab),
           BlocProvider(
-            create: (_) => sl<BoostsCubit>(),
+            create: (_) => di.sl<BoostsCubit>(),
             child: BoostsPage(user: widget.user),
           ),
           ProfilePage(user: widget.user),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../core/services/push_notification_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../injection/injection_container.dart' as di;
 import '../../core/navigation/main_nav_scope.dart';
 import '../../features/auth/domain/entities/user.dart';
 import '../../features/events/presentation/pages/events_page.dart';
@@ -52,6 +54,9 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
+    if (widget.userId != null) {
+      di.sl<PushNotificationService>().registerTokenForUser(widget.userId!);
+    }
   }
 
   @override

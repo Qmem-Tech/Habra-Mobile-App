@@ -21,6 +21,8 @@ class SupabaseTables {
   static const String savedItems = 'saved_items';
   static const String categories = 'categories';
   static const String businessCategories = 'business_categories';
+  static const String businessLegalDocuments = 'business_legal_documents';
+  static const String notifications = 'notifications';
 }
 
 /// Supabase storage bucket names.
@@ -33,4 +35,5 @@ class SupabaseBuckets {
   static const String events = 'events';
   static const String reviews = 'reviews';
   static const String applicantPhotos = 'applicant_photos';
+  static const String legalDocuments = 'legal_documents';
 }

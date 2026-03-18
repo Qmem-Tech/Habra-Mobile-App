@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'app_error_card.dart';
 
@@ -33,6 +34,7 @@ class ErrorDisplayHelper {
   }) {
     final userMessage = message ?? _toUserFriendlyMessage(error);
     final userTitle = title ?? 'Something went wrong';
+    final detailText = (error != null && kDebugMode) ? error.toString() : null;
 
     showDialog<void>(
       context: context,
@@ -42,6 +44,7 @@ class ErrorDisplayHelper {
       builder: (ctx) => AppErrorCard(
         title: userTitle,
         message: userMessage,
+        detailText: detailText,
         onRetry: onRetry,
         onDismiss: () {},
       ),
@@ -62,19 +65,22 @@ class ErrorDisplayHelper {
       return 'Check your internet connection and try again.';
     }
 
-    // Auth
+    // Storage / upload – check BEFORE auth; Supabase Storage RLS failures often return "unauthorized"
+    // even when the user is signed in, so we prioritise storage messages for upload flows
+    if (str.contains('upload') ||
+        str.contains('storage') ||
+        str.contains('permission') ||
+        str.contains('bucket') ||
+        str.contains('row-level security') ||
+        str.contains('policy')) {
+      return 'We couldn\'t upload your file. Check that the file is under 5MB and try again.';
+    }
+
+    // Auth (only when not a storage error)
     if (str.contains('unauthorized') ||
         str.contains('not authenticated') ||
         str.contains('session')) {
       return 'Please sign in again.';
-    }
-
-    // Storage / upload
-    if (str.contains('upload') ||
-        str.contains('storage') ||
-        str.contains('permission') ||
-        str.contains('bucket')) {
-      return 'We couldn\'t upload your file. Check that the file is under 5MB and try again.';
     }
 
     // File size

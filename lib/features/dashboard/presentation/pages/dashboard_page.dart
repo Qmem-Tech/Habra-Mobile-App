@@ -96,10 +96,14 @@ class _DashboardPageState extends State<DashboardPage> {
               onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
               onEditBusinessTap: () {
                 if (selectedPresence != null && selectedPresence.id != 'all') {
+                  final dashboardCubit = context.read<DashboardCubit>();
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => EditBusinessPage(business: selectedPresence),
+                      builder: (_) => BlocProvider<DashboardCubit>.value(
+                        value: dashboardCubit,
+                        child: EditBusinessPage(business: selectedPresence),
+                      ),
                     ),
                   );
                 }
@@ -296,10 +300,18 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _navigateToCreateDeal() async {
+    final dashboardCubit = context.read<DashboardCubit>();
+    final homeCubit = context.read<BusinessOwnerHomeCubit>();
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => const CreateDealPage(),
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+            BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+          ],
+          child: const CreateDealPage(),
+        ),
       ),
     );
     if (result == true && mounted) {

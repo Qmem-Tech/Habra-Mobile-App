@@ -46,6 +46,9 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       category: parseString(row['description']) ?? 'Business',
       city: parseString(row['address_city']),
       state: parseString(row['address_state']),
+      phone: parseString(row['phone']),
+      email: parseString(row['email']),
+      website: parseString(row['website']),
       imageUrl: imageUrl,
       logoUrl: logoUrl,
       backgroundUrl: backgroundUrl,
@@ -613,6 +616,65 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     final h = parts[0].padLeft(2, '0');
     final m = parts.length > 1 ? parts[1].padLeft(2, '0') : '00';
     return '$h:$m';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Legal documents
+  // ---------------------------------------------------------------------------
+  @override
+  Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId) async {
+    return SupabaseFailureMapper.guard(() async {
+      final res = await _client
+          .from(SupabaseTables.businessLegalDocuments)
+          .select('status')
+          .eq('business_id', businessId);
+      final rows = (res as List).cast<Map<String, dynamic>>();
+      var approvedCount = 0;
+      var hasRejected = false;
+      for (final row in rows) {
+        final status = parseString(row['status']);
+        if (status == 'approved') approvedCount++;
+        if (status == 'rejected') hasRejected = true;
+      }
+      return LegalDocumentsStatus(
+        uploadedCount: rows.length,
+        approvedCount: approvedCount,
+        hasRejected: hasRejected,
+      );
+    });
+  }
+
+  @override
+  Future<void> uploadLegalDocument(String businessId, String documentType, String fileUrl, {String? fileName}) async {
+    return SupabaseFailureMapper.guard(() async {
+      await _client.from(SupabaseTables.businessLegalDocuments).insert({
+        'business_id': businessId,
+        'document_type': documentType,
+        'file_url': fileUrl,
+        'file_name': fileName,
+        'status': 'pending',
+      });
+    });
+  }
+
+  @override
+  Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId) async {
+    return SupabaseFailureMapper.guard(() async {
+      final businesses = await _client
+          .from(SupabaseTables.businesses)
+          .select('id')
+          .eq('owner_id', ownerId);
+      final bizList = (businesses as List).cast<Map<String, dynamic>>();
+      final ids = <String>[];
+      for (final row in bizList) {
+        final businessId = parseStringRequired(row['id']);
+        final status = await getLegalDocumentsStatus(businessId);
+        if (!status.hasRequiredUploaded || !status.isFullyApproved) {
+          ids.add(businessId);
+        }
+      }
+      return ids;
+    });
   }
 
   // ---------------------------------------------------------------------------

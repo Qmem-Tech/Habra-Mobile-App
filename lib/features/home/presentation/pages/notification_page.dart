@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import '../../../../core/resources/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/notification_cubit.dart';
 import '../bloc/notification_state.dart';
 import '../../domain/entities/notification_entity.dart';
-import 'package:intl/intl.dart';
 
 class NotificationPage extends StatelessWidget {
   final String? userId;
@@ -20,26 +20,42 @@ class NotificationPage extends StatelessWidget {
     return BlocProvider(
       create: (context) => di.sl<NotificationCubit>()..loadNotifications(userId),
       child: Scaffold(
+        backgroundColor: AppColors.backgroundLight,
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+            icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary, size: 20),
             onPressed: () => Navigator.pop(context),
           ),
-          title: const Text(
-            'Notifications',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                AppAssets.appLogo,
+                height: 28,
+                width: 28,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(Icons.notifications, color: AppColors.brandPrimary),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Notifications',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
           ),
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.backgroundWhite,
           elevation: 0,
+          centerTitle: true,
         ),
         body: BlocBuilder<NotificationCubit, NotificationState>(
           builder: (context, state) {
             if (state is NotificationLoading) {
-              return const HabraCircularLoader(fullScreen: true);
+              return HabraCircularLoader(fullScreen: true);
             }
 
             if (state is NotificationEmpty) {
@@ -137,11 +153,17 @@ class NotificationPage extends StatelessWidget {
   Widget _buildNotificationItem(NotificationEntity notification) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.backgroundGrey),
+        color: AppColors.backgroundWhite,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brandPrimary.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,36 +282,52 @@ class NotificationPage extends StatelessWidget {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.notifications_off,
-            size: 80,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'All caught up!',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.brandPrimary.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Image.asset(
+                AppAssets.appLogo,
+                height: 64,
+                width: 64,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.notifications_off_rounded,
+                  size: 64,
+                  color: AppColors.brandPrimary.withValues(alpha: 0.5),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
-            child: Text(
-              "You have no new notifications right now. Check back later for updates from local businesses and and the community.",
+            const SizedBox(height: 28),
+            const Text(
+              'All caught up!',
               style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.5,
               ),
               textAlign: TextAlign.center,
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Text(
+              'You have no new notifications right now. Check back later for updates from local businesses and the community.',
+              style: TextStyle(
+                fontSize: 15,
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

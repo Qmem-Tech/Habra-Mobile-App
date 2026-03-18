@@ -11,6 +11,7 @@ import '../core/services/location_service.dart';
 import '../core/services/image_picker_service.dart';
 import '../core/services/permission_service.dart';
 import '../core/services/storage_service.dart';
+import '../core/services/push_notification_service.dart';
 import '../core/services/revenue_cat_service.dart';
 import '../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../features/auth/data/datasources/auth_local_datasource.dart';
@@ -42,6 +43,7 @@ import '../features/home/data/datasources/home_supabase_datasource.dart';
 import '../features/home/data/datasources/search_remote_datasource.dart';
 import '../features/home/data/datasources/search_local_datasource.dart';
 import '../features/home/data/datasources/notification_remote_datasource.dart';
+import '../features/home/data/datasources/notification_supabase_datasource.dart';
 import '../features/home/data/repositories/home_repository_impl.dart';
 import '../features/home/data/repositories/search_repository_impl.dart';
 import '../features/home/data/repositories/notification_repository_impl.dart';
@@ -176,6 +178,7 @@ Future<void> init() async {
   sl.registerLazySingleton<PermissionService>(() => PermissionService());
   sl.registerLazySingleton<StorageService>(() => StorageService());
   sl.registerLazySingleton<RevenueCatService>(() => RevenueCatService());
+  sl.registerLazySingleton<PushNotificationService>(() => PushNotificationService());
 
   // Features - Auth (Supabase only)
   sl.registerLazySingleton<AuthRemoteDataSource>(
@@ -233,7 +236,7 @@ Future<void> init() async {
     () => SearchLocalDataSourceImpl(sl<LocalStorage>()),
   );
   sl.registerLazySingleton<NotificationRemoteDataSource>(
-    () => NotificationRemoteDataSourceImpl(),
+    () => NotificationSupabaseDataSource(),
   );
 
   // Repositories

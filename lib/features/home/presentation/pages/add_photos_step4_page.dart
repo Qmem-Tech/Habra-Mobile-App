@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/file_utils.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
@@ -154,7 +155,7 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
         ),
         const SizedBox(height: 6),
         Text(
-          'The main image users will see on your listing.',
+          'The main image users will see on your listing. Max 5 MB per file.',
           style: TextStyle(
             fontSize: 13,
             color: AppColors.textSecondary,
@@ -178,6 +179,33 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(AppResources.radiusL),
                         child: Image.file(file, fit: BoxFit.cover),
+                      ),
+                      Positioned(
+                        bottom: 8,
+                        left: 8,
+                        child: FutureBuilder<int>(
+                          future: file.length(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) return const SizedBox.shrink();
+                            final bytes = snapshot.data!;
+                            final overLimit = bytes > FileUtils.maxImageBytes;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '${FileUtils.formatFileSize(bytes)} / 5 MB',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: overLimit ? AppColors.error : Colors.white,
+                                  fontWeight: overLimit ? FontWeight.w600 : FontWeight.normal,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                       Positioned(
                         top: 8,
@@ -215,6 +243,20 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
 
   Future<void> _onComplete() async {
     final ctx = context;
+    for (final f in [_coverFile, _logoFile]) {
+      if (f != null) {
+        final size = await f.length();
+        if (size > FileUtils.maxImageBytes) {
+          ErrorDisplayHelper.show(
+            ctx,
+            message: 'Image is ${FileUtils.formatFileSize(size)}. Max 5 MB per file.',
+            title: 'File too large',
+          );
+          return;
+        }
+      }
+    }
+
     setState(() => _isSubmitting = true);
     LoaderHelper.show(ctx, message: 'Completing registration...');
 

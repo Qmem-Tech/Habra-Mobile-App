@@ -8,6 +8,9 @@ class BusinessPresence extends Equatable {
   final String category;
   final String? city;
   final String? state;
+  final String? phone;
+  final String? email;
+  final String? website;
   final String imageUrl;
   final String? logoUrl;
   final String? backgroundUrl;
@@ -26,6 +29,9 @@ class BusinessPresence extends Equatable {
     required this.category,
     this.city,
     this.state,
+    this.phone,
+    this.email,
+    this.website,
     required this.imageUrl,
     this.logoUrl,
     this.backgroundUrl,
@@ -73,6 +79,9 @@ class BusinessPresence extends Equatable {
         category,
         city,
         state,
+        phone,
+        email,
+        website,
         imageUrl,
         logoUrl,
         backgroundUrl,

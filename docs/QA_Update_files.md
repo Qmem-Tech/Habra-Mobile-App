@@ -229,6 +229,9 @@ Short messages (≤120 chars) are shown as-is after stripping `Exception:` / `Er
 - **Use `ErrorDisplayHelper.show()`** for errors that may appear behind dialogs, loaders, or sheets (e.g. upload failures, API errors).
 - **SnackBar is fine** for quick validation hints (e.g. "Please fill in required field") or success messages that don't need to compete with overlays.
 
+### Debug Mode
+- In **debug builds** (`kDebugMode`), the error card shows the raw error text at the bottom for easier diagnosis (e.g. Supabase Storage API errors).
+
 ---
 
 ## Image Upload Troubleshooting
@@ -242,29 +245,130 @@ The `businesses` bucket must exist and have correct policies. Run the migration:
 
 This creates the bucket (5MB file limit) and policies so authenticated users can upload.
 
-### 2. Image Size
+### 2. "Images uploaded but we couldn't save the update"
+- Upload to Storage succeeds, but the database update fails.
+- **Fix**: Run `docs/supabase/migrations/add_businesses_image_columns.sql` to ensure `logo_url`, `background_url`, and `image_urls` columns exist.
+- In debug builds, the error card shows the raw Supabase error at the bottom for diagnosis.
+
+### 3. Upload still failing (file size is fine)
+If the file is under 5 MB but upload still fails:
+
+1. **Run the permissive migration** – The strict policy may reject uploads if `businesses.owner_id` doesn't match or the schema differs. Run:
+   - **File**: `docs/supabase/migrations/add_businesses_storage_permissive.sql`
+   - **How**: Supabase Dashboard → SQL Editor → paste and run
+   - This allows any authenticated user to upload to the `businesses` bucket.
+
+2. **Check the raw error** – In debug builds, the error card shows the raw Supabase error at the bottom. Use it to diagnose (e.g. "bucket not found", "new row violates row-level security policy").
+
+3. **Verify bucket exists** – Run `add_businesses_storage_bucket.sql` first if you haven't. The permissive migration only changes policies; it assumes the bucket exists.
+
+### 4. Image Size
 - **Limit**: 5MB per file (StorageService default)
 - **Formats**: JPG, JPEG, PNG, WebP, GIF only
 - **Error**: "Image must be under 5MB" → compress or resize before upload
 
-### 3. Permissions
+### 5. Permissions
 - User must be **authenticated** (signed in)
 - For existing business: user must be the **owner** (owner_id = auth.uid())
 - For new business: path is `{user_id}/new/{timestamp}/...` – user can upload to own path
 
-### 4. Loader not dismissing on error
+### 6. "Please sign in again" when already signed in
+- Supabase Storage RLS failures often return errors containing "unauthorized" even when the user is signed in.
+- **Fix**: `ErrorDisplayHelper` now checks for storage/upload/permission errors **before** auth errors, so you'll see the upload message instead.
+- If uploads still fail, run `docs/supabase/migrations/add_businesses_storage_bucket.sql` and ensure `businesses.owner_id` matches the signed-in user for existing businesses.
+
+### 7. Loader not dismissing on error
 - The loader overlay is now dismissed **before** the error card is shown.
 - `LoaderHelper.hide()` is `async` – flows that show an error after the loader must `await LoaderHelper.hide(ctx)` before calling `ErrorDisplayHelper.show()`.
 - If the loader stays visible, ensure the upload/save flow is wrapped in `try/catch` and `LoaderHelper.hide` is called in the `catch` block (e.g. `edit_business_page`, `business_images_upload_dialog`).
 
-### 5. Debugging
+### 8. File size in UI
+- **Display**: Selected images show file size (e.g. "2.3 MB / 5 MB") in a badge overlay.
+- **Over-limit warning**: Size turns red when file exceeds 5 MB.
+- **Pre-upload check**: Save/Complete is blocked with an error card if any file is over 5 MB.
+- **Utility**: `lib/core/utils/file_utils.dart` – `FileUtils.formatFileSize(bytes)`, `FileUtils.maxImageBytes`.
+- **Where**: `business_images_upload_dialog`, `add_photos_step4_page`, `edit_business_page`.
+
+### 9. Event image upload RLS error
+- **Error**: "new row violates row-level security policy" when creating event with image.
+- **Fix**: Run `docs/supabase/migrations/add_events_storage_bucket.sql` in Supabase Dashboard → SQL Editor.
+- If uploads still fail, run `docs/supabase/migrations/add_events_storage_permissive.sql`.
+
+### 10. Resumes bucket not found
+- **Error**: "bucket not found" when uploading resume for job application.
+- **Fix**: Run `docs/supabase/migrations/add_resumes_storage_bucket.sql` in Supabase Dashboard → SQL Editor.
+- If uploads still fail with permission errors, run `docs/supabase/migrations/add_resumes_storage_permissive.sql`.
+
+### 11. Debugging
 - Check the error message in the error card (or console)
 - In Supabase Dashboard → Storage → `businesses` bucket: verify bucket exists and is public
 - In Storage → Policies: verify `businesses_insert` and `businesses_select` exist
 
 ---
 
+## Create Deal Page – Provider & Date/Time Pickers
+
+### Fix: Provider&lt;BusinessOwnerHomeCubit&gt; not found
+
+**Error**: `Could not find the correct Provider<BusinessOwnerHomeCubit> above this CreateDealPage Widget`
+
+**Cause**: `CreateDealPage` and `CreateEventPage` use `context.read<BusinessOwnerHomeCubit>()` to get the selected business, but they were navigated to without the cubit in the widget tree (providers are scoped to routes).
+
+**Solution**: Wrap both pages with `MultiBlocProvider` when navigating, passing `DashboardCubit` and `BusinessOwnerHomeCubit` via `.value`.
+
+### Navigation points updated
+
+| Location | Page | Wrapped with |
+|----------|------|--------------|
+| `business_owner_home_page.dart` – Setup task "Post First Deal" | `CreateDealPage` | `MultiBlocProvider` (DashboardCubit, BusinessOwnerHomeCubit) |
+| `business_owner_home_page.dart` – Quick action "Create Event" | `CreateEventPage` | `MultiBlocProvider` (DashboardCubit, BusinessOwnerHomeCubit) |
+| `business_owner_home_page.dart` – Quick action "Post Deal" | `CreateDealPage` | `MultiBlocProvider` (DashboardCubit, BusinessOwnerHomeCubit) |
+| `dashboard_page.dart` – `_navigateToCreateDeal()` | `CreateDealPage` | `MultiBlocProvider` (DashboardCubit, BusinessOwnerHomeCubit) |
+
+### Feature: Date and time pickers
+
+**Before**: Start Date, End Date, Start Time, and End Time were plain `TextField`s with no way to select values.
+
+**After**: Each field is tappable and opens the system picker:
+
+| Field | Picker | Display format |
+|-------|-------|----------------|
+| Start Date | `showDatePicker` (calendar) | `YYYY-MM-DD` (e.g. 2025-03-18) |
+| End Date | `showDatePicker` (calendar) | `YYYY-MM-DD` |
+| Start Time | `showTimePicker` (clock) | 12h format (e.g. 9:00 AM) |
+| End Time | `showTimePicker` (clock) | 12h format |
+
+- **Placeholder**: "Tap to select" when no value is chosen.
+- **Icons**: Calendar icon for dates, clock icon for times.
+- **Defaults**: If dates/times are not set when publishing, payload uses: start = now, end = 7 days from now.
+- **Date range**: First date = 1 year ago; last date = 2 years ahead.
+
+### Files changed
+
+- `lib/features/home/presentation/pages/business_owner_home_page.dart` – wrap `CreateDealPage` and `CreateEventPage` with `MultiBlocProvider` on all navigation paths
+- `lib/features/dashboard/presentation/pages/dashboard_page.dart` – wrap `CreateDealPage` with `MultiBlocProvider` in `_navigateToCreateDeal()`
+- `lib/features/dashboard/presentation/pages/create_deal_page.dart` – replace text controllers with `DateTime?` / `TimeOfDay?`, add `_buildDateField`, `_buildTimeField`, `_pickDate`, `_pickTime`
+
+---
+
 ## QA Validation Checklist
+
+### Supabase Migrations (run before testing upload flows)
+Run these in Supabase Dashboard → SQL Editor if the corresponding feature fails:
+
+| Migration | When to run |
+|-----------|-------------|
+| `add_businesses_storage_bucket.sql` | Business images (logo, cover) upload fails |
+| `add_businesses_storage_permissive.sql` | Business images still fail after bucket |
+| `add_businesses_image_columns.sql` | "Images uploaded but we couldn't save the update" |
+| `add_events_storage_bucket.sql` | Create Event image upload fails (RLS error) |
+| `add_events_storage_permissive.sql` | Event image still fails after bucket |
+| `add_resumes_storage_bucket.sql` | Resume upload fails (bucket not found) |
+| `add_resumes_storage_permissive.sql` | Resume upload still fails |
+| `add_business_legal_documents.sql` | Legal documents flow |
+| `add_legal_documents_storage_permissive.sql` | Legal docs upload fails |
+| `add_notifications_fcm_token.sql` | Push notifications |
+| `add_notify_on_new_job_trigger.sql` | New job → create notifications |
 
 ### Flutter Analyze
 - [ ] Run `flutter analyze` – no errors, no warnings
@@ -284,6 +388,12 @@ This creates the bucket (5MB file limit) and policies so authenticated users can
 - [ ] Apply for job with optional photo → no compile/runtime error
 - [ ] Submit application → `photo_url` stored in `job_applications`
 
+### Job Application – Resume Upload
+- [ ] Apply for job → attach resume (PDF/DOC/DOCX, max 5MB) → upload succeeds
+- [ ] No "bucket not found" error (run `add_resumes_storage_bucket.sql` if needed)
+- [ ] No RLS error on resume upload (run `add_resumes_storage_permissive.sql` if needed)
+- [ ] Business owner: view applicant → resume link opens/downloads
+
 ### Business Images Upload Dialog
 - [ ] Open business with missing logo/background → mandatory upload dialog appears
 - [ ] Upload logo and background → saves to Supabase, dialog dismisses
@@ -301,10 +411,58 @@ This creates the bucket (5MB file limit) and policies so authenticated users can
 - [ ] Verify address, phone, email, hours stored
 - [ ] Listing Status page shows new business
 
+### Legal Documents (2 required per business)
+- **Flow**: After sign up / first login, business owners must upload 2 legal documents per business.
+- **Order**: Images dialog runs first (if needed); legal documents dialog runs second (if needed). Dialogs are sequential.
+- **Step 1**: Choose business from list (only those needing docs).
+- **Step 2**: Upload 2 documents (PDF, JPG, PNG; max 10MB each). Status: pending.
+- **Approval**: Super admin reviews and approves via Supabase Dashboard or admin panel.
+- **Migrations**: Run `docs/supabase/migrations/add_business_legal_documents.sql`. If uploads fail with permission errors, run `docs/supabase/migrations/add_legal_documents_storage_permissive.sql`.
+- **Table**: `business_legal_documents` (business_id, document_type, file_url, status, etc.).
+- **Storage**: `legal_documents` bucket.
+
+### Business Images Flow (2 steps)
+- **Step 1**: When businesses need images, a "Choose Business" dialog appears first. User selects from the list of their businesses.
+- **Step 2**: If the selected business already has logo + background → SnackBar "already has logo and cover photo", flow ends. If not → opens the upload dialog.
+- **Component**: `lib/features/dashboard/presentation/widgets/choose_business_for_images_dialog.dart`
+
+### Legal Documents Flow (post-login)
+- [ ] After first login with business(es) needing legal docs → images dialog (if needed) appears first, then legal docs dialog
+- [ ] Choose business for legal docs → upload 2 documents (PDF/JPG/PNG, max 10MB each)
+- [ ] Documents saved to `business_legal_documents` with status `pending`
+
+### Create Event (Business Owner)
+- [ ] Sign in as business owner → Home tab → Quick Actions → "Create Event" visible
+- [ ] Tap Create Event → Create Event page opens (no provider error)
+- [ ] Fill title, description, venue, dates, add at least one ticket type
+- [ ] Add event image (optional) → image uploads without "row-level security policy" error
+- [ ] Submit → event created successfully, navigates back
+- [ ] Verify event in Supabase `events` table
+- [ ] If image upload fails: run `add_events_storage_bucket.sql` in Supabase SQL Editor
+- [ ] Community user: Events tab → new event appears in list
+
+### Create Deal Page – Provider & Date/Time
+- [ ] Open Create Deal from Home (setup task or quick action) → no `Provider<BusinessOwnerHomeCubit> not found` error
+- [ ] Open Create Deal from Dashboard → no provider error
+- [ ] Open Create Event from Home quick action → no provider error
+- [ ] Create Deal: tap Start Date → date picker opens, select date → value displays (YYYY-MM-DD)
+- [ ] Create Deal: tap End Date → date picker opens, select date → value displays
+- [ ] Create Deal: tap Start Time → time picker opens, select time → value displays (e.g. 9:00 AM)
+- [ ] Create Deal: tap End Time → time picker opens, select time → value displays
+- [ ] Create Deal: publish without selecting dates/times → uses defaults (now, now+7 days), deal creates successfully
+- [ ] Create Deal: publish with custom dates/times → deal created with correct valid_from/valid_until
+
 ### Central Error Display
 - [ ] Trigger an error (e.g. upload with no internet) → error card appears above dialogs/loaders
 - [ ] Error card shows user-friendly message, Dismiss button works
 - [ ] Try Again (when provided) works correctly
+
+### Push Notifications & Notification UI
+- **In-app notifications**: Fetched from Supabase `notifications` table via `NotificationSupabaseDataSource`.
+- **FCM token**: Stored in `profiles.fcm_token` when user logs in (MainNavigationWrapper, BusinessOwnerNavigationWrapper).
+- **New job trigger**: Run `add_notify_on_new_job_trigger.sql` – when a job is posted, notifications are created for users with FCM tokens.
+- **UI**: Habra logo in header and empty state; clean white notification cards with subtle shadow.
+- **Setup**: See `docs/PUSH_NOTIFICATIONS_SETUP.md` for Firebase config and push delivery.
 
 ### New Location
 - [ ] Add New Presence → New Location → brand list shows existing businesses

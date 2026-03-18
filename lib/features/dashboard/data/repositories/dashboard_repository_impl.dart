@@ -77,4 +77,16 @@ class DashboardRepositoryImpl implements DashboardRepository {
   @override
   Future<String> createBusiness(String ownerId, Map<String, dynamic> data) =>
       _remote.createBusiness(ownerId, data);
+
+  @override
+  Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId) =>
+      _remote.getLegalDocumentsStatus(businessId);
+
+  @override
+  Future<void> uploadLegalDocument(String businessId, String documentType, String fileUrl, {String? fileName}) =>
+      _remote.uploadLegalDocument(businessId, documentType, fileUrl, fileName: fileName);
+
+  @override
+  Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId) =>
+      _remote.getBusinessIdsNeedingLegalDocs(ownerId);
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/resources/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -33,21 +34,35 @@ class _BusinessOwnerNotificationPageState
     return BlocProvider(
       create: (context) => di.sl<NotificationCubit>()..loadNotifications(userId),
       child: Scaffold(
-        backgroundColor: AppColors.backgroundWhite,
+        backgroundColor: AppColors.backgroundLight,
         appBar: AppBar(
           backgroundColor: AppColors.backgroundWhite,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+            icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary, size: 20),
             onPressed: () => Navigator.pop(context),
           ),
-          title: const Text(
-            'Notifications',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                AppAssets.appLogo,
+                height: 28,
+                width: 28,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(Icons.notifications, color: AppColors.brandPrimary),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Notifications',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
           ),
           centerTitle: true,
         ),
@@ -176,16 +191,16 @@ class _BusinessOwnerNotificationPageState
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(AppResources.spacingM),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(AppResources.spacingL),
       decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
-        borderRadius: BorderRadius.circular(AppResources.radiusL),
+        color: AppColors.backgroundWhite,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: AppColors.brandPrimary.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -322,36 +337,52 @@ class _BusinessOwnerNotificationPageState
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.notifications_off,
-            size: 80,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'All caught up!',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.brandPrimary.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Image.asset(
+                AppAssets.appLogo,
+                height: 64,
+                width: 64,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.notifications_off_rounded,
+                  size: 64,
+                  color: AppColors.brandPrimary.withValues(alpha: 0.5),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
-            child: Text(
-              'You have no new notifications in this category.',
+            const SizedBox(height: 28),
+            const Text(
+              'All caught up!',
               style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.5,
               ),
               textAlign: TextAlign.center,
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Text(
+              'You have no new notifications in this category. Check back later for updates.',
+              style: TextStyle(
+                fontSize: 15,
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

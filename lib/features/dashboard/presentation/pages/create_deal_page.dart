@@ -32,14 +32,23 @@ class _CreateDealPageState extends State<CreateDealPage> {
   final _discountController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _termsController = TextEditingController();
-  final _startDateController = TextEditingController();
-  final _endDateController = TextEditingController();
-  final _startTimeController = TextEditingController();
-  final _endTimeController = TextEditingController();
+  DateTime? _startDate;
+  DateTime? _endDate;
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
   final Set<int> _selectedDays = {1, 2, 5, 6, 7};
 
   static const List<int> _dayKeys = [1, 2, 3, 4, 5, 6, 7];
   static const List<String> _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  String _formatDate(DateTime? d) =>
+      d != null ? '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}' : '';
+
+  String _formatTimeOfDay(TimeOfDay t) {
+    final h = t.hour == 0 ? 12 : (t.hour > 12 ? t.hour - 12 : t.hour);
+    final amPm = t.hour < 12 ? 'AM' : 'PM';
+    return '$h:${t.minute.toString().padLeft(2, '0')} $amPm';
+  }
 
   @override
   void dispose() {
@@ -47,10 +56,6 @@ class _CreateDealPageState extends State<CreateDealPage> {
     _discountController.dispose();
     _descriptionController.dispose();
     _termsController.dispose();
-    _startDateController.dispose();
-    _endDateController.dispose();
-    _startTimeController.dispose();
-    _endTimeController.dispose();
     super.dispose();
   }
 
@@ -75,11 +80,11 @@ class _CreateDealPageState extends State<CreateDealPage> {
       );
     }
     final now = DateTime.now();
-    final validFrom = _startDateController.text.trim().isNotEmpty
-        ? DateTime.tryParse(_startDateController.text.trim()) ?? now
+    final validFrom = _startDate != null && _startTime != null
+        ? DateTime(_startDate!.year, _startDate!.month, _startDate!.day, _startTime!.hour, _startTime!.minute)
         : now;
-    final validUntil = _endDateController.text.trim().isNotEmpty
-        ? DateTime.tryParse(_endDateController.text.trim()) ?? now.add(const Duration(days: 7))
+    final validUntil = _endDate != null && _endTime != null
+        ? DateTime(_endDate!.year, _endDate!.month, _endDate!.day, _endTime!.hour, _endTime!.minute)
         : now.add(const Duration(days: 7));
     return {
       'title': _titleController.text.trim(),
@@ -271,20 +276,20 @@ class _CreateDealPageState extends State<CreateDealPage> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(child: _buildTextField('Start Date', controller: _startDateController)),
+                Expanded(child: _buildDateField('Start Date', _startDate, (d) => setState(() => _startDate = d))),
                 const SizedBox(width: 12),
-                Expanded(child: _buildTextField('End Date', controller: _endDateController)),
+                Expanded(child: _buildDateField('End Date', _endDate, (d) => setState(() => _endDate = d))),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _buildTextField('Available Hours', controller: _startTimeController)),
+                Expanded(child: _buildTimeField('Start Time', _startTime, (t) => setState(() => _startTime = t))),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8),
                   child: Text('to', style: TextStyle(color: AppColors.brandPrimary, fontWeight: FontWeight.w600)),
                 ),
-                Expanded(child: _buildTextField('', controller: _endTimeController)),
+                Expanded(child: _buildTimeField('End Time', _endTime, (t) => setState(() => _endTime = t))),
               ],
             ),
             const SizedBox(height: 12),
@@ -347,6 +352,112 @@ class _CreateDealPageState extends State<CreateDealPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _pickDate(String label, DateTime? current, void Function(DateTime) onPicked) async {
+    final now = DateTime.now();
+    final initial = current ?? now;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: now.subtract(const Duration(days: 365)),
+      lastDate: now.add(const Duration(days: 365 * 2)),
+    );
+    if (picked != null && mounted) onPicked(picked);
+  }
+
+  Future<void> _pickTime(String label, TimeOfDay? current, void Function(TimeOfDay) onPicked) async {
+    final initial = current ?? const TimeOfDay(hour: 9, minute: 0);
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked != null && mounted) onPicked(picked);
+  }
+
+  Widget _buildDateField(String label, DateTime? value, void Function(DateTime) onPicked) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: () => _pickDate(label, value, onPicked),
+          borderRadius: BorderRadius.circular(AppResources.radiusM),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundWhite,
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              border: Border.all(color: AppColors.backgroundGrey),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_today, size: 20, color: AppColors.brandPrimary),
+                const SizedBox(width: 10),
+                Text(
+                  value != null ? _formatDate(value) : 'Tap to select',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: value != null ? AppColors.textPrimary : AppColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeField(String label, TimeOfDay? value, void Function(TimeOfDay) onPicked) {
+    final display = value != null
+        ? '${_formatTimeOfDay(value)}'
+        : 'Tap to select';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (label.isNotEmpty)
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        if (label.isNotEmpty) const SizedBox(height: 6),
+        InkWell(
+          onTap: () => _pickTime(label, value, onPicked),
+          borderRadius: BorderRadius.circular(AppResources.radiusM),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundWhite,
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              border: Border.all(color: AppColors.backgroundGrey),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.access_time, size: 20, color: AppColors.brandPrimary),
+                const SizedBox(width: 10),
+                Text(
+                  display,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: value != null ? AppColors.textPrimary : AppColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/file_utils.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/services/image_picker_service.dart';
 import '../../../../core/services/storage_service.dart';
@@ -12,6 +13,7 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
 import '../../../../core/widgets/error_display_helper.dart';
 import '../bloc/dashboard_cubit.dart';
+import '../bloc/dashboard_state.dart';
 import '../../../../injection/injection_container.dart' as di;
 
 /// Mandatory dialog for business owners to upload logo and background image.
@@ -80,6 +82,20 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
     if (!_canSave) return;
 
     final ctx = context;
+    for (final f in [_logoFile, _backgroundFile, ..._galleryFiles]) {
+      if (f != null) {
+        final size = await f.length();
+        if (size > FileUtils.maxImageBytes) {
+          ErrorDisplayHelper.show(
+            ctx,
+            message: '${f.path.split('/').last} is ${FileUtils.formatFileSize(size)}. Max 5 MB per file.',
+            title: 'File too large',
+          );
+          return;
+        }
+      }
+    }
+
     final cubit = ctx.read<DashboardCubit>();
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
@@ -119,12 +135,26 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
         data['image_urls'] = urls;
       }
 
-      await cubit.updateBusiness(widget.businessId, data);
+      data.removeWhere((_, v) => v == null);
+
+      final success = await cubit.updateBusiness(widget.businessId, data);
 
       if (!ctx.mounted) return;
       await LoaderHelper.hide(ctx);
       if (!ctx.mounted) return;
-      Navigator.of(ctx).pop(true);
+      if (success) {
+        Navigator.of(ctx, rootNavigator: true).pop(true);
+      } else {
+        final errorMsg = cubit.state is DashboardError
+            ? (cubit.state as DashboardError).message
+            : null;
+        ErrorDisplayHelper.show(
+          ctx,
+          message: 'Images uploaded but we couldn\'t save the update. Please try again.',
+          title: 'Update failed',
+          error: errorMsg != null ? Exception(errorMsg) : null,
+        );
+      }
     } catch (e) {
       if (ctx.mounted) {
         await LoaderHelper.hide(ctx);
@@ -166,7 +196,7 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Logo and background image are required for ${widget.businessName}.',
+                  'Logo and background image are required for ${widget.businessName}. Max 5 MB per file.',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
@@ -267,6 +297,34 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
                                 errorBuilder: (_, __, ___) => _buildPlaceholder(),
                               ),
                       ),
+                      if (imageFile != null)
+                        Positioned(
+                          bottom: 8,
+                          left: 8,
+                          child: FutureBuilder<int>(
+                            future: imageFile!.length(),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) return const SizedBox.shrink();
+                              final bytes = snapshot.data!;
+                              final overLimit = bytes > FileUtils.maxImageBytes;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${FileUtils.formatFileSize(bytes)} / 5 MB',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: overLimit ? AppColors.error : Colors.white,
+                                    fontWeight: overLimit ? FontWeight.w600 : FontWeight.normal,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       Positioned(
                         top: 8,
                         right: 8,
@@ -344,6 +402,7 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
               ),
               const SizedBox(width: 8),
               ...List.generate(_galleryFiles.length, (i) {
+                final file = _galleryFiles[i];
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: Stack(
@@ -351,10 +410,34 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
                       ClipRRect(
                         borderRadius: BorderRadius.circular(AppResources.radiusM),
                         child: Image.file(
-                          _galleryFiles[i],
+                          file,
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 4,
+                        left: 4,
+                        right: 4,
+                        child: FutureBuilder<int>(
+                          future: file.length(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) return const SizedBox.shrink();
+                            final bytes = snapshot.data!;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                FileUtils.formatFileSize(bytes),
+                                style: const TextStyle(fontSize: 10, color: Colors.white),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          },
                         ),
                       ),
                       Positioned(
