@@ -21,6 +21,8 @@ import '../../../dashboard/presentation/pages/edit_business_page.dart';
 import '../../../dashboard/presentation/pages/update_hours_page.dart';
 import '../../../dashboard/presentation/pages/create_deal_page.dart';
 import '../../../dashboard/presentation/pages/create_job_post_page.dart';
+import '../../../../injection/injection_container.dart' as di;
+import '../../../events/presentation/bloc/create_event_cubit.dart';
 import '../../../events/presentation/pages/create_event_page.dart';
 import '../../../dashboard/presentation/pages/job_applicants_page.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
@@ -1048,6 +1050,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       (Icons.event, 'Create Event', AppColors.brandPrimary, () async {
         final dashboardCubit = context.read<DashboardCubit>();
         final homeCubit = context.read<BusinessOwnerHomeCubit>();
+        final createEventCubit = di.sl<CreateEventCubit>();
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -1055,6 +1058,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
               providers: [
                 BlocProvider<DashboardCubit>.value(value: dashboardCubit),
                 BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+                BlocProvider<CreateEventCubit>.value(value: createEventCubit),
               ],
               child: const CreateEventPage(),
             ),

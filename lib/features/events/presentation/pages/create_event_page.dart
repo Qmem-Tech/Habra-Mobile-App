@@ -152,9 +152,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => di.sl<CreateEventCubit>(),
-      child: BlocListener<CreateEventCubit, CreateEventState>(
+    return BlocListener<CreateEventCubit, CreateEventState>(
         listener: (context, state) {
           if (state is CreateEventSuccess) {
             LoaderHelper.hide(context).then((_) {
@@ -351,8 +349,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _sectionTitle(String text) {
