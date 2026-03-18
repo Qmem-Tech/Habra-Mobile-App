@@ -69,4 +69,12 @@ class DashboardRepositoryImpl implements DashboardRepository {
   @override
   Future<void> updateBusinessHours(String businessId, Map<String, dynamic> hours) =>
       _remote.updateBusinessHours(businessId, hours);
+
+  @override
+  Future<Map<String, String?>?> getBusinessHours(String businessId) =>
+      _remote.getBusinessHours(businessId);
+
+  @override
+  Future<String> createBusiness(String ownerId, Map<String, dynamic> data) =>
+      _remote.createBusiness(ownerId, data);
 }

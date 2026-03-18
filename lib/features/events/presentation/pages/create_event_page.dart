@@ -11,6 +11,7 @@ import '../../../../core/services/image_picker_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
+import '../../../../core/widgets/error_display_helper.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
@@ -119,9 +120,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       } catch (e) {
         if (!ctx.mounted) return;
         LoaderHelper.hide(ctx);
-        ScaffoldMessenger.of(ctx).showSnackBar(
-          SnackBar(content: Text('Image upload failed: $e')),
-        );
+        ErrorDisplayHelper.show(ctx, error: e, title: 'Image upload failed');
         return;
       }
     }
@@ -163,9 +162,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
             Navigator.pop(context, true);
           } else if (state is CreateEventError) {
             LoaderHelper.hide(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
+            ErrorDisplayHelper.show(context, message: state.message, title: 'Could not create event');
           }
         },
         child: Scaffold(

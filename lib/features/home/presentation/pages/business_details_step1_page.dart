@@ -157,7 +157,12 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const BusinessLocationStep2Page(),
+        builder: (_) => BusinessLocationStep2Page(
+          step1Data: {
+            'name': _nameController.text.trim(),
+            'category': _categoryController.text.trim(),
+          },
+        ),
       ),
     );
   }

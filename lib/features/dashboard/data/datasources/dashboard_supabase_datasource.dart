@@ -37,6 +37,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
 
   BusinessPresence _rowToPresence(Map<String, dynamic> row) {
     final logoUrl = parseString(row['logo_url']);
+    final backgroundUrl = parseString(row['background_url']);
     final imageUrl = logoUrl ?? 'https://placehold.co/400x300?text=Business';
     return BusinessPresence(
       id: parseStringRequired(row['id']),
@@ -46,6 +47,8 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       city: parseString(row['address_city']),
       state: parseString(row['address_state']),
       imageUrl: imageUrl,
+      logoUrl: logoUrl,
+      backgroundUrl: backgroundUrl,
       isVerified: parseBool(row['is_verified']),
       isOpenNow: parseBool(row['is_active']),
       rating: parseDouble(row['rating']),
@@ -205,7 +208,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from(SupabaseTables.jobs)
-          .select('*, ${SupabaseTables.businesses}!jobs_business_id_fkey(name)')
+          .select('*, ${SupabaseTables.businesses}!jobs_business_id_fkey(name, logo_url)')
           .eq('business_id', businessId)
           .order('created_at', ascending: false);
       final rows = (res as List).cast<Map<String, dynamic>>();
@@ -220,6 +223,8 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         final biz = row[SupabaseTables.businesses];
         final employerName =
             biz is Map<String, dynamic> ? parseString(biz['name']) : null;
+        final employerLogoUrl =
+            biz is Map<String, dynamic> ? parseString(biz['logo_url']) : null;
         final postedAt = parseTimestamp(row['posted_at']) ??
             parseTimestamp(row['created_at']) ??
             DateTime.now();
@@ -231,6 +236,12 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         } else if (salaryMin != null) {
           salaryDisplay = 'From \$$salaryMin';
         }
+        final statusStr = parseString(row['status']) ?? 'open';
+        final jobStatus = statusStr == 'draft'
+            ? DashboardJobStatus.draft
+            : statusStr == 'closed'
+                ? DashboardJobStatus.closed
+                : DashboardJobStatus.open;
         result.add(DashboardJob(
           id: jobId,
           title: parseStringRequired(row['title']),
@@ -241,6 +252,8 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           applicantsCount: applicants,
           postedTimeAgo: _timeAgo(postedAt),
           employerName: employerName,
+          employerLogoUrl: employerLogoUrl,
+          status: jobStatus,
         ));
       }
       return result;
@@ -356,21 +369,33 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from(SupabaseTables.jobApplications)
-          .select('*, ${SupabaseTables.profiles}!job_applications_user_id_fkey(full_name, avatar_url), ${SupabaseTables.jobs}!job_applications_job_id_fkey(title)')
+          .select('*, ${SupabaseTables.profiles}!job_applications_user_id_fkey(full_name, avatar_url, email, phone), ${SupabaseTables.jobs}!job_applications_job_id_fkey(title)')
           .eq('id', applicantId)
           .maybeSingle();
       if (res == null) return null;
       final row = Map<String, dynamic>.from(res as Map);
       final profile = row[SupabaseTables.profiles];
       final job = row[SupabaseTables.jobs];
+      final profileName = profile is Map<String, dynamic>
+          ? parseStringRequired(profile['full_name'], 'Applicant')
+          : parseString(row['full_name']) ?? 'Applicant';
+      final profileImg = profile is Map<String, dynamic>
+          ? parseString(profile['avatar_url'])
+          : null;
+      final appPhoto = parseString(row['photo_url']);
+      final profileEmail = profile is Map<String, dynamic>
+          ? parseString(profile['email'])
+          : parseString(row['email']);
+      final profilePhone = profile is Map<String, dynamic>
+          ? parseString(profile['phone'])
+          : parseString(row['phone']);
       return ApplicantDetail(
         id: parseStringRequired(row['id']),
-        name: profile is Map<String, dynamic>
-            ? parseStringRequired(profile['full_name'], 'Applicant')
-            : 'Applicant',
-        profileImageUrl: profile is Map<String, dynamic>
-            ? parseString(profile['avatar_url'])
-            : null,
+        name: profileName,
+        profileImageUrl: appPhoto ?? profileImg,
+        applicationPhotoUrl: appPhoto,
+        email: profileEmail,
+        phone: profilePhone,
         location: '',
         appliedFor:
             job is Map<String, dynamic> ? parseStringRequired(job['title']) : '',
@@ -449,6 +474,8 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   Future<DashboardJob> createJob(
       String businessId, Map<String, dynamic> data) async {
     return SupabaseFailureMapper.guard(() async {
+      final status = data['status'] as String? ?? 'open';
+      final isDraft = status == 'draft';
       final payload = <String, dynamic>{
         'business_id': businessId,
         'title': data['title'] ?? '',
@@ -457,17 +484,23 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         'job_type': data['job_type'] ?? 'full-time',
         'salary_min': data['salary_min'],
         'salary_max': data['salary_max'],
-        'is_active': true,
-        'status': 'open',
+        'is_active': !isDraft,
+        'status': status,
       };
       payload.removeWhere((_, v) => v == null);
       final res = await _client
           .from(SupabaseTables.jobs)
           .insert(payload)
-          .select('*, ${SupabaseTables.businesses}!jobs_business_id_fkey(name)')
+          .select('*, ${SupabaseTables.businesses}!jobs_business_id_fkey(name, logo_url)')
           .single();
       final row = Map<String, dynamic>.from(res as Map);
       final biz = row[SupabaseTables.businesses];
+      final statusStr = parseString(row['status']) ?? status;
+      final jobStatus = statusStr == 'draft'
+          ? DashboardJobStatus.draft
+          : statusStr == 'closed'
+              ? DashboardJobStatus.closed
+              : DashboardJobStatus.open;
       return DashboardJob(
         id: parseStringRequired(row['id']),
         title: parseStringRequired(row['title']),
@@ -479,6 +512,9 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         postedTimeAgo: 'Just now',
         employerName:
             biz is Map<String, dynamic> ? parseString(biz['name']) : null,
+        employerLogoUrl:
+            biz is Map<String, dynamic> ? parseString(biz['logo_url']) : null,
+        status: jobStatus,
       );
     });
   }
@@ -493,6 +529,27 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         'reply_text': replyText,
         'replied_at': DateTime.now().toIso8601String(),
       }).eq('id', reviewId);
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Create business
+  // ---------------------------------------------------------------------------
+  @override
+  Future<String> createBusiness(
+      String ownerId, Map<String, dynamic> data) async {
+    return SupabaseFailureMapper.guard(() async {
+      final payload = Map<String, dynamic>.from(data);
+      payload['owner_id'] = ownerId;
+      payload['approval_status'] = 'pending';
+      payload['updated_at'] = DateTime.now().toIso8601String();
+      final res = await _client
+          .from(SupabaseTables.businesses)
+          .insert(payload)
+          .select('id')
+          .single();
+      final row = res as Map<String, dynamic>;
+      return parseStringRequired(row['id']);
     });
   }
 
@@ -525,6 +582,37 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', businessId);
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Get business hours
+  // ---------------------------------------------------------------------------
+  @override
+  Future<Map<String, String?>?> getBusinessHours(String businessId) async {
+    return SupabaseFailureMapper.guard(() async {
+      final res = await _client
+          .from(SupabaseTables.businesses)
+          .select('opening_time, closing_time')
+          .eq('id', businessId)
+          .maybeSingle();
+      if (res == null) return null;
+      final row = res as Map<String, dynamic>;
+      final opening = row['opening_time']?.toString();
+      final closing = row['closing_time']?.toString();
+      return {
+        'opening_time': _normalizeTime(opening),
+        'closing_time': _normalizeTime(closing),
+      };
+    });
+  }
+
+  static String? _normalizeTime(String? value) {
+    if (value == null || value.isEmpty) return null;
+    final parts = value.split(':');
+    if (parts.isEmpty) return null;
+    final h = parts[0].padLeft(2, '0');
+    final m = parts.length > 1 ? parts[1].padLeft(2, '0') : '00';
+    return '$h:$m';
   }
 
   // ---------------------------------------------------------------------------

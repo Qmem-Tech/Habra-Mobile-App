@@ -7,7 +7,9 @@ import 'add_photos_step4_page.dart';
 
 /// Contact Details step 3: Phone, Email, Website (optional), Business hours, Next.
 class ContactDetailsStep3Page extends StatefulWidget {
-  const ContactDetailsStep3Page({super.key});
+  const ContactDetailsStep3Page({super.key, this.step2Data = const {}});
+
+  final Map<String, String> step2Data;
 
   @override
   State<ContactDetailsStep3Page> createState() =>
@@ -228,17 +230,18 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     setState(() => _isLoading = false);
+    final step3Data = {
+      ...widget.step2Data,
+      'phone': _phoneNumber,
+      'email': _emailController.text.trim(),
+      'website': _websiteController.text.trim(),
+      'opening_time': '09:00',
+      'closing_time': '17:00',
+    };
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const AddPhotosStep4Page(),
-        settings: RouteSettings(
-          arguments: {
-            'phone': _phoneNumber,
-            'email': _emailController.text,
-            'website': _websiteController.text,
-          },
-        ),
+        builder: (_) => AddPhotosStep4Page(step3Data: step3Data),
       ),
     );
   }

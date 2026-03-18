@@ -8,6 +8,7 @@ import '../../../../core/resources/app_assets.dart';
 import '../../domain/entities/job_application.dart';
 import '../bloc/job_applications_cubit.dart';
 import '../bloc/job_applications_state.dart';
+import 'my_application_detail_page.dart';
 
 /// Community member's job applications list with status (Application Sent, Under Review, Interview Scheduled).
 class MyApplicationsPage extends StatefulWidget {
@@ -72,7 +73,19 @@ class _MyApplicationsPageState extends State<MyApplicationsPage> {
                 padding: const EdgeInsets.all(AppResources.spacingM),
                 itemCount: state.applications.length,
                 itemBuilder: (context, index) {
-                  return _ApplicationCard(application: state.applications[index]);
+                  return _ApplicationCard(
+                    application: state.applications[index],
+                    onViewApplication: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MyApplicationDetailPage(
+                            application: state.applications[index],
+                          ),
+                        ),
+                      );
+                    },
+                  );
                 },
               ),
             );
@@ -86,8 +99,12 @@ class _MyApplicationsPageState extends State<MyApplicationsPage> {
 
 class _ApplicationCard extends StatelessWidget {
   final JobApplication application;
+  final VoidCallback onViewApplication;
 
-  const _ApplicationCard({required this.application});
+  const _ApplicationCard({
+    required this.application,
+    required this.onViewApplication,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +185,7 @@ class _ApplicationCard extends StatelessWidget {
               textColor: statusInfo.isPrimary
                   ? AppColors.textOnPrimary
                   : AppColors.textPrimary,
-              onPressed: () {},
+              onPressed: onViewApplication,
             ),
           ),
         ],

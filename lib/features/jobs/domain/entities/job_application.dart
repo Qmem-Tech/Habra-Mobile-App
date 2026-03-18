@@ -21,6 +21,7 @@ class JobApplication extends Equatable {
   final String phoneNumber;
   final String? resumeUrl;
   final String? coverLetter;
+  final String? photoUrl;
   final Map<String, String> screeningAnswers; // question -> answer
   final ApplicationStatus status;
   final DateTime appliedDate;
@@ -38,6 +39,7 @@ class JobApplication extends Equatable {
     required this.phoneNumber,
     this.resumeUrl,
     this.coverLetter,
+    this.photoUrl,
     this.screeningAnswers = const {},
     required this.status,
     required this.appliedDate,
@@ -65,6 +67,7 @@ class JobApplication extends Equatable {
         phoneNumber,
         resumeUrl,
         coverLetter,
+        photoUrl,
         screeningAnswers,
         status,
         appliedDate,

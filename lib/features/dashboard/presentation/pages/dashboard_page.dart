@@ -106,10 +106,14 @@ class _DashboardPageState extends State<DashboardPage> {
               },
               onUpdateHoursTap: () {
                 if (selectedPresence != null && selectedPresence.id != 'all') {
+                  final dashboardCubit = context.read<DashboardCubit>();
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => UpdateHoursPage(businessId: selectedPresence.id),
+                      builder: (_) => BlocProvider<DashboardCubit>.value(
+                        value: dashboardCubit,
+                        child: UpdateHoursPage(businessId: selectedPresence.id),
+                      ),
                     ),
                   );
                 }
@@ -218,6 +222,9 @@ class _DashboardPageState extends State<DashboardPage> {
                     case 2:
                       return DashboardJobsTab(
                         jobs: state.jobs,
+                        filter: state.jobsFilter,
+                        onFilterChanged: (f) =>
+                            context.read<DashboardCubit>().setJobsFilter(f),
                         onCreateJob: () => _navigateToCreateJob(),
                         onViewApplicants: (job) => _navigateToApplicants(job),
                       );
@@ -288,22 +295,36 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  void _navigateToCreateDeal() {
-    Navigator.push(
+  void _navigateToCreateDeal() async {
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => const CreateDealPage(),
       ),
     );
+    if (result == true && mounted) {
+      _loadDashboard();
+    }
   }
 
-  void _navigateToCreateJob() {
-    Navigator.push(
+  void _navigateToCreateJob() async {
+    final dashboardCubit = context.read<DashboardCubit>();
+    final homeCubit = context.read<BusinessOwnerHomeCubit>();
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => const CreateJobPostPage(),
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+            BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+          ],
+          child: const CreateJobPostPage(),
+        ),
       ),
     );
+    if (result == true && mounted) {
+      _loadDashboard();
+    }
   }
 
   void _navigateToApplicants(DashboardJob job) {
@@ -328,10 +349,14 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _navigateToReplyToReview(BusinessReview review) {
+    final dashboardCubit = context.read<DashboardCubit>();
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ReplyToReviewPage(review: review),
+        builder: (_) => BlocProvider<DashboardCubit>.value(
+          value: dashboardCubit,
+          child: ReplyToReviewPage(review: review),
+        ),
       ),
     );
   }

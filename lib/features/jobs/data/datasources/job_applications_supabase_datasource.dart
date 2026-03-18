@@ -62,6 +62,7 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
     required String phoneNumber,
     String? resumeUrl,
     String? coverLetter,
+    String? photoUrl,
     Map<String, String>? screeningAnswers,
   }) async {
     return SupabaseFailureMapper.guard(() async {
@@ -78,8 +79,12 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
       await _client.from('job_applications').insert({
         'job_id': jobId,
         'user_id': userId,
+        'full_name': fullName,
+        'email': email,
+        'phone': phoneNumber,
         'cover_message': coverLetter,
         'resume_url': resumeUrl,
+        'photo_url': photoUrl,
         'status': 'pending',
       });
 
@@ -103,6 +108,7 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
           phoneNumber: phoneNumber,
           resumeUrl: resumeUrl,
           coverLetter: coverLetter,
+          photoUrl: photoUrl,
           screeningAnswers: screeningAnswers ?? {},
           status: ApplicationStatus.pending,
           appliedDate: DateTime.now(),
@@ -120,6 +126,7 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
         phoneNumber: phoneNumber,
         resumeUrl: parseString(row['resume_url']),
         coverLetter: parseString(row['cover_message']),
+        photoUrl: parseString(row['photo_url']),
         screeningAnswers: screeningAnswers ?? {},
         status: _statusFromString(row['status'] as String?),
         appliedDate: parseTimestampRequired(row['created_at']),
@@ -135,7 +142,7 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
 
       var query = _client
           .from('job_applications')
-          .select('*, jobs!job_applications_job_id_fkey(title, business_id, businesses!jobs_business_id_fkey(name))')
+          .select('*, jobs!job_applications_job_id_fkey(title, business_id, businesses!jobs_business_id_fkey(name)), profiles!job_applications_user_id_fkey(full_name, email, phone, avatar_url)')
           .eq('user_id', userId);
       if (activeOnly) {
         query = query.inFilter('status', ['pending', 'reviewed', 'shortlisted']);
@@ -145,19 +152,30 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
       return list.map((row) {
         final jobRow = row['jobs'];
         final bizRow = jobRow is Map<String, dynamic> ? jobRow['businesses'] : null;
+        final profileRow = row['profiles'];
         final companyName = bizRow is Map<String, dynamic> ? parseStringRequired(bizRow['name']) : '';
         final jobTitle = jobRow is Map<String, dynamic> ? parseStringRequired(jobRow['title']) : '';
+        final fullName = parseString(row['full_name']) ??
+            (profileRow is Map<String, dynamic> ? parseString(profileRow['full_name']) : null) ??
+            '';
+        final email = parseString(row['email']) ??
+            (profileRow is Map<String, dynamic> ? parseString(profileRow['email']) : null) ??
+            '';
+        final phone = parseString(row['phone']) ??
+            (profileRow is Map<String, dynamic> ? parseString(profileRow['phone']) : null) ??
+            '';
         return JobApplicationModel(
           id: parseStringRequired(row['id']),
           jobId: parseStringRequired(row['job_id']),
           jobTitle: jobTitle,
           companyName: companyName,
           userId: parseStringRequired(row['user_id']),
-          fullName: '', // not in row; would need profiles join
-          email: '',
-          phoneNumber: '',
+          fullName: fullName,
+          email: email,
+          phoneNumber: phone,
           resumeUrl: parseString(row['resume_url']),
           coverLetter: parseString(row['cover_message']),
+          photoUrl: parseString(row['photo_url']),
           screeningAnswers: const {},
           status: _statusFromString(row['status'] as String?),
           appliedDate: parseTimestampRequired(row['created_at']),
@@ -187,11 +205,12 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
         jobTitle: jobRow is Map<String, dynamic> ? parseStringRequired(jobRow['title']) : '',
         companyName: companyName,
         userId: parseStringRequired(row['user_id']),
-        fullName: '',
-        email: '',
-        phoneNumber: '',
+        fullName: parseString(row['full_name']) ?? '',
+        email: parseString(row['email']) ?? '',
+        phoneNumber: parseString(row['phone']) ?? '',
         resumeUrl: parseString(row['resume_url']),
         coverLetter: parseString(row['cover_message']),
+        photoUrl: parseString(row['photo_url']),
         screeningAnswers: const {},
         status: _statusFromString(row['status'] as String?),
         appliedDate: parseTimestampRequired(row['created_at']),

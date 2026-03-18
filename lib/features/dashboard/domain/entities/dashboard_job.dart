@@ -1,5 +1,8 @@
 import 'package:equatable/equatable.dart';
 
+/// Job status for dashboard display.
+enum DashboardJobStatus { draft, open, closed }
+
 /// Job post as shown on business owner dashboard (with views, applicants).
 class DashboardJob extends Equatable {
   final String id;
@@ -12,6 +15,9 @@ class DashboardJob extends Equatable {
   final String postedTimeAgo;
   /// Employer/business name for display (e.g. in Select Job to Boost).
   final String? employerName;
+  /// Business logo/avatar URL for display in job cards.
+  final String? employerLogoUrl;
+  final DashboardJobStatus status;
 
   const DashboardJob({
     required this.id,
@@ -23,7 +29,11 @@ class DashboardJob extends Equatable {
     required this.applicantsCount,
     required this.postedTimeAgo,
     this.employerName,
+    this.employerLogoUrl,
+    this.status = DashboardJobStatus.open,
   });
+
+  bool get isDraft => status == DashboardJobStatus.draft;
 
   /// e.g. "12 Applicants" or "2d ago"
   String get applicantsDisplay => '$applicantsCount Applicants';
@@ -40,5 +50,7 @@ class DashboardJob extends Equatable {
         applicantsCount,
         postedTimeAgo,
         employerName,
+        employerLogoUrl,
+        status,
       ];
 }

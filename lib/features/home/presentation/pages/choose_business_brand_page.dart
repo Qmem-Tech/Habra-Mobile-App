@@ -4,15 +4,19 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../domain/entities/business_brand_entity.dart';
+import '../../domain/entities/business_presence.dart';
 import 'add_location_page.dart';
 
 /// Choose the business brand for a new location (Add New Presence → New Location flow).
 /// Step 1 of 2: search + list with Select, then Next.
 class ChooseBusinessBrandPage extends StatefulWidget {
-  const ChooseBusinessBrandPage({super.key});
+  const ChooseBusinessBrandPage({super.key, this.presences = const []});
+
+  final List<BusinessPresence> presences;
 
   @override
-  State<ChooseBusinessBrandPage> createState() => _ChooseBusinessBrandPageState();
+  State<ChooseBusinessBrandPage> createState() =>
+      _ChooseBusinessBrandPageState();
 }
 
 class _ChooseBusinessBrandPageState extends State<ChooseBusinessBrandPage> {
@@ -30,11 +34,24 @@ class _ChooseBusinessBrandPageState extends State<ChooseBusinessBrandPage> {
     super.dispose();
   }
 
+  List<BusinessBrandEntity> get _brands {
+    final nonAll =
+        widget.presences.where((p) => p.id != 'all').toList();
+    return nonAll
+        .map((p) => BusinessBrandEntity(
+              id: p.id,
+              name: p.name,
+              activeLocationsCount: 1,
+              logoUrl: p.logoUrl,
+            ))
+        .toList();
+  }
+
   List<BusinessBrandEntity> get _filteredBrands {
-    const all = <BusinessBrandEntity>[];
+    final brands = _brands;
     final q = _searchController.text.trim().toLowerCase();
-    if (q.isEmpty) return all;
-    return all.where((b) => b.name.toLowerCase().contains(q)).toList();
+    if (q.isEmpty) return brands;
+    return brands.where((b) => b.name.toLowerCase().contains(q)).toList();
   }
 
   @override
@@ -218,10 +235,19 @@ class _ChooseBusinessBrandPageState extends State<ChooseBusinessBrandPage> {
     final index = brands.indexWhere((b) => b.id == _selectedBrandId);
     if (index == -1) return;
     final brand = brands[index];
+    BusinessPresence? parentPresence;
+    try {
+      parentPresence = widget.presences.firstWhere((p) => p.id == brand.id);
+    } catch (_) {
+      parentPresence = null;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AddLocationPage(selectedBrand: brand),
+        builder: (_) => AddLocationPage(
+          selectedBrand: brand,
+          parentPresence: parentPresence,
+        ),
       ),
     );
   }

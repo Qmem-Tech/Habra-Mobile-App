@@ -9,6 +9,8 @@ class BusinessPresence extends Equatable {
   final String? city;
   final String? state;
   final String imageUrl;
+  final String? logoUrl;
+  final String? backgroundUrl;
   final bool isVerified;
   final bool isOpenNow;
   final double? rating;
@@ -25,6 +27,8 @@ class BusinessPresence extends Equatable {
     this.city,
     this.state,
     required this.imageUrl,
+    this.logoUrl,
+    this.backgroundUrl,
     this.isVerified = false,
     this.isOpenNow = true,
     this.rating,
@@ -56,6 +60,11 @@ class BusinessPresence extends Equatable {
   /// True when the business is awaiting admin approval.
   bool get isPendingApproval => statusText == 'pending';
 
+  /// True when logo and background are both uploaded (required for full setup).
+  bool get hasRequiredImages =>
+      (logoUrl != null && logoUrl!.isNotEmpty) &&
+      (backgroundUrl != null && backgroundUrl!.isNotEmpty);
+
   @override
   List<Object?> get props => [
         id,
@@ -65,6 +74,8 @@ class BusinessPresence extends Equatable {
         city,
         state,
         imageUrl,
+        logoUrl,
+        backgroundUrl,
         isVerified,
         isOpenNow,
         rating,

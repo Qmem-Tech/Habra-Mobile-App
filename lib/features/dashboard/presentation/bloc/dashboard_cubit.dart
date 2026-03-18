@@ -28,6 +28,7 @@ class DashboardCubit extends Cubit<DashboardState> {
         deals: deals,
         dealsFilter: DashboardDealStatus.active,
         jobs: jobs,
+        jobsFilter: DashboardJobStatus.open,
         reviewsOverview: reviewsOverview,
         reviews: reviews,
       ));
@@ -46,6 +47,12 @@ class DashboardCubit extends Cubit<DashboardState> {
         emit((state as DashboardTabState).copyWith(deals: deals));
       }
     } catch (_) {}
+  }
+
+  void setJobsFilter(DashboardJobStatus? status) {
+    final current = state;
+    if (current is! DashboardTabState) return;
+    emit(current.copyWith(jobsFilter: status));
   }
 
   Future<void> loadApplicants(String jobId, String jobTitle, String jobSubtitle,
@@ -139,6 +146,25 @@ class DashboardCubit extends Cubit<DashboardState> {
     } catch (e) {
       emit(DashboardError(e.toString()));
       return false;
+    }
+  }
+
+  Future<Map<String, String?>?> getBusinessHours(String businessId) async {
+    try {
+      return await _repository.getBusinessHours(businessId);
+    } catch (e) {
+      emit(DashboardError(e.toString()));
+      return null;
+    }
+  }
+
+  Future<String?> createBusiness(
+      String ownerId, Map<String, dynamic> data) async {
+    try {
+      return await _repository.createBusiness(ownerId, data);
+    } catch (e) {
+      emit(DashboardError(e.toString()));
+      return null;
     }
   }
 

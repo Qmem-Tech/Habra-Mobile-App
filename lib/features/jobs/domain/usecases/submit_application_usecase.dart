@@ -15,6 +15,7 @@ class SubmitApplicationUseCase {
     required String phoneNumber,
     String? resumeUrl,
     String? coverLetter,
+    String? photoUrl,
     Map<String, String>? screeningAnswers,
   }) async {
     return await repository.submitApplication(
@@ -24,6 +25,7 @@ class SubmitApplicationUseCase {
       phoneNumber: phoneNumber,
       resumeUrl: resumeUrl,
       coverLetter: coverLetter,
+      photoUrl: photoUrl,
       screeningAnswers: screeningAnswers,
     );
   }

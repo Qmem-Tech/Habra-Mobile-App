@@ -24,6 +24,7 @@ class DashboardTabState extends DashboardState {
   final List<DashboardDeal> deals;
   final DashboardDealStatus? dealsFilter;
   final List<DashboardJob> jobs;
+  final DashboardJobStatus? jobsFilter;
   final RatingOverview? reviewsOverview;
   final List<BusinessReview> reviews;
   final String? errorMessage;
@@ -33,6 +34,7 @@ class DashboardTabState extends DashboardState {
     this.deals = const [],
     this.dealsFilter,
     this.jobs = const [],
+    this.jobsFilter,
     this.reviewsOverview,
     this.reviews = const [],
     this.errorMessage,
@@ -45,12 +47,18 @@ class DashboardTabState extends DashboardState {
   int get draftDealsCount =>
       deals.where((d) => d.status == DashboardDealStatus.draft).length;
 
+  int get activeJobsCount =>
+      jobs.where((j) => j.status == DashboardJobStatus.open).length;
+  int get draftJobsCount =>
+      jobs.where((j) => j.status == DashboardJobStatus.draft).length;
+
   @override
   List<Object?> get props => [
         analytics,
         deals,
         dealsFilter,
         jobs,
+        jobsFilter,
         reviewsOverview,
         reviews,
         errorMessage,
@@ -61,6 +69,7 @@ class DashboardTabState extends DashboardState {
     List<DashboardDeal>? deals,
     DashboardDealStatus? dealsFilter,
     List<DashboardJob>? jobs,
+    DashboardJobStatus? jobsFilter,
     RatingOverview? reviewsOverview,
     List<BusinessReview>? reviews,
     String? errorMessage,
@@ -70,6 +79,7 @@ class DashboardTabState extends DashboardState {
       deals: deals ?? this.deals,
       dealsFilter: dealsFilter ?? this.dealsFilter,
       jobs: jobs ?? this.jobs,
+      jobsFilter: jobsFilter ?? this.jobsFilter,
       reviewsOverview: reviewsOverview ?? this.reviewsOverview,
       reviews: reviews ?? this.reviews,
       errorMessage: errorMessage,

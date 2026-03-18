@@ -6,7 +6,12 @@ import 'contact_details_step3_page.dart';
 
 /// Business location step 2: Use Current Location, Street, Suite, City, State, ZIP, Next.
 class BusinessLocationStep2Page extends StatefulWidget {
-  const BusinessLocationStep2Page({super.key});
+  const BusinessLocationStep2Page({
+    super.key,
+    this.step1Data = const {},
+  });
+
+  final Map<String, String> step1Data;
 
   @override
   State<BusinessLocationStep2Page> createState() =>
@@ -199,10 +204,18 @@ class _BusinessLocationStep2PageState extends State<BusinessLocationStep2Page> {
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     setState(() => _isLoading = false);
+    final step2Data = {
+      ...widget.step1Data,
+      'address_street': _streetController.text.trim(),
+      'address_suite': _suiteController.text.trim(),
+      'address_city': _cityController.text.trim(),
+      'address_state': _stateController.text.trim(),
+      'address_zip': _zipController.text.trim(),
+    };
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const ContactDetailsStep3Page(),
+        builder: (_) => ContactDetailsStep3Page(step2Data: step2Data),
       ),
     );
   }

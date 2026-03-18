@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/error_display_helper.dart';
 import '../../../../core/services/image_picker_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -57,9 +58,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
         );
       } catch (e) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Photo upload failed: $e')),
-        );
+        ErrorDisplayHelper.show(context, error: e, title: 'Photo upload failed');
         return;
       }
     }
@@ -120,9 +119,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
               );
               Navigator.pop(context, true);
             } else if (state is WriteReviewError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.message)),
-              );
+              ErrorDisplayHelper.show(context, message: state.message, title: 'Could not post review');
             }
           },
           child: SingleChildScrollView(

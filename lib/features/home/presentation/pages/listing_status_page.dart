@@ -8,18 +8,29 @@ import '../../domain/entities/listing_status_entity.dart';
 
 /// Listing Status: shows Verification Pending or Live and Verified with business card.
 class ListingStatusPage extends StatelessWidget {
-  const ListingStatusPage({super.key, this.isVerified = false});
+  const ListingStatusPage({
+    super.key,
+    this.isVerified = false,
+    this.businessId = '',
+    this.businessName,
+    this.imageUrl = '',
+    this.locationText,
+  });
 
   final bool isVerified;
+  final String businessId;
+  final String? businessName;
+  final String imageUrl;
+  final String? locationText;
 
   ListingStatusEntity _listingEntity(BuildContext context) {
     return ListingStatusEntity(
-      businessId: '',
-      businessName: 'Your business',
-      locationText: null,
-      imageUrl: '',
+      businessId: businessId,
+      businessName: businessName ?? 'Your business',
+      locationText: locationText,
+      imageUrl: imageUrl,
       status: isVerified ? ListingStatusType.verified : ListingStatusType.pending,
-      isNewBusiness: false,
+      isNewBusiness: businessId.isNotEmpty,
     );
   }
 

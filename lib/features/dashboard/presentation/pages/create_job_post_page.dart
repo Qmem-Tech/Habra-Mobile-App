@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
+import '../../../../core/widgets/error_display_helper.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../bloc/dashboard_cubit.dart';
@@ -48,7 +49,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     return null;
   }
 
-  Map<String, dynamic> _buildPayload() {
+  Map<String, dynamic> _buildPayload({String status = 'open'}) {
     return {
       'title': _titleController.text.trim(),
       'description': _descriptionController.text.trim(),
@@ -60,6 +61,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
           : 'full-time',
       'salary_min': int.tryParse(_minSalaryController.text.trim()),
       'salary_max': int.tryParse(_maxSalaryController.text.trim()),
+      'status': status,
     };
   }
 
@@ -73,19 +75,48 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     }
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Posting job...');
-    final result = await ctx.read<DashboardCubit>().createJob(bizId, _buildPayload());
+    bool success = false;
+    try {
+      final result = await ctx.read<DashboardCubit>().createJob(bizId, _buildPayload(status: 'open'));
+      success = result != null;
+    } finally {
+      if (ctx.mounted) {
+        LoaderHelper.hide(ctx);
+      }
+    }
     if (!ctx.mounted) return;
-    LoaderHelper.hide(ctx);
-    if (result != null) {
+    if (success) {
       Navigator.pop(ctx, true);
+    } else {
+      ErrorDisplayHelper.show(ctx, message: 'We couldn\'t post your job. Please try again.', title: 'Post failed');
     }
   }
 
   Future<void> _saveDraft() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Job draft saved locally')),
-    );
-    Navigator.pop(context, false);
+    final bizId = _getSelectedBusinessId();
+    if (bizId == null || _titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in the job title and select a business')),
+      );
+      return;
+    }
+    final ctx = context;
+    LoaderHelper.show(ctx, message: 'Saving draft...');
+    bool success = false;
+    try {
+      final result = await ctx.read<DashboardCubit>().createJob(bizId, _buildPayload(status: 'draft'));
+      success = result != null;
+    } finally {
+      if (ctx.mounted) {
+        LoaderHelper.hide(ctx);
+      }
+    }
+    if (!ctx.mounted) return;
+    if (success) {
+      Navigator.pop(ctx, true);
+    } else {
+      ErrorDisplayHelper.show(ctx, message: 'We couldn\'t save your draft. Please try again.', title: 'Save failed');
+    }
   }
 
   @override

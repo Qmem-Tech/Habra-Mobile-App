@@ -1,15 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../domain/entities/business_brand_entity.dart';
+import '../../domain/entities/business_presence.dart';
+import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
+import '../../../../injection/injection_container.dart' as di;
+import '../../../../core/widgets/error_display_helper.dart';
+import 'listing_status_page.dart';
 
 /// Add a new location to an existing business brand (Add New Presence → New Location flow).
 /// Step 2 of 2: address fields, same hours toggle, Complete Registration.
 class AddLocationPage extends StatefulWidget {
-  final BusinessBrandEntity selectedBrand;
+  const AddLocationPage({
+    super.key,
+    required this.selectedBrand,
+    this.parentPresence,
+  });
 
-  const AddLocationPage({super.key, required this.selectedBrand});
+  final BusinessBrandEntity selectedBrand;
+  final BusinessPresence? parentPresence;
 
   @override
   State<AddLocationPage> createState() => _AddLocationPageState();
@@ -291,13 +302,72 @@ class _AddLocationPageState extends State<AddLocationPage> {
   }
 
   Future<void> _onComplete() async {
+    final ctx = context;
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-    // Pop back to Business Locations / Home (AddLocation → ChooseBrand → AddNewPresence)
-    for (int i = 0; i < 3 && context.mounted; i++) {
-      Navigator.pop(context);
+
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final street = _streetController.text.trim();
+      final suite = _suiteController.text.trim();
+      final addressStreet = suite.isNotEmpty ? '$street, $suite' : street;
+
+      final parent = widget.parentPresence;
+      final data = <String, dynamic>{
+        'name': '${widget.selectedBrand.name} - ${_cityController.text.trim()}',
+        'description': parent?.category,
+        'address_street': addressStreet.isNotEmpty ? addressStreet : null,
+        'address_city': _cityController.text.trim().isNotEmpty
+            ? _cityController.text.trim()
+            : 'Unknown',
+        'address_state':
+            _stateController.text.trim().isNotEmpty ? _stateController.text.trim() : null,
+        'address_zip': _zipController.text.trim().isNotEmpty ? _zipController.text.trim() : null,
+        'logo_url': parent?.logoUrl ?? widget.selectedBrand.logoUrl,
+        'background_url': parent?.backgroundUrl,
+      };
+      if (_sameHoursAsMain && parent != null) {
+        final hours = await di.sl<DashboardCubit>().getBusinessHours(parent.id);
+        if (hours != null) {
+          data['opening_time'] = hours['opening_time'];
+          data['closing_time'] = hours['closing_time'];
+        }
+      } else {
+        data['opening_time'] = '09:00';
+        data['closing_time'] = '17:00';
+      }
+      data.removeWhere((_, v) => v == null);
+
+      final businessId =
+          await di.sl<DashboardCubit>().createBusiness(userId, data);
+      if (!ctx.mounted) return;
+      if (businessId == null) {
+        throw Exception('Failed to create location');
+      }
+      setState(() => _isLoading = false);
+      if (!ctx.mounted) return;
+      Navigator.of(ctx).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => ListingStatusPage(
+            isVerified: false,
+            businessId: businessId,
+            businessName: widget.selectedBrand.name,
+            imageUrl: parent?.logoUrl ?? widget.selectedBrand.logoUrl ?? '',
+            locationText: _cityController.text.trim().isNotEmpty
+                ? '${_streetController.text.trim()}, ${_cityController.text.trim()}'
+                : null,
+          ),
+        ),
+        (route) => route.isFirst,
+      );
+    } catch (e) {
+      if (ctx.mounted) {
+        setState(() => _isLoading = false);
+        ErrorDisplayHelper.show(ctx, error: e, title: 'Could not add location');
+      }
     }
   }
 }

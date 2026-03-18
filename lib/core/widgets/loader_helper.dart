@@ -22,6 +22,7 @@ class LoaderHelper {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.transparent,
+      useRootNavigator: true,
       builder: (context) => HabraCircularLoader(
         fullScreen: true,
         message: message,
@@ -30,8 +31,9 @@ class LoaderHelper {
     );
   }
 
-  /// Hide full-screen loader
-  static void hide(BuildContext context) {
-    Navigator.of(context, rootNavigator: true).pop();
+  /// Hide full-screen loader. Returns a Future so callers can await before showing another overlay.
+  static Future<void> hide(BuildContext context) async {
+    if (!context.mounted) return;
+    await Navigator.of(context, rootNavigator: true).maybePop();
   }
 }

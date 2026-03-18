@@ -13,6 +13,7 @@ abstract class JobApplicationsRemoteDataSource {
     required String phoneNumber,
     String? resumeUrl,
     String? coverLetter,
+    String? photoUrl,
     Map<String, String>? screeningAnswers,
   });
 
@@ -38,6 +39,7 @@ class JobApplicationsRemoteDataSourceImpl
     required String phoneNumber,
     String? resumeUrl,
     String? coverLetter,
+    String? photoUrl,
     Map<String, String>? screeningAnswers,
   }) async {
     throw UnimplementedError(

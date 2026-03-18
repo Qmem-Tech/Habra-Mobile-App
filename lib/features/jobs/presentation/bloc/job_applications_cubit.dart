@@ -61,6 +61,7 @@ class JobApplicationsCubit extends Cubit<JobApplicationsState> {
     required String phoneNumber,
     String? resumeUrl,
     String? coverLetter,
+    String? photoUrl,
     Map<String, String>? screeningAnswers,
   }) async {
     emit(SubmitApplicationLoading());
@@ -72,6 +73,7 @@ class JobApplicationsCubit extends Cubit<JobApplicationsState> {
       phoneNumber: phoneNumber,
       resumeUrl: resumeUrl,
       coverLetter: coverLetter,
+      photoUrl: photoUrl,
       screeningAnswers: screeningAnswers,
     );
 

@@ -1,17 +1,24 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
+import '../../../../core/widgets/error_display_helper.dart';
 import '../../../../core/services/image_picker_service.dart';
+import 'package:habra_mobile_app/core/services/storage_service.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import 'listing_status_page.dart';
 
 /// Add Photos step 4: Cover Photo, Logo (required), Complete Registration.
 class AddPhotosStep4Page extends StatefulWidget {
-  const AddPhotosStep4Page({super.key});
+  const AddPhotosStep4Page({super.key, this.step3Data = const {}});
+
+  final Map<String, String> step3Data;
 
   @override
   State<AddPhotosStep4Page> createState() => _AddPhotosStep4PageState();
@@ -207,22 +214,93 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
   }
 
   Future<void> _onComplete() async {
+    final ctx = context;
     setState(() => _isSubmitting = true);
-    LoaderHelper.show(context, message: 'Completing registration...');
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    _afterRegistrationComplete();
-  }
+    LoaderHelper.show(ctx, message: 'Completing registration...');
 
-  void _afterRegistrationComplete() {
-    if (!context.mounted) return;
-    LoaderHelper.hide(context);
-    setState(() => _isSubmitting = false);
-    if (!context.mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => const ListingStatusPage(isVerified: true),
-      ),
-    );
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('Not authenticated');
+      }
+
+      String? logoUrl;
+      String? backgroundUrl;
+      final pathPrefix = '$userId/new/${DateTime.now().millisecondsSinceEpoch}';
+
+      if (_logoFile != null) {
+        logoUrl = await di.sl<StorageService>().uploadImage(
+          SupabaseBuckets.businesses,
+          '$pathPrefix/logo',
+          _logoFile!,
+        );
+      }
+      if (_coverFile != null) {
+        backgroundUrl = await di.sl<StorageService>().uploadImage(
+          SupabaseBuckets.businesses,
+          '$pathPrefix/background',
+          _coverFile!,
+        );
+      }
+
+      final street = widget.step3Data['address_street'] ?? '';
+      final suite = widget.step3Data['address_suite'];
+      final addressStreet = suite != null && suite.isNotEmpty
+          ? '$street${street.isNotEmpty ? ', ' : ''}$suite'
+          : street;
+
+      final data = <String, dynamic>{
+        'name': widget.step3Data['name'] ?? 'New Business',
+        'description': widget.step3Data['category'],
+        'phone': widget.step3Data['phone']?.isNotEmpty == true
+            ? widget.step3Data['phone']
+            : null,
+        'email': widget.step3Data['email']?.isNotEmpty == true
+            ? widget.step3Data['email']
+            : null,
+        'website': widget.step3Data['website']?.isNotEmpty == true
+            ? widget.step3Data['website']
+            : null,
+        'address_street': addressStreet.isNotEmpty ? addressStreet : null,
+        'address_city': widget.step3Data['address_city'] ?? 'Unknown',
+        'address_state': widget.step3Data['address_state']?.isNotEmpty == true
+            ? widget.step3Data['address_state']
+            : null,
+        'address_zip': widget.step3Data['address_zip']?.isNotEmpty == true
+            ? widget.step3Data['address_zip']
+            : null,
+        'opening_time': widget.step3Data['opening_time'],
+        'closing_time': widget.step3Data['closing_time'],
+        'logo_url': logoUrl,
+        'background_url': backgroundUrl,
+      };
+      data.removeWhere((_, v) => v == null);
+
+      final businessId = await di.sl<DashboardCubit>().createBusiness(userId, data);
+      if (!ctx.mounted) return;
+      if (businessId == null) {
+        throw Exception('Failed to create business');
+      }
+      LoaderHelper.hide(ctx);
+      setState(() => _isSubmitting = false);
+      if (!ctx.mounted) return;
+      Navigator.of(ctx).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => ListingStatusPage(
+            isVerified: false,
+            businessId: businessId,
+            businessName: widget.step3Data['name'] ?? 'Your business',
+            imageUrl: logoUrl ?? backgroundUrl ?? '',
+          ),
+        ),
+        (route) => route.isFirst,
+      );
+    } catch (e) {
+      if (ctx.mounted) {
+        LoaderHelper.hide(ctx);
+        setState(() => _isSubmitting = false);
+        ErrorDisplayHelper.show(ctx, error: e, title: 'Registration failed');
+      }
+    }
   }
 }

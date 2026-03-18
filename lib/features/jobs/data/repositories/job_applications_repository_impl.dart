@@ -29,6 +29,7 @@ class JobApplicationsRepositoryImpl implements JobApplicationsRepository {
     required String phoneNumber,
     String? resumeUrl,
     String? coverLetter,
+    String? photoUrl,
     Map<String, String>? screeningAnswers,
   }) async {
     try {
@@ -39,6 +40,7 @@ class JobApplicationsRepositoryImpl implements JobApplicationsRepository {
         phoneNumber: phoneNumber,
         resumeUrl: resumeUrl,
         coverLetter: coverLetter,
+        photoUrl: photoUrl,
         screeningAnswers: screeningAnswers,
       );
       return Right(application);

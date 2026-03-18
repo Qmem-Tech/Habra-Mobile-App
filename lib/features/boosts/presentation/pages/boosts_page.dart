@@ -14,6 +14,7 @@ import '../../../home/presentation/pages/business_locations_page.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
 import '../../../home/presentation/widgets/business_owner_drawer.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
+import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../dashboard/presentation/pages/edit_business_page.dart';
 import '../../../dashboard/presentation/pages/update_hours_page.dart';
 import '../../../dashboard/presentation/widgets/empty_state_widget.dart';
@@ -76,10 +77,14 @@ class _BoostsPageState extends State<BoostsPage> {
                 },
                 onUpdateHoursTap: () {
                   if (selected != null && selected.id != 'all') {
+                    final dashboardCubit = context.read<DashboardCubit>();
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => UpdateHoursPage(businessId: selected.id),
+                        builder: (_) => BlocProvider<DashboardCubit>.value(
+                          value: dashboardCubit,
+                          child: UpdateHoursPage(businessId: selected.id),
+                        ),
                       ),
                     );
                   }

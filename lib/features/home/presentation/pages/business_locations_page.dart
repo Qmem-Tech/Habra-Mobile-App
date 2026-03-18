@@ -259,7 +259,9 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
   Future<void> _openAddNewPresence(BuildContext context) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const AddNewPresencePage()),
+      MaterialPageRoute(
+        builder: (_) => AddNewPresencePage(presences: _presences),
+      ),
     );
     if (!context.mounted) return;
     // Presences stay as-is; parent will have fresh data on next open

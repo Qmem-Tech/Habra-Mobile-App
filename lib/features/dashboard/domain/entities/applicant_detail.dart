@@ -25,6 +25,10 @@ class ApplicantDetail extends Equatable {
   final String id;
   final String name;
   final String? profileImageUrl;
+  /// Optional photo uploaded with the application.
+  final String? applicationPhotoUrl;
+  final String? email;
+  final String? phone;
   final String location;
   final String appliedFor;
   final String receivedDate;
@@ -38,6 +42,9 @@ class ApplicantDetail extends Equatable {
     required this.id,
     required this.name,
     this.profileImageUrl,
+    this.applicationPhotoUrl,
+    this.email,
+    this.phone,
     required this.location,
     required this.appliedFor,
     required this.receivedDate,
@@ -53,6 +60,9 @@ class ApplicantDetail extends Equatable {
         id,
         name,
         profileImageUrl,
+        applicationPhotoUrl,
+        email,
+        phone,
         location,
         appliedFor,
         receivedDate,

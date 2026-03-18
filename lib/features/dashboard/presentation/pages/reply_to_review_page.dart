@@ -36,12 +36,18 @@ class _ReplyToReviewPageState extends State<ReplyToReviewPage> {
     }
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Posting response...');
-    final success = await ctx.read<DashboardCubit>().replyToReview(
-          widget.review.id,
-          _responseController.text.trim(),
-        );
+    bool success = false;
+    try {
+      success = await ctx.read<DashboardCubit>().replyToReview(
+            widget.review.id,
+            _responseController.text.trim(),
+          );
+    } finally {
+      if (ctx.mounted) {
+        LoaderHelper.hide(ctx);
+      }
+    }
     if (!ctx.mounted) return;
-    LoaderHelper.hide(ctx);
     if (success) {
       Navigator.pop(ctx, true);
     } else {

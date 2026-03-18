@@ -32,4 +32,5 @@ class SupabaseBuckets {
   static const String deals = 'deals';
   static const String events = 'events';
   static const String reviews = 'reviews';
+  static const String applicantPhotos = 'applicant_photos';
 }

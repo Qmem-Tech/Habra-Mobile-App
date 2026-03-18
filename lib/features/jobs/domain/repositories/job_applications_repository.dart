@@ -16,6 +16,7 @@ abstract class JobApplicationsRepository {
     required String phoneNumber,
     String? resumeUrl,
     String? coverLetter,
+    String? photoUrl,
     Map<String, String>? screeningAnswers,
   });
 

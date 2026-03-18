@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart' show AppButton, AppOutlinedButton;
 import '../../../../core/widgets/loader_helper.dart';
+import '../../../../core/widgets/error_display_helper.dart';
 import '../../../../core/services/image_picker_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -113,9 +114,7 @@ class _CreateDealPageState extends State<CreateDealPage> {
     } catch (e) {
       if (ctx.mounted) {
         LoaderHelper.hide(ctx);
-        ScaffoldMessenger.of(ctx).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
-        );
+        ErrorDisplayHelper.show(ctx, error: e, title: 'Could not create deal');
       }
     }
   }
@@ -142,9 +141,7 @@ class _CreateDealPageState extends State<CreateDealPage> {
     } catch (e) {
       if (ctx.mounted) {
         LoaderHelper.hide(ctx);
-        ScaffoldMessenger.of(ctx).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
-        );
+        ErrorDisplayHelper.show(ctx, error: e, title: 'Could not create deal');
       }
     }
   }

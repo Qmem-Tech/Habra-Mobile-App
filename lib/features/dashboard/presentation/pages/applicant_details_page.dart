@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -8,6 +9,13 @@ import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../domain/entities/applicant_detail.dart';
 import '../bloc/dashboard_cubit.dart';
 import '../bloc/dashboard_state.dart';
+
+Future<void> _launchUrl(String url) async {
+  final uri = Uri.parse(url);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
 
 class ApplicantDetailsPage extends StatelessWidget {
   const ApplicantDetailsPage({
@@ -105,10 +113,15 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
                       CircleAvatar(
                         radius: 48,
                         backgroundColor: AppColors.backgroundGrey,
-                        child: Text(
-                          d.name.isNotEmpty ? d.name[0].toUpperCase() : '?',
-                          style: const TextStyle(fontSize: 36, color: AppColors.textSecondary),
-                        ),
+                        backgroundImage: d.profileImageUrl != null && d.profileImageUrl!.isNotEmpty
+                            ? NetworkImage(d.profileImageUrl!)
+                            : null,
+                        child: d.profileImageUrl == null || d.profileImageUrl!.isEmpty
+                            ? Text(
+                                d.name.isNotEmpty ? d.name[0].toUpperCase() : '?',
+                                style: const TextStyle(fontSize: 36, color: AppColors.textSecondary),
+                              )
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -116,14 +129,58 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
                         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      Text(d.location, style: TextStyle(color: AppColors.textSecondary)),
+                      if (d.email != null && d.email!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: GestureDetector(
+                            onTap: () => _launchUrl('mailto:${d.email}'),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.email_outlined, size: 16, color: AppColors.brandPrimary),
+                                const SizedBox(width: 6),
+                                Text(d.email!, style: TextStyle(color: AppColors.brandPrimary, fontSize: 14)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (d.phone != null && d.phone!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: GestureDetector(
+                            onTap: () => _launchUrl('tel:${d.phone}'),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.phone_outlined, size: 16, color: AppColors.brandPrimary),
+                                const SizedBox(width: 6),
+                                Text(d.phone!, style: TextStyle(color: AppColors.brandPrimary, fontSize: 14)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (d.location.isNotEmpty)
+                        Text(d.location, style: TextStyle(color: AppColors.textSecondary)),
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          AppButton(text: 'Email', onPressed: () {}, icon: Icons.email_outlined, width: 100),
-                          const SizedBox(width: 12),
-                          AppButton(text: 'Call', onPressed: () {}, icon: Icons.call_outlined, width: 100),
+                          if (d.email != null && d.email!.isNotEmpty)
+                            AppButton(
+                              text: 'Email',
+                              onPressed: () => _launchUrl('mailto:${d.email}'),
+                              icon: Icons.email_outlined,
+                              width: 100,
+                            ),
+                          if (d.email != null && d.email!.isNotEmpty && d.phone != null && d.phone!.isNotEmpty)
+                            const SizedBox(width: 12),
+                          if (d.phone != null && d.phone!.isNotEmpty)
+                            AppButton(
+                              text: 'Call',
+                              onPressed: () => _launchUrl('tel:${d.phone}'),
+                              icon: Icons.call_outlined,
+                              width: 100,
+                            ),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -168,7 +225,7 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
                     )),
                 const SizedBox(height: 24),
                 const Text('Resume', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                if (d.resumeFileName != null)
+                if (d.resumeFileName != null && d.resumeFileUrl != null)
                   AppCard(
                     margin: EdgeInsets.zero,
                     child: ListTile(
@@ -178,10 +235,27 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          IconButton(icon: const Icon(Icons.visibility_outlined), onPressed: () {}),
-                          IconButton(icon: const Icon(Icons.download_outlined), onPressed: () {}),
+                          IconButton(
+                            icon: const Icon(Icons.visibility_outlined),
+                            onPressed: () => _launchUrl(d.resumeFileUrl!),
+                            tooltip: 'Preview resume',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.download_outlined),
+                            onPressed: () => _launchUrl(d.resumeFileUrl!),
+                            tooltip: 'Download resume',
+                          ),
                         ],
                       ),
+                    ),
+                  )
+                else if (d.resumeFileName != null)
+                  AppCard(
+                    margin: EdgeInsets.zero,
+                    child: ListTile(
+                      leading: const Icon(Icons.description, color: AppColors.brandPrimary),
+                      title: Text(d.resumeFileName!),
+                      subtitle: const Text('Resume not available'),
                     ),
                   ),
                 const SizedBox(height: 32),

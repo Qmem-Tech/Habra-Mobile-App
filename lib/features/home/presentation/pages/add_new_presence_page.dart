@@ -3,12 +3,15 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../domain/entities/business_presence.dart';
 import 'business_details_step1_page.dart';
 import 'choose_business_brand_page.dart';
 
 /// Add New Presence: choose New Business or New Location, then Continue.
 class AddNewPresencePage extends StatefulWidget {
-  const AddNewPresencePage({super.key});
+  const AddNewPresencePage({super.key, this.presences = const []});
+
+  final List<BusinessPresence> presences;
 
   @override
   State<AddNewPresencePage> createState() => _AddNewPresencePageState();
@@ -186,7 +189,7 @@ class _AddNewPresencePageState extends State<AddNewPresencePage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const ChooseBusinessBrandPage(),
+          builder: (_) => ChooseBusinessBrandPage(presences: widget.presences),
         ),
       );
     }
