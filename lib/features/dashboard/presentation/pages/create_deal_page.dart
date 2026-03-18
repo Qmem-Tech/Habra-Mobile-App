@@ -107,14 +107,17 @@ class _CreateDealPageState extends State<CreateDealPage> {
       if (!ctx.mounted) return;
       final result = await ctx.read<DashboardCubit>().createDeal(bizId, payload);
       if (!ctx.mounted) return;
-      LoaderHelper.hide(ctx);
+      await LoaderHelper.hide(ctx);
+      if (!ctx.mounted) return;
       if (result != null) {
         Navigator.pop(ctx, true);
       }
     } catch (e) {
       if (ctx.mounted) {
-        LoaderHelper.hide(ctx);
-        ErrorDisplayHelper.show(ctx, error: e, title: 'Could not create deal');
+        await LoaderHelper.hide(ctx);
+        if (ctx.mounted) {
+          ErrorDisplayHelper.show(ctx, error: e, title: 'Could not create deal');
+        }
       }
     }
   }
@@ -134,14 +137,17 @@ class _CreateDealPageState extends State<CreateDealPage> {
       if (!ctx.mounted) return;
       final result = await ctx.read<DashboardCubit>().createDeal(bizId, payload);
       if (!ctx.mounted) return;
-      LoaderHelper.hide(ctx);
+      await LoaderHelper.hide(ctx);
+      if (!ctx.mounted) return;
       if (result != null) {
         Navigator.pop(ctx, true);
       }
     } catch (e) {
       if (ctx.mounted) {
-        LoaderHelper.hide(ctx);
-        ErrorDisplayHelper.show(ctx, error: e, title: 'Could not create deal');
+        await LoaderHelper.hide(ctx);
+        if (ctx.mounted) {
+          ErrorDisplayHelper.show(ctx, error: e, title: 'Could not create deal');
+        }
       }
     }
   }

@@ -119,8 +119,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
         );
       } catch (e) {
         if (!ctx.mounted) return;
-        LoaderHelper.hide(ctx);
-        ErrorDisplayHelper.show(ctx, error: e, title: 'Image upload failed');
+        await LoaderHelper.hide(ctx);
+        if (ctx.mounted) {
+          ErrorDisplayHelper.show(ctx, error: e, title: 'Image upload failed');
+        }
         return;
       }
     }
@@ -155,14 +157,19 @@ class _CreateEventPageState extends State<CreateEventPage> {
       child: BlocListener<CreateEventCubit, CreateEventState>(
         listener: (context, state) {
           if (state is CreateEventSuccess) {
-            LoaderHelper.hide(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Event created successfully!')),
-            );
-            Navigator.pop(context, true);
+            LoaderHelper.hide(context).then((_) {
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Event created successfully!')),
+              );
+              Navigator.pop(context, true);
+            });
           } else if (state is CreateEventError) {
-            LoaderHelper.hide(context);
-            ErrorDisplayHelper.show(context, message: state.message, title: 'Could not create event');
+            LoaderHelper.hide(context).then((_) {
+              if (context.mounted) {
+                ErrorDisplayHelper.show(context, message: state.message, title: 'Could not create event');
+              }
+            });
           }
         },
         child: Scaffold(

@@ -118,19 +118,21 @@ class _UpdateHoursPageState extends State<UpdateHoursPage> {
             },
           );
       if (!ctx.mounted) return;
+      await LoaderHelper.hide(ctx);
+      if (!ctx.mounted) return;
       if (success) {
-        LoaderHelper.hide(ctx);
         ScaffoldMessenger.of(ctx).showSnackBar(
             const SnackBar(content: Text('Hours updated')));
         Navigator.pop(ctx, true);
       } else {
-        LoaderHelper.hide(ctx);
         ErrorDisplayHelper.show(ctx, message: 'We couldn\'t update your hours. Please try again.', title: 'Update failed');
       }
     } catch (e) {
       if (ctx.mounted) {
-        LoaderHelper.hide(ctx);
-        ErrorDisplayHelper.show(ctx, error: e, title: 'Update failed');
+        await LoaderHelper.hide(ctx);
+        if (ctx.mounted) {
+          ErrorDisplayHelper.show(ctx, error: e, title: 'Update failed');
+        }
       }
     }
   }

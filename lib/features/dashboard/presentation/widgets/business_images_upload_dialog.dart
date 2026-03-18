@@ -122,12 +122,15 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
       await cubit.updateBusiness(widget.businessId, data);
 
       if (!ctx.mounted) return;
-      LoaderHelper.hide(ctx);
+      await LoaderHelper.hide(ctx);
+      if (!ctx.mounted) return;
       Navigator.of(ctx).pop(true);
     } catch (e) {
       if (ctx.mounted) {
-        LoaderHelper.hide(ctx);
-        ErrorDisplayHelper.show(ctx, error: e, title: 'Upload failed');
+        await LoaderHelper.hide(ctx);
+        if (ctx.mounted) {
+          ErrorDisplayHelper.show(ctx, error: e, title: 'Upload failed');
+        }
       }
     }
   }

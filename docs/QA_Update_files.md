@@ -252,7 +252,12 @@ This creates the bucket (5MB file limit) and policies so authenticated users can
 - For existing business: user must be the **owner** (owner_id = auth.uid())
 - For new business: path is `{user_id}/new/{timestamp}/...` – user can upload to own path
 
-### 4. Debugging
+### 4. Loader not dismissing on error
+- The loader overlay is now dismissed **before** the error card is shown.
+- `LoaderHelper.hide()` is `async` – flows that show an error after the loader must `await LoaderHelper.hide(ctx)` before calling `ErrorDisplayHelper.show()`.
+- If the loader stays visible, ensure the upload/save flow is wrapped in `try/catch` and `LoaderHelper.hide` is called in the `catch` block (e.g. `edit_business_page`, `business_images_upload_dialog`).
+
+### 5. Debugging
 - Check the error message in the error card (or console)
 - In Supabase Dashboard → Storage → `businesses` bucket: verify bucket exists and is public
 - In Storage → Policies: verify `businesses_insert` and `businesses_select` exist

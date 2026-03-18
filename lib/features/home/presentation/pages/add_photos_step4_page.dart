@@ -281,7 +281,8 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
       if (businessId == null) {
         throw Exception('Failed to create business');
       }
-      LoaderHelper.hide(ctx);
+      await LoaderHelper.hide(ctx);
+      if (!ctx.mounted) return;
       setState(() => _isSubmitting = false);
       if (!ctx.mounted) return;
       Navigator.of(ctx).pushAndRemoveUntil(
@@ -297,9 +298,11 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
       );
     } catch (e) {
       if (ctx.mounted) {
-        LoaderHelper.hide(ctx);
-        setState(() => _isSubmitting = false);
-        ErrorDisplayHelper.show(ctx, error: e, title: 'Registration failed');
+        await LoaderHelper.hide(ctx);
+        if (ctx.mounted) {
+          setState(() => _isSubmitting = false);
+          ErrorDisplayHelper.show(ctx, error: e, title: 'Registration failed');
+        }
       }
     }
   }

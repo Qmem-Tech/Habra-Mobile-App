@@ -83,43 +83,53 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
     final cubit = ctx.read<DashboardCubit>();
     LoaderHelper.show(ctx, message: 'Saving...');
 
-    final data = <String, dynamic>{
-      'name': _nameController.text.trim(),
-      'description': _descriptionController.text.trim(),
-      'phone': _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
-      'email': _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
-      'website': _websiteController.text.trim().isNotEmpty ? _websiteController.text.trim() : null,
-      'address_street': _streetController.text.trim().isNotEmpty ? _streetController.text.trim() : null,
-      'address_city': _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : null,
-      'address_state': _stateController.text.trim().isNotEmpty ? _stateController.text.trim() : null,
-    };
+    try {
+      final data = <String, dynamic>{
+        'name': _nameController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'phone': _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
+        'email': _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
+        'website': _websiteController.text.trim().isNotEmpty ? _websiteController.text.trim() : null,
+        'address_street': _streetController.text.trim().isNotEmpty ? _streetController.text.trim() : null,
+        'address_city': _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : null,
+        'address_state': _stateController.text.trim().isNotEmpty ? _stateController.text.trim() : null,
+      };
 
-    if (_logoFile != null) {
-      data['logo_url'] = await di.sl<StorageService>().uploadImage(
-        SupabaseBuckets.businesses,
-        '${widget.business.id}/logo',
-        _logoFile!,
-      );
-    }
-    if (_backgroundFile != null) {
-      data['background_url'] = await di.sl<StorageService>().uploadImage(
-        SupabaseBuckets.businesses,
-        '${widget.business.id}/background',
-        _backgroundFile!,
-      );
-    }
+      if (_logoFile != null) {
+        data['logo_url'] = await di.sl<StorageService>().uploadImage(
+          SupabaseBuckets.businesses,
+          '${widget.business.id}/logo',
+          _logoFile!,
+        );
+      }
+      if (_backgroundFile != null) {
+        data['background_url'] = await di.sl<StorageService>().uploadImage(
+          SupabaseBuckets.businesses,
+          '${widget.business.id}/background',
+          _backgroundFile!,
+        );
+      }
 
-    data.removeWhere((_, v) => v == null);
-    final success = await cubit.updateBusiness(widget.business.id, data);
-    if (!ctx.mounted) return;
-    LoaderHelper.hide(ctx);
-    if (success) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Business updated')),
-      );
-      Navigator.pop(ctx, true);
-    } else {
-      ErrorDisplayHelper.show(ctx, message: 'We couldn\'t update your business. Please try again.', title: 'Update failed');
+      data.removeWhere((_, v) => v == null);
+      final success = await cubit.updateBusiness(widget.business.id, data);
+      if (!ctx.mounted) return;
+      await LoaderHelper.hide(ctx);
+      if (!ctx.mounted) return;
+      if (success) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          const SnackBar(content: Text('Business updated')),
+        );
+        Navigator.pop(ctx, true);
+      } else {
+        ErrorDisplayHelper.show(ctx, message: 'We couldn\'t update your business. Please try again.', title: 'Update failed');
+      }
+    } catch (e) {
+      if (ctx.mounted) {
+        await LoaderHelper.hide(ctx);
+        if (ctx.mounted) {
+          ErrorDisplayHelper.show(ctx, error: e, title: 'Upload failed');
+        }
+      }
     }
   }
 

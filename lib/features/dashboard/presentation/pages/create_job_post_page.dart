@@ -81,7 +81,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
       success = result != null;
     } finally {
       if (ctx.mounted) {
-        LoaderHelper.hide(ctx);
+        await LoaderHelper.hide(ctx);
       }
     }
     if (!ctx.mounted) return;
@@ -108,7 +108,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
       success = result != null;
     } finally {
       if (ctx.mounted) {
-        LoaderHelper.hide(ctx);
+        await LoaderHelper.hide(ctx);
       }
     }
     if (!ctx.mounted) return;
