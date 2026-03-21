@@ -123,10 +123,27 @@ class _ProfilePageState extends State<ProfilePage> {
                           _profile?.fullName ?? widget.user.name,
                           style: AppFonts.mediumTitle(color: AppColors.textPrimary)
                               .copyWith(fontSize: 24),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: AppResources.spacingXL),
                         Center(
-                          child: CircleAvatar(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => BlocProvider(
+                                    create: (_) => di.sl<EditProfileCubit>(),
+                                    child: EditProfilePage(user: widget.user),
+                                  ),
+                                ),
+                              ).then((_) => _loadProfile());
+                            },
+                            child: Stack(
+                              children: [
+                                CircleAvatar(
                             radius: 52,
                             backgroundColor:
                                 AppColors.brandPrimary.withValues(alpha: 0.2),
@@ -148,6 +165,29 @@ class _ProfilePageState extends State<ProfilePage> {
                                         .copyWith(fontSize: 36),
                                   )
                                 : null,
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.brandPrimary,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: AppColors.backgroundWhite,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.camera_alt,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                         const SizedBox(height: AppResources.spacingL),
@@ -155,12 +195,16 @@ class _ProfilePageState extends State<ProfilePage> {
                           _profile?.fullName ?? widget.user.name,
                           style: AppFonts.mediumTitle(color: AppColors.textPrimary),
                           textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: AppResources.spacingXS),
                         Text(
                           widget.user.email,
                           style: AppFonts.body(color: AppColors.textSecondary),
                           textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: AppResources.spacingS),
                         Center(
@@ -239,6 +283,8 @@ class _ProfilePageState extends State<ProfilePage> {
                             child: Text(
                               _profile!.bio!,
                               style: AppFonts.body(color: AppColors.textPrimary),
+                              maxLines: 6,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],

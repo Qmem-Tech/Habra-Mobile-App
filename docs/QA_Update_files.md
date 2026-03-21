@@ -358,6 +358,7 @@ Run these in Supabase Dashboard → SQL Editor if the corresponding feature fail
 
 | Migration | When to run |
 |-----------|-------------|
+| `add_notifications_and_ticket_purchases.sql` | Event ticket purchases (sold/left counts, organizer notifications) |
 | `add_businesses_storage_bucket.sql` | Business images (logo, cover) upload fails |
 | `add_businesses_storage_permissive.sql` | Business images still fail after bucket |
 | `add_businesses_image_columns.sql` | "Images uploaded but we couldn't save the update" |
@@ -471,3 +472,99 @@ Run these in Supabase Dashboard → SQL Editor if the corresponding feature fail
 - [ ] Verify logo/background inherited from parent
 - [ ] Same hours as main → verify hours copied from parent
 - [ ] Listing Status page shows new location
+
+---
+
+## Community Member & Business Owner Updates (Mar 2025)
+
+### Overview
+Fixes and features for community member flow, payment integration, profile, search, and business owner dashboard.
+
+---
+
+### 1. Explore Page Refresh
+- **Fix**: `RefreshIndicator` now reloads businesses and deals on pull-to-refresh (was empty before).
+- **Files**: `lib/features/explore/presentation/pages/explore_page.dart`
+
+### 2. Checkout & RevenueCat Payment
+- **Fix**: Checkout flow creates order first, gets real order ID, then processes payment (was using fake order ID).
+- **Feature**: `performCheckout` in `TicketsCubit` integrates RevenueCat for sandbox IAP; falls back to simulated success when RevenueCat has no offerings.
+- **Files**: `lib/features/events/presentation/bloc/tickets_cubit.dart`, `lib/features/events/presentation/pages/checkout_page.dart`, `lib/features/events/data/datasources/events_supabase_datasource.dart`, `lib/injection/injection_container.dart`
+
+### 3. Bottom Nav & Card Padding
+- **Fix**: Reduced bottom nav padding (SafeArea + padding top: 8, bottom: 4).
+- **Fix**: Reduced checkout pay button and Explore section bottom padding.
+- **Files**: `lib/core/navigation/main_navigation_wrapper.dart`, `lib/features/events/presentation/pages/checkout_page.dart`, `lib/features/explore/presentation/pages/explore_page.dart`
+
+### 4. Directory Search & Refresh
+- **Fix**: Search debounced (400 ms) to avoid excessive API calls.
+- **Feature**: Refresh button in app bar; empty state mentions admin approval for new businesses.
+- **Files**: `lib/features/explore/presentation/pages/directory_page.dart`
+
+### 5. Profile UX
+- **Feature**: Avatar tap opens Edit Profile; camera icon overlay on avatar.
+- **Fix**: `maxLines` and `overflow` on name, email, bio to prevent overflow.
+- **Files**: `lib/features/home/presentation/pages/profile_page.dart`
+
+### 6. Business Owner Dashboard Refresh
+- **Feature**: Pull-to-refresh on single-business and all-businesses views.
+- **Feature**: Refresh button in app bar.
+- **Feature**: Returning from Add New Presence triggers reload of business list.
+- **Files**: `lib/features/home/presentation/pages/business_owner_home_page.dart`
+
+---
+
+### QA Validation Checklist (Additions)
+
+#### Explore & Directory
+- [ ] Explore tab: pull to refresh → businesses and deals reload
+- [ ] Directory: tap search bar → type query → results update after 400 ms debounce
+- [ ] Directory: tap refresh icon → list reloads
+- [ ] Directory: empty state shows "New businesses may need admin approval"
+
+#### Event Checkout & Payment
+- [ ] Event detail → Select tickets → Checkout → fill contact info → Pay
+- [ ] Order created in Supabase with correct ID before payment
+- [ ] Payment completes (RevenueCat sandbox or simulated fallback)
+- [ ] Order confirmation page shows after success
+
+#### Profile
+- [ ] Profile: tap avatar → Edit Profile opens
+- [ ] Profile: long name/email → no overflow (ellipsis)
+- [ ] Edit Profile: Change Photo → upload works
+
+#### Business Owner
+- [ ] Home tab: pull to refresh → data reloads
+- [ ] Home tab: tap refresh icon → data reloads
+- [ ] Add New Presence → complete → return → home list shows new business
+
+#### Layout
+- [ ] Bottom nav: reduced padding (no excessive bottom space)
+- [ ] Checkout: pay button area has reasonable padding
+
+---
+
+## Recommendations & Dashboard UI (Mar 2025)
+
+### 1. Recommendations Feature (Community Member)
+- **Location**: Home page, above "Happening This Week"
+- **Section**: "Recommended for you" with sparkle icon
+- **Selection chips**: All, Businesses, Events, Deals – filter recommended items by type
+- **Content**: Horizontal scroll of businesses (compact cards), events, and deals
+- **Files**: `lib/features/home/presentation/pages/home_page.dart`
+
+### 2. Dashboard UI Update (Business Owner)
+- **Summary header**: Gradient card showing Active Deals, Open Jobs, Rating/Reviews at a glance; tap to switch tab
+- **Tab bar**: Icons + labels, pill-style selection, subtle shadow
+- **Refresh**: Refresh button in app bar; pull-to-refresh on Analytics tab
+- **Files**: `lib/features/dashboard/presentation/widgets/dashboard_summary_header.dart`, `dashboard_tab_bar.dart`, `dashboard_app_bar.dart`, `dashboard_page.dart`, `dashboard_analytics_tab.dart`
+
+### QA Validation
+- [ ] Home: "Recommended for you" section visible when data exists
+- [ ] Home: Tap All/Businesses/Events/Deals chips → list filters correctly
+- [ ] Home: Tap recommended business card → Business detail opens
+- [ ] Dashboard: Summary header shows deals, jobs, reviews counts
+- [ ] Dashboard: Tap summary card → switches to corresponding tab
+- [ ] Dashboard: Tab bar shows icons; selected tab highlighted
+- [ ] Dashboard: Refresh button reloads data
+- [ ] Dashboard: Pull to refresh on Analytics tab works

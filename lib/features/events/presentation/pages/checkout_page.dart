@@ -5,6 +5,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../domain/entities/event_detail.dart';
+import '../../domain/entities/ticket_type.dart';
 import '../bloc/tickets_cubit.dart';
 import '../bloc/tickets_state.dart';
 import '../bloc/events_cubit.dart';
@@ -15,8 +17,15 @@ import 'payment_failed_page.dart';
 class CheckoutPage extends StatefulWidget {
   final String eventId;
   final List<Map<String, dynamic>> tickets;
+  /// Pre-filled from current user when available.
+  final String? initialEmail;
 
-  const CheckoutPage({super.key, required this.eventId, required this.tickets});
+  const CheckoutPage({
+    super.key,
+    required this.eventId,
+    required this.tickets,
+    this.initialEmail,
+  });
 
   @override
   State<CheckoutPage> createState() => _CheckoutPageState();
@@ -24,7 +33,7 @@ class CheckoutPage extends StatefulWidget {
 
 class _CheckoutPageState extends State<CheckoutPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: 'abebe.kebede@gmail.com');
+  late final TextEditingController _emailController;
   String _phoneNumber = '';
   final _cardNumberController = TextEditingController();
   final _expiryController = TextEditingController();
@@ -33,6 +42,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
   final _promoController = TextEditingController();
   String _selectedPaymentMethod = 'card';
   bool _saveCard = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail ?? '');
+  }
 
   @override
   void dispose() {
@@ -96,8 +111,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget _buildContent(BuildContext context, event) {
+  Widget _buildContent(BuildContext context, EventDetail event) {
     final orderTotal = _calculateOrderTotal(event);
+    final subtotal = _calculateSubtotal(event);
     return SingleChildScrollView(
       child: Form(
         key: _formKey,
@@ -108,7 +124,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             _buildPaymentMethod(),
             if (_selectedPaymentMethod == 'card') _buildCardDetails(),
             _buildPromoCode(),
-            _buildTotalSummary(orderTotal),
+            _buildTotalSummary(subtotal, orderTotal),
             _buildPayButton(context, orderTotal),
           ],
         ),
@@ -116,7 +132,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget _buildEventSummary(event) {
+  Widget _buildEventSummary(EventDetail event) {
+    final breakdown = _getTicketBreakdown(event);
+    final ticketSummary = breakdown.isEmpty
+        ? '${widget.tickets.length} ticket(s)'
+        : breakdown
+            .map((b) => '${b.quantity} x ${b.name}')
+            .join(', ');
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
@@ -172,7 +194,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${widget.tickets.length} x VIP Tickets',
+                  ticketSummary,
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.brandPrimary,
@@ -405,7 +427,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget _buildTotalSummary(double total) {
+  Widget _buildTotalSummary(double subtotal, double total) {
+    final serviceFee = subtotal * 0.05;
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
@@ -420,7 +443,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Subtotal'),
-              Text('\$${_calculateSubtotal(null).toStringAsFixed(2)}'),
+              Text('\$${subtotal.toStringAsFixed(2)}'),
             ],
           ),
           const SizedBox(height: 12),
@@ -428,7 +451,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Service Fee'),
-              Text('\$${(_calculateSubtotal(null) * 0.05).toStringAsFixed(2)}'),
+              Text('\$${serviceFee.toStringAsFixed(2)}'),
             ],
           ),
           const Divider(height: 24),
@@ -462,7 +485,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       builder: (context, state) {
         final isLoading = state is PaymentProcessing || state is OrderLoading;
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           decoration: BoxDecoration(
             color: Colors.white,
             boxShadow: [
@@ -522,19 +545,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
   void _processPayment(BuildContext context) {
     final cubit = context.read<TicketsCubit>();
 
-    // First create order
-    cubit.createOrder(
+    cubit.performCheckout(
       eventId: widget.eventId,
       tickets: widget.tickets,
       contactInfo: {
         'email': _emailController.text,
         'phone': _phoneNumber,
       },
-    );
-
-    // Then process payment
-    cubit.processPayment(
-      orderId: 'order_${DateTime.now().millisecondsSinceEpoch}',
       paymentMethod: {
         'type': _selectedPaymentMethod,
         'cardNumber': _cardNumberController.text,
@@ -546,14 +563,51 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  double _calculateSubtotal(dynamic event) {
-    // TODO: calculate from selected tickets when order is built
-    return 0.0;
+  double _calculateSubtotal(EventDetail? event) {
+    if (event == null) return 0.0;
+    double subtotal = 0.0;
+    for (final t in widget.tickets) {
+      final ticketTypeId = t['ticketTypeId'] as String?;
+      final quantity = (t['quantity'] as num?)?.toInt() ?? 0;
+      if (ticketTypeId == null || quantity <= 0) continue;
+      TicketType? ticketType;
+      for (final tt in event.ticketTypes) {
+        if (tt.id == ticketTypeId) {
+          ticketType = tt;
+          break;
+        }
+      }
+      if (ticketType != null) {
+        subtotal += ticketType.price * quantity;
+      }
+    }
+    return subtotal;
   }
 
-  double _calculateOrderTotal(dynamic event) {
+  double _calculateOrderTotal(EventDetail? event) {
     final subtotal = _calculateSubtotal(event);
     final serviceFee = subtotal * 0.05;
     return subtotal + serviceFee;
+  }
+
+  /// Returns list of (ticketTypeName, quantity, price) for display.
+  List<({String name, int quantity, double price})> _getTicketBreakdown(EventDetail event) {
+    final result = <({String name, int quantity, double price})>[];
+    for (final t in widget.tickets) {
+      final ticketTypeId = t['ticketTypeId'] as String?;
+      final quantity = (t['quantity'] as num?)?.toInt() ?? 0;
+      if (ticketTypeId == null || quantity <= 0) continue;
+      TicketType? ticketType;
+      for (final tt in event.ticketTypes) {
+        if (tt.id == ticketTypeId) {
+          ticketType = tt;
+          break;
+        }
+      }
+      if (ticketType != null) {
+        result.add((name: ticketType.name, quantity: quantity, price: ticketType.price));
+      }
+    }
+    return result;
   }
 }

@@ -376,7 +376,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           .eq('id', applicantId)
           .maybeSingle();
       if (res == null) return null;
-      final row = Map<String, dynamic>.from(res as Map);
+      final row = Map<String, dynamic>.from(res);
       final profile = row[SupabaseTables.profiles];
       final job = row[SupabaseTables.jobs];
       final profileName = profile is Map<String, dynamic>
@@ -466,7 +466,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           .insert(payload)
           .select('*, ${SupabaseTables.businesses}!deals_business_id_fkey(name)')
           .single();
-      return _rowToDashboardDeal(Map<String, dynamic>.from(res as Map));
+      return _rowToDashboardDeal(Map<String, dynamic>.from(res));
     });
   }
 
@@ -496,7 +496,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           .insert(payload)
           .select('*, ${SupabaseTables.businesses}!jobs_business_id_fkey(name, logo_url)')
           .single();
-      final row = Map<String, dynamic>.from(res as Map);
+      final row = Map<String, dynamic>.from(res);
       final biz = row[SupabaseTables.businesses];
       final statusStr = parseString(row['status']) ?? status;
       final jobStatus = statusStr == 'draft'
@@ -551,7 +551,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           .insert(payload)
           .select('id')
           .single();
-      final row = res as Map<String, dynamic>;
+      final row = Map<String, dynamic>.from(res);
       return parseStringRequired(row['id']);
     });
   }
@@ -599,7 +599,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           .eq('id', businessId)
           .maybeSingle();
       if (res == null) return null;
-      final row = res as Map<String, dynamic>;
+      final row = Map<String, dynamic>.from(res);
       final opening = row['opening_time']?.toString();
       final closing = row['closing_time']?.toString();
       return {

@@ -11,6 +11,7 @@ import '../../../../core/services/storage_service.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
 import '../../../../core/widgets/error_display_helper.dart';
+import '../../../../core/widgets/business_address_input.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../home/domain/entities/business_presence.dart';
 import '../bloc/dashboard_cubit.dart';
@@ -31,8 +32,10 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
   late final TextEditingController _emailController;
   late final TextEditingController _websiteController;
   late final TextEditingController _streetController;
+  late final TextEditingController _suiteController;
   late final TextEditingController _cityController;
   late final TextEditingController _stateController;
+  late final TextEditingController _zipController;
 
   File? _logoFile;
   File? _backgroundFile;
@@ -46,8 +49,10 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
     _emailController = TextEditingController(text: widget.business.email ?? '');
     _websiteController = TextEditingController(text: widget.business.website ?? '');
     _streetController = TextEditingController(text: widget.business.locationName ?? '');
+    _suiteController = TextEditingController();
     _cityController = TextEditingController(text: widget.business.city ?? '');
     _stateController = TextEditingController(text: widget.business.state ?? '');
+    _zipController = TextEditingController();
   }
 
   @override
@@ -58,8 +63,10 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
     _emailController.dispose();
     _websiteController.dispose();
     _streetController.dispose();
+    _suiteController.dispose();
     _cityController.dispose();
     _stateController.dispose();
+    _zipController.dispose();
     super.dispose();
   }
 
@@ -84,6 +91,7 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
     for (final f in [_logoFile, _backgroundFile]) {
       if (f != null) {
         final size = await f.length();
+        if (!ctx.mounted) return;
         if (size > FileUtils.maxImageBytes) {
           ErrorDisplayHelper.show(
             ctx,
@@ -94,20 +102,25 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
         }
       }
     }
+    if (!ctx.mounted) return;
 
     final cubit = ctx.read<DashboardCubit>();
     LoaderHelper.show(ctx, message: 'Saving...');
 
     try {
+      final street = _streetController.text.trim();
+      final suite = _suiteController.text.trim();
+      final addressStreet = suite.isNotEmpty ? '$street${street.isNotEmpty ? ', ' : ''}$suite' : street;
       final data = <String, dynamic>{
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
         'phone': _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
         'email': _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
         'website': _websiteController.text.trim().isNotEmpty ? _websiteController.text.trim() : null,
-        'address_street': _streetController.text.trim().isNotEmpty ? _streetController.text.trim() : null,
+        'address_street': addressStreet.isNotEmpty ? addressStreet : null,
         'address_city': _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : null,
         'address_state': _stateController.text.trim().isNotEmpty ? _stateController.text.trim() : null,
+        'address_zip': _zipController.text.trim().isNotEmpty ? _zipController.text.trim() : null,
       };
 
       if (_logoFile != null) {
@@ -199,13 +212,14 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
             const SizedBox(height: 24),
             _sectionTitle('Address'),
             const SizedBox(height: 12),
-            _buildField('Street', _streetController),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _buildField('City', _cityController)),
-              const SizedBox(width: 12),
-              Expanded(child: _buildField('State', _stateController)),
-            ]),
+            BusinessAddressInput(
+              streetController: _streetController,
+              suiteController: _suiteController,
+              cityController: _cityController,
+              stateController: _stateController,
+              zipController: _zipController,
+              defaultState: 'AL',
+            ),
             const SizedBox(height: 32),
             AppButton(text: 'Save Changes', onPressed: _save),
           ],
@@ -223,6 +237,7 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
     required VoidCallback onTap,
   }) {
     final hasImage = file != null || (url != null && url.isNotEmpty);
+    final urlStr = url ?? '';
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,17 +261,21 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
                           borderRadius: BorderRadius.circular(AppResources.radiusM),
                           child: file != null
                               ? Image.file(file, fit: BoxFit.cover)
-                              : Image.network(url!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image)),
+                              : Image.network(
+                                  urlStr,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(Icons.image),
+                                ),
                         ),
                         if (file != null)
                           Positioned(
                             bottom: 4,
                             left: 4,
                             child: FutureBuilder<int>(
-                              future: file!.length(),
+                              future: file.length(),
                               builder: (context, snapshot) {
                                 if (!snapshot.hasData) return const SizedBox.shrink();
-                                final bytes = snapshot.data!;
+                                final bytes = snapshot.requireData;
                                 final overLimit = bytes > FileUtils.maxImageBytes;
                                 return Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

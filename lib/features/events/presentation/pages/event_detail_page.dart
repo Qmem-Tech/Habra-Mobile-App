@@ -4,9 +4,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../domain/entities/event_detail.dart';
 import '../bloc/events_cubit.dart';
 import '../bloc/events_state.dart';
 import '../widgets/event_list_card.dart';
+import '../widgets/event_map_preview.dart';
 import 'select_tickets_page.dart';
 import 'package:intl/intl.dart';
 
@@ -240,7 +242,7 @@ class EventDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildLocationSection(event) {
+  Widget _buildLocationSection(EventDetail event) {
     return Container(
       padding: const EdgeInsets.all(20),
       color: Colors.white,
@@ -256,15 +258,10 @@ class EventDetailPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Container(
+          EventMapPreview(
+            event: event,
             height: 200,
-            decoration: BoxDecoration(
-              color: AppColors.backgroundGrey,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Icon(Icons.map, size: 48, color: AppColors.textSecondary),
-            ),
+            showDirectionsButton: event.latitude != null && event.longitude != null,
           ),
         ],
       ),

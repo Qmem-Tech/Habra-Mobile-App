@@ -15,6 +15,7 @@ import '../bloc/dashboard_cubit.dart';
 import '../bloc/dashboard_state.dart';
 import '../widgets/dashboard_app_bar.dart';
 import '../widgets/dashboard_tab_bar.dart';
+import '../widgets/dashboard_summary_header.dart';
 import 'dashboard_analytics_tab.dart';
 import 'dashboard_deals_tab.dart';
 import 'dashboard_jobs_tab.dart';
@@ -60,12 +61,12 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  void _loadDashboard() {
+  Future<void> _loadDashboard() async {
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
     if (homeState is BusinessOwnerHomeLoaded && homeState.selectedPresence != null) {
       final id = homeState.selectedPresence!.id;
       if (id != 'all') {
-        context.read<DashboardCubit>().loadDashboard(id);
+        await context.read<DashboardCubit>().loadDashboard(id);
       }
     }
   }
@@ -142,18 +143,37 @@ class _DashboardPageState extends State<DashboardPage> {
                 selectedPresence: presence,
                 onBusinessTap: _openBusinessLocations,
                 onNotificationsTap: _openNotifications,
+                onRefresh: _loadDashboard,
               );
             },
           ),
         ),
         body: Column(
           children: [
+            BlocBuilder<DashboardCubit, DashboardState>(
+              buildWhen: (_, current) => current is DashboardTabState,
+              builder: (context, state) {
+                if (state is DashboardTabState) {
+                  return DashboardSummaryHeader(
+                    activeDealsCount: state.activeDealsCount,
+                    activeJobsCount: state.activeJobsCount,
+                    rating: state.analytics?.rating,
+                    reviewCount: state.analytics?.reviewCount,
+                    onDealsTap: () => setState(() => _tabIndex = 1),
+                    onJobsTap: () => setState(() => _tabIndex = 2),
+                    onReviewsTap: () => setState(() => _tabIndex = 3),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
             DashboardTabBar(
               currentIndex: _tabIndex,
               onTap: (index) {
                 setState(() => _tabIndex = index);
               },
             ),
+            const SizedBox(height: 8),
             Expanded(
               child: BlocBuilder<DashboardCubit, DashboardState>(
                 builder: (context, state) {
@@ -202,6 +222,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       return DashboardAnalyticsTab(
                         analytics: state.analytics,
                         onQuickStatTap: (_) {},
+                        onRefresh: _loadDashboard,
                       );
                     case 1:
                       return DashboardDealsTab(

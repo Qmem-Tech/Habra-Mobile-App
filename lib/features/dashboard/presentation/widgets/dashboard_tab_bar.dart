@@ -13,11 +13,28 @@ class DashboardTabBar extends StatelessWidget {
   final ValueChanged<int> onTap;
 
   static const List<String> _labels = ['Analytics', 'Deals', 'Jobs', 'Reviews'];
+  static const List<IconData> _icons = [
+    Icons.analytics_outlined,
+    Icons.sell_outlined,
+    Icons.work_outline,
+    Icons.rate_review_outlined,
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
         children: List.generate(_labels.length, (index) {
           final isSelected = index == currentIndex;
@@ -25,28 +42,36 @@ class DashboardTabBar extends StatelessWidget {
             child: GestureDetector(
               onTap: () => onTap(index),
               behavior: HitTestBehavior.opaque,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      _labels[index],
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                        color: isSelected ? AppColors.brandPrimary : AppColors.textSecondary,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                margin: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.brandPrimary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _icons[index],
+                      size: 18,
+                      color: isSelected ? Colors.white : AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        _labels[index],
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected ? Colors.white : AppColors.textSecondary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ),
-                  Container(
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppColors.brandPrimary : Colors.transparent,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );

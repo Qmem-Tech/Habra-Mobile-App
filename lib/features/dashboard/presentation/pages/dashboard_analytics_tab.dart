@@ -11,10 +11,12 @@ class DashboardAnalyticsTab extends StatelessWidget {
     super.key,
     this.analytics,
     this.onQuickStatTap,
+    this.onRefresh,
   });
 
   final DashboardAnalytics? analytics;
   final void Function(String type)? onQuickStatTap;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +30,8 @@ class DashboardAnalyticsTab extends StatelessWidget {
     }
 
     final a = analytics!;
-    return SingleChildScrollView(
+    final scrollView = SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 8, AppResources.spacingM, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,6 +122,13 @@ class DashboardAnalyticsTab extends StatelessWidget {
         ],
       ),
     );
+    if (onRefresh != null) {
+      return RefreshIndicator(
+        onRefresh: onRefresh!,
+        child: scrollView,
+      );
+    }
+    return scrollView;
   }
 }
 
@@ -133,9 +143,9 @@ class _MetricCard extends StatelessWidget {
     final isNegative = trend < 0;
     final color = isNegative ? AppColors.error : AppColors.success;
     return AppCard(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       margin: EdgeInsets.zero,
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: AppColors.backgroundWhite,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

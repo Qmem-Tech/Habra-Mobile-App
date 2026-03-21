@@ -12,6 +12,9 @@ import '../../../../core/services/storage_service.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
 import '../../../../core/widgets/error_display_helper.dart';
+import '../../../../core/services/location_service.dart';
+import '../../../../core/permissions/app_permission.dart';
+import '../../../../core/services/permission_service.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
@@ -39,6 +42,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
   EventCategory _category = EventCategory.community;
   File? _imageFile;
   String? _imageUrl;
+  double? _venueLat;
+  double? _venueLng;
 
   final List<_TicketTypeRow> _ticketTypes = [];
 
@@ -132,6 +137,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
       description: _descriptionController.text.trim(),
       venueName: _venueNameController.text.trim(),
       venueAddress: _venueAddressController.text.trim(),
+      venueLat: _venueLat,
+      venueLng: _venueLng,
       startAt: _startAt!,
       endAt: _endAt!,
       imageUrl: imageUrl,
@@ -221,6 +228,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     controller: _venueAddressController,
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
                   ),
+                  const SizedBox(height: 12),
+                  _buildLocationSection(),
                   const SizedBox(height: 16),
                   _sectionTitle('Date & Time'),
                   const SizedBox(height: 8),
@@ -350,6 +359,110 @@ class _CreateEventPageState extends State<CreateEventPage> {
           ),
         ),
       );
+  }
+
+  Widget _buildLocationSection() {
+    final hasLocation = _venueLat != null && _venueLng != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Event Location (for map)',
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final granted = await di.sl<PermissionService>().requestWithDialog(
+                    context,
+                    AppPermission.location,
+                  );
+                  if (!granted || !mounted) return;
+                  final result = await di.sl<LocationService>().getCurrentLocation();
+                  if (!mounted) return;
+                  result.fold(
+                    (f) => ErrorDisplayHelper.show(context, message: f.message, title: 'Location'),
+                    (loc) {
+                      setState(() {
+                        _venueLat = loc.latitude;
+                        _venueLng = loc.longitude;
+                        if (_venueAddressController.text.trim().isEmpty) {
+                          _venueAddressController.text = loc.displayName!;
+                        }
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Location set from current position')),
+                      );
+                    },
+                  );
+                },
+                icon: const Icon(Icons.my_location, size: 18),
+                label: const Text('Use current location'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.brandPrimary,
+                  side: BorderSide(color: AppColors.brandPrimary),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final address = _venueAddressController.text.trim();
+                  if (address.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Enter venue address first')),
+                    );
+                    return;
+                  }
+                  final result = await di.sl<LocationService>().geocodeAddress(address);
+                  if (!mounted) return;
+                  result.fold(
+                    (f) => ErrorDisplayHelper.show(context, message: f.message, title: 'Location'),
+                    (coords) {
+                      setState(() {
+                        _venueLat = coords.lat;
+                        _venueLng = coords.lng;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Location set from address')),
+                      );
+                    },
+                  );
+                },
+                icon: const Icon(Icons.map, size: 18),
+                label: const Text('Set from address'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.brandPrimary,
+                  side: BorderSide(color: AppColors.brandPrimary),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (hasLocation)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, size: 18, color: AppColors.success),
+                const SizedBox(width: 6),
+                Text(
+                  'Location set — users will see this on the map',
+                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
   }
 
   Widget _sectionTitle(String text) {

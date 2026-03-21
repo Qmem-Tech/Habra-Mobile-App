@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -23,6 +25,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
   final TextEditingController _searchController = TextEditingController();
   BusinessCategory _selectedCategory = BusinessCategory.all;
   final String _currentLocation = 'Washington, D.C.';
+  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -34,6 +37,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -71,6 +75,13 @@ class _DirectoryPageState extends State<DirectoryPage> {
           ),
           backgroundColor: Colors.white,
           elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
+              onPressed: () => _loadBusinesses(context),
+              tooltip: 'Refresh',
+            ),
+          ],
         ),
         body: Column(
           children: [
@@ -134,7 +145,13 @@ class _DirectoryPageState extends State<DirectoryPage> {
                         ),
                       ),
                       onChanged: (value) {
-                        _loadBusinesses(context);
+                        _searchDebounce?.cancel();
+                        _searchDebounce = Timer(
+                          const Duration(milliseconds: 400),
+                          () {
+                            if (context.mounted) _loadBusinesses(context);
+                          },
+                        );
                       },
                     ),
                   ),
@@ -318,7 +335,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: Text(
-              'Try adjusting your filters or search query',
+              'Try adjusting your filters or search query. New businesses may need admin approval before appearing.',
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,

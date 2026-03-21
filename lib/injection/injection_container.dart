@@ -331,6 +331,7 @@ Future<void> init() async {
     getUserTicketsUseCase: sl<GetUserTicketsUseCase>(),
     createOrderUseCase: sl<CreateOrderUseCase>(),
     processPaymentUseCase: sl<ProcessPaymentUseCase>(),
+    revenueCatService: sl<RevenueCatService>(),
   ));
 
   // Features - Explore

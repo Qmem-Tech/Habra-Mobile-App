@@ -417,7 +417,7 @@ class _CreateDealPageState extends State<CreateDealPage> {
 
   Widget _buildTimeField(String label, TimeOfDay? value, void Function(TimeOfDay) onPicked) {
     final display = value != null
-        ? '${_formatTimeOfDay(value)}'
+        ? _formatTimeOfDay(value)
         : 'Tap to select';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -46,8 +46,14 @@ class _ExplorePageState extends State<ExplorePage> {
     super.dispose();
   }
 
-  void _loadData(BuildContext context) {
-    // Data loading is handled in BlocProvider creation
+  Future<void> _loadData(BuildContext context) async {
+    if (!context.mounted) return;
+    await context.read<BusinessesCubit>().loadBusinesses(
+          location: _currentLocation,
+          featuredOnly: false,
+        );
+    if (!context.mounted) return;
+    await context.read<DealsCubit>().loadDeals(location: _currentLocation);
   }
 
   @override
@@ -85,9 +91,7 @@ class _ExplorePageState extends State<ExplorePage> {
               _buildCategoryFilters(),
               Expanded(
                 child: RefreshIndicator(
-                  onRefresh: () async {
-                    _loadData(context);
-                  },
+                  onRefresh: () => _loadData(context),
                   child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,7 +541,7 @@ class _ExplorePageState extends State<ExplorePage> {
                   },
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
             ],
           );
         }

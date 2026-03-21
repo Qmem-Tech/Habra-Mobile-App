@@ -311,6 +311,11 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       ),
       actions: [
         IconButton(
+          icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
+          onPressed: () => _refreshOwnerHome(context),
+          tooltip: 'Refresh',
+        ),
+        IconButton(
           icon: Stack(
             children: [
               const Icon(Icons.notifications_outlined,
@@ -342,11 +347,21 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     );
   }
 
+  Future<void> _refreshOwnerHome(BuildContext context) async {
+    await context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
+          ownerId: widget.user.id,
+          showSetupIncomplete: false,
+        );
+  }
+
   Widget _buildSingleBusinessView(BusinessOwnerHomeLoaded state) {
     final presence = state.selectedPresence;
 
-    return CustomScrollView(
-      slivers: [
+    return RefreshIndicator(
+      onRefresh: () => _refreshOwnerHome(context),
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
         _buildAppBar(state, onBusinessSelectorTap: _openBusinessLocations),
         SliverToBoxAdapter(
           child: Column(
@@ -437,12 +452,16 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           ),
         ),
       ],
+      ),
     );
   }
 
   Widget _buildAllBusinessesView(BusinessOwnerHomeLoaded state) {
-    return CustomScrollView(
-      slivers: [
+    return RefreshIndicator(
+      onRefresh: () => _refreshOwnerHome(context),
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
         _buildAppBar(state, onBusinessSelectorTap: _openBusinessLocations),
         SliverToBoxAdapter(
           child: Column(
@@ -499,6 +518,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           ),
         ),
       ],
+      ),
     );
   }
 
@@ -1560,7 +1580,8 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   }
 
   void _openAddNewPresence(BuildContext context) {
-    final state = context.read<BusinessOwnerHomeCubit>().state;
+    final cubit = context.read<BusinessOwnerHomeCubit>();
+    final state = cubit.state;
     final presences =
         state is BusinessOwnerHomeLoaded ? state.presences : const <BusinessPresence>[];
     Navigator.push(
@@ -1568,7 +1589,11 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       MaterialPageRoute(
         builder: (_) => AddNewPresencePage(presences: presences),
       ),
-    );
+    ).then((_) {
+      if (context.mounted) {
+        cubit.loadOwnerHome(ownerId: widget.user.id, showSetupIncomplete: false);
+      }
+    });
   }
 
   void _openJobApplicants(BuildContext context, Job job) {

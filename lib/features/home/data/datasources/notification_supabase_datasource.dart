@@ -22,8 +22,6 @@ class NotificationSupabaseDataSource implements NotificationRemoteDataSource {
         .order('created_at', ascending: false)
         .limit(100));
 
-    if (res == null) return [];
-
     final list = res as List<dynamic>;
     return list
         .map((e) => _rowToModel(Map<String, dynamic>.from(e as Map)))
@@ -97,7 +95,6 @@ class NotificationSupabaseDataSource implements NotificationRemoteDataSource {
         .eq('user_id', userId)
         .eq('is_read', false));
 
-    if (res == null) return 0;
     return (res as List).length;
   }
 }

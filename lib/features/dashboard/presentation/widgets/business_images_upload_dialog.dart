@@ -85,6 +85,7 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
     for (final f in [_logoFile, _backgroundFile, ..._galleryFiles]) {
       if (f != null) {
         final size = await f.length();
+        if (!ctx.mounted) return;
         if (size > FileUtils.maxImageBytes) {
           ErrorDisplayHelper.show(
             ctx,
@@ -95,6 +96,7 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
         }
       }
     }
+    if (!ctx.mounted) return;
 
     final cubit = ctx.read<DashboardCubit>();
     final userId = Supabase.instance.client.auth.currentUser?.id;
@@ -246,6 +248,7 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
     String? imageUrl,
     required VoidCallback onTap,
   }) {
+    final imageUrlStr = imageUrl ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -292,7 +295,7 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
                         child: imageFile != null
                             ? Image.file(imageFile, fit: BoxFit.cover)
                             : Image.network(
-                                imageUrl!,
+                                imageUrlStr,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => _buildPlaceholder(),
                               ),
@@ -302,10 +305,10 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
                           bottom: 8,
                           left: 8,
                           child: FutureBuilder<int>(
-                            future: imageFile!.length(),
+                            future: imageFile.length(),
                             builder: (context, snapshot) {
                               if (!snapshot.hasData) return const SizedBox.shrink();
-                              final bytes = snapshot.data!;
+                              final bytes = snapshot.requireData;
                               final overLimit = bytes > FileUtils.maxImageBytes;
                               return Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

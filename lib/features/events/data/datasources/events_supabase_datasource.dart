@@ -269,7 +269,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       num totalAmount = 0;
       final selectedTickets = <SelectedTicket>[];
       for (final t in tickets) {
-        final ticketTypeId = (t['ticket_type_id'] ?? t['event_ticket_id']) as String?;
+        final ticketTypeId = (t['ticket_type_id'] ?? t['event_ticket_id'] ?? t['ticketTypeId']) as String?;
         if (ticketTypeId == null) continue;
         final qty = (t['quantity'] as num?)?.toInt() ?? 1;
         final etRes = await _client.from('event_tickets').select('*').eq('id', ticketTypeId).maybeSingle();
@@ -342,7 +342,12 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       final res = await _client.from('orders').select('*').eq('id', orderId).single();
       final row = Map<String, dynamic>.from(res as Map);
       final eventId = parseString(row['event_id']);
-      if (eventId == null) throw Exception('Order not found');
+      final buyerId = parseString(row['user_id']);
+      if (eventId == null || buyerId == null) throw Exception('Order not found');
+
+      // Insert into event_ticket_purchases for web app sold/left counts and organizer notification
+      await _insertEventTicketPurchases(orderId, eventId, buyerId);
+
       final eventDetail = await getEventDetail(eventId);
       return OrderModel(
         id: orderId,
@@ -355,6 +360,48 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         status: events_domain.OrderStatus.completed,
       );
     });
+  }
+
+  /// Inserts into event_ticket_purchases for each ticket type in the order.
+  /// Enables web app sold/left counts per ticket type and triggers organizer notification.
+  Future<void> _insertEventTicketPurchases(
+    String orderId,
+    String eventId,
+    String buyerId,
+  ) async {
+    final ticketsRes = await _client
+        .from(SupabaseTables.tickets)
+        .select('event_ticket_id, quantity, event_tickets(price)')
+        .eq('order_id', orderId);
+    final rows = (ticketsRes as List).cast<Map<String, dynamic>>();
+
+    // Aggregate by event_ticket_id: { ticketId -> { quantity, price } }
+    final Map<String, _TicketAggregate> agg = {};
+    for (final r in rows) {
+      final ticketId = parseString(r['event_ticket_id']);
+      if (ticketId == null) continue;
+      final qty = parseInt(r['quantity']) ?? 1;
+      final et = r['event_tickets'];
+      final price = et is Map<String, dynamic>
+          ? (parseDouble(et['price']) ?? 0)
+          : 0.0;
+      agg[ticketId] = _TicketAggregate(
+        quantity: (agg[ticketId]?.quantity ?? 0) + qty,
+        price: agg[ticketId]?.price ?? price,
+      );
+    }
+
+    for (final e in agg.entries) {
+      final totalCents = (e.value.price * e.value.quantity * 100).round();
+      await _client.from(SupabaseTables.eventTicketPurchases).insert({
+        'event_id': eventId,
+        'event_ticket_id': e.key,
+        'buyer_id': buyerId,
+        'quantity': e.value.quantity,
+        'total_cents': totalCents,
+        'status': 'completed',
+      });
+    }
   }
 
   @override
@@ -398,4 +445,11 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       return getEventDetail(eventId);
     });
   }
+}
+
+/// Helper for aggregating ticket quantities by event_ticket_id.
+class _TicketAggregate {
+  _TicketAggregate({required this.quantity, required this.price});
+  final int quantity;
+  final double price;
 }

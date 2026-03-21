@@ -17,6 +17,7 @@ import '../widgets/job_card.dart';
 import 'search_page.dart';
 import 'location_selection_page.dart';
 import '../../../jobs/presentation/pages/job_detail_page.dart';
+import '../../../explore/presentation/pages/business_detail_page.dart';
 import '../../../../core/navigation/main_nav_scope.dart';
 import 'notification_page.dart';
 
@@ -36,8 +37,11 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+enum _RecommendationFilter { all, businesses, events, deals }
+
 class _HomePageState extends State<HomePage> {
   LocationEntity? _currentLocation;
+  _RecommendationFilter _recommendationFilter = _RecommendationFilter.all;
 
   @override
   void initState() {
@@ -89,11 +93,14 @@ class _HomePageState extends State<HomePage> {
     final businesses = state is HomeLoaded ? state.businesses : <Business>[];
     final jobs = state is HomeLoaded ? state.jobs : <Job>[];
 
+    final hasRecommendations = events.isNotEmpty || deals.isNotEmpty || businesses.isNotEmpty;
+
     return CustomScrollView(
       slivers: [
         _buildHeader(),
         _buildGreetingSection(),
         _buildSearchSection(),
+        if (hasRecommendations) _buildRecommendationsSection(events, deals, businesses),
         if (events.isNotEmpty) _buildEventsSection(events),
         if (deals.isNotEmpty) _buildDealsSection(deals),
         if (businesses.isNotEmpty) _buildBusinessesSection(businesses),
@@ -197,6 +204,115 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildRecommendationsSection(
+    List<Event> events,
+    List<Deal> deals,
+    List<Business> businesses,
+  ) {
+    final filteredEvents = _recommendationFilter == _RecommendationFilter.all ||
+            _recommendationFilter == _RecommendationFilter.events
+        ? events
+        : <Event>[];
+    final filteredDeals = _recommendationFilter == _RecommendationFilter.all ||
+            _recommendationFilter == _RecommendationFilter.deals
+        ? deals
+        : <Deal>[];
+    final filteredBusinesses = _recommendationFilter == _RecommendationFilter.all ||
+            _recommendationFilter == _RecommendationFilter.businesses
+        ? businesses
+        : <Business>[];
+
+    final totalCount =
+        filteredEvents.length + filteredDeals.length + filteredBusinesses.length;
+    if (totalCount == 0) return const SliverToBoxAdapter(child: SizedBox.shrink());
+
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
+            child: Row(
+              children: [
+                const Icon(Icons.auto_awesome, color: AppColors.brandSecondary, size: 22),
+                const SizedBox(width: 8),
+                const Text(
+                  'Recommended for you',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _RecommendationChip(
+                    label: 'All',
+                    selected: _recommendationFilter == _RecommendationFilter.all,
+                    onTap: () =>
+                        setState(() => _recommendationFilter = _RecommendationFilter.all),
+                  ),
+                  const SizedBox(width: 8),
+                  _RecommendationChip(
+                    label: 'Businesses',
+                    selected: _recommendationFilter == _RecommendationFilter.businesses,
+                    onTap: () => setState(
+                        () => _recommendationFilter = _RecommendationFilter.businesses),
+                  ),
+                  const SizedBox(width: 8),
+                  _RecommendationChip(
+                    label: 'Events',
+                    selected: _recommendationFilter == _RecommendationFilter.events,
+                    onTap: () =>
+                        setState(() => _recommendationFilter = _RecommendationFilter.events),
+                  ),
+                  const SizedBox(width: 8),
+                  _RecommendationChip(
+                    label: 'Deals',
+                    selected: _recommendationFilter == _RecommendationFilter.deals,
+                    onTap: () =>
+                        setState(() => _recommendationFilter = _RecommendationFilter.deals),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 280,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                ...filteredBusinesses.take(5).map(
+                      (b) => Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: _RecommendationBusinessCard(business: b),
+                      ),
+                    ),
+                ...filteredEvents.take(5).map(
+                      (e) => EventCard(event: e),
+                    ),
+                ...filteredDeals.take(5).map(
+                      (d) => DealCard(deal: d),
+                    ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
@@ -541,5 +657,129 @@ class _HomePageState extends State<HomePage> {
       });
       _loadHomeData();
     }
+  }
+}
+
+class _RecommendationChip extends StatelessWidget {
+  const _RecommendationChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.brandPrimary : AppColors.backgroundLight,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: selected ? AppColors.brandPrimary : AppColors.backgroundGrey,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RecommendationBusinessCard extends StatelessWidget {
+  const _RecommendationBusinessCard({required this.business});
+
+  final Business business;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BusinessDetailPage(businessId: business.id),
+          ),
+        );
+      },
+      child: Container(
+        width: 200,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: Image.network(
+                business.imageUrl,
+                height: 120,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 120,
+                  color: AppColors.backgroundGrey,
+                  child: const Icon(Icons.store, size: 40, color: AppColors.textSecondary),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    business.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, size: 16, color: Colors.amber),
+                      const SizedBox(width: 4),
+                      Text(
+                        business.rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

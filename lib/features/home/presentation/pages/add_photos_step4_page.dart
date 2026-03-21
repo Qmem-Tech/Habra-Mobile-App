@@ -246,6 +246,7 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
     for (final f in [_coverFile, _logoFile]) {
       if (f != null) {
         final size = await f.length();
+        if (!ctx.mounted) return;
         if (size > FileUtils.maxImageBytes) {
           ErrorDisplayHelper.show(
             ctx,
@@ -256,6 +257,7 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
         }
       }
     }
+    if (!ctx.mounted) return;
 
     setState(() => _isSubmitting = true);
     LoaderHelper.show(ctx, message: 'Completing registration...');
@@ -276,6 +278,7 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
           '$pathPrefix/logo',
           _logoFile!,
         );
+        if (!ctx.mounted) return;
       }
       if (_coverFile != null) {
         backgroundUrl = await di.sl<StorageService>().uploadImage(
@@ -283,6 +286,7 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
           '$pathPrefix/background',
           _coverFile!,
         );
+        if (!ctx.mounted) return;
       }
 
       final street = widget.step3Data['address_street'] ?? '';

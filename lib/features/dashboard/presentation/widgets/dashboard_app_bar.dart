@@ -11,6 +11,7 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.selectedPresence,
     required this.onBusinessTap,
     required this.onNotificationsTap,
+    this.onRefresh,
   });
 
   final GlobalKey<ScaffoldState> scaffoldKey;
@@ -18,6 +19,7 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
   final BusinessPresence? selectedPresence;
   final VoidCallback onBusinessTap;
   final VoidCallback onNotificationsTap;
+  final VoidCallback? onRefresh;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -64,6 +66,12 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: [
+        if (onRefresh != null)
+          IconButton(
+            icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
+            onPressed: onRefresh,
+            tooltip: 'Refresh',
+          ),
         IconButton(
           icon: Stack(
             children: [

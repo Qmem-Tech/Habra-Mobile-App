@@ -48,7 +48,9 @@ class _LegalDocumentsUploadDialogState extends State<LegalDocumentsUploadDialog>
       final file = File(result.files.single.path!);
       final size = await file.length();
       if (size > 10 * 1024 * 1024) {
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
         ErrorDisplayHelper.show(
           context,
           message: 'File must be under 10MB.',
@@ -57,8 +59,11 @@ class _LegalDocumentsUploadDialogState extends State<LegalDocumentsUploadDialog>
         return;
       }
       setState(() {
-        if (index == 1) _doc1File = file;
-        else _doc2File = file;
+        if (index == 1) {
+          _doc1File = file;
+        } else {
+          _doc2File = file;
+        }
       });
     }
   }

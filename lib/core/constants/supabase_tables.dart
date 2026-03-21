@@ -14,6 +14,7 @@ class SupabaseTables {
   static const String dealRedemptions = 'deal_redemptions';
   static const String events = 'events';
   static const String eventTickets = 'event_tickets';
+  static const String eventTicketPurchases = 'event_ticket_purchases';
   static const String orders = 'orders';
   static const String tickets = 'tickets';
   static const String ticketListings = 'ticket_listings';
