@@ -30,6 +30,26 @@ class SplashRepositorySupabaseImpl implements SplashRepository {
   Future<bool> isAuthenticated() async {
     try {
       final session = Supabase.instance.client.auth.currentSession;
+      final isVerified = session?.user.emailConfirmedAt != null;
+      if (session != null && !isVerified) {
+        await Supabase.instance.client.auth.signOut();
+        return false;
+      }
+      if (session != null) {
+        final profile = await SupabaseFailureMapper.guard(
+          () => Supabase.instance.client
+              .from('profiles')
+              .select('email_verified_at')
+              .eq('id', session.user.id)
+              .maybeSingle(),
+        );
+        final profileVerifiedAt =
+            profile is Map<String, dynamic> ? profile['email_verified_at'] : null;
+        if (profileVerifiedAt == null) {
+          await Supabase.instance.client.auth.signOut();
+          return false;
+        }
+      }
       return session != null;
     } catch (_) {
       return false;
@@ -40,6 +60,36 @@ class SplashRepositorySupabaseImpl implements SplashRepository {
   Future<SplashStatus> getSplashStatus() async {
     final hasCompleted = await hasCompletedOnboarding();
     final session = Supabase.instance.client.auth.currentSession;
+    final isVerified = session?.user.emailConfirmedAt != null;
+    if (session != null && !isVerified) {
+      await Supabase.instance.client.auth.signOut();
+      return SplashStatus(
+        isInitialized: true,
+        hasCompletedOnboarding: hasCompleted,
+        isAuthenticated: false,
+        currentUser: null,
+      );
+    }
+    if (session != null) {
+      final profile = await SupabaseFailureMapper.guard(
+        () => Supabase.instance.client
+            .from('profiles')
+            .select('email_verified_at')
+            .eq('id', session.user.id)
+            .maybeSingle(),
+      );
+      final profileVerifiedAt =
+          profile is Map<String, dynamic> ? profile['email_verified_at'] : null;
+      if (profileVerifiedAt == null) {
+        await Supabase.instance.client.auth.signOut();
+        return SplashStatus(
+          isInitialized: true,
+          hasCompletedOnboarding: hasCompleted,
+          isAuthenticated: false,
+          currentUser: null,
+        );
+      }
+    }
     final isAuth = session != null;
 
     app_auth.User? currentUser;

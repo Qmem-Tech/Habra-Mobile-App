@@ -180,6 +180,7 @@ class BusinessAddressInput extends StatelessWidget {
         });
       }
     }
+    if (!context.mounted) return;
     final data = await Navigator.push<BusinessAddressData>(
       context,
       MaterialPageRoute(

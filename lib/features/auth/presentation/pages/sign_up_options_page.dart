@@ -56,7 +56,6 @@ class SignUpOptionsPage extends StatelessWidget {
         }
       },
       builder: (context, state) {
-        final isLoading = state is AuthLoading;
         return PopScope(
           canPop: false,
           onPopInvokedWithResult: (didPop, result) {
@@ -134,54 +133,6 @@ class SignUpOptionsPage extends StatelessWidget {
                 },
               ),
               const SizedBox(height: AppResources.spacingM),
-
-
-              // OR separator
-              Row(
-                children: [
-                  Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha:0.3))),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-                    child: Text(
-                      'or',
-                      style: AppFonts.bodySmall(color: AppColors.textSecondary),
-                    ),
-                  ),
-                  Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha:0.3))),
-                ],
-              ),
-              const SizedBox(height: AppResources.spacingM),
-
-              // Continue with Google button
-              _buildSignUpButton(
-                icon: Icons.g_mobiledata,
-                label: 'Continue with Google',
-                backgroundColor: AppColors.backgroundWhite,
-                textColor: AppColors.textSecondary,
-                iconColor: AppColors.textSecondary,
-                borderColor: AppColors.backgroundGrey,
-                onPressed: isLoading
-                    ? () {}
-                    : () {
-                        context.read<AuthCubit>().signInWithGoogle();
-                      },
-              ),
-              const SizedBox(height: AppResources.spacingM),
-
-              // Continue with Apple button
-              _buildSignUpButton(
-                icon: Icons.apple,
-                label: 'Continue with Apple',
-                backgroundColor: AppColors.textPrimary,
-                textColor: AppColors.textOnPrimary,
-                iconColor: AppColors.textOnPrimary,
-                onPressed: () {
-                  // TODO: Implement Apple sign in
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Apple sign in coming soon')),
-                  );
-                },
-              ),
               const SizedBox(height: AppResources.spacingXXL),
 
               // Login prompt

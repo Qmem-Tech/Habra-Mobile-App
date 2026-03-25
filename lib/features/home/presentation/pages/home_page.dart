@@ -40,6 +40,7 @@ class HomePage extends StatefulWidget {
 enum _RecommendationFilter { all, businesses, events, deals }
 
 class _HomePageState extends State<HomePage> {
+  static const bool _locationFilterOnHold = true;
   LocationEntity? _currentLocation;
   _RecommendationFilter _recommendationFilter = _RecommendationFilter.all;
 
@@ -124,7 +125,7 @@ class _HomePageState extends State<HomePage> {
       ),
       centerTitle: false,
       title: GestureDetector(
-        onTap: () => _navigateToLocationSelection(),
+        onTap: _locationFilterOnHold ? null : () => _navigateToLocationSelection(),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
@@ -147,7 +148,8 @@ class _HomePageState extends State<HomePage> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
+              if (!_locationFilterOnHold)
+                const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
             ],
           ),
         ),
@@ -602,7 +604,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 32),
           ElevatedButton(
-            onPressed: () => _navigateToLocationSelection(),
+            onPressed: _loadHomeData,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.brandPrimary,
               foregroundColor: Colors.white,
@@ -611,7 +613,7 @@ class _HomePageState extends State<HomePage> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text('Change Location'),
+            child: const Text('Refresh'),
           ),
         ],
       ),

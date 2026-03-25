@@ -48,6 +48,10 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _imagesDialogShownThisSession = false;
   bool _legalDocsDialogShownThisSession = false;
+  bool _selectedBusinessNeedsLegalDocs = false;
+  int _businessesNeedingLegalDocsCount = 0;
+  String? _lastCheckedPresenceId;
+  bool _checkingLegalDocsForPresence = false;
 
   @override
   void initState() {
@@ -137,6 +141,11 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       }
 
       if (!context.mounted) return;
+      if (mounted) {
+        setState(() {
+          _businessesNeedingLegalDocsCount = idsNeedingDocs.length;
+        });
+      }
       if (idsNeedingDocs.isEmpty) return;
 
       final presencesNeedingDocs = businesses.where((p) => idsNeedingDocs.contains(p.id)).toList();
@@ -171,6 +180,97 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             );
       }
     });
+  }
+
+  void _checkSelectedBusinessLegalDocs(BusinessOwnerHomeLoaded state) {
+    final selected = state.selectedPresence;
+    if (selected == null || selected.id == 'all') {
+      if (_selectedBusinessNeedsLegalDocs || _lastCheckedPresenceId != null) {
+        setState(() {
+          _selectedBusinessNeedsLegalDocs = false;
+          _lastCheckedPresenceId = null;
+        });
+      }
+      return;
+    }
+    if (_lastCheckedPresenceId == selected.id || _checkingLegalDocsForPresence) return;
+    _checkingLegalDocsForPresence = true;
+    _lastCheckedPresenceId = selected.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        final status = await context.read<DashboardCubit>().getLegalDocumentsStatus(selected.id);
+        if (!mounted) return;
+        setState(() {
+          _selectedBusinessNeedsLegalDocs =
+              !status.hasRequiredUploaded || !status.isFullyApproved;
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _selectedBusinessNeedsLegalDocs = true;
+        });
+      } finally {
+        _checkingLegalDocsForPresence = false;
+      }
+    });
+  }
+
+  Future<void> _openLegalDocsRequiredFlow() async {
+    final state = context.read<BusinessOwnerHomeCubit>().state;
+    if (state is! BusinessOwnerHomeLoaded) return;
+    final selected = state.selectedPresence;
+    if (selected != null && selected.id != 'all') {
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => BlocProvider.value(
+          value: context.read<DashboardCubit>(),
+          child: LegalDocumentsUploadDialog(
+            businessId: selected.id,
+            businessName: selected.name,
+          ),
+        ),
+      );
+      if (!mounted) return;
+      if (result == true) {
+        context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
+              ownerId: widget.user.id,
+              showSetupIncomplete: false,
+            );
+      }
+      return;
+    }
+
+    final businesses = state.presences.where((p) => p.id != 'all').toList();
+    if (businesses.isEmpty) return;
+    final ids = await context.read<DashboardCubit>().getBusinessIdsNeedingLegalDocs(widget.user.id);
+    final presencesNeedingDocs = businesses.where((p) => ids.contains(p.id)).toList();
+    if (!mounted || presencesNeedingDocs.isEmpty) return;
+
+    final selectedBusiness = await showDialog<BusinessPresence>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => ChooseBusinessForLegalDocsDialog(presences: presencesNeedingDocs),
+    );
+    if (!mounted || selectedBusiness == null) return;
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => BlocProvider.value(
+        value: context.read<DashboardCubit>(),
+        child: LegalDocumentsUploadDialog(
+          businessId: selectedBusiness.id,
+          businessName: selectedBusiness.name,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (result == true) {
+      context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
+            ownerId: widget.user.id,
+            showSetupIncomplete: false,
+          );
+    }
   }
 
   @override
@@ -245,6 +345,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             }
             if (state is BusinessOwnerHomeLoaded) {
               _checkAndShowPostLoginDialogs(context, state);
+              _checkSelectedBusinessLegalDocs(state);
               if (state.isSetupIncomplete) {
                 return _buildSetupIncompleteView(state);
               }
@@ -369,6 +470,10 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             children: [
               _buildBusinessBanner(presence),
               _buildBannerTitleRow(presence),
+              if (presence != null && presence.isPendingApproval)
+                _buildUnderReviewNotice(),
+              if (_selectedBusinessNeedsLegalDocs)
+                _buildLegalDocsRequiredNotice(singleBusiness: true),
               if (presence != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
@@ -476,6 +581,10 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 ),
               ),
               _buildSnapshotCards(state.snapshot),
+              if (state.presences.any((presence) => presence.id != 'all' && presence.isPendingApproval))
+                _buildUnderReviewNotice(),
+              if (_businessesNeedingLegalDocsCount > 0)
+                _buildLegalDocsRequiredNotice(singleBusiness: false),
               Padding(
                 padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 24, AppResources.spacingM, 12),
                 child: const Text(
@@ -980,6 +1089,87 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildUnderReviewNotice() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppResources.spacingM,
+        12,
+        AppResources.spacingM,
+        4,
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppResources.spacingM),
+        decoration: BoxDecoration(
+          color: AppColors.brandPrimary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppResources.radiusM),
+          border: Border.all(
+            color: AppColors.brandPrimary.withValues(alpha: 0.25),
+          ),
+        ),
+        child: const Text(
+          'Your documents were submitted successfully and are under review. We will notify you once approved.',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textPrimary,
+            height: 1.4,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegalDocsRequiredNotice({required bool singleBusiness}) {
+    final description = singleBusiness
+        ? 'This business is missing required legal documents. Upload them to continue business owner flows.'
+        : '$_businessesNeedingLegalDocsCount business account(s) still require legal documents. Please complete uploads.';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppResources.spacingM,
+        8,
+        AppResources.spacingM,
+        8,
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppResources.spacingM),
+        decoration: BoxDecoration(
+          color: AppColors.warning.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppResources.radiusM),
+          border: Border.all(
+            color: AppColors.warning.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Legal documents required',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppResources.spacingXS),
+            Text(
+              description,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: AppResources.spacingS),
+            TextButton(
+              onPressed: _openLegalDocsRequiredFlow,
+              child: const Text('Upload documents now'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

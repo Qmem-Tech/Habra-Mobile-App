@@ -11,23 +11,35 @@ class RevenueCatService {
   static const String _iosApiKey = 'YOUR_REVENUECAT_IOS_API_KEY';
 
   bool _initialized = false;
+  String? _configuredApiKey;
 
   /// Call before runApp. Pass platform-specific API key from env/config.
-  Future<void> initialize({
+  Future<bool> initialize({
     String? androidApiKey,
     String? iosApiKey,
   }) async {
-    if (_initialized) return;
+    if (_initialized) return true;
 
     final apiKey = defaultTargetPlatform == TargetPlatform.android
         ? (androidApiKey ?? _androidApiKey)
         : (iosApiKey ?? _iosApiKey);
+    if (apiKey.isEmpty ||
+        apiKey == _androidApiKey ||
+        apiKey == _iosApiKey) {
+      debugPrint('RevenueCat not initialized: missing platform API key.');
+      return false;
+    }
 
     await Purchases.setLogLevel(LogLevel.debug);
     await Purchases.configure(PurchasesConfiguration(apiKey));
 
     _initialized = true;
+    _configuredApiKey = apiKey;
+    return true;
   }
+
+  bool get isInitialized => _initialized;
+  String? get configuredApiKey => _configuredApiKey;
 
   /// Get available offerings (boost plans, etc.).
   Future<Offerings?> getOfferings() async {

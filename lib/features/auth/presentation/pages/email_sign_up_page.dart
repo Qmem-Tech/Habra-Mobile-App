@@ -10,6 +10,8 @@ import '../../../home/presentation/pages/customer_home_page.dart';
 import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
+import '../../../settings/presentation/pages/privacy_policy_page.dart';
+import '../../../settings/presentation/pages/terms_of_service_page.dart';
 import 'email_verification_page.dart';
 
 class EmailSignUpPage extends StatefulWidget {
@@ -384,10 +386,23 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
                                         color: AppColors.textPrimary),
                                     children: [
                                       const TextSpan(text: 'I agree to the '),
-                                      TextSpan(
-                                        text: 'Terms and Conditions',
-                                        style: AppFonts.bodySmall(
-                                            color: AppColors.brandPrimary),
+                                      WidgetSpan(
+                                        alignment: PlaceholderAlignment.middle,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (_) => const TermsOfServicePage(),
+                                              ),
+                                            );
+                                          },
+                                          child: Text(
+                                            'Terms and Conditions',
+                                            style: AppFonts.bodySmall(
+                                              color: AppColors.brandPrimary,
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -396,7 +411,24 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppResources.spacingXXL),
+                        const SizedBox(height: AppResources.spacingS),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const PrivacyPolicyPage(),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              'View Privacy Policy',
+                              style: AppFonts.bodySmall(color: AppColors.brandPrimary),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppResources.spacingL),
 
                         // Continue button
                         SizedBox(

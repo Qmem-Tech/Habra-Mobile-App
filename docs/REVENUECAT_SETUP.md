@@ -1,52 +1,59 @@
 # RevenueCat Setup Guide
 
-Habra uses RevenueCat for in-app purchases (boost listings, event tickets). RevenueCat is **free** for apps under $2.5M annual revenue.
+Habra uses RevenueCat for in-app purchases (boost listings, event tickets). This project now reads RevenueCat keys from `--dart-define` values.
 
-## 1. Create RevenueCat Account
+## 1) RevenueCat project and products
 
-1. Sign up at [revenuecat.com](https://www.revenuecat.com)
-2. Create a new project
-3. Add your app (iOS and/or Android)
-4. Get your API keys from Project Settings → API Keys
+1. Create project in [RevenueCat](https://www.revenuecat.com/).
+2. Add Android/iOS apps.
+3. Create products in Play Console/App Store Connect.
+4. Map those products in RevenueCat.
+5. Create at least one entitlement and attach products.
 
-## 2. Configure Products
+## 2) App configuration (required)
 
-### For Boost Listings
-- In App Store Connect / Google Play Console, create in-app products
-- Map product IDs to your boost plans (e.g. `boost_1week`, `boost_4weeks`)
-- Add products in RevenueCat dashboard under Products
+Run the app with:
 
-### For Event Tickets
-- Option A: Use consumable products per ticket tier
-- Option B: Use a generic "ticket_credit" product
-- Configure in RevenueCat and link to your app
-
-## 3. Add API Keys to App
-
-Set environment variables or use a config file (do not commit keys):
-
-```dart
-// In main.dart or config
-await sl<RevenueCatService>().initialize(
-  androidApiKey: const String.fromEnvironment('REVENUECAT_ANDROID_KEY'),
-  iosApiKey: const String.fromEnvironment('REVENUECAT_IOS_KEY'),
-);
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=YOUR_SUPABASE_URL \
+  --dart-define=SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY \
+  --dart-define=REVENUECAT_ANDROID_API_KEY=YOUR_ANDROID_REVENUECAT_KEY \
+  --dart-define=REVENUECAT_IOS_API_KEY=YOUR_IOS_REVENUECAT_KEY
 ```
 
-Or pass keys at runtime from a secure config service.
+Notes:
 
-## 4. Platform Setup
+- Do not commit real keys.
+- If RevenueCat keys are missing, `RevenueCatService` remains uninitialized.
+- Auth flow now identifies/logs out RevenueCat users using app user id.
 
-### iOS
-- Enable In-App Purchase capability in Xcode
-- Add StoreKit configuration for testing
+## 3) Sandbox test flow (end-to-end)
 
-### Android
-- Add `com.android.vending.BILLING` permission (handled by purchases_flutter)
-- Set up in-app products in Google Play Console
+1. Install app in debug/profile build.
+2. Sign in with a real account in the app.
+3. Open purchase flow (Boosts/Tickets).
+4. Complete purchase with sandbox tester:
+   - iOS: StoreKit sandbox tester.
+   - Android: license test account in Play Console.
+5. Verify:
+   - Purchase completes in app.
+   - RevenueCat dashboard shows customer + transaction.
+   - `entitlements.active` contains expected entitlement.
+6. Logout/login and verify entitlement state is restored.
 
-## 5. Testing
+## 4) Validation checklist
 
-- Use sandbox accounts for testing
-- RevenueCat provides test entitlements
-- See [RevenueCat testing docs](https://docs.revenuecat.com/docs/test-and-launch)
+- Offerings load successfully.
+- Purchase success path works.
+- Cancelled purchase path is handled.
+- Failed purchase path is handled.
+- Entitlements are correct after relaunch.
+- RevenueCat customer identity matches app user id.
+
+## 5) Troubleshooting
+
+- No offerings: check product IDs and offerings in RevenueCat.
+- Purchase fails: verify sandbox tester setup on store.
+- Wrong entitlement: check entitlement-product mapping.
+- Missing identity link: confirm user login completed and `identifyUser` ran.

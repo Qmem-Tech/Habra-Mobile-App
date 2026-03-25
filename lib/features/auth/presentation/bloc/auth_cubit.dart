@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/services/revenue_cat_service.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
@@ -20,6 +21,7 @@ class AuthCubit extends Cubit<AuthState> {
   final ResendVerificationEmailUseCase resendVerificationEmailUseCase;
   final ResetPasswordForEmailUseCase resetPasswordForEmailUseCase;
   final UpdatePasswordUseCase updatePasswordUseCase;
+  final RevenueCatService revenueCatService;
 
   AuthCubit({
     required this.loginUseCase,
@@ -30,14 +32,24 @@ class AuthCubit extends Cubit<AuthState> {
     required this.resendVerificationEmailUseCase,
     required this.resetPasswordForEmailUseCase,
     required this.updatePasswordUseCase,
+    required this.revenueCatService,
   }) : super(AuthInitial());
 
   Future<void> login(String email, String password) async {
     emit(AuthLoading());
     final result = await loginUseCase(email, password);
     result.fold(
-      (failure) => emit(AuthError(failure.message)),
-      (user) => emit(AuthAuthenticated(user)),
+      (failure) {
+        if (failure is EmailVerificationPendingFailure) {
+          emit(AuthEmailVerificationPending(failure.email));
+        } else {
+          emit(AuthError(failure.message));
+        }
+      },
+      (user) async {
+        await revenueCatService.identifyUser(user.id, email: user.email);
+        emit(AuthAuthenticated(user));
+      },
     );
   }
 
@@ -57,7 +69,10 @@ class AuthCubit extends Cubit<AuthState> {
           emit(AuthError(failure.message));
         }
       },
-      (user) => emit(AuthAuthenticated(user)),
+      (user) async {
+        await revenueCatService.identifyUser(user.id, email: user.email);
+        emit(AuthAuthenticated(user));
+      },
     );
   }
 
@@ -77,7 +92,10 @@ class AuthCubit extends Cubit<AuthState> {
     final result = await loginAsGuestUseCase();
     result.fold(
       (failure) => emit(AuthError(failure.message)),
-      (user) => emit(AuthAuthenticated(user)),
+      (user) async {
+        await revenueCatService.identifyUser(user.id, email: user.email);
+        emit(AuthAuthenticated(user));
+      },
     );
   }
 
@@ -94,7 +112,10 @@ class AuthCubit extends Cubit<AuthState> {
     final result = await logoutUseCase();
     result.fold(
       (failure) => emit(AuthError(failure.message)),
-      (_) => emit(AuthUnauthenticated()),
+      (_) async {
+        await revenueCatService.logout();
+        emit(AuthUnauthenticated());
+      },
     );
   }
 
@@ -123,6 +144,7 @@ class AuthCubit extends Cubit<AuthState> {
   /// Restores auth state from a cached/session user (e.g. after app cold start).
   /// Keeps the app in sync so the user stays signed in without being asked again.
   void restoreUser(User user) {
+    revenueCatService.identifyUser(user.id, email: user.email);
     emit(AuthAuthenticated(user));
   }
 

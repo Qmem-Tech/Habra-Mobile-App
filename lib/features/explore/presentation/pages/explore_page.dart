@@ -29,6 +29,7 @@ class ExplorePage extends StatefulWidget {
 }
 
 class _ExplorePageState extends State<ExplorePage> {
+  static const bool _locationFilterOnHold = true;
   final TextEditingController _searchController = TextEditingController();
   String? _currentLocation;
   // ignore: unused_field - used when filtering by category
@@ -124,9 +125,11 @@ class _ExplorePageState extends State<ExplorePage> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                // Navigate to location selection
-              },
+              onTap: _locationFilterOnHold
+                  ? null
+                  : () {
+                      // Navigate to location selection
+                    },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -150,8 +153,10 @@ class _ExplorePageState extends State<ExplorePage> {
                         maxLines: 1,
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
+                    if (!_locationFilterOnHold) ...[
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
+                    ],
                   ],
                 ),
               ),

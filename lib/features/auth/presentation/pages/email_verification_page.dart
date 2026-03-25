@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:open_mail_launcher/open_mail_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import 'auth_callback_verification_page.dart';
 import '../bloc/auth_cubit.dart';
 import '../bloc/auth_state.dart';
 
@@ -23,10 +25,19 @@ class EmailVerificationPage extends StatefulWidget {
 class _EmailVerificationPageState extends State<EmailVerificationPage> {
   int _resendCooldownSeconds = 0;
   Timer? _cooldownTimer;
+  Timer? _autoCheckTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startResendCooldown();
+    _startAutoVerificationCheck();
+  }
 
   @override
   void dispose() {
     _cooldownTimer?.cancel();
+    _autoCheckTimer?.cancel();
     super.dispose();
   }
 
@@ -197,6 +208,16 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                 ),
                 const SizedBox(height: AppResources.spacingL),
                 TextButton(
+                  onPressed: () {
+                    _onVerifiedContinue();
+                  },
+                  child: Text(
+                    'I verified, continue',
+                    style: AppFonts.body(color: AppColors.brandPrimary),
+                  ),
+                ),
+                const SizedBox(height: AppResources.spacingS),
+                TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(
                     'Back to sign in',
@@ -224,5 +245,52 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _onVerifiedContinue() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      final isEmailVerified = user?.emailConfirmedAt != null;
+      if (!isEmailVerified || user == null) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Email is not verified yet. Please open the link from your inbox first.'),
+          ),
+        );
+        return;
+      }
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'email_verified_at': DateTime.now().toIso8601String()})
+          .eq('id', user.id);
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const AuthCallbackVerificationPage(),
+        ),
+        (route) => false,
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Could not verify status. Please try again in a few seconds.'),
+        ),
+      );
+    }
+  }
+
+  void _startAutoVerificationCheck() {
+    _autoCheckTimer?.cancel();
+    _autoCheckTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (!mounted) {
+        _autoCheckTimer?.cancel();
+        return;
+      }
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user?.emailConfirmedAt == null) return;
+      _autoCheckTimer?.cancel();
+      await _onVerifiedContinue();
+    });
   }
 }

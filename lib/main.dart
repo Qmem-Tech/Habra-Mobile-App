@@ -40,10 +40,16 @@ void main() async {
 
   // Push notifications - no-op until Firebase is configured (see PUSH_NOTIFICATIONS_SETUP.md)
   await di.sl<PushNotificationService>().initialize();
-await di.sl<RevenueCatService>().initialize(
-  androidApiKey: 'goog_nHVKdWnjfioxqUPHHWyqNCHGyje', // sandbox
-  iosApiKey: 'appl_QiOyMwzXQMBXebSnUfYYwXxJtgg',
-);
+  await di.sl<RevenueCatService>().initialize(
+    androidApiKey: const String.fromEnvironment(
+      'REVENUECAT_ANDROID_API_KEY',
+      defaultValue: '',
+    ),
+    iosApiKey: const String.fromEnvironment(
+      'REVENUECAT_IOS_API_KEY',
+      defaultValue: '',
+    ),
+  );
   runApp(const MyApp());
 }
 
@@ -67,6 +73,7 @@ class MyApp extends StatelessWidget {
             resendVerificationEmailUseCase: di.sl<ResendVerificationEmailUseCase>(),
             resetPasswordForEmailUseCase: di.sl<ResetPasswordForEmailUseCase>(),
             updatePasswordUseCase: di.sl<UpdatePasswordUseCase>(),
+            revenueCatService: di.sl<RevenueCatService>(),
           ),
         ),
         BlocProvider(

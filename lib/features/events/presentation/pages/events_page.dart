@@ -25,6 +25,7 @@ class EventsPage extends StatefulWidget {
 }
 
 class _EventsPageState extends State<EventsPage> {
+  static const bool _locationFilterOnHold = true;
   final TextEditingController _searchController = TextEditingController();
   EventCategory _selectedCategory = EventCategory.all;
   EventFilters? _activeFilters;
@@ -114,9 +115,11 @@ class _EventsPageState extends State<EventsPage> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                // Navigate to location selection
-              },
+              onTap: _locationFilterOnHold
+                  ? null
+                  : () {
+                      // Navigate to location selection
+                    },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -139,7 +142,8 @@ class _EventsPageState extends State<EventsPage> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
+                    if (!_locationFilterOnHold)
+                      const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
                   ],
                 ),
               ),

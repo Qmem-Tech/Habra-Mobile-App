@@ -8,6 +8,7 @@ import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/boosts/presentation/bloc/boosts_cubit.dart';
 import '../../features/boosts/presentation/pages/boosts_page.dart';
 import '../../features/auth/domain/entities/user.dart';
+import '../../features/dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../features/home/presentation/pages/profile_page.dart';
 
 /// Bottom nav for business owner: Home, Dash, Boosts, Profile.
@@ -38,6 +39,8 @@ class _BusinessOwnerNavigationWrapperState
   late int _currentIndex;
   late PageController _pageController;
   int? _pendingDashboardTab;
+  bool? _hasBusinessToolsAccess;
+  bool _isCheckingBusinessToolsAccess = false;
 
   @override
   void initState() {
@@ -45,6 +48,14 @@ class _BusinessOwnerNavigationWrapperState
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
     di.sl<PushNotificationService>().registerTokenForUser(widget.user.id);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final hasAccess = await _ensureBusinessToolsAccess(forceRefresh: true);
+      if (!mounted) return;
+      if (!hasAccess && _currentIndex != 0) {
+        setState(() => _currentIndex = 0);
+        _pageController.jumpToPage(0);
+      }
+    });
   }
 
   @override
@@ -53,7 +64,61 @@ class _BusinessOwnerNavigationWrapperState
     super.dispose();
   }
 
-  void navigateToTab(int index, {int? dashboardTab}) {
+  Future<bool> _ensureBusinessToolsAccess({bool forceRefresh = false}) async {
+    if (!forceRefresh && _hasBusinessToolsAccess != null) {
+      return _hasBusinessToolsAccess!;
+    }
+    if (_isCheckingBusinessToolsAccess) {
+      return _hasBusinessToolsAccess ?? false;
+    }
+    _isCheckingBusinessToolsAccess = true;
+    try {
+      final dashboardCubit = context.read<DashboardCubit>();
+      final businesses = await dashboardCubit.getOwnerBusinesses(widget.user.id);
+      if (businesses.isEmpty) {
+        _hasBusinessToolsAccess = false;
+        return false;
+      }
+      for (final business in businesses) {
+        final approvalStatus = (business.statusText ?? '').toLowerCase();
+        final isApproved = approvalStatus == 'approved';
+        if (!isApproved) {
+          _hasBusinessToolsAccess = false;
+          return false;
+        }
+        final legalStatus =
+            await dashboardCubit.getLegalDocumentsStatus(business.id);
+        if (!legalStatus.hasRequiredUploaded || !legalStatus.isFullyApproved) {
+          _hasBusinessToolsAccess = false;
+          return false;
+        }
+      }
+      _hasBusinessToolsAccess = true;
+      return true;
+    } catch (_) {
+      _hasBusinessToolsAccess = false;
+      return false;
+    } finally {
+      _isCheckingBusinessToolsAccess = false;
+    }
+  }
+
+  Future<void> navigateToTab(int index, {int? dashboardTab}) async {
+    if (index == 1 || index == 2) {
+      final canAccessBusinessTools = await _ensureBusinessToolsAccess();
+      if (!mounted) return;
+      if (!canAccessBusinessTools) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Business dashboard is locked until email is verified, legal documents are submitted, and admin approval is completed.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     final shouldAnimate = _currentIndex != index;
     setState(() {
       if (dashboardTab != null && index == 1) {

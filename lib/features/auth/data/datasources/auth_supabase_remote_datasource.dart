@@ -39,9 +39,37 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
   @override
   Future<UserModel> login(String email, String password) async {
     try {
-      await _client.auth.signInWithPassword(email: email, password: password);
+      final response = await _client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      final isEmailVerified = response.user?.emailConfirmedAt != null;
+      if (!isEmailVerified) {
+        // Prevent unverified accounts from entering authenticated app flows.
+        await _client.auth.signOut();
+        throw app_errors.EmailVerificationRequiredException(email);
+      }
+      final userId = response.user?.id;
+      if (userId == null) {
+        await _client.auth.signOut();
+        throw app_errors.EmailVerificationRequiredException(email);
+      }
+      final profile = await SupabaseFailureMapper.guard(
+        () => _client
+            .from('profiles')
+            .select('email_verified_at')
+            .eq('id', userId)
+            .maybeSingle(),
+      );
+      final profileVerifiedAt =
+          profile is Map<String, dynamic> ? profile['email_verified_at'] : null;
+      if (profileVerifiedAt == null) {
+        await _client.auth.signOut();
+        throw app_errors.EmailVerificationRequiredException(email);
+      }
       return _sessionToUser();
     } catch (e) {
+      if (e is app_errors.EmailVerificationRequiredException) rethrow;
       SupabaseFailureMapper.throwFromError(e);
     }
   }
@@ -93,8 +121,36 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
         data: {'full_name': name, 'role': roleString},
         emailRedirectTo: _authRedirectUrl,
       );
-      // When "Confirm email" is enabled in Supabase, session is null until user confirms.
-      if (response.session == null && response.user != null) {
+      if (response.user != null) {
+        await SupabaseFailureMapper.guard(
+          () => _client
+              .from('profiles')
+              .update({'email_verified_at': null})
+              .eq('id', response.user!.id),
+        );
+      }
+      // Enforce verification flow even if a session is returned unexpectedly.
+      final isEmailVerified = response.user?.emailConfirmedAt != null;
+      if (!isEmailVerified && response.user != null) {
+        // Re-trigger delivery so the verification message is sent reliably.
+        try {
+          await _client.auth.resend(
+            type: OtpType.signup,
+            email: response.user!.email ?? email,
+            emailRedirectTo: _authRedirectUrl,
+          );
+        } catch (_) {
+          // Keep verification flow even if resend fails here.
+        }
+        if (response.session != null) {
+          await _client.auth.signOut();
+        }
+        throw app_errors.EmailVerificationRequiredException(
+          response.user!.email ?? email,
+        );
+      }
+      if (response.session != null && response.user != null) {
+        await _client.auth.signOut();
         throw app_errors.EmailVerificationRequiredException(
           response.user!.email ?? email,
         );
@@ -112,6 +168,7 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
       await _client.auth.resend(
         type: OtpType.signup,
         email: email,
+        emailRedirectTo: _authRedirectUrl,
       );
     } catch (e) {
       SupabaseFailureMapper.throwFromError(e);

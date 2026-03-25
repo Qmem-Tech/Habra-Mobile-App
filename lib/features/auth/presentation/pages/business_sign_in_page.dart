@@ -11,6 +11,7 @@ import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import 'email_sign_up_page.dart';
+import 'email_verification_page.dart';
 import 'forgot_password_page.dart';
 import 'wrong_path_page.dart';
 
@@ -98,6 +99,13 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
               if (state is AuthError) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(state.message)),
+                );
+              } else if (state is AuthEmailVerificationPending) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (_) => EmailVerificationPage(email: state.email),
+                  ),
+                  (route) => false,
                 );
               } else if (state is AuthAuthenticated) {
                 _handleNavigationForUser(context, state.user);

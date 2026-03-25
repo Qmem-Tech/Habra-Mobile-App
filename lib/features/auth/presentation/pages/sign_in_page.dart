@@ -10,6 +10,8 @@ import '../../../home/presentation/pages/customer_home_page.dart';
 import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
+import '../../../settings/presentation/pages/privacy_policy_page.dart';
+import 'email_verification_page.dart';
 import 'forgot_password_page.dart';
 import 'wrong_path_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
@@ -100,6 +102,13 @@ class _SignInPageState extends State<SignInPage> {
             if (state is AuthError) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(state.message)),
+              );
+            } else if (state is AuthEmailVerificationPending) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (_) => EmailVerificationPage(email: state.email),
+                ),
+                (route) => false,
               );
             } else if (state is AuthAuthenticated) {
               _handleNavigationForUser(context, state.user);
@@ -231,9 +240,10 @@ class _SignInPageState extends State<SignInPage> {
                         ),
                         TextButton(
                           onPressed: () {
-                            // TODO: Show privacy policy
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Privacy policy coming soon')),
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const PrivacyPolicyPage(),
+                              ),
                             );
                           },
                           child: Text(
@@ -316,102 +326,6 @@ class _SignInPageState extends State<SignInPage> {
                       ),
                     ),
                     const SizedBox(height: AppResources.spacingXL),
-
-                    // OR separator
-                    Row(
-                      children: [
-                        Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha:0.3))),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-                          child: Text(
-                            'OR',
-                            style: AppFonts.bodySmall(color: AppColors.textSecondary),
-                          ),
-                        ),
-                        Expanded(child: Divider(color: AppColors.textSecondary.withValues(alpha:0.3))),
-                      ],
-                    ),
-                    const SizedBox(height: AppResources.spacingXL),
-
-                    // Sign In with Google button
-                    SizedBox(
-                      width: double.infinity,
-                      height: AppResources.buttonHeightM,
-                      child: OutlinedButton(
-                        onPressed: (state is AuthLoading)
-                            ? null
-                            : () {
-                                context.read<AuthCubit>().signInWithGoogle();
-                              },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textSecondary,
-                          side: BorderSide(color: AppColors.backgroundGrey),
-                          padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppResources.radiusM),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.asset(
-                              'assets/icons/google_icon.png',
-                              height: 24,
-                              width: 24,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(Icons.g_mobiledata, color: AppColors.textSecondary);
-                              },
-                            ),
-                            const SizedBox(width: AppResources.spacingM),
-                            Text(
-                              'Sign In with Google',
-                              style: AppFonts.button(color: AppColors.textSecondary).copyWith(
-                                height: 1.0,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppResources.spacingM),
-
-                    // Sign In with Apple button
-                    SizedBox(
-                      width: double.infinity,
-                      height: AppResources.buttonHeightM,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: Implement Apple sign in
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Apple sign in coming soon')),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.textPrimary,
-                          foregroundColor: AppColors.textOnPrimary,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppResources.radiusM),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.apple, color: AppColors.textOnPrimary),
-                            const SizedBox(width: AppResources.spacingM),
-                            Text(
-                              'Sign In with Apple',
-                              style: AppFonts.button(color: AppColors.textOnPrimary).copyWith(
-                                height: 1.0,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),

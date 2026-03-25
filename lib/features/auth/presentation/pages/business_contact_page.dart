@@ -257,25 +257,33 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          entry.key,
-                          style: AppFonts.body(color: AppColors.textPrimary),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppResources.spacingM,
-                            vertical: AppResources.spacingS,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isClosed
-                                ? AppColors.error.withValues(alpha:0.1)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(AppResources.radiusS),
-                          ),
+                        Expanded(
                           child: Text(
-                            entry.value,
-                            style: AppFonts.bodySmall(
-                              color: isClosed ? AppColors.error : AppColors.textPrimary,
+                            entry.key,
+                            style: AppFonts.body(color: AppColors.textPrimary),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: AppResources.spacingS),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppResources.spacingM,
+                              vertical: AppResources.spacingS,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isClosed
+                                  ? AppColors.error.withValues(alpha:0.1)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(AppResources.radiusS),
+                            ),
+                            child: Text(
+                              entry.value,
+                              style: AppFonts.bodySmall(
+                                color: isClosed ? AppColors.error : AppColors.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.end,
                             ),
                           ),
                         ),

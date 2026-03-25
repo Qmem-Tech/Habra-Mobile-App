@@ -25,6 +25,8 @@ class AuthRepositoryImpl implements AuthRepository {
         final user = await remoteDataSource.login(email, password);
         await localDataSource.cacheUser(user);
         return Right(user);
+      } on EmailVerificationRequiredException catch (e) {
+        return Left(EmailVerificationPendingFailure(e.email));
       } on ServerException catch (e) {
         return Left(ServerFailure(e.message));
       } on AuthException catch (e) {
