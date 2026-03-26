@@ -60,6 +60,17 @@ class SupabaseFailureMapper {
 
   static String _userFriendly(String raw) {
     if (raw.isEmpty) return 'Something went wrong. Please try again.';
+    final lower = raw.toLowerCase();
+    if (lower.contains('too many requests') ||
+        lower.contains('over_email_send_rate_limit') ||
+        lower.contains('email rate limit') ||
+        lower.contains('rate limit') ||
+        lower.contains('429')) {
+      return 'Too many email requests. Please wait a few minutes before trying again.';
+    }
+    if (lower.contains('email not confirmed')) {
+      return 'Please check your inbox and verify your email before continuing.';
+    }
     return raw.length > 200 ? '${raw.substring(0, 200)}...' : raw;
   }
 
