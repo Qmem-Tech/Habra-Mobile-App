@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+    {
+      "name": "Flutter (Android) - Supabase + RevenueCat",
+      "request": "launch",
+      "type": "dart",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=https://tygsxsulgeiyisydxlse.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_G-ixOiz6jWvCutfB-ol05g_Cs26CrJo",
+        "--dart-define=REVENUECAT_ANDROID_API_KEY=sk_kjKJkgVWkpRXbQmcPrSGNBAjjfHpu",
+        "--dart-define=REVENUECAT_IOS_API_KEY=sk_WrmapygzfpXWbEtPcDljIhWCpkeiD"
+      ]
+    },
+    {
+      "name": "Flutter (iOS) - Supabase + RevenueCat",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "ios",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=https://tygsxsulgeiyisydxlse.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_G-ixOiz6jWvCutfB-ol05g_Cs26CrJo",
+        "--dart-define=REVENUECAT_ANDROID_API_KEY=sk_kjKJkgVWkpRXbQmcPrSGNBAjjfHpu",
+        "--dart-define=REVENUECAT_IOS_API_KEY=sk_WrmapygzfpXWbEtPcDljIhWCpkeiD"
+      ]
+    },
+    {
+      "name": "Flutter (Release) - Supabase + RevenueCat",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=https://tygsxsulgeiyisydxlse.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_G-ixOiz6jWvCutfB-ol05g_Cs26CrJo",
+        "--dart-define=REVENUECAT_ANDROID_API_KEY=sk_kjKJkgVWkpRXbQmcPrSGNBAjjfHpu",
+        "--dart-define=REVENUECAT_IOS_API_KEY=sk_WrmapygzfpXWbEtPcDljIhWCpkeiD"
+      ]
+    }
+  ]
+}
