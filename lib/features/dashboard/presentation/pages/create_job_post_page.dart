@@ -26,6 +26,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
   final _requirementsController = TextEditingController();
   bool _isHourly = false;
   bool _remotePosition = true;
+  bool _showValidation = false;
 
   @override
   void dispose() {
@@ -67,7 +68,9 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
 
   Future<void> _postJob() async {
     final bizId = _getSelectedBusinessId();
-    if (bizId == null || _titleController.text.trim().isEmpty) {
+    final isTitleMissing = _titleController.text.trim().isEmpty;
+    if (bizId == null || isTitleMissing) {
+      setState(() => _showValidation = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in the job title and select a business')),
       );
@@ -94,7 +97,9 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
 
   Future<void> _saveDraft() async {
     final bizId = _getSelectedBusinessId();
-    if (bizId == null || _titleController.text.trim().isEmpty) {
+    final isTitleMissing = _titleController.text.trim().isEmpty;
+    if (bizId == null || isTitleMissing) {
+      setState(() => _showValidation = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in the job title and select a business')),
       );
@@ -147,7 +152,12 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
           children: [
             _sectionTitle('Job Details'),
             const SizedBox(height: 12),
-            _buildTextField('Job Title', controller: _titleController),
+            _buildTextField(
+              'Job Title',
+              controller: _titleController,
+              isRequired: true,
+              showError: _showValidation && _titleController.text.trim().isEmpty,
+            ),
             const SizedBox(height: 12),
             _buildTextField('Job Type', controller: _jobTypeController),
             const SizedBox(height: 12),
@@ -253,6 +263,13 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
               textColor: AppColors.brandPrimary,
               borderColor: AppColors.brandPrimary,
             ),
+            const SizedBox(height: 12),
+            AppOutlinedButton(
+              text: 'Cancel',
+              onPressed: () => Navigator.pop(context),
+              textColor: AppColors.textSecondary,
+              borderColor: AppColors.backgroundGrey,
+            ),
           ],
         ),
       ),
@@ -274,12 +291,14 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     String label, {
     required TextEditingController controller,
     int maxLines = 1,
+    bool isRequired = false,
+    bool showError = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
+          isRequired ? '$label *' : label,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -290,17 +309,31 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
         TextField(
           controller: controller,
           maxLines: maxLines,
+          onChanged: (_) {
+            if (_showValidation) setState(() {});
+          },
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.backgroundWhite,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppResources.radiusM),
-              borderSide: BorderSide(color: AppColors.backgroundGrey),
+              borderSide: BorderSide(
+                color: showError ? AppColors.error : AppColors.backgroundGrey,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppResources.radiusM),
-              borderSide: BorderSide(color: AppColors.backgroundGrey),
+              borderSide: BorderSide(
+                color: showError ? AppColors.error : AppColors.backgroundGrey,
+              ),
             ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: BorderSide(
+                color: showError ? AppColors.error : AppColors.brandPrimary,
+              ),
+            ),
+            errorText: showError ? 'This field is required' : null,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),

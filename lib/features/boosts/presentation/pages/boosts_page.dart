@@ -45,8 +45,7 @@ class _BoostsPageState extends State<BoostsPage> {
     return BlocConsumer<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
       listener: (context, homeState) {
         if (homeState is BusinessOwnerHomeLoaded &&
-            homeState.selectedPresence != null &&
-            homeState.selectedPresence!.id != 'all') {
+            homeState.selectedPresence != null) {
           context.read<BoostsCubit>().loadBoosts(homeState.selectedPresence!.id);
         }
       },
@@ -126,8 +125,7 @@ class _BoostsPageState extends State<BoostsPage> {
                     final initialHomeState =
                         context.read<BusinessOwnerHomeCubit>().state;
                     if (initialHomeState is BusinessOwnerHomeLoaded &&
-                        initialHomeState.selectedPresence != null &&
-                        initialHomeState.selectedPresence!.id != 'all') {
+                        initialHomeState.selectedPresence != null) {
                       context
                           .read<BoostsCubit>()
                           .loadBoosts(initialHomeState.selectedPresence!.id);
