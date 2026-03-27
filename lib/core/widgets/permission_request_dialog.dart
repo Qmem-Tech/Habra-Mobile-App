@@ -44,6 +44,7 @@ class PermissionRequestDialog extends StatelessWidget {
   }) async {
     final result = await showModalBottomSheet<bool>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => PermissionRequestDialog(
