@@ -28,8 +28,11 @@ import 'features/onboarding/domain/usecases/complete_onboarding_usecase.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Supabase is the only backend; require it at startup.
-  SupabaseConfig.assertConfigured();
+  if (!SupabaseConfig.isConfigured) {
+    runApp(const _MissingConfigApp());
+    return;
+  }
+
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseAnonKey,
@@ -51,6 +54,44 @@ void main() async {
     ),
   );
   runApp(const MyApp());
+}
+
+/// Shown only in debug/dev when the app is launched without --dart-define-from-file.
+class _MissingConfigApp extends StatelessWidget {
+  const _MissingConfigApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFF1C1C1E),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF9F0A), size: 64),
+                const SizedBox(height: 24),
+                const Text(
+                  'Supabase not configured',
+                  style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Run with:\n\nflutter run --dart-define-from-file=dart_defines.json',
+                  style: TextStyle(color: Color(0xFF8E8E93), fontSize: 14, height: 1.6),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
