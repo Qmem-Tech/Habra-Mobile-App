@@ -8,7 +8,8 @@ import 'permission_service.dart';
 import '../../injection/injection_container.dart' as di;
 
 /// Service for picking images from camera or gallery.
-/// Shows Habra permission dialog before requesting camera/photos.
+/// On Android, shows Habra permission dialog before gallery/camera when needed.
+/// On iOS, opens the system picker directly (avoids broken modal + permission timing).
 class ImagePickerService {
   ImagePickerService();
 
@@ -17,8 +18,17 @@ class ImagePickerService {
   PermissionService get _permissionService => di.sl<PermissionService>();
 
   /// Pick from gallery. Returns null if cancelled.
-  /// Shows permission dialog first if photos access not granted.
+  ///
+  /// On iOS 14+, [image_picker] uses PHPicker, which does not require photo
+  /// library permission. Asking [Permission.photos] first often breaks after our
+  /// own bottom sheets: the OS permission UI may not appear and the flow looks
+  /// stuck. So we open the picker directly on iOS.
+  ///
+  /// On Android we still show the Habra dialog and request media permission.
   Future<File?> pickFromGallery(BuildContext context) async {
+    if (Platform.isIOS) {
+      return _pickFromGalleryInternal();
+    }
     final granted = await _permissionService.requestWithDialog(
       context,
       AppPermission.photos,
@@ -39,8 +49,19 @@ class ImagePickerService {
   }
 
   /// Pick from camera. Returns null if cancelled.
-  /// Shows permission dialog first if camera access not granted.
+  ///
+  /// On iOS, the same pattern as gallery: our Habra sheet + [Permission.camera]
+  /// right after another modal often prevents the system UI from appearing.
+  /// Opening the camera picker directly lets iOS show its own camera prompt.
+  /// A short delay lets the source bottom sheet finish dismissing first.
+  ///
+  /// On Android we keep the Habra dialog and explicit permission request.
   Future<File?> pickFromCamera(BuildContext context) async {
+    if (Platform.isIOS) {
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      if (!context.mounted) return null;
+      return _pickFromCameraInternal();
+    }
     final granted = await _permissionService.requestWithDialog(
       context,
       AppPermission.camera,
@@ -61,10 +82,10 @@ class ImagePickerService {
   }
 
   /// Show bottom sheet to choose camera or gallery. Returns null if cancelled.
-  /// Shows Habra permission dialog before picking if needed.
   Future<File?> pickImage(BuildContext context) async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
+      useRootNavigator: true,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

@@ -18,17 +18,23 @@ class StorageService {
     int maxBytes = 5 * 1024 * 1024,
   }) async {
     final ext = file.path.split('.').last.toLowerCase();
-    if (!['jpg', 'jpeg', 'png', 'webp', 'gif'].contains(ext)) {
-      throw Exception('Please upload JPG, PNG, WebP, or GIF (max 5MB)');
+    if (!['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'].contains(ext)) {
+      throw Exception(
+        'Please upload JPG, PNG, WebP, GIF, or HEIC (max 5MB)',
+      );
     }
     if (await file.length() > maxBytes) {
       throw Exception('Image must be under ${maxBytes ~/ (1024 * 1024)}MB');
     }
     final path = '$pathPrefix/${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final contentType = _imageContentType(ext);
     await _client.storage.from(bucket).upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true),
+          fileOptions: FileOptions(
+            upsert: true,
+            contentType: contentType,
+          ),
         );
     return _client.storage.from(bucket).getPublicUrl(path);
   }
@@ -70,5 +76,24 @@ class StorageService {
       urls.add(url);
     }
     return urls;
+  }
+
+  static String _imageContentType(String ext) {
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'gif':
+        return 'image/gif';
+      case 'heic':
+      case 'heif':
+        return 'image/heic';
+      default:
+        return 'application/octet-stream';
+    }
   }
 }
