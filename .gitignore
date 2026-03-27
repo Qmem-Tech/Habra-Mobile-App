@@ -44,6 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Supabase / secret dart-define values
+dart_defines.json
+.env
+
 # Platform-specific (we only support Android and iOS)
 /web/
 /linux/
