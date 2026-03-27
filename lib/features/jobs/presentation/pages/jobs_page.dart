@@ -198,6 +198,8 @@ class _JobsPageState extends State<JobsPage> {
                         fontWeight: FontWeight.w500,
                         color: AppColors.textPrimary,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(width: 4),
                     Icon(
@@ -210,7 +212,7 @@ class _JobsPageState extends State<JobsPage> {
               ),
             ),
           ),
-          TextButton(
+          IconButton(
             onPressed: () {
               Navigator.push(
                 context,
@@ -222,7 +224,9 @@ class _JobsPageState extends State<JobsPage> {
                 ),
               );
             },
-            child: const Text('My Applications'),
+            icon: const Icon(Icons.work_history_outlined),
+            tooltip: 'My Applications',
+            color: AppColors.textPrimary,
           ),
           IconButton(
             onPressed: () {

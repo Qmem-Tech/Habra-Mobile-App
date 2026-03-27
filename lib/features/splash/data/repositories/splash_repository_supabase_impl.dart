@@ -36,18 +36,24 @@ class SplashRepositorySupabaseImpl implements SplashRepository {
         return false;
       }
       if (session != null) {
+        final userId = session.user.id;
         final profile = await SupabaseFailureMapper.guard(
           () => Supabase.instance.client
               .from('profiles')
               .select('email_verified_at')
-              .eq('id', session.user.id)
+              .eq('id', userId)
               .maybeSingle(),
         );
         final profileVerifiedAt =
             profile is Map<String, dynamic> ? profile['email_verified_at'] : null;
         if (profileVerifiedAt == null) {
-          await Supabase.instance.client.auth.signOut();
-          return false;
+          // Keep verified users signed in by syncing the profile marker.
+          await SupabaseFailureMapper.guard(
+            () => Supabase.instance.client
+                .from('profiles')
+                .update({'email_verified_at': DateTime.now().toIso8601String()})
+                .eq('id', userId),
+          );
         }
       }
       return session != null;
@@ -71,22 +77,22 @@ class SplashRepositorySupabaseImpl implements SplashRepository {
       );
     }
     if (session != null) {
+      final userId = session.user.id;
       final profile = await SupabaseFailureMapper.guard(
         () => Supabase.instance.client
             .from('profiles')
             .select('email_verified_at')
-            .eq('id', session.user.id)
+            .eq('id', userId)
             .maybeSingle(),
       );
       final profileVerifiedAt =
           profile is Map<String, dynamic> ? profile['email_verified_at'] : null;
       if (profileVerifiedAt == null) {
-        await Supabase.instance.client.auth.signOut();
-        return SplashStatus(
-          isInitialized: true,
-          hasCompletedOnboarding: hasCompleted,
-          isAuthenticated: false,
-          currentUser: null,
+        await SupabaseFailureMapper.guard(
+          () => Supabase.instance.client
+              .from('profiles')
+              .update({'email_verified_at': DateTime.now().toIso8601String()})
+              .eq('id', userId),
         );
       }
     }

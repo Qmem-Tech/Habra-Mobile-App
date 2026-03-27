@@ -64,8 +64,13 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
       final profileVerifiedAt =
           profile is Map<String, dynamic> ? profile['email_verified_at'] : null;
       if (profileVerifiedAt == null) {
-        await _client.auth.signOut();
-        throw app_errors.EmailVerificationRequiredException(email);
+        // Auto-heal legacy profiles: if auth is verified, sync profile marker.
+        await SupabaseFailureMapper.guard(
+          () => _client
+              .from('profiles')
+              .update({'email_verified_at': DateTime.now().toIso8601String()})
+              .eq('id', userId),
+        );
       }
       return _sessionToUser();
     } catch (e) {

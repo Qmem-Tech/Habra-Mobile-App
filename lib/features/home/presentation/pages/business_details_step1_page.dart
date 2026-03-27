@@ -14,8 +14,8 @@ class BusinessDetailsStep1Page extends StatefulWidget {
 }
 
 class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
-  final _nameController = TextEditingController(text: 'Amma');
-  final _categoryController = TextEditingController(text: 'Restaurant & Cafe');
+  final _nameController = TextEditingController();
+  final _categoryController = TextEditingController();
   bool _isLoading = false;
 
   @override

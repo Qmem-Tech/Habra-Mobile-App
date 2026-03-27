@@ -82,9 +82,13 @@ class BusinessListItemWidget extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Row(
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.star, size: 16, color: Colors.amber),
                           const SizedBox(width: 4),
@@ -105,16 +109,16 @@ class BusinessListItemWidget extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(width: 12),
                       Text(
                         business.categories.first.displayName,
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      if (business.distance != null) ...[
-                        const SizedBox(width: 12),
+                      if (business.distance != null)
                         Text(
                           business.displayDistance,
                           style: const TextStyle(
@@ -122,9 +126,7 @@ class BusinessListItemWidget extends StatelessWidget {
                             color: AppColors.textSecondary,
                           ),
                         ),
-                      ],
-                      if (business.priceRange != null) ...[
-                        const SizedBox(width: 12),
+                      if (business.priceRange != null)
                         Text(
                           business.priceRange!,
                           style: const TextStyle(
@@ -132,7 +134,6 @@ class BusinessListItemWidget extends StatelessWidget {
                             color: AppColors.textSecondary,
                           ),
                         ),
-                      ],
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -144,14 +145,18 @@ class BusinessListItemWidget extends StatelessWidget {
                         color: business.isOpen ? AppColors.success : AppColors.error,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        business.isOpen
-                            ? 'Open Now${business.closingTime != null ? ' • Closes ${business.closingTime}' : ''}'
-                            : 'Closed${business.openingTime != null ? ' • Opens ${business.openingTime}' : ''}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: business.isOpen ? AppColors.success : AppColors.error,
-                          fontWeight: business.isOpen ? FontWeight.w600 : FontWeight.normal,
+                      Expanded(
+                        child: Text(
+                          business.isOpen
+                              ? 'Open Now${business.closingTime != null ? ' • Closes ${business.closingTime}' : ''}'
+                              : 'Closed${business.openingTime != null ? ' • Opens ${business.openingTime}' : ''}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: business.isOpen ? AppColors.success : AppColors.error,
+                            fontWeight: business.isOpen ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
