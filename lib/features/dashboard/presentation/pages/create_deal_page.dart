@@ -37,6 +37,7 @@ class _CreateDealPageState extends State<CreateDealPage> {
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   final Set<int> _selectedDays = {1, 2, 5, 6, 7};
+  bool _showValidation = false;
 
   static const List<int> _dayKeys = [1, 2, 3, 4, 5, 6, 7];
   static const List<String> _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -99,7 +100,9 @@ class _CreateDealPageState extends State<CreateDealPage> {
 
   Future<void> _publishDeal() async {
     final bizId = _getSelectedBusinessId();
-    if (bizId == null || _titleController.text.trim().isEmpty) {
+    final isTitleMissing = _titleController.text.trim().isEmpty;
+    if (bizId == null || isTitleMissing) {
+      setState(() => _showValidation = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in the deal title and select a business')),
       );
@@ -129,7 +132,9 @@ class _CreateDealPageState extends State<CreateDealPage> {
 
   Future<void> _saveDraft() async {
     final bizId = _getSelectedBusinessId();
-    if (bizId == null || _titleController.text.trim().isEmpty) {
+    final isTitleMissing = _titleController.text.trim().isEmpty;
+    if (bizId == null || isTitleMissing) {
+      setState(() => _showValidation = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in the deal title and select a business')),
       );
@@ -223,7 +228,12 @@ class _CreateDealPageState extends State<CreateDealPage> {
             const SizedBox(height: 24),
             _sectionTitle('Deal Details'),
             const SizedBox(height: 8),
-            _buildTextField('Deal Title', controller: _titleController),
+            _buildTextField(
+              'Deal Title',
+              controller: _titleController,
+              isRequired: true,
+              showError: _showValidation && _titleController.text.trim().isEmpty,
+            ),
             const SizedBox(height: 12),
             if (_offerType == OfferType.percentOff)
               _buildTextField('Discount Percentage', controller: _discountController),
@@ -348,6 +358,13 @@ class _CreateDealPageState extends State<CreateDealPage> {
               onPressed: _saveDraft,
               textColor: AppColors.brandPrimary,
               borderColor: AppColors.brandPrimary,
+            ),
+            const SizedBox(height: 12),
+            AppOutlinedButton(
+              text: 'Cancel',
+              onPressed: () => Navigator.pop(context),
+              textColor: AppColors.textSecondary,
+              borderColor: AppColors.backgroundGrey,
             ),
           ],
         ),
@@ -478,6 +495,8 @@ class _CreateDealPageState extends State<CreateDealPage> {
     int maxLines = 1,
     String? hint,
     int? maxLength,
+    bool isRequired = false,
+    bool showError = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -485,7 +504,7 @@ class _CreateDealPageState extends State<CreateDealPage> {
         Row(
           children: [
             Text(
-              label,
+              isRequired ? '$label *' : label,
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -506,17 +525,31 @@ class _CreateDealPageState extends State<CreateDealPage> {
           controller: controller,
           maxLines: maxLines,
           maxLength: maxLength,
+          onChanged: (_) {
+            if (_showValidation) setState(() {});
+          },
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.backgroundWhite,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppResources.radiusM),
-              borderSide: BorderSide(color: AppColors.backgroundGrey),
+              borderSide: BorderSide(
+                color: showError ? AppColors.error : AppColors.backgroundGrey,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppResources.radiusM),
-              borderSide: BorderSide(color: AppColors.backgroundGrey),
+              borderSide: BorderSide(
+                color: showError ? AppColors.error : AppColors.backgroundGrey,
+              ),
             ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: BorderSide(
+                color: showError ? AppColors.error : AppColors.brandPrimary,
+              ),
+            ),
+            errorText: showError ? 'This field is required' : null,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),

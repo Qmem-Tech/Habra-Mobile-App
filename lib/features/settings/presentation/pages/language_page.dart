@@ -12,9 +12,9 @@ class LanguagePage extends StatelessWidget {
   const LanguagePage({super.key});
 
   static const List<LocaleOption> _options = [
-    LocaleOption(Locale('am'), 'Amharic'),
     LocaleOption(Locale('en'), 'English'),
-    LocaleOption(Locale('ti'), 'Tigrinya'),
+    LocaleOption(Locale('ar'), 'Arabic'),
+    LocaleOption(Locale('fr'), 'French'),
   ];
 
   @override

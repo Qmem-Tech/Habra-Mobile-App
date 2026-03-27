@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import 'auth_callback_verification_page.dart';
 import '../bloc/auth_cubit.dart';
 import '../bloc/auth_state.dart';
@@ -26,6 +27,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   int _resendCooldownSeconds = 0;
   Timer? _cooldownTimer;
   Timer? _autoCheckTimer;
+  bool _isResending = false;
 
   @override
   void initState() {
@@ -53,6 +55,13 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
         _showOpenEmailFallback(context);
       }
     }
+  }
+
+  void _exitVerificationFlow() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const ChoosePathPage()),
+      (route) => false,
+    );
   }
 
   void _showOpenEmailFallback(BuildContext context) {
@@ -100,6 +109,8 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   }
 
   void _onResendTap() {
+    if (_isResending || _resendCooldownSeconds > 0) return;
+    setState(() => _isResending = true);
     context.read<AuthCubit>().resendVerificationEmail(widget.email);
   }
 
@@ -108,14 +119,26 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     return BlocListener<AuthCubit, AuthState>(
       listener: (context, state) {
         if (state is AuthResendVerificationSuccess) {
+          if (mounted) {
+            setState(() => _isResending = false);
+          }
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Verification email resent. Check your inbox.')),
+            SnackBar(
+              content: Text('Verification email sent to ${widget.email}. Check your inbox.'),
+            ),
           );
           _startResendCooldown();
         } else if (state is AuthError) {
+          if (mounted) {
+            setState(() => _isResending = false);
+          }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message)),
           );
+        } else if (state is AuthEmailVerificationPending) {
+          if (mounted) {
+            setState(() => _isResending = false);
+          }
         }
       },
       child: Scaffold(
@@ -128,7 +151,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
               Icons.close,
               color: AppColors.textPrimary,
             ),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: _exitVerificationFlow,
           ),
         ),
         body: SafeArea(
@@ -182,9 +205,11 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                   width: double.infinity,
                   height: AppResources.buttonHeightM,
                   child: OutlinedButton(
-                    onPressed: _resendCooldownSeconds > 0 ? null : _onResendTap,
+                    onPressed: (_resendCooldownSeconds > 0 || _isResending)
+                        ? null
+                        : _onResendTap,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: _resendCooldownSeconds > 0
+                      foregroundColor: (_resendCooldownSeconds > 0 || _isResending)
                           ? AppColors.textSecondary
                           : AppColors.textPrimary,
                       side: const BorderSide(color: AppColors.backgroundGrey),
@@ -194,11 +219,13 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                       ),
                     ),
                     child: Text(
-                      _resendCooldownSeconds > 0
+                      _isResending
+                          ? 'Sending...'
+                          : _resendCooldownSeconds > 0
                           ? 'Resend in 0:${_resendCooldownSeconds.toString().padLeft(2, '0')}'
                           : 'Resend email',
                       style: AppFonts.button(
-                        color: _resendCooldownSeconds > 0
+                        color: (_resendCooldownSeconds > 0 || _isResending)
                             ? AppColors.textSecondary
                             : AppColors.textPrimary,
                       ).copyWith(height: 1.0),
@@ -218,7 +245,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                 ),
                 const SizedBox(height: AppResources.spacingS),
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: _exitVerificationFlow,
                   child: Text(
                     'Back to sign in',
                     style: AppFonts.body(color: AppColors.brandPrimary),

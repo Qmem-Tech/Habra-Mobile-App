@@ -221,7 +221,19 @@ class _DashboardPageState extends State<DashboardPage> {
                     case 0:
                       return DashboardAnalyticsTab(
                         analytics: state.analytics,
-                        onQuickStatTap: (_) {},
+                        onQuickStatTap: (type) {
+                          switch (type) {
+                            case 'reviews':
+                              setState(() => _tabIndex = 3);
+                              break;
+                            case 'deals':
+                              setState(() => _tabIndex = 1);
+                              break;
+                            case 'jobs':
+                              setState(() => _tabIndex = 2);
+                              break;
+                          }
+                        },
                         onRefresh: _loadDashboard,
                       );
                     case 1:
@@ -240,9 +252,13 @@ class _DashboardPageState extends State<DashboardPage> {
                           }
                         },
                         onCreateDeal: () => _navigateToCreateDeal(),
-                        onEdit: (_) {},
-                        onPause: (_) {},
-                        onStats: (_) {},
+                        onEdit: (_) => _navigateToCreateDeal(),
+                        onPause: (deal) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Pause is not available yet for "${deal.title}".')),
+                          );
+                        },
+                        onStats: (_) => setState(() => _tabIndex = 0),
                       );
                     case 2:
                       return DashboardJobsTab(
