@@ -93,7 +93,10 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
           if (!context.mounted) return;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => EmailVerificationPage(email: state.email),
+              builder: (_) => EmailVerificationPage(
+                email: state.email,
+                signUpRole: widget.selectedRole,
+              ),
             ),
           );
         } else if (state is AuthAuthenticated) {

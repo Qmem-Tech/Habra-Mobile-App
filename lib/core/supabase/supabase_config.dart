@@ -27,6 +27,15 @@ class SupabaseConfig {
   static bool get isConfigured =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 
+  /// Mobile deep link passed to Supabase `emailRedirectTo` / `redirectTo`.
+  /// Must appear in Supabase Dashboard → Authentication → URL Configuration → Redirect URLs.
+  /// For desktop/browser confirmation flows, add the same project’s HTTPS callback URL there
+  /// and use email templates that open the web callback; the app still uses this for in-app sign-up.
+  static const String authRedirectUrl = String.fromEnvironment(
+    'SUPABASE_AUTH_REDIRECT_URL',
+    defaultValue: 'habra://auth/callback',
+  );
+
   /// Call before Supabase.initialize(); throws if not configured (in release/debug).
   static void assertConfigured() {
     if (!isConfigured) {

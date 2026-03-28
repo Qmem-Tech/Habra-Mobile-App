@@ -9,15 +9,23 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
-import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import 'auth_callback_verification_page.dart';
+import 'business_sign_in_page.dart';
+import 'sign_in_page.dart';
+import '../../domain/entities/user.dart';
 import '../bloc/auth_cubit.dart';
 import '../bloc/auth_state.dart';
+import '../utils/auth_session_sync.dart';
 
 class EmailVerificationPage extends StatefulWidget {
-  const EmailVerificationPage({super.key, required this.email});
+  const EmailVerificationPage({
+    super.key,
+    required this.email,
+    this.signUpRole = UserRole.customer,
+  });
 
   final String email;
+  final UserRole signUpRole;
 
   @override
   State<EmailVerificationPage> createState() => _EmailVerificationPageState();
@@ -57,9 +65,18 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     }
   }
 
-  void _exitVerificationFlow() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const ChoosePathPage()),
+  Future<void> _exitVerificationFlow() async {
+    final navigator = Navigator.of(context);
+    final authCubit = context.read<AuthCubit>();
+    await authCubit.logout();
+    if (!mounted) return;
+    authCubit.resetToInitial();
+    if (!mounted) return;
+    final Widget root = widget.signUpRole == UserRole.businessOwner
+        ? const BusinessSignInPage()
+        : const SignInPage();
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => root),
       (route) => false,
     );
   }
@@ -172,7 +189,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                 ),
                 const SizedBox(height: AppResources.spacingM),
                 Text(
-                  'We sent a verification email to ${widget.email}. Please tap the link inside that email to activate your account.',
+                  'We sent a verification email to ${widget.email}. Open the link on your phone or computer—then return here and tap "I verified, continue", or sign in again.',
                   style: AppFonts.body(color: AppColors.textSecondary),
                   textAlign: TextAlign.center,
                 ),
@@ -276,13 +293,27 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
   Future<void> _onVerifiedContinue() async {
     final messenger = ScaffoldMessenger.of(context);
+    await tryRefreshSupabaseSession();
+    if (!mounted) return;
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      final isEmailVerified = user?.emailConfirmedAt != null;
-      if (!isEmailVerified || user == null) {
+      if (user == null) {
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('Email is not verified yet. Please open the link from your inbox first.'),
+            content: Text(
+              'No active session on this device. If you verified in a browser, use Back to sign in and log in with your email and password.',
+            ),
+          ),
+        );
+        return;
+      }
+      final isEmailVerified = user.emailConfirmedAt != null;
+      if (!isEmailVerified) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Email is not verified yet. If you opened the link on another device, wait a moment and try again—or sign in after verifying.',
+            ),
           ),
         );
         return;
@@ -314,6 +345,8 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
         _autoCheckTimer?.cancel();
         return;
       }
+      await tryRefreshSupabaseSession();
+      if (!mounted) return;
       final user = Supabase.instance.client.auth.currentUser;
       if (user?.emailConfirmedAt == null) return;
       _autoCheckTimer?.cancel();

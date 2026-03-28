@@ -61,6 +61,7 @@ import '../features/home/presentation/bloc/home_cubit.dart';
 import '../features/home/presentation/bloc/search_cubit.dart';
 import '../features/home/presentation/bloc/notification_cubit.dart';
 import '../features/home/presentation/bloc/business_owner_home_cubit.dart';
+import '../features/home/presentation/bloc/business_owner_subscription_cubit.dart';
 import '../features/dashboard/data/datasources/dashboard_remote_datasource.dart';
 import '../features/dashboard/data/datasources/dashboard_supabase_datasource.dart';
 import '../features/dashboard/data/repositories/dashboard_repository_impl.dart';
@@ -290,6 +291,7 @@ Future<void> init() async {
       sl<DashboardRepository>(),
       sl<LocalStorage>(),
     ));
+  sl.registerFactory(() => BusinessOwnerSubscriptionCubit(sl<RevenueCatService>()));
 
   // Features - Boosts (Business Owner) — Supabase
   sl.registerLazySingleton<BoostsRemoteDataSource>(

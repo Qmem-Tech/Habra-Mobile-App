@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_fonts.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -16,6 +17,7 @@ import '../../domain/entities/deal.dart';
 import '../../domain/entities/job.dart';
 import '../bloc/business_owner_home_cubit.dart';
 import '../bloc/business_owner_home_state.dart';
+import '../bloc/business_owner_subscription_cubit.dart';
 import '../widgets/business_owner_drawer.dart';
 import '../../../dashboard/presentation/pages/edit_business_page.dart';
 import '../../../dashboard/presentation/pages/update_hours_page.dart';
@@ -335,27 +337,76 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         },
       ),
       body: SafeArea(
-        child: BlocBuilder<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
-          builder: (context, state) {
-            if (state is BusinessOwnerHomeLoading) {
-              return const HabraCircularLoader(fullScreen: true);
-            }
-            if (state is BusinessOwnerHomeError) {
-              return _buildErrorView(state.message);
-            }
-            if (state is BusinessOwnerHomeLoaded) {
-              _checkAndShowPostLoginDialogs(context, state);
-              _checkSelectedBusinessLegalDocs(state);
-              if (state.isSetupIncomplete) {
-                return _buildSetupIncompleteView(state);
-              }
-              if (state.isAllBusinessesView) {
-                return _buildAllBusinessesView(state);
-              }
-              return _buildSingleBusinessView(state);
-            }
-            return const SizedBox.shrink();
-          },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            BlocBuilder<BusinessOwnerSubscriptionCubit,
+                BusinessOwnerSubscriptionState>(
+              builder: (context, subState) {
+                if (!subState.shouldShowSubscribeBanner) {
+                  return const SizedBox.shrink();
+                }
+                return Material(
+                  color: AppColors.brandPrimary.withValues(alpha: 0.12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppResources.spacingM,
+                      vertical: AppResources.spacingS,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Subscribe to unlock the Dashboard. Use Boosts to manage your plan.',
+                            style:
+                                AppFonts.bodySmall(color: AppColors.textPrimary),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () =>
+                              BusinessOwnerNavigationWrapper.navigateToTab(
+                            context,
+                            2,
+                          ),
+                          child: Text(
+                            'Boosts',
+                            style: AppFonts.bodySmall(
+                              color: AppColors.brandPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            Expanded(
+              child: BlocBuilder<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
+                builder: (context, state) {
+                  if (state is BusinessOwnerHomeLoading) {
+                    return const HabraCircularLoader(fullScreen: true);
+                  }
+                  if (state is BusinessOwnerHomeError) {
+                    return _buildErrorView(state.message);
+                  }
+                  if (state is BusinessOwnerHomeLoaded) {
+                    _checkAndShowPostLoginDialogs(context, state);
+                    _checkSelectedBusinessLegalDocs(state);
+                    if (state.isSetupIncomplete) {
+                      return _buildSetupIncompleteView(state);
+                    }
+                    if (state.isAllBusinessesView) {
+                      return _buildAllBusinessesView(state);
+                    }
+                    return _buildSingleBusinessView(state);
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

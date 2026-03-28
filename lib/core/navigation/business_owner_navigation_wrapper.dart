@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../theme/app_colors.dart';
+import '../config/business_subscription_config.dart';
 import '../../core/services/push_notification_service.dart';
 import '../../injection/injection_container.dart' as di;
 import '../../features/home/presentation/pages/business_owner_home_page.dart';
+import '../../features/home/presentation/bloc/business_owner_subscription_cubit.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/boosts/presentation/bloc/boosts_cubit.dart';
 import '../../features/boosts/presentation/pages/boosts_page.dart';
@@ -64,6 +66,26 @@ class _BusinessOwnerNavigationWrapperState
     super.dispose();
   }
 
+  Future<bool> _ensureSubscriptionAccess() async {
+    if (!BusinessSubscriptionConfig.gatesPaidBusinessTabs) {
+      return true;
+    }
+    final cubit = context.read<BusinessOwnerSubscriptionCubit>();
+    await cubit.refresh(widget.user.id);
+    if (!mounted) return false;
+    if (cubit.state.hasActiveSubscription) {
+      return true;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'An active business subscription is required for the Dashboard. Open Boosts to manage your plan.',
+        ),
+      ),
+    );
+    return false;
+  }
+
   Future<bool> _ensureBusinessToolsAccess({bool forceRefresh = false}) async {
     if (!forceRefresh && _hasBusinessToolsAccess != null) {
       return _hasBusinessToolsAccess!;
@@ -116,6 +138,11 @@ class _BusinessOwnerNavigationWrapperState
           ),
         );
         return;
+      }
+      // Boosts (2) stays reachable so owners can purchase; Dashboard (1) is gated.
+      if (index == 1) {
+        final canAccessSubscription = await _ensureSubscriptionAccess();
+        if (!mounted || !canAccessSubscription) return;
       }
     }
 

@@ -106,7 +106,10 @@ class _SignInPageState extends State<SignInPage> {
             } else if (state is AuthEmailVerificationPending) {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
-                  builder: (_) => EmailVerificationPage(email: state.email),
+                  builder: (_) => EmailVerificationPage(
+                    email: state.email,
+                    signUpRole: UserRole.customer,
+                  ),
                 ),
                 (route) => false,
               );

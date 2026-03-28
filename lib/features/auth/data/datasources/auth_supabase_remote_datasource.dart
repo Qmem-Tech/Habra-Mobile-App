@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth_remote_datasource.dart';
 import '../models/user_model.dart';
 import '../../../../core/error/exceptions.dart' as app_errors;
+import '../../../../core/supabase/supabase_config.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../domain/entities/user.dart';
 
@@ -12,9 +13,9 @@ import '../../domain/entities/user.dart';
 class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
   AuthSupabaseRemoteDataSource();
 
-  static const String _authRedirectUrl = 'habra://auth/callback';
-
   SupabaseClient get _client => Supabase.instance.client;
+
+  String get _authRedirectUrl => SupabaseConfig.authRedirectUrl;
   GoogleSignIn get _googleSignIn => GoogleSignIn();
 
   Future<UserModel> _sessionToUser() async {

@@ -1,12 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import '../../../splash/presentation/pages/splash_page.dart';
+import '../bloc/auth_cubit.dart';
+import '../utils/auth_session_sync.dart';
 
 class AuthCallbackVerificationPage extends StatefulWidget {
   const AuthCallbackVerificationPage({super.key});
@@ -43,14 +47,26 @@ class _AuthCallbackVerificationPageState
       _isLoading = true;
       _message = null;
     });
+    await tryRefreshSupabaseSession();
+    if (!mounted) return;
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      final isEmailVerified = user?.emailConfirmedAt != null;
-      if (!isEmailVerified || user == null) {
+      if (user == null) {
         setState(() {
           _isVerified = false;
           _isLoading = false;
-          _message = 'Email is not verified yet. Please open the link in your inbox first.';
+          _message =
+              'No session on this device. If you verified in a browser, go back and sign in with your email and password.';
+        });
+        return;
+      }
+      final isEmailVerified = user.emailConfirmedAt != null;
+      if (!isEmailVerified) {
+        setState(() {
+          _isVerified = false;
+          _isLoading = false;
+          _message =
+              'Email is not verified yet. If you confirmed on another device, wait a few seconds and tap Check Again—or sign in after verifying.';
         });
         return;
       }
@@ -81,6 +97,19 @@ class _AuthCallbackVerificationPageState
     );
   }
 
+  Future<void> _leaveToSignInEntry() async {
+    final navigator = Navigator.of(context);
+    final authCubit = context.read<AuthCubit>();
+    await authCubit.logout();
+    if (!mounted) return;
+    authCubit.resetToInitial();
+    if (!mounted) return;
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const ChoosePathPage()),
+      (route) => false,
+    );
+  }
+
   void _startVerificationPolling() {
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
@@ -95,7 +124,8 @@ class _AuthCallbackVerificationPageState
         if (!mounted) return;
         setState(() {
           _isLoading = false;
-          _message = 'Still waiting for verification callback. If you opened in browser, return to app and tap Check Again.';
+          _message =
+              'Still waiting for confirmation. If you verified in a browser on another device, sign in on this device—or tap Back to sign in.';
         });
       }
     });
@@ -103,7 +133,14 @@ class _AuthCallbackVerificationPageState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _leaveToSignInEntry();
+        }
+      },
+      child: Scaffold(
       backgroundColor: AppColors.backgroundWhite,
       body: SafeArea(
         child: Center(
@@ -166,8 +203,19 @@ class _AuthCallbackVerificationPageState
                           ),
                         ),
                       ),
+                      if (!_isVerified) ...[
+                        const SizedBox(height: AppResources.spacingM),
+                        TextButton(
+                          onPressed: _leaveToSignInEntry,
+                          child: Text(
+                            'Back to sign in',
+                            style: AppFonts.body(color: AppColors.brandPrimary),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
+            ),
           ),
         ),
       ),

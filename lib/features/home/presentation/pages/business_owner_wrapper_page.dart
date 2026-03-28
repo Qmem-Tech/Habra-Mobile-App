@@ -6,6 +6,7 @@ import '../../../../injection/injection_container.dart' as di;
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../bloc/business_owner_home_cubit.dart';
+import '../bloc/business_owner_subscription_cubit.dart';
 import '../bloc/notification_cubit.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import 'business_owner_onboarding_page.dart';
@@ -69,6 +70,13 @@ class _BusinessOwnerWrapperPageState extends State<BusinessOwnerWrapperPage> {
       providers: [
         BlocProvider(
           create: (_) => di.sl<BusinessOwnerHomeCubit>(),
+        ),
+        BlocProvider(
+          create: (context) {
+            final cubit = di.sl<BusinessOwnerSubscriptionCubit>();
+            cubit.refresh(widget.user.id);
+            return cubit;
+          },
         ),
         BlocProvider(
           create: (_) => di.sl<NotificationCubit>(),
