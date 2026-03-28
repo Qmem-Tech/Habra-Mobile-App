@@ -1,3 +1,4 @@
+import '../../../../../core/models/legal_document_upload_result.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../domain/entities/applicant_detail.dart';
 import '../../domain/entities/boost_plan.dart';
@@ -83,8 +84,13 @@ class DashboardRepositoryImpl implements DashboardRepository {
       _remote.getLegalDocumentsStatus(businessId);
 
   @override
-  Future<void> uploadLegalDocument(String businessId, String documentType, String fileUrl, {String? fileName}) =>
-      _remote.uploadLegalDocument(businessId, documentType, fileUrl, fileName: fileName);
+  Future<void> uploadLegalDocument(
+    String businessId,
+    String documentType,
+    LegalDocumentUploadResult upload, {
+    String? fileName,
+  }) =>
+      _remote.uploadLegalDocument(businessId, documentType, upload, fileName: fileName);
 
   @override
   Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId) =>

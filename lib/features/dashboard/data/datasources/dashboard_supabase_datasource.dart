@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/models/legal_document_upload_result.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../../home/domain/entities/business_presence.dart';
@@ -666,15 +667,26 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   }
 
   @override
-  Future<void> uploadLegalDocument(String businessId, String documentType, String fileUrl, {String? fileName}) async {
+  Future<void> uploadLegalDocument(
+    String businessId,
+    String documentType,
+    LegalDocumentUploadResult upload, {
+    String? fileName,
+  }) async {
     return SupabaseFailureMapper.guard(() async {
-      await _client.from(SupabaseTables.businessLegalDocuments).insert({
+      final row = <String, dynamic>{
         'business_id': businessId,
         'document_type': documentType,
-        'file_url': fileUrl,
+        'file_url': upload.publicUrl,
+        'storage_bucket': upload.storageBucket,
+        'storage_path': upload.storagePath,
+        'mime_type': upload.mimeType,
+        'file_size_bytes': upload.fileSizeBytes,
         'file_name': fileName,
         'status': 'pending',
-      });
+      };
+      row.removeWhere((k, v) => v == null);
+      await _client.from(SupabaseTables.businessLegalDocuments).insert(row);
     });
   }
 

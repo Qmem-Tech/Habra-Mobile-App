@@ -209,3 +209,5 @@ Release builds must use the **same** defines as debug so Supabase and payments p
 | QA / release defines | [QA_V2_RELEASE_NOTES.md](./QA_V2_RELEASE_NOTES.md) |
 | APK distribution & defines | [ANDROID_APK_DISTRIBUTION.md](./ANDROID_APK_DISTRIBUTION.md) |
 | Key template (copy to `dart_defines.json`) | [`../dart_defines.example.json`](../dart_defines.example.json) |
+| Legal docs: bucket + `storage_path` contract (Flutter) | [`lib/core/constants/legal_document_storage.dart`](../lib/core/constants/legal_document_storage.dart) |
+| Legal docs: DB columns migration (existing projects) | [`supabase/migrations/add_business_legal_documents_storage_columns.sql`](./supabase/migrations/add_business_legal_documents_storage_columns.sql) |

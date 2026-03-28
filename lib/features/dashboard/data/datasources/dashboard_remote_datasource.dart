@@ -1,3 +1,4 @@
+import '../../../../../core/models/legal_document_upload_result.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../domain/entities/applicant_detail.dart';
 import '../../domain/entities/boost_plan.dart';
@@ -26,6 +27,11 @@ abstract class DashboardRemoteDataSource {
   Future<Map<String, String?>?> getBusinessHours(String businessId);
   Future<String> createBusiness(String ownerId, Map<String, dynamic> data);
   Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId);
-  Future<void> uploadLegalDocument(String businessId, String documentType, String fileUrl, {String? fileName});
+  Future<void> uploadLegalDocument(
+    String businessId,
+    String documentType,
+    LegalDocumentUploadResult upload, {
+    String? fileName,
+  });
   Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId);
 }

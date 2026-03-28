@@ -9,6 +9,10 @@ CREATE TABLE IF NOT EXISTS public.business_legal_documents (
   business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
   document_type TEXT NOT NULL,  -- e.g. 'business_license', 'tax_id', 'doc_1', 'doc_2'
   file_url TEXT NOT NULL,
+  storage_bucket TEXT NOT NULL DEFAULT 'legal_documents',
+  storage_path TEXT,
+  mime_type TEXT,
+  file_size_bytes BIGINT,
   file_name TEXT,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
   uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now(),

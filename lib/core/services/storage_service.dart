@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../constants/legal_document_storage.dart';
+import '../models/legal_document_upload_result.dart';
+
 /// Service for uploading files to Supabase Storage.
 class StorageService {
   StorageService();
@@ -47,20 +50,58 @@ class StorageService {
     File file, {
     int maxBytes = 10 * 1024 * 1024,
   }) async {
+    final r = await uploadDocumentWithMeta(bucket, pathPrefix, file, maxBytes: maxBytes);
+    return r.publicUrl;
+  }
+
+  /// Legal/compliance docs: always uses [LegalDocumentStorage.bucketId]; returns URL +
+  /// exact `storage_path` and metadata for `business_legal_documents` insert.
+  Future<LegalDocumentUploadResult> uploadLegalDocumentFile(
+    File file, {
+    required String pathPrefix,
+    int maxBytes = 10 * 1024 * 1024,
+  }) {
+    return uploadDocumentWithMeta(
+      LegalDocumentStorage.bucketId,
+      pathPrefix,
+      file,
+      maxBytes: maxBytes,
+    );
+  }
+
+  /// Returns public URL and the exact Storage object key (no leading `/`).
+  Future<LegalDocumentUploadResult> uploadDocumentWithMeta(
+    String bucket,
+    String pathPrefix,
+    File file, {
+    int maxBytes = 10 * 1024 * 1024,
+  }) async {
     final ext = file.path.split('.').last.toLowerCase();
     if (!['jpg', 'jpeg', 'png', 'pdf', 'webp'].contains(ext)) {
       throw Exception('Please upload JPG, PNG, PDF, or WebP (max 10MB)');
     }
-    if (await file.length() > maxBytes) {
+    final size = await file.length();
+    if (size > maxBytes) {
       throw Exception('File must be under ${maxBytes ~/ (1024 * 1024)}MB');
     }
     final path = '$pathPrefix/${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final mime = _documentContentType(ext);
     await _client.storage.from(bucket).upload(
           path,
           file,
-          fileOptions: const FileOptions(upsert: true),
+          fileOptions: FileOptions(
+            upsert: true,
+            contentType: mime,
+          ),
         );
-    return _client.storage.from(bucket).getPublicUrl(path);
+    final publicUrl = _client.storage.from(bucket).getPublicUrl(path);
+    return LegalDocumentUploadResult(
+      publicUrl: publicUrl,
+      storagePath: path,
+      storageBucket: bucket,
+      mimeType: mime,
+      fileSizeBytes: size,
+    );
   }
 
   /// Upload multiple images. Returns list of public URLs.
@@ -76,6 +117,22 @@ class StorageService {
       urls.add(url);
     }
     return urls;
+  }
+
+  static String _documentContentType(String ext) {
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'pdf':
+        return 'application/pdf';
+      default:
+        return 'application/octet-stream';
+    }
   }
 
   static String _imageContentType(String ext) {

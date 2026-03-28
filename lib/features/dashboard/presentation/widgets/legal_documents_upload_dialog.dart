@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/constants/legal_document_storage.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_utils.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -77,30 +77,28 @@ class _LegalDocumentsUploadDialogState extends State<LegalDocumentsUploadDialog>
 
     try {
       final storage = di.sl<StorageService>();
-      final pathPrefix = widget.businessId;
+      final bid = widget.businessId;
 
-      final licenseUrl = await storage.uploadDocument(
-        SupabaseBuckets.legalDocuments,
-        '$pathPrefix/business_license',
+      final licenseUpload = await storage.uploadLegalDocumentFile(
         _licenseFile!,
+        pathPrefix: '$bid/${LegalDocumentStorage.typeBusinessLicense}',
       );
       await cubit.uploadLegalDocument(
         widget.businessId,
-        'business_license',
-        licenseUrl,
+        LegalDocumentStorage.typeBusinessLicense,
+        licenseUpload,
         fileName: _licenseFile!.path.split('/').last,
       );
 
       if (_einFile != null) {
-        final einUrl = await storage.uploadDocument(
-          SupabaseBuckets.legalDocuments,
-          '$pathPrefix/ein_proof',
+        final einUpload = await storage.uploadLegalDocumentFile(
           _einFile!,
+          pathPrefix: '$bid/${LegalDocumentStorage.typeEinProof}',
         );
         await cubit.uploadLegalDocument(
           widget.businessId,
-          'ein_proof',
-          einUrl,
+          LegalDocumentStorage.typeEinProof,
+          einUpload,
           fileName: _einFile!.path.split('/').last,
         );
       }

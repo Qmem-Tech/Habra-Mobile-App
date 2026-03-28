@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/business_media_limits.dart';
+import '../../../../core/constants/legal_document_storage.dart';
 import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_utils.dart';
@@ -616,27 +617,27 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
       final cubit = di.sl<DashboardCubit>();
       final storage = di.sl<StorageService>();
       try {
-        final licenseUrl = await storage.uploadDocument(
-          SupabaseBuckets.legalDocuments,
-          '$createdBusinessId/reg_business_license',
+        final licenseUpload = await storage.uploadLegalDocumentFile(
           _licenseFile!,
+          pathPrefix:
+              '$createdBusinessId/reg_${LegalDocumentStorage.typeBusinessLicense}',
         );
         await cubit.uploadLegalDocument(
           createdBusinessId,
-          'business_license',
-          licenseUrl,
+          LegalDocumentStorage.typeBusinessLicense,
+          licenseUpload,
           fileName: _fileBasename(_licenseFile!.path),
         );
         if (_einFile != null) {
-          final einUrl = await storage.uploadDocument(
-            SupabaseBuckets.legalDocuments,
-            '$createdBusinessId/reg_ein_proof',
+          final einUpload = await storage.uploadLegalDocumentFile(
             _einFile!,
+            pathPrefix:
+                '$createdBusinessId/reg_${LegalDocumentStorage.typeEinProof}',
           );
           await cubit.uploadLegalDocument(
             createdBusinessId,
-            'ein_proof',
-            einUrl,
+            LegalDocumentStorage.typeEinProof,
+            einUpload,
             fileName: _fileBasename(_einFile!.path),
           );
         }

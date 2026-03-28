@@ -1,4 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../../core/models/legal_document_upload_result.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../domain/entities/dashboard_deal.dart';
 import '../../domain/entities/dashboard_job.dart';
@@ -161,8 +163,13 @@ class DashboardCubit extends Cubit<DashboardState> {
   Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId) =>
       _repository.getLegalDocumentsStatus(businessId);
 
-  Future<void> uploadLegalDocument(String businessId, String documentType, String fileUrl, {String? fileName}) =>
-      _repository.uploadLegalDocument(businessId, documentType, fileUrl, fileName: fileName);
+  Future<void> uploadLegalDocument(
+    String businessId,
+    String documentType,
+    LegalDocumentUploadResult upload, {
+    String? fileName,
+  }) =>
+      _repository.uploadLegalDocument(businessId, documentType, upload, fileName: fileName);
 
   Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId) =>
       _repository.getBusinessIdsNeedingLegalDocs(ownerId);
