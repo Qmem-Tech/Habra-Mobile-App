@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/validation/business_onboarding_validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import 'business_location_step2_page.dart';
 
@@ -14,14 +15,27 @@ class BusinessDetailsStep1Page extends StatefulWidget {
 }
 
 class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _categoryController = TextEditingController();
+  String? _selectedCategory;
+
+  static const List<String> _categories = [
+    'Restaurant & Cafe',
+    'Retail Store',
+    'Service Provider',
+    'Entertainment',
+    'Health & Wellness',
+    'Education',
+    'Automotive',
+    'Real Estate',
+    'Other',
+  ];
+
   bool _isLoading = false;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _categoryController.dispose();
     super.dispose();
   }
 
@@ -56,83 +70,115 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingL),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24),
-              const Text(
-                'Business Details',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 28),
-              const Text(
-                'Business Name',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  hintText: 'Enter business name',
-                  hintStyle: TextStyle(color: AppColors.textTertiary),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppResources.radiusM),
-                    borderSide: BorderSide(color: AppColors.backgroundGrey),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppResources.radiusM),
-                    borderSide: BorderSide(color: AppColors.backgroundGrey),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 24),
+                const Text(
+                  'Business Details',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Business Category',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _categoryController,
-                readOnly: true,
-                decoration: InputDecoration(
-                  hintText: 'Select category',
-                  hintStyle: TextStyle(color: AppColors.textTertiary),
-                  suffixIcon: const Icon(Icons.arrow_drop_down),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppResources.radiusM),
-                    borderSide: BorderSide(color: AppColors.backgroundGrey),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppResources.radiusM),
-                    borderSide: BorderSide(color: AppColors.backgroundGrey),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+                const SizedBox(height: 28),
+                const Text(
+                  'Business Name',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-                onTap: () {
-                  // TODO: Open category picker
-                },
-              ),
-              const SizedBox(height: 48),
-            ],
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _nameController,
+                  maxLength: BusinessOnboardingValidators.businessNameMaxLength,
+                  buildCounter: (
+                    BuildContext context, {
+                    required int currentLength,
+                    required bool isFocused,
+                    required int? maxLength,
+                  }) =>
+                      const SizedBox.shrink(),
+                  decoration: InputDecoration(
+                    hintText: 'Enter business name',
+                    hintStyle: TextStyle(color: AppColors.textTertiary),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: BorderSide(color: AppColors.backgroundGrey),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: BorderSide(color: AppColors.backgroundGrey),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.brandPrimary),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                  ),
+                  validator: BusinessOnboardingValidators.businessName,
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Business Category',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  // ignore: deprecated_member_use - use initialValue when form API is updated
+                  value: _selectedCategory,
+                  decoration: InputDecoration(
+                    hintText: 'Select category',
+                    hintStyle: TextStyle(color: AppColors.textTertiary),
+                    suffixIcon: const Icon(Icons.arrow_drop_down),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: BorderSide(color: AppColors.backgroundGrey),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: BorderSide(color: AppColors.backgroundGrey),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.brandPrimary),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                  ),
+                  items: _categories
+                      .map(
+                        (c) => DropdownMenuItem<String>(
+                          value: c,
+                          child: Text(c),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedCategory = v),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select a business category';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 48),
+              ],
+            ),
           ),
         ),
       ),
@@ -150,6 +196,14 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
   }
 
   Future<void> _onNext() async {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    final category = _selectedCategory;
+    if (category == null) {
+      return;
+    }
+
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
@@ -160,7 +214,7 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
         builder: (_) => BusinessLocationStep2Page(
           step1Data: {
             'name': _nameController.text.trim(),
-            'category': _categoryController.text.trim(),
+            'category': category,
           },
         ),
       ),

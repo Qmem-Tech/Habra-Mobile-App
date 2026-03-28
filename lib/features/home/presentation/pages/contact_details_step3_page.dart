@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl_phone_field/phone_number.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -17,10 +18,13 @@ class ContactDetailsStep3Page extends StatefulWidget {
 }
 
 class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
+  final _formKey = GlobalKey<FormState>();
   String _phoneNumber = '';
   final _emailController = TextEditingController();
   final _websiteController = TextEditingController();
   bool _isLoading = false;
+
+  static final RegExp _emailRe = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
 
   static const List<({String day, String hours})> _defaultHours = [
     (day: 'Monday', hours: '9:00 AM - 5:00 PM'),
@@ -70,115 +74,195 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingL),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24),
-              const Text(
-                'Contact Details',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildLabel('Business Phone'),
-              const SizedBox(height: 8),
-              IntlPhoneField(
-                decoration: InputDecoration(
-                  hintText: 'Phone number',
-                  hintStyle: TextStyle(color: AppColors.textTertiary),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppResources.radiusM),
-                    borderSide: BorderSide(color: AppColors.backgroundGrey),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 24),
+                const Text(
+                  'Contact Details',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppResources.radiusM),
-                    borderSide: BorderSide(color: AppColors.backgroundGrey),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
-                initialCountryCode: 'US',
-                onChanged: (phone) => setState(() => _phoneNumber = phone.completeNumber),
-              ),
-              const SizedBox(height: 16),
-              _buildLabel('Business Email'),
-              const SizedBox(height: 8),
-              _buildTextField(_emailController, 'Email'),
-              const SizedBox(height: 16),
-              _buildLabel('Website (Optional)'),
-              const SizedBox(height: 8),
-              _buildTextField(_websiteController, 'https://'),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Business',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                const SizedBox(height: 24),
+                _buildLabel('Business Phone'),
+                const SizedBox(height: 8),
+                IntlPhoneField(
+                  disableLengthCheck: true,
+                  decoration: InputDecoration(
+                    hintText: 'Phone number',
+                    hintStyle: TextStyle(color: AppColors.textTertiary),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: BorderSide(color: AppColors.backgroundGrey),
                     ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: BorderSide(color: AppColors.backgroundGrey),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.brandPrimary),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
-                  TextButton.icon(
-                    onPressed: () {},
-                    icon: Icon(Icons.edit, size: 18, color: AppColors.brandSecondary),
-                    label: Text(
-                      'Edit Hours',
+                  initialCountryCode: 'US',
+                  onChanged: (phone) => setState(() => _phoneNumber = phone.completeNumber),
+                  validator: (PhoneNumber? phone) {
+                    if (phone == null || phone.number.isEmpty) {
+                      return 'Please enter phone number';
+                    }
+                    final digits =
+                        phone.completeNumber.replaceAll(RegExp(r'\D'), '');
+                    if (digits.length < 10) {
+                      return 'Please enter a valid phone number';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                _buildLabel('Business Email'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    hintText: 'Email',
+                    hintStyle: TextStyle(color: AppColors.textTertiary),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: BorderSide(color: AppColors.backgroundGrey),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: BorderSide(color: AppColors.backgroundGrey),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.brandPrimary),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                  validator: (value) {
+                    final v = value?.trim() ?? '';
+                    if (v.isEmpty) {
+                      return 'Please enter business email';
+                    }
+                    if (!_emailRe.hasMatch(v)) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                _buildLabel('Website (Optional)'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _websiteController,
+                  keyboardType: TextInputType.url,
+                  decoration: InputDecoration(
+                    hintText: 'https://',
+                    hintStyle: TextStyle(color: AppColors.textTertiary),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: BorderSide(color: AppColors.backgroundGrey),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: BorderSide(color: AppColors.backgroundGrey),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.brandPrimary),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                  validator: (value) {
+                    final v = value?.trim() ?? '';
+                    if (v.isEmpty) return null;
+                    final uri = Uri.tryParse(v);
+                    if (uri == null ||
+                        (!uri.hasScheme ||
+                            (uri.scheme != 'http' && uri.scheme != 'https'))) {
+                      return 'Enter a valid URL (https://...)';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Business',
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.brandSecondary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ..._defaultHours.map((e) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          e.day,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary,
-                          ),
+                    TextButton.icon(
+                      onPressed: () {},
+                      icon: Icon(Icons.edit, size: 18, color: AppColors.brandSecondary),
+                      label: Text(
+                        'Edit Hours',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.brandSecondary,
                         ),
-                        Container(
-                          padding: e.hours == 'Closed'
-                              ? const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                )
-                              : null,
-                          decoration: e.hours == 'Closed'
-                              ? BoxDecoration(
-                                  color: AppColors.error.withValues(alpha: 0.1),
-                                  borderRadius:
-                                      BorderRadius.circular(20),
-                                )
-                              : null,
-                          child: Text(
-                            e.hours,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: e.hours == 'Closed'
-                                  ? AppColors.error
-                                  : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ..._defaultHours.map((e) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            e.day,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  )),
-              const SizedBox(height: 48),
-            ],
+                          Container(
+                            padding: e.hours == 'Closed'
+                                ? const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  )
+                                : null,
+                            decoration: e.hours == 'Closed'
+                                ? BoxDecoration(
+                                    color: AppColors.error.withValues(alpha: 0.1),
+                                    borderRadius:
+                                        BorderRadius.circular(20),
+                                  )
+                                : null,
+                            child: Text(
+                              e.hours,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: e.hours == 'Closed'
+                                    ? AppColors.error
+                                    : AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                const SizedBox(height: 48),
+              ],
+            ),
           ),
         ),
       ),
@@ -206,26 +290,11 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: AppColors.textTertiary),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppResources.radiusM),
-          borderSide: BorderSide(color: AppColors.backgroundGrey),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppResources.radiusM),
-          borderSide: BorderSide(color: AppColors.backgroundGrey),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
-    );
-  }
-
   Future<void> _onNext() async {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;

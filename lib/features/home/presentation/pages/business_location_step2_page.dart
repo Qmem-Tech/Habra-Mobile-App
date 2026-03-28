@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/validation/business_onboarding_validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/business_address_input.dart';
 import 'contact_details_step3_page.dart';
@@ -22,7 +23,7 @@ class BusinessLocationStep2Page extends StatefulWidget {
 class _BusinessLocationStep2PageState extends State<BusinessLocationStep2Page> {
   final _streetController = TextEditingController();
   final _suiteController = TextEditingController();
-  final _cityController = TextEditingController(text: 'Restaurant & Cafe');
+  final _cityController = TextEditingController();
   final _stateController = TextEditingController(text: 'AL');
   final _zipController = TextEditingController();
   bool _isLoading = false;
@@ -108,6 +109,18 @@ class _BusinessLocationStep2PageState extends State<BusinessLocationStep2Page> {
   }
 
   Future<void> _onNext() async {
+    final err = BusinessOnboardingValidators.locationFields(
+      street: _streetController.text,
+      city: _cityController.text,
+      state: _stateController.text,
+      zip: _zipController.text,
+    );
+    if (err != null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      return;
+    }
+
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;

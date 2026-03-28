@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../../../core/validation/business_onboarding_validators.dart';
 import 'business_location_page.dart';
 
 class BusinessBasicsPage extends StatefulWidget {
@@ -152,6 +153,14 @@ class _BusinessBasicsPageState extends State<BusinessBasicsPage> {
                 const SizedBox(height: AppResources.spacingS),
                 TextFormField(
                   controller: _businessNameController,
+                  maxLength: BusinessOnboardingValidators.businessNameMaxLength,
+                  buildCounter: (
+                    BuildContext context, {
+                    required int currentLength,
+                    required bool isFocused,
+                    required int? maxLength,
+                  }) =>
+                      const SizedBox.shrink(),
                   decoration: InputDecoration(
                     hintText: 'Enter your business name',
                     hintStyle: AppFonts.body(color: AppColors.textTertiary),
@@ -168,12 +177,7 @@ class _BusinessBasicsPageState extends State<BusinessBasicsPage> {
                       borderSide: const BorderSide(color: AppColors.brandPrimary),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your business name';
-                    }
-                    return null;
-                  },
+                  validator: BusinessOnboardingValidators.businessName,
                 ),
                 const SizedBox(height: AppResources.spacingL),
 

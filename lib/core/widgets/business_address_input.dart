@@ -55,7 +55,7 @@ class BusinessAddressInput extends StatelessWidget {
         const SizedBox(height: 16),
         _buildLabel('City'),
         const SizedBox(height: 8),
-        _buildTextField(context, cityController, 'Select city'),
+        _buildTextField(context, cityController, 'Enter city'),
         const SizedBox(height: 16),
         Row(
           children: [
