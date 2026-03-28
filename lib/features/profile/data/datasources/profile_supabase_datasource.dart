@@ -32,6 +32,7 @@ class ProfileSupabaseDataSource implements ProfileRemoteDataSource {
         bio: parseString(row['bio']),
         location: parseString(row['city']) ?? parseString(row['location']),
         avatarUrl: parseString(row['avatar_url']),
+        createdAt: parseTimestamp(row['created_at']),
       );
     });
   }

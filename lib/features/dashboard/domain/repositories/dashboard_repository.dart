@@ -1,6 +1,7 @@
 import '../../../../core/models/legal_document_upload_result.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../entities/applicant_detail.dart';
+import '../entities/business_legal_document.dart';
 import '../entities/boost_plan.dart';
 import '../entities/business_review.dart';
 import '../entities/dashboard_analytics.dart';
@@ -27,6 +28,7 @@ abstract class DashboardRepository {
   Future<Map<String, String?>?> getBusinessHours(String businessId);
   Future<String> createBusiness(String ownerId, Map<String, dynamic> data);
   Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId);
+  Future<List<BusinessLegalDocument>> listBusinessLegalDocuments(String businessId);
   Future<void> uploadLegalDocument(
     String businessId,
     String documentType,

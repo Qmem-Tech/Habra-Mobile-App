@@ -1,12 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Stripe PaymentSheet for **event tickets** (card payments).
+/// Stripe PaymentSheet for **event tickets** (card, Apple Pay, Google Pay when enabled).
 ///
 /// Requires:
 /// - [publishableKey] (pk_test_… / pk_live_…) via `--dart-define=STRIPE_PUBLISHABLE_KEY=...`
 /// - A Supabase Edge Function (or other backend) that creates a PaymentIntent and returns `clientSecret`.
+/// - Optional: `--dart-define=STRIPE_MERCHANT_COUNTRY=US` and `STRIPE_PAYMENT_CURRENCY=USD` for wallet config.
 ///
 /// Secret keys and webhook verification must **never** ship in the app; they live on the server.
 class StripePaymentService {
@@ -15,6 +17,16 @@ class StripePaymentService {
   static const String _paymentIntentFunction = String.fromEnvironment(
     'STRIPE_PAYMENT_INTENT_FUNCTION',
     defaultValue: 'create-event-payment-intent',
+  );
+
+  static const String _merchantCountry = String.fromEnvironment(
+    'STRIPE_MERCHANT_COUNTRY',
+    defaultValue: 'US',
+  );
+
+  static const String _paymentCurrency = String.fromEnvironment(
+    'STRIPE_PAYMENT_CURRENCY',
+    defaultValue: 'USD',
   );
 
   bool _initialized = false;
@@ -28,7 +40,9 @@ class StripePaymentService {
     String? merchantIdentifier,
   }) async {
     if (publishableKey.isEmpty) {
-      debugPrint('Stripe: STRIPE_PUBLISHABLE_KEY not set; event checkout will use debug fallback or fail in release.');
+      debugPrint(
+        'Stripe: STRIPE_PUBLISHABLE_KEY not set; event checkout will use debug fallback or fail in release.',
+      );
       return;
     }
     Stripe.publishableKey = publishableKey;
@@ -61,17 +75,34 @@ class StripePaymentService {
   }
 
   /// Presents Stripe PaymentSheet. Returns true if payment succeeded.
+  /// Wallets (Apple Pay / Google Pay) appear when enabled for your Stripe account and configured on device.
   Future<bool> presentPaymentSheet({
     required String paymentIntentClientSecret,
     String merchantDisplayName = 'Habra',
   }) async {
     if (!_initialized) return false;
     try {
+      final PaymentSheetGooglePay? googlePay =
+          defaultTargetPlatform == TargetPlatform.android
+              ? PaymentSheetGooglePay(
+                  merchantCountryCode: _merchantCountry,
+                  currencyCode: _paymentCurrency,
+                  testEnv: kDebugMode,
+                )
+              : null;
+
+      final PaymentSheetApplePay? applePay =
+          defaultTargetPlatform == TargetPlatform.iOS
+              ? PaymentSheetApplePay(merchantCountryCode: _merchantCountry)
+              : null;
+
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: paymentIntentClientSecret,
           merchantDisplayName: merchantDisplayName,
           style: ThemeMode.light,
+          googlePay: googlePay,
+          applePay: applePay,
         ),
       );
       await Stripe.instance.presentPaymentSheet();

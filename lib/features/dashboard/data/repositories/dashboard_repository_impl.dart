@@ -7,6 +7,7 @@ import '../../domain/entities/dashboard_analytics.dart';
 import '../../domain/entities/dashboard_deal.dart';
 import '../../domain/entities/dashboard_job.dart';
 import '../../domain/entities/job_applicant.dart';
+import '../../domain/entities/business_legal_document.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../datasources/dashboard_remote_datasource.dart';
 
@@ -82,6 +83,10 @@ class DashboardRepositoryImpl implements DashboardRepository {
   @override
   Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId) =>
       _remote.getLegalDocumentsStatus(businessId);
+
+  @override
+  Future<List<BusinessLegalDocument>> listBusinessLegalDocuments(String businessId) =>
+      _remote.listBusinessLegalDocuments(businessId);
 
   @override
   Future<void> uploadLegalDocument(

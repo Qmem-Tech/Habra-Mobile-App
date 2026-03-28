@@ -6,6 +6,7 @@ import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../domain/entities/applicant_detail.dart';
+import '../../domain/entities/business_legal_document.dart';
 import '../../domain/entities/boost_plan.dart';
 import '../../domain/entities/business_review.dart';
 import '../../domain/entities/dashboard_analytics.dart';
@@ -663,6 +664,33 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         einProofApproved: einProofApproved,
         hasLegacyDocPair: hasLegacyDocPair,
       );
+    });
+  }
+
+  @override
+  Future<List<BusinessLegalDocument>> listBusinessLegalDocuments(String businessId) async {
+    return SupabaseFailureMapper.guard(() async {
+      final res = await _client
+          .from(SupabaseTables.businessLegalDocuments)
+          .select(
+            'id, business_id, document_type, file_url, file_name, status, uploaded_at, reviewed_at, rejection_reason',
+          )
+          .eq('business_id', businessId)
+          .order('uploaded_at', ascending: false);
+      final rows = (res as List).cast<Map<String, dynamic>>();
+      return rows.map((row) {
+        return BusinessLegalDocument(
+          id: parseStringRequired(row['id']),
+          businessId: parseStringRequired(row['business_id']),
+          documentType: parseStringRequired(row['document_type']),
+          fileUrl: parseStringRequired(row['file_url']),
+          fileName: parseString(row['file_name']),
+          status: parseStringRequired(row['status'], 'pending'),
+          uploadedAt: parseTimestamp(row['uploaded_at']),
+          reviewedAt: parseTimestamp(row['reviewed_at']),
+          rejectionReason: parseString(row['rejection_reason']),
+        );
+      }).toList();
     });
   }
 

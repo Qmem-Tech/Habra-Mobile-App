@@ -1,22 +1,26 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+
+import '../../../../core/services/stripe_payment_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/event_detail.dart';
 import '../../domain/entities/ticket_type.dart';
-import '../bloc/tickets_cubit.dart';
-import '../bloc/tickets_state.dart';
 import '../bloc/events_cubit.dart';
 import '../bloc/events_state.dart';
+import '../bloc/tickets_cubit.dart';
+import '../bloc/tickets_state.dart';
 import 'order_confirmation_page.dart';
 import 'payment_failed_page.dart';
 
 class CheckoutPage extends StatefulWidget {
   final String eventId;
   final List<Map<String, dynamic>> tickets;
+
   /// Pre-filled from current user when available.
   final String? initialEmail;
 
@@ -35,13 +39,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _emailController;
   String _phoneNumber = '';
-  final _cardNumberController = TextEditingController();
-  final _expiryController = TextEditingController();
-  final _cvcController = TextEditingController();
-  final _zipController = TextEditingController();
   final _promoController = TextEditingController();
-  String _selectedPaymentMethod = 'card';
-  bool _saveCard = false;
+  final StripePaymentService _stripe = di.sl<StripePaymentService>();
 
   @override
   void initState() {
@@ -52,10 +51,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
   @override
   void dispose() {
     _emailController.dispose();
-    _cardNumberController.dispose();
-    _expiryController.dispose();
-    _cvcController.dispose();
-    _zipController.dispose();
     _promoController.dispose();
     super.dispose();
   }
@@ -72,14 +67,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
           if (state is PaymentSuccess) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
+              MaterialPageRoute<void>(
                 builder: (_) => OrderConfirmationPage(order: state.order),
               ),
             );
           } else if (state is PaymentFailed) {
             Navigator.push(
               context,
-              MaterialPageRoute(
+              MaterialPageRoute<void>(
                 builder: (_) => PaymentFailedPage(
                   message: state.message,
                   order: state.order,
@@ -118,12 +113,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
       child: Form(
         key: _formKey,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildEventSummary(event),
             _buildContactInfo(),
-            _buildPaymentMethod(),
-            if (_selectedPaymentMethod == 'card') _buildCardDetails(),
-            _buildPromoCode(),
+            _buildPaymentSection(context),
+            _buildPromoCode(context),
             _buildTotalSummary(subtotal, orderTotal),
             _buildPayButton(context, orderTotal),
           ],
@@ -136,9 +131,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final breakdown = _getTicketBreakdown(event);
     final ticketSummary = breakdown.isEmpty
         ? '${widget.tickets.length} ticket(s)'
-        : breakdown
-            .map((b) => '${b.quantity} x ${b.name}')
-            .join(', ');
+        : breakdown.map((b) => '${b.quantity} x ${b.name}').join(', ');
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
@@ -222,7 +215,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Contact Information',
+            'Contact information',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -231,11 +224,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _emailController,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Email',
-              prefixIcon: const Icon(Icons.email),
-              suffixIcon: Icon(Icons.check_circle, color: AppColors.brandSecondary),
-              border: const OutlineInputBorder(),
+              prefixIcon: Icon(Icons.email_outlined),
+              border: OutlineInputBorder(),
             ),
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
@@ -249,8 +241,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           IntlPhoneField(
             decoration: const InputDecoration(
               labelText: 'Phone',
-              prefixIcon: Icon(Icons.phone),
-              suffixIcon: Icon(Icons.check_circle, color: AppColors.brandSecondary),
+              prefixIcon: Icon(Icons.phone_outlined),
               border: OutlineInputBorder(),
             ),
             initialCountryCode: 'US',
@@ -267,160 +258,90 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  Widget _buildPaymentMethod() {
+  Widget _buildPaymentSection(BuildContext context) {
+    final stripeOn = _stripe.isConfigured;
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Payment Method',
+            'Payment',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildPaymentTab('card', 'Card', Icons.credit_card),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildPaymentTab('apple', 'Apple', Icons.apple),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildPaymentTab('google', 'Google', Icons.account_balance_wallet),
-              ),
-            ],
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundLight,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.backgroundGrey),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.lock_outline, size: 22, color: AppColors.brandPrimary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        stripeOn
+                            ? 'You’ll complete payment in Stripe’s secure sheet. Card, Apple Pay, Google Pay, and other methods your account supports may appear there.'
+                            : (kDebugMode
+                                ? 'Stripe is not configured. In debug builds the order can still complete without a real charge.'
+                                : 'Online payment is not configured for this build. Add STRIPE_PUBLISHABLE_KEY and your payment backend to enable checkout.'),
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.4,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPaymentTab(String method, String label, IconData icon) {
-    final isSelected = _selectedPaymentMethod == method;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedPaymentMethod = method),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.brandPrimary.withValues(alpha:0.1) : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: isSelected ? AppColors.brandPrimary : AppColors.textSecondary),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? AppColors.brandPrimary : AppColors.textSecondary,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardDetails() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextFormField(
-            controller: _cardNumberController,
-            decoration: const InputDecoration(
-              labelText: 'Card Number',
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.number,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter card number';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _expiryController,
-                  decoration: const InputDecoration(
-                    labelText: 'Expiry',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.datetime,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: TextFormField(
-                  controller: _cvcController,
-                  decoration: const InputDecoration(
-                    labelText: 'CVC',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _zipController,
-            decoration: const InputDecoration(
-              labelText: 'Zip Code',
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.number,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPromoCode() {
+  Widget _buildPromoCode(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: TextFormField(
               controller: _promoController,
               decoration: const InputDecoration(
-                labelText: 'Promo Code',
+                labelText: 'Promo code (optional)',
                 border: OutlineInputBorder(),
               ),
             ),
           ),
           const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: OutlinedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Promo codes are not available yet.'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              child: const Text('Apply'),
             ),
-            child: const Text('Apply'),
           ),
         ],
       ),
@@ -450,7 +371,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Service Fee'),
+              const Text('Service fee'),
               Text('\$${serviceFee.toStringAsFixed(2)}'),
             ],
           ),
@@ -484,35 +405,40 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return BlocBuilder<TicketsCubit, TicketsState>(
       builder: (context, state) {
         final isLoading = state is PaymentProcessing || state is OrderLoading;
+        final canPay = _stripe.isConfigured || kDebugMode;
         return Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           decoration: BoxDecoration(
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha:0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, -2),
               ),
             ],
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Checkbox(
-                    value: _saveCard,
-                    onChanged: (value) => setState(() => _saveCard = value ?? false),
+              if (!_stripe.isConfigured && !kDebugMode)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'Payments are unavailable until Stripe is configured.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                  const Text('Save card for future purchases'),
-                ],
-              ),
+                ),
               AppButton(
-                text: 'PAY \$${total.toStringAsFixed(2)}',
+                text: 'Pay \$${total.toStringAsFixed(2)}',
                 backgroundColor: AppColors.brandSecondary,
                 isLoading: isLoading,
-                icon: Icons.lock,
-                onPressed: isLoading
+                icon: Icons.lock_outline,
+                onPressed: isLoading || !canPay
                     ? null
                     : () {
                         if (_formKey.currentState!.validate()) {
@@ -524,10 +450,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.shield, size: 16, color: AppColors.textSecondary),
-                  const SizedBox(width: 4),
+                  Icon(Icons.verified_user_outlined, size: 16, color: AppColors.textSecondary),
+                  const SizedBox(width: 6),
                   Text(
-                    'Secured payment',
+                    _stripe.isConfigured ? 'Secured by Stripe' : 'Habra checkout',
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -544,7 +470,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   void _processPayment(BuildContext context) {
     final cubit = context.read<TicketsCubit>();
-
     cubit.performCheckout(
       eventId: widget.eventId,
       tickets: widget.tickets,
@@ -552,12 +477,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
         'email': _emailController.text,
         'phone': _phoneNumber,
       },
-      paymentMethod: {
-        'type': _selectedPaymentMethod,
-        'cardNumber': _cardNumberController.text,
-        'expiry': _expiryController.text,
-        'cvc': _cvcController.text,
-        'zipCode': _zipController.text,
+      paymentMethod: const {
+        'type': 'stripe_payment_sheet',
       },
       promoCode: _promoController.text.isEmpty ? null : _promoController.text,
     );

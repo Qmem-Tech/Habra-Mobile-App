@@ -189,25 +189,26 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       _lastCheckedPresenceId = null;
       _checkingLegalDocsForPresence = false;
     });
+    if (!context.mounted) return;
     BusinessOwnerNavigationWrapper.invalidateBusinessToolsAccessCache(context);
 
+    final dashboardCubit = context.read<DashboardCubit>();
+    final homeCubit = context.read<BusinessOwnerHomeCubit>();
+
     try {
-      final ids =
-          await context.read<DashboardCubit>().getBusinessIdsNeedingLegalDocs(widget.user.id);
+      final ids = await dashboardCubit.getBusinessIdsNeedingLegalDocs(widget.user.id);
       if (mounted) {
         setState(() => _businessesNeedingLegalDocsCount = ids.length);
       }
     } catch (_) {}
 
-    await context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
-          ownerId: widget.user.id,
-          showSetupIncomplete: false,
-        );
+    await homeCubit.loadOwnerHome(
+      ownerId: widget.user.id,
+      showSetupIncomplete: false,
+    );
 
-    if (!mounted) return;
     try {
-      final status =
-          await context.read<DashboardCubit>().getLegalDocumentsStatus(businessId);
+      final status = await dashboardCubit.getLegalDocumentsStatus(businessId);
       if (!mounted) return;
       setState(() {
         _selectedBusinessNeedsLegalDocs = status.needsOwnerAction;

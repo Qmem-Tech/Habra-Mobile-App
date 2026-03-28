@@ -7,6 +7,7 @@ import '../../domain/entities/dashboard_analytics.dart';
 import '../../domain/entities/dashboard_deal.dart';
 import '../../domain/entities/dashboard_job.dart';
 import '../../domain/entities/job_applicant.dart';
+import '../../domain/entities/business_legal_document.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 
 abstract class DashboardRemoteDataSource {
@@ -27,6 +28,7 @@ abstract class DashboardRemoteDataSource {
   Future<Map<String, String?>?> getBusinessHours(String businessId);
   Future<String> createBusiness(String ownerId, Map<String, dynamic> data);
   Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId);
+  Future<List<BusinessLegalDocument>> listBusinessLegalDocuments(String businessId);
   Future<void> uploadLegalDocument(
     String businessId,
     String documentType,

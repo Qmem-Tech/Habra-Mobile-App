@@ -12,7 +12,14 @@ Habra uses RevenueCat for in-app purchases (boost listings, event tickets). This
 4. Map those products in RevenueCat.
 5. Create at least one entitlement and attach products.
 
-## 2) App configuration (required)
+## 2) Which API key to use (critical)
+
+In the RevenueCat dashboard, open **Project settings → API keys**.
+
+- **Use in the mobile app:** the **public** “App specific” / SDK keys (one per Android app, one per iOS app). These are safe to embed with `--dart-define`.
+- **Never use in the app:** the **Secret** API key. It is for your server only. If you paste it into the app, the SDK will fail with a backend error similar to: **Code 7243 – Secret API keys should not be used in your app.**
+
+## 3) App configuration (required)
 
 Run the app with:
 
@@ -30,7 +37,7 @@ Notes:
 - If RevenueCat keys are missing, `RevenueCatService` remains uninitialized.
 - Auth flow now identifies/logs out RevenueCat users using app user id.
 
-## 3) Sandbox test flow (end-to-end)
+## 4) Sandbox test flow (end-to-end)
 
 1. Install app in debug/profile build.
 2. Sign in with a real account in the app.
@@ -44,7 +51,7 @@ Notes:
    - `entitlements.active` contains expected entitlement.
 6. Logout/login and verify entitlement state is restored.
 
-## 4) Validation checklist
+## 5) Validation checklist
 
 - Offerings load successfully.
 - Purchase success path works.
@@ -53,8 +60,9 @@ Notes:
 - Entitlements are correct after relaunch.
 - RevenueCat customer identity matches app user id.
 
-## 5) Troubleshooting
+## 6) Troubleshooting
 
+- **7243 / “Secret API keys should not be used in your app”:** You configured the **secret** key. Replace with the **public** Android/iOS SDK key from the same API keys page.
 - No offerings: check product IDs and offerings in RevenueCat.
 - Purchase fails: verify sandbox tester setup on store.
 - Wrong entitlement: check entitlement-product mapping.

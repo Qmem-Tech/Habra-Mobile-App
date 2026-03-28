@@ -2,7 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 /// RevenueCat service for in-app purchases (boosts, tickets).
-/// Configure API keys in main.dart before runApp.
+///
+/// **Use the platform public SDK key only** (RevenueCat dashboard → Project settings →
+/// API keys → **Public app-specific API key** for Android / iOS). Never put the
+/// **secret** API key in the app; the backend returns error **7243** if you do
+/// ("Secret API keys should not be used in your app").
+///
+/// Configure keys via `--dart-define=REVENUECAT_ANDROID_API_KEY=...` in [main].
 /// Free tier: https://www.revenuecat.com/pricing/
 class RevenueCatService {
   RevenueCatService();
