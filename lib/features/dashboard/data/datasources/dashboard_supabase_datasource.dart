@@ -690,7 +690,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       for (final row in bizList) {
         final businessId = parseStringRequired(row['id']);
         final status = await getLegalDocumentsStatus(businessId);
-        if (!status.hasRequiredUploaded || !status.isFullyApproved) {
+        if (status.needsOwnerAction) {
           ids.add(businessId);
         }
       }

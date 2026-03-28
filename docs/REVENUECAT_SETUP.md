@@ -1,5 +1,7 @@
 # RevenueCat Setup Guide
 
+> **Integration overview:** [INTEGRATION_DOCUMENT.md](./INTEGRATION_DOCUMENT.md).
+
 Habra uses RevenueCat for in-app purchases (boost listings, event tickets). This project now reads RevenueCat keys from `--dart-define` values.
 
 ## 1) RevenueCat project and products

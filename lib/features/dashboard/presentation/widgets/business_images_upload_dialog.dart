@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/constants/business_media_limits.dart';
 import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_utils.dart';
@@ -68,6 +69,17 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
   }
 
   Future<void> _pickGalleryImage() async {
+    if (_galleryFiles.length >= BusinessMediaLimits.maxGalleryImages) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'You can add up to ${BusinessMediaLimits.maxGalleryImages} gallery photos.',
+          ),
+        ),
+      );
+      return;
+    }
     final file = await di.sl<ImagePickerService>().pickImage(context);
     if (file != null && mounted) {
       setState(() => _galleryFiles = [..._galleryFiles, file]);
@@ -198,7 +210,8 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Logo and background image are required for ${widget.businessName}. Max 5 MB per file.',
+                  'Logo and background are required for ${widget.businessName}. '
+                  'Optional: up to ${BusinessMediaLimits.maxGalleryImages} gallery photos. Max 5 MB per file.',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
@@ -377,7 +390,7 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
               ),
             ),
             Text(
-              ' (Optional)',
+              ' (Optional, max ${BusinessMediaLimits.maxGalleryImages})',
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.textTertiary,

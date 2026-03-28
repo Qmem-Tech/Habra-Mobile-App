@@ -163,6 +163,10 @@ DROP POLICY IF EXISTS "business_legal_docs_select_owner" ON public.business_lega
 CREATE POLICY "business_legal_docs_select_owner" ON public.business_legal_documents FOR SELECT
   USING (EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid()));
 
+DROP POLICY IF EXISTS "business_legal_docs_select_admin" ON public.business_legal_documents;
+CREATE POLICY "business_legal_docs_select_admin" ON public.business_legal_documents FOR SELECT
+  USING (public.is_admin());
+
 DROP POLICY IF EXISTS "business_legal_docs_insert_owner" ON public.business_legal_documents;
 CREATE POLICY "business_legal_docs_insert_owner" ON public.business_legal_documents FOR INSERT
   WITH CHECK (EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid()));
@@ -170,7 +174,7 @@ CREATE POLICY "business_legal_docs_insert_owner" ON public.business_legal_docume
 DROP POLICY IF EXISTS "business_legal_docs_update_admin" ON public.business_legal_documents;
 CREATE POLICY "business_legal_docs_update_admin" ON public.business_legal_documents FOR UPDATE
   USING (
-    EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'admin')
+    public.is_admin()
     OR EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid())
   )
   WITH CHECK (true);

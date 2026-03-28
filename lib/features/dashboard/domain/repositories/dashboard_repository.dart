@@ -35,6 +35,10 @@ abstract class DashboardRepository {
 /// **API assumptions:** `business_legal_documents.document_type` values include
 /// `business_license` (required for new uploads), optional `ein_proof`, and legacy
 /// `doc_1` / `doc_2`. Rows have `status`: `pending` | `approved` | `rejected`.
+///
+/// Use [needsOwnerAction] for upload prompts; [isFullyApproved] when every row
+/// is approved. While docs are `pending` review, [awaitingLegalDocReview] is true
+/// and the owner should not be nagged to upload again.
 class LegalDocumentsStatus {
   final int uploadedCount;
   final int approvedCount;
@@ -69,6 +73,13 @@ class LegalDocumentsStatus {
     if (hasEinProof && !einProofApproved) return false;
     return true;
   }
+
+  /// Owner must upload (or re-upload after rejection).
+  bool get needsOwnerAction => !hasRequiredUploaded || hasRejected;
+
+  /// Submitted and not rejected, but at least one row still pending admin approval.
+  bool get awaitingLegalDocReview =>
+      hasRequiredUploaded && !hasRejected && !isFullyApproved;
 }
 
 /// Rating overview for reviews tab.

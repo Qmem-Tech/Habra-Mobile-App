@@ -3,7 +3,7 @@
 /// To enable push notifications:
 /// 1. Add firebase_core and firebase_messaging to pubspec.yaml
 /// 2. Add google-services.json (Android) and GoogleService-Info.plist (iOS)
-/// 3. See docs/PUSH_NOTIFICATIONS_SETUP.md
+/// 3. See docs/INTEGRATION_DOCUMENT.md and docs/PUSH_NOTIFICATIONS_SETUP.md
 class PushNotificationService {
   PushNotificationService._();
 

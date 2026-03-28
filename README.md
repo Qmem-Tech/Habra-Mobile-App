@@ -114,6 +114,10 @@ If you modify models with `@JsonSerializable()`, run:
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
+### Integrations (Google, RevenueCat, Stripe, push)
+
+All optional services and compile-time keys are documented in **[docs/INTEGRATION_DOCUMENT.md](docs/INTEGRATION_DOCUMENT.md)**. Copy `dart_defines.example.json` to `dart_defines.json` (gitignored), add your values, then run with `--dart-define-from-file=dart_defines.json`.
+
 ### Step 6: Run the App
 
 ```bash

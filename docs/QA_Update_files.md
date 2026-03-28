@@ -418,7 +418,7 @@ Run these in Supabase Dashboard → SQL Editor if the corresponding feature fail
 - **Step 1**: Choose business from list (only those needing docs).
 - **Step 2**: Upload 2 documents (PDF, JPG, PNG; max 10MB each). Status: pending.
 - **Approval**: Super admin reviews and approves via Supabase Dashboard or admin panel.
-- **Migrations**: Run `docs/supabase/migrations/add_business_legal_documents.sql`. If uploads fail with permission errors, run `docs/supabase/migrations/add_legal_documents_storage_permissive.sql`.
+- **Migrations**: Run `docs/supabase/migrations/add_business_legal_documents.sql`. If uploads fail with permission errors, run `docs/supabase/migrations/add_legal_documents_storage_permissive.sql`. If **super admin cannot see uploaded legal docs** (empty list / RLS), run `docs/supabase/migrations/fix_business_legal_documents_admin_select_rls.sql` (adds `SELECT` for `public.is_admin()`).
 - **Table**: `business_legal_documents` (business_id, document_type, file_url, status, etc.).
 - **Storage**: `legal_documents` bucket.
 

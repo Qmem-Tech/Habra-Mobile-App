@@ -16,7 +16,19 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
   SupabaseClient get _client => Supabase.instance.client;
 
   String get _authRedirectUrl => SupabaseConfig.authRedirectUrl;
-  GoogleSignIn get _googleSignIn => GoogleSignIn();
+
+  /// Web OAuth client ID (same as Supabase Google provider). Optional but
+  /// recommended on Android; set via `--dart-define=GOOGLE_WEB_CLIENT_ID=...`.
+  GoogleSignIn get _googleSignIn {
+    const webClientId = String.fromEnvironment(
+      'GOOGLE_WEB_CLIENT_ID',
+      defaultValue: '',
+    );
+    if (webClientId.isNotEmpty) {
+      return GoogleSignIn(serverClientId: webClientId);
+    }
+    return GoogleSignIn();
+  }
 
   Future<UserModel> _sessionToUser() async {
     final session = _client.auth.currentSession;

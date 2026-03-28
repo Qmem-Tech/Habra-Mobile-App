@@ -31,6 +31,13 @@ class BusinessOwnerNavigationWrapper extends StatefulWidget {
     state?.navigateToTab(index, dashboardTab: dashboardTab);
   }
 
+  /// Call after legal docs (or similar) change so Dashboard access is re-checked on next open.
+  static void invalidateBusinessToolsAccessCache(BuildContext context) {
+    final state =
+        context.findAncestorStateOfType<_BusinessOwnerNavigationWrapperState>();
+    state?._resetBusinessToolsAccessCache();
+  }
+
   @override
   State<BusinessOwnerNavigationWrapper> createState() =>
       _BusinessOwnerNavigationWrapperState();
@@ -64,6 +71,11 @@ class _BusinessOwnerNavigationWrapperState
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _resetBusinessToolsAccessCache() {
+    if (!mounted) return;
+    setState(() => _hasBusinessToolsAccess = null);
   }
 
   Future<bool> _ensureSubscriptionAccess() async {
@@ -110,7 +122,9 @@ class _BusinessOwnerNavigationWrapperState
         }
         final legalStatus =
             await dashboardCubit.getLegalDocumentsStatus(business.id);
-        if (!legalStatus.hasRequiredUploaded || !legalStatus.isFullyApproved) {
+        // Business listing approved: allow tools once required docs are submitted
+        // and none rejected — do not block while rows are still `pending` review.
+        if (legalStatus.hasRejected || !legalStatus.hasRequiredUploaded) {
           _hasBusinessToolsAccess = false;
           return false;
         }
@@ -133,7 +147,7 @@ class _BusinessOwnerNavigationWrapperState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Business dashboard is locked until email is verified, legal documents are submitted, and admin approval is completed.',
+              'Business dashboard is locked until your business listing is approved and required legal documents are submitted (not rejected).',
             ),
           ),
         );

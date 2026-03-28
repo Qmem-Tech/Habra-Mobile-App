@@ -1,5 +1,7 @@
 # Google Sign-In Setup for Habra Mobile App
 
+> **Integration overview:** [INTEGRATION_DOCUMENT.md](./INTEGRATION_DOCUMENT.md).
+
 The app **already has Google Sign-In implemented** in code. You only need to configure **Google Cloud Console** and **Supabase Dashboard**. No app code changes are required.
 
 ---
@@ -100,18 +102,13 @@ You need **three** client IDs:
 
 ## Step 3: Optional — Android server client ID
 
-For more reliable token validation, you can pass the Web Client ID to `google_sign_in` on Android. This is optional; the default config often works.
+For more reliable token validation, pass the **Web application** Client ID (same as in Supabase) via compile-time config — no code edit needed:
 
-If you see errors like "idpConfig is invalid" or token validation fails, add:
-
-```dart
-// In auth_supabase_remote_datasource.dart
-GoogleSignIn get _googleSignIn => GoogleSignIn(
-  serverClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
-);
+```bash
+--dart-define=GOOGLE_WEB_CLIENT_ID=YOUR_WEB_CLIENT_ID.apps.googleusercontent.com
 ```
 
-Use the **Web application** Client ID (the same one you put in Supabase).
+Or add `"GOOGLE_WEB_CLIENT_ID": "…"` to `dart_defines.json` (see `dart_defines.example.json` and [INTEGRATION_DOCUMENT.md](./INTEGRATION_DOCUMENT.md)).
 
 ---
 
@@ -180,7 +177,7 @@ You get `REVERSED_CLIENT_ID` from `GoogleService-Info.plist` if you use Firebase
 
 | Error | Fix |
 |------|-----|
-| "idpConfig is invalid" | Add Web Client ID to `GoogleSignIn(serverClientId: '...')` on Android |
+| "idpConfig is invalid" | Set `GOOGLE_WEB_CLIENT_ID` to the Web Client ID (`dart-define` / `dart_defines.json`) |
 | "Developer Error" on Android | Check package name (`com.habra.habra`) and SHA-1 in Google Cloud |
 | "Profile not found" | Ensure `handle_new_user` trigger exists and creates `profiles` row |
 | iOS sign-in fails | Add reversed client ID to `Info.plist`; enable "Skip nonce check" in Supabase |

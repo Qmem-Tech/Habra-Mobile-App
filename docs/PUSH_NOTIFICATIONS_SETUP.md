@@ -1,5 +1,7 @@
 # Push Notifications Setup
 
+> **Integration overview:** [INTEGRATION_DOCUMENT.md](./INTEGRATION_DOCUMENT.md).
+
 This guide explains how to enable push notifications for the Habra app. When a new job is posted (or other events occur), users receive push notifications on their devices.
 
 **Note:** The app builds and runs without Firebase. Push notifications are disabled by default. To enable them, add the Firebase packages and configuration below.

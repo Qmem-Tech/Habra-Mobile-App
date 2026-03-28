@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/constants/business_media_limits.dart';
 import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_utils.dart';
@@ -129,7 +130,7 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Add images for your gallery. Max 5 MB each.',
+                'Add up to ${BusinessMediaLimits.maxGalleryImages} gallery images. Max 5 MB each.',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 12),
@@ -172,6 +173,18 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
                     borderRadius: BorderRadius.circular(AppResources.radiusM),
                     child: InkWell(
                       onTap: () async {
+                        if (_galleryFiles.length >=
+                            BusinessMediaLimits.maxGalleryImages) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'You can add up to ${BusinessMediaLimits.maxGalleryImages} gallery photos.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
                         final f =
                             await di.sl<ImagePickerService>().pickImage(context);
                         if (f != null && mounted) {
