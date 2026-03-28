@@ -89,6 +89,7 @@ class _BusinessLocationStep2PageState extends State<BusinessLocationStep2Page> {
                 stateController: _stateController,
                 zipController: _zipController,
                 defaultState: 'AL',
+                showOptionalAddressMethods: false,
               ),
               const SizedBox(height: 48),
             ],

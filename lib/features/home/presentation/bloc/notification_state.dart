@@ -21,7 +21,15 @@ class NotificationLoaded extends NotificationState {
   List<Object?> get props => [notifications];
 }
 
-class NotificationEmpty extends NotificationState {}
+class NotificationEmpty extends NotificationState {
+  /// Optional message when the list is empty (e.g. not signed in).
+  final String? hint;
+
+  const NotificationEmpty({this.hint});
+
+  @override
+  List<Object?> get props => [hint];
+}
 
 class NotificationError extends NotificationState {
   final String message;

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/supabase_tables.dart';
@@ -38,8 +40,7 @@ class NotificationSupabaseDataSource implements NotificationRemoteDataSource {
         ? DateTime.parse(row['created_at'] as String)
         : DateTime.now();
     final imageUrl = row['image_url']?.toString();
-    final data = row['data'] as Map<String, dynamic>?;
-    final actionId = data?['action_id']?.toString();
+    final actionId = _parseActionId(row['data']);
 
     return NotificationModel(
       id: id,
@@ -52,6 +53,23 @@ class NotificationSupabaseDataSource implements NotificationRemoteDataSource {
       isRead: isRead,
       actionId: actionId,
     );
+  }
+
+  static String? _parseActionId(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is Map) {
+      final m = Map<String, dynamic>.from(raw);
+      return m['action_id']?.toString();
+    }
+    if (raw is String && raw.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          return decoded['action_id']?.toString();
+        }
+      } catch (_) {}
+    }
+    return null;
   }
 
   static NotificationType _typeFromString(String type) {

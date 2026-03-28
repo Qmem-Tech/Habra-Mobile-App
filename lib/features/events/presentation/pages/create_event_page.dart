@@ -394,7 +394,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         _venueLat = loc.latitude;
                         _venueLng = loc.longitude;
                         if (_venueAddressController.text.trim().isEmpty) {
-                          _venueAddressController.text = loc.displayName!;
+                          _venueAddressController.text = loc.fullDisplayName;
                         }
                       });
                       ScaffoldMessenger.of(context).showSnackBar(

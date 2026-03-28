@@ -3,6 +3,7 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../../home/presentation/widgets/business_registration_hours_sheet.dart';
 import 'business_photos_page.dart';
 
 class BusinessContactPage extends StatefulWidget {
@@ -18,15 +19,13 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
   final _emailController = TextEditingController();
   final _websiteController = TextEditingController();
 
-  final Map<String, String> _businessHours = {
-    'Monday': '9:00 AM - 5:00 PM',
-    'Tuesday': '9:00 AM - 5:00 PM',
-    'Wednesday': '9:00 AM - 5:00 PM',
-    'Thursday': '9:00 AM - 5:00 PM',
-    'Friday': '9:00 AM - 5:00 PM',
-    'Saturday': '10:00 AM - 4:00 PM',
-    'Sunday': 'Closed',
-  };
+  late RegistrationHoursResult _hoursResult;
+
+  @override
+  void initState() {
+    super.initState();
+    _hoursResult = RegistrationHoursResult.defaultSchedule();
+  }
 
   @override
   void dispose() {
@@ -35,15 +34,23 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
     super.dispose();
   }
 
-  void _onEditHours() {
-    // TODO: Implement edit hours functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit hours coming soon')),
+  Future<void> _onEditHours() async {
+    final updated = await showBusinessRegistrationHoursSheet(
+      context,
+      initial: _hoursResult,
     );
+    if (!mounted || updated == null) return;
+    setState(() => _hoursResult = updated);
   }
 
   void _onNext() {
     if (_formKey.currentState!.validate()) {
+      final hoursMap = {
+        for (var i = 0; i < 7; i++)
+          RegistrationHoursResult.weekdayNames[i]: _hoursResult.dayClosed[i]
+              ? 'Closed'
+              : _hoursResult.openDaysHoursLabel,
+      };
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => const BusinessPhotosPage(),
@@ -52,7 +59,9 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
               'phone': _phoneNumber,
               'email': _emailController.text,
               'website': _websiteController.text,
-              'hours': _businessHours,
+              'hours': hoursMap,
+              'opening_time': _hoursResult.openingTime,
+              'closing_time': _hoursResult.closingTime,
             },
           ),
         ),
@@ -242,8 +251,10 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
                 const SizedBox(height: AppResources.spacingM),
 
                 // Business hours list
-                ..._businessHours.entries.map((entry) {
-                  final isClosed = entry.value == 'Closed';
+                ...List.generate(7, (i) {
+                  final isClosed = _hoursResult.dayClosed[i];
+                  final label =
+                      isClosed ? 'Closed' : _hoursResult.openDaysHoursLabel;
                   return Container(
                     padding: const EdgeInsets.symmetric(vertical: AppResources.spacingM),
                     decoration: BoxDecoration(
@@ -259,7 +270,7 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
                       children: [
                         Expanded(
                           child: Text(
-                            entry.key,
+                            RegistrationHoursResult.weekdayNames[i],
                             style: AppFonts.body(color: AppColors.textPrimary),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -278,7 +289,7 @@ class _BusinessContactPageState extends State<BusinessContactPage> {
                               borderRadius: BorderRadius.circular(AppResources.radiusS),
                             ),
                             child: Text(
-                              entry.value,
+                              label,
                               style: AppFonts.bodySmall(
                                 color: isClosed ? AppColors.error : AppColors.textPrimary,
                               ),

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/supabase_tables.dart';
@@ -15,7 +16,11 @@ import '../../../../injection/injection_container.dart' as di;
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import 'listing_status_page.dart';
 
-/// Add Photos step 4: Cover Photo, Logo (required), Complete Registration.
+// API_ASSUMPTIONS (registration): `businesses` row accepts `image_urls` (e.g. text[] or jsonb)
+// for extra photos; `business_legal_documents` accepts `document_type` `business_license`
+// and optional `ein_proof`. Adjust payload if your schema differs.
+
+/// Add Photos step 4: Cover, logo, optional gallery, business license (required), optional EIN.
 class AddPhotosStep4Page extends StatefulWidget {
   const AddPhotosStep4Page({super.key, this.step3Data = const {}});
 
@@ -28,7 +33,18 @@ class AddPhotosStep4Page extends StatefulWidget {
 class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
   File? _coverFile;
   File? _logoFile;
+  final List<File> _galleryFiles = [];
+  File? _licenseFile;
+  File? _einFile;
   bool _isSubmitting = false;
+
+  static const int _maxLegalBytes = 10 * 1024 * 1024;
+
+  static String _fileBasename(String path) {
+    final normalized = path.replaceAll(r'\', '/');
+    final i = normalized.lastIndexOf('/');
+    return i >= 0 ? normalized.substring(i + 1) : normalized;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -102,6 +118,130 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
                 },
                 onRemove: () => setState(() => _logoFile = null),
               ),
+              const SizedBox(height: 24),
+              Text(
+                'More photos (optional)',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Add images for your gallery. Max 5 MB each.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ..._galleryFiles.map((file) {
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(AppResources.radiusM),
+                          child: Image.file(
+                            file,
+                            width: 88,
+                            height: 88,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: -6,
+                          right: -6,
+                          child: IconButton(
+                            style: IconButton.styleFrom(
+                              backgroundColor: AppColors.backgroundWhite,
+                              padding: const EdgeInsets.all(4),
+                              minimumSize: const Size(28, 28),
+                            ),
+                            icon: const Icon(Icons.close, size: 16),
+                            onPressed: () =>
+                                setState(() => _galleryFiles.remove(file)),
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                  Material(
+                    color: AppColors.backgroundLight,
+                    borderRadius: BorderRadius.circular(AppResources.radiusM),
+                    child: InkWell(
+                      onTap: () async {
+                        final f =
+                            await di.sl<ImagePickerService>().pickImage(context);
+                        if (f != null && mounted) {
+                          setState(() => _galleryFiles.add(f));
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      child: Container(
+                        width: 88,
+                        height: 88,
+                        alignment: Alignment.center,
+                        child: Icon(Icons.add_photo_alternate,
+                            color: AppColors.brandPrimary, size: 32),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
+              Text(
+                'Business license',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    '(Required)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'PDF or image, max 10 MB. EIN proof is optional below.',
+                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildLegalFileTile(
+                file: _licenseFile,
+                emptyLabel: 'Tap to upload business license',
+                onTap: () => _pickLegalFile(isLicense: true),
+                onRemove: () => setState(() => _licenseFile = null),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'EIN proof (optional)',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildLegalFileTile(
+                file: _einFile,
+                emptyLabel: 'Tap to upload EIN document',
+                onTap: () => _pickLegalFile(isLicense: false),
+                onRemove: () => setState(() => _einFile = null),
+              ),
               const SizedBox(height: 48),
             ],
           ),
@@ -112,7 +252,10 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
           padding: const EdgeInsets.all(AppResources.spacingM),
           child: AppButton(
             text: 'Complete Registration',
-            onPressed: (_coverFile != null && _logoFile != null && !_isSubmitting)
+            onPressed: (_coverFile != null &&
+                    _logoFile != null &&
+                    _licenseFile != null &&
+                    !_isSubmitting)
                 ? _onComplete
                 : null,
             isLoading: _isSubmitting,
@@ -241,9 +384,100 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
     );
   }
 
+  Future<void> _pickLegalFile({required bool isLicense}) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+      allowMultiple: false,
+    );
+    if (result == null || result.files.single.path == null || !mounted) return;
+    final file = File(result.files.single.path!);
+    final size = await file.length();
+    if (!mounted) return;
+    if (size > _maxLegalBytes) {
+      ErrorDisplayHelper.show(
+        context,
+        message: 'File must be under 10 MB.',
+        title: 'File too large',
+      );
+      return;
+    }
+    setState(() {
+      if (isLicense) {
+        _licenseFile = file;
+      } else {
+        _einFile = file;
+      }
+    });
+  }
+
+  Widget _buildLegalFileTile({
+    required File? file,
+    required String emptyLabel,
+    required VoidCallback onTap,
+    required VoidCallback onRemove,
+  }) {
+    return Material(
+      color: AppColors.backgroundLight,
+      borderRadius: BorderRadius.circular(AppResources.radiusM),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppResources.radiusM),
+            border: Border.all(
+              color: file != null ? AppColors.brandPrimary : AppColors.backgroundGrey,
+              width: file != null ? 2 : 1,
+            ),
+          ),
+          child: file == null
+              ? Row(
+                  children: [
+                    Icon(Icons.upload_file, color: AppColors.textTertiary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        emptyLabel,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    const Icon(Icons.insert_drive_file, color: AppColors.brandPrimary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _fileBasename(file.path),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: onRemove,
+                      icon: const Icon(Icons.close, size: 20),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _onComplete() async {
     final ctx = context;
-    for (final f in [_coverFile, _logoFile]) {
+    for (final f in [_coverFile, _logoFile, ..._galleryFiles]) {
       if (f != null) {
         final size = await f.length();
         if (!ctx.mounted) return;
@@ -255,6 +489,29 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
           );
           return;
         }
+      }
+    }
+    if (_licenseFile == null) return;
+    final licSize = await _licenseFile!.length();
+    if (!ctx.mounted) return;
+    if (licSize > _maxLegalBytes) {
+      ErrorDisplayHelper.show(
+        ctx,
+        message: 'Business license must be under 10 MB.',
+        title: 'File too large',
+      );
+      return;
+    }
+    if (_einFile != null) {
+      final einSize = await _einFile!.length();
+      if (!ctx.mounted) return;
+      if (einSize > _maxLegalBytes) {
+        ErrorDisplayHelper.show(
+          ctx,
+          message: 'EIN document must be under 10 MB.',
+          title: 'File too large',
+        );
+        return;
       }
     }
     if (!ctx.mounted) return;
@@ -289,6 +546,16 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
         if (!ctx.mounted) return;
       }
 
+      List<String>? galleryUrls;
+      if (_galleryFiles.isNotEmpty) {
+        galleryUrls = await di.sl<StorageService>().uploadImages(
+          SupabaseBuckets.businesses,
+          '$pathPrefix/gallery',
+          _galleryFiles,
+        );
+        if (!ctx.mounted) return;
+      }
+
       final street = widget.step3Data['address_street'] ?? '';
       final suite = widget.step3Data['address_suite'];
       final addressStreet = suite != null && suite.isNotEmpty
@@ -319,14 +586,59 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
         'closing_time': widget.step3Data['closing_time'],
         'logo_url': logoUrl,
         'background_url': backgroundUrl,
+        if (galleryUrls != null && galleryUrls.isNotEmpty) 'image_urls': galleryUrls,
       };
       data.removeWhere((_, v) => v == null);
 
-      final businessId = await di.sl<DashboardCubit>().createBusiness(userId, data);
+      var businessId = await di.sl<DashboardCubit>().createBusiness(userId, data);
+      if (businessId == null && galleryUrls != null && data.remove('image_urls') != null) {
+        businessId = await di.sl<DashboardCubit>().createBusiness(userId, data);
+      }
       if (!ctx.mounted) return;
       if (businessId == null) {
         throw Exception('Failed to create business');
       }
+
+      final cubit = di.sl<DashboardCubit>();
+      final storage = di.sl<StorageService>();
+      try {
+        final licenseUrl = await storage.uploadDocument(
+          SupabaseBuckets.legalDocuments,
+          '$businessId/reg_business_license',
+          _licenseFile!,
+        );
+        await cubit.uploadLegalDocument(
+          businessId,
+          'business_license',
+          licenseUrl,
+          fileName: _fileBasename(_licenseFile!.path),
+        );
+        if (_einFile != null) {
+          final einUrl = await storage.uploadDocument(
+            SupabaseBuckets.legalDocuments,
+            '$businessId/reg_ein_proof',
+            _einFile!,
+          );
+          await cubit.uploadLegalDocument(
+            businessId,
+            'ein_proof',
+            einUrl,
+            fileName: _fileBasename(_einFile!.path),
+          );
+        }
+      } catch (docErr) {
+        if (ctx.mounted) {
+          ErrorDisplayHelper.show(
+            ctx,
+            error: docErr,
+            title: 'Business created',
+            message:
+                'Your business was created, but we could not upload legal documents. '
+                'Upload them from the dashboard when prompted.',
+          );
+        }
+      }
+
       await LoaderHelper.hide(ctx);
       if (!ctx.mounted) return;
       setState(() => _isSubmitting = false);

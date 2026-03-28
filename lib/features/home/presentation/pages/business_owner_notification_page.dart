@@ -29,10 +29,9 @@ class _BusinessOwnerNotificationPageState
 
   @override
   Widget build(BuildContext context) {
-    final userId = widget.userId ?? 'current_user';
-
     return BlocProvider(
-      create: (context) => di.sl<NotificationCubit>()..loadNotifications(userId),
+      create: (context) =>
+          di.sl<NotificationCubit>()..loadNotifications(widget.userId),
       child: Scaffold(
         backgroundColor: AppColors.backgroundLight,
         appBar: AppBar(
@@ -76,7 +75,7 @@ class _BusinessOwnerNotificationPageState
                     return const HabraCircularLoader(fullScreen: true);
                   }
                   if (state is NotificationEmpty) {
-                    return _buildEmptyState();
+                    return _buildEmptyState(hint: state.hint);
                   }
                   if (state is NotificationError) {
                     return _buildErrorState(state.message);
@@ -335,7 +334,11 @@ class _BusinessOwnerNotificationPageState
     return '${dateTime.month}/${dateTime.day}';
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState({String? hint}) {
+    final title = hint != null ? 'No notifications' : 'All caught up!';
+    final subtitle = hint ??
+        'You have no new notifications in this category. Check back later for updates.';
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -361,9 +364,9 @@ class _BusinessOwnerNotificationPageState
               ),
             ),
             const SizedBox(height: 28),
-            const Text(
-              'All caught up!',
-              style: TextStyle(
+            Text(
+              title,
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
@@ -373,7 +376,7 @@ class _BusinessOwnerNotificationPageState
             ),
             const SizedBox(height: 10),
             Text(
-              'You have no new notifications in this category. Check back later for updates.',
+              subtitle,
               style: TextStyle(
                 fontSize: 15,
                 color: AppColors.textSecondary,
@@ -405,6 +408,13 @@ class _BusinessOwnerNotificationPageState
               message,
               style: TextStyle(color: AppColors.textSecondary),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            AppButton(
+              text: 'Try again',
+              onPressed: () =>
+                  context.read<NotificationCubit>().loadNotifications(widget.userId),
+              width: 200,
             ),
           ],
         ),

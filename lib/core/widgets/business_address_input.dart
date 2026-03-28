@@ -21,6 +21,8 @@ class BusinessAddressInput extends StatelessWidget {
     required this.stateController,
     required this.zipController,
     this.defaultState = 'AL',
+    /// When false, only "Current location" is shown (new business registration flow).
+    this.showOptionalAddressMethods = true,
   });
 
   final TextEditingController streetController;
@@ -29,6 +31,7 @@ class BusinessAddressInput extends StatelessWidget {
   final TextEditingController stateController;
   final TextEditingController zipController;
   final String defaultState;
+  final bool showOptionalAddressMethods;
 
   void _applyAddress(BuildContext context, BusinessAddressData data) {
     if (data.street != null) streetController.text = data.street!;
@@ -43,7 +46,10 @@ class BusinessAddressInput extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildMethodButtons(context),
+        if (showOptionalAddressMethods)
+          _buildMethodButtons(context)
+        else
+          _buildCurrentLocationOnly(context),
         const SizedBox(height: 20),
         _buildLabel('Street Address'),
         const SizedBox(height: 8),
@@ -82,6 +88,28 @@ class BusinessAddressInput extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCurrentLocationOnly(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Set address',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _MethodChip(
+          icon: Icons.my_location,
+          label: 'Current location',
+          onTap: () => _onUseCurrentLocation(context),
         ),
       ],
     );

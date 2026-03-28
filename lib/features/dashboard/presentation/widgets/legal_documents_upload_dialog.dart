@@ -14,8 +14,9 @@ import '../../../../core/widgets/error_display_helper.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/dashboard_cubit.dart';
 
-/// Mandatory dialog for business owners to upload 2 legal documents.
-/// Documents require super admin approval before business is fully verified.
+/// Upload business license (required) and EIN proof (optional).
+/// **API:** Inserts into `business_legal_documents` with `document_type`
+/// `business_license` and optional `ein_proof`.
 class LegalDocumentsUploadDialog extends StatefulWidget {
   const LegalDocumentsUploadDialog({
     super.key,
@@ -32,11 +33,10 @@ class LegalDocumentsUploadDialog extends StatefulWidget {
 }
 
 class _LegalDocumentsUploadDialogState extends State<LegalDocumentsUploadDialog> {
-  File? _doc1File;
-  File? _doc2File;
+  File? _licenseFile;
+  File? _einFile;
 
-  bool get _canSave =>
-      _doc1File != null && _doc2File != null;
+  bool get _canSave => _licenseFile != null;
 
   Future<void> _pickDocument(int index) async {
     final result = await FilePicker.platform.pickFiles(
@@ -60,9 +60,9 @@ class _LegalDocumentsUploadDialogState extends State<LegalDocumentsUploadDialog>
       }
       setState(() {
         if (index == 1) {
-          _doc1File = file;
+          _licenseFile = file;
         } else {
-          _doc2File = file;
+          _einFile = file;
         }
       });
     }
@@ -79,29 +79,31 @@ class _LegalDocumentsUploadDialogState extends State<LegalDocumentsUploadDialog>
       final storage = di.sl<StorageService>();
       final pathPrefix = widget.businessId;
 
-      final url1 = await storage.uploadDocument(
+      final licenseUrl = await storage.uploadDocument(
         SupabaseBuckets.legalDocuments,
-        '$pathPrefix/doc1',
-        _doc1File!,
+        '$pathPrefix/business_license',
+        _licenseFile!,
       );
       await cubit.uploadLegalDocument(
         widget.businessId,
-        'doc_1',
-        url1,
-        fileName: _doc1File!.path.split('/').last,
+        'business_license',
+        licenseUrl,
+        fileName: _licenseFile!.path.split('/').last,
       );
 
-      final url2 = await storage.uploadDocument(
-        SupabaseBuckets.legalDocuments,
-        '$pathPrefix/doc2',
-        _doc2File!,
-      );
-      await cubit.uploadLegalDocument(
-        widget.businessId,
-        'doc_2',
-        url2,
-        fileName: _doc2File!.path.split('/').last,
-      );
+      if (_einFile != null) {
+        final einUrl = await storage.uploadDocument(
+          SupabaseBuckets.legalDocuments,
+          '$pathPrefix/ein_proof',
+          _einFile!,
+        );
+        await cubit.uploadLegalDocument(
+          widget.businessId,
+          'ein_proof',
+          einUrl,
+          fileName: _einFile!.path.split('/').last,
+        );
+      }
 
       if (!ctx.mounted) return;
       await LoaderHelper.hide(ctx);
@@ -137,7 +139,7 @@ class _LegalDocumentsUploadDialogState extends State<LegalDocumentsUploadDialog>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Legal Documents Required',
+                          'Legal documents',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -146,7 +148,8 @@ class _LegalDocumentsUploadDialogState extends State<LegalDocumentsUploadDialog>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Upload 2 legal documents for ${widget.businessName}. A super admin will review and approve.',
+                          'Upload your business license for ${widget.businessName}. '
+                          'EIN proof is optional. A super admin will review and approve.',
                           style: TextStyle(
                             fontSize: 14,
                             color: AppColors.textSecondary,
@@ -166,17 +169,19 @@ class _LegalDocumentsUploadDialogState extends State<LegalDocumentsUploadDialog>
               ),
               const SizedBox(height: 24),
               _buildDocumentSection(
-                label: 'Document 1',
-                file: _doc1File,
+                label: 'Business license',
+                required: true,
+                file: _licenseFile,
                 onTap: () => _pickDocument(1),
-                onRemove: () => setState(() => _doc1File = null),
+                onRemove: () => setState(() => _licenseFile = null),
               ),
               const SizedBox(height: 16),
               _buildDocumentSection(
-                label: 'Document 2',
-                file: _doc2File,
+                label: 'EIN proof (optional)',
+                required: false,
+                file: _einFile,
                 onTap: () => _pickDocument(2),
-                onRemove: () => setState(() => _doc2File = null),
+                onRemove: () => setState(() => _einFile = null),
               ),
               const SizedBox(height: 8),
               Text(
@@ -200,6 +205,7 @@ class _LegalDocumentsUploadDialogState extends State<LegalDocumentsUploadDialog>
 
   Widget _buildDocumentSection({
     required String label,
+    required bool required,
     required File? file,
     required VoidCallback onTap,
     required VoidCallback onRemove,
@@ -207,13 +213,26 @@ class _LegalDocumentsUploadDialogState extends State<LegalDocumentsUploadDialog>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            if (required)
+              Text(
+                ' (Required)',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.error,
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 8),
         GestureDetector(

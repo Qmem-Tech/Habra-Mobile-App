@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/notification_cubit.dart';
@@ -16,10 +17,9 @@ class NotificationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userId = this.userId ?? 'current_user'; // TODO: Get from auth
-
     return BlocProvider(
-      create: (context) => di.sl<NotificationCubit>()..loadNotifications(userId),
+      create: (context) =>
+          di.sl<NotificationCubit>()..loadNotifications(userId),
       child: Scaffold(
         backgroundColor: AppColors.backgroundLight,
         appBar: AppBar(
@@ -60,11 +60,11 @@ class NotificationPage extends StatelessWidget {
             }
 
             if (state is NotificationEmpty) {
-              return _buildEmptyState();
+              return _buildEmptyState(hint: state.hint);
             }
 
             if (state is NotificationError) {
-              return _buildErrorState(state.message);
+              return _buildErrorState(context, state.message);
             }
 
             if (state is NotificationLoaded) {
@@ -281,7 +281,11 @@ class NotificationPage extends StatelessWidget {
     }
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState({String? hint}) {
+    final title = hint != null ? 'No notifications' : 'All caught up!';
+    final subtitle = hint ??
+        'You have no new notifications right now. Check back later for updates from local businesses and the community.';
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -307,9 +311,9 @@ class NotificationPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 28),
-            const Text(
-              'All caught up!',
-              style: TextStyle(
+            Text(
+              title,
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
@@ -319,7 +323,7 @@ class NotificationPage extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              'You have no new notifications right now. Check back later for updates from local businesses and the community.',
+              subtitle,
               style: TextStyle(
                 fontSize: 15,
                 color: AppColors.textSecondary,
@@ -333,24 +337,34 @@ class NotificationPage extends StatelessWidget {
     );
   }
 
-  Widget _buildErrorState(String message) {
+  Widget _buildErrorState(BuildContext context, String message) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-          const SizedBox(height: 16),
-          Text(
-            'Error loading notifications',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            style: TextStyle(color: AppColors.textSecondary),
-            textAlign: TextAlign.center,
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            const SizedBox(height: 16),
+            const Text(
+              'Error loading notifications',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: TextStyle(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            AppButton(
+              text: 'Try again',
+              onPressed: () =>
+                  context.read<NotificationCubit>().loadNotifications(userId),
+              width: 200,
+            ),
+          ],
+        ),
       ),
     );
   }

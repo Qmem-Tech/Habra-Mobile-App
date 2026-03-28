@@ -626,20 +626,41 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from(SupabaseTables.businessLegalDocuments)
-          .select('status')
+          .select('status, document_type')
           .eq('business_id', businessId);
       final rows = (res as List).cast<Map<String, dynamic>>();
       var approvedCount = 0;
       var hasRejected = false;
+      var hasBusinessLicense = false;
+      var businessLicenseApproved = false;
+      var hasEinProof = false;
+      var einProofApproved = false;
+      final types = <String>{};
       for (final row in rows) {
         final status = parseString(row['status']);
+        final type = parseString(row['document_type']) ?? '';
+        types.add(type);
         if (status == 'approved') approvedCount++;
         if (status == 'rejected') hasRejected = true;
+        if (type == 'business_license') {
+          hasBusinessLicense = true;
+          if (status == 'approved') businessLicenseApproved = true;
+        }
+        if (type == 'ein_proof') {
+          hasEinProof = true;
+          if (status == 'approved') einProofApproved = true;
+        }
       }
+      final hasLegacyDocPair = types.contains('doc_1') && types.contains('doc_2');
       return LegalDocumentsStatus(
         uploadedCount: rows.length,
         approvedCount: approvedCount,
         hasRejected: hasRejected,
+        hasBusinessLicense: hasBusinessLicense,
+        businessLicenseApproved: businessLicenseApproved,
+        hasEinProof: hasEinProof,
+        einProofApproved: einProofApproved,
+        hasLegacyDocPair: hasLegacyDocPair,
       );
     });
   }

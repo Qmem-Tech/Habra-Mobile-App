@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/utils/notification_user_id.dart';
 import '../../domain/usecases/get_notifications_usecase.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../domain/entities/notification_entity.dart';
@@ -13,10 +14,18 @@ class NotificationCubit extends Cubit<NotificationState> {
     required this.notificationRepository,
   }) : super(NotificationInitial());
 
-  Future<void> loadNotifications(String userId) async {
+  Future<void> loadNotifications([String? userId]) async {
+    final resolved = resolveNotificationUserId(userId);
+    if (resolved == null) {
+      emit(const NotificationEmpty(
+        hint: 'Sign in to see your notifications.',
+      ));
+      return;
+    }
+
     emit(NotificationLoading());
 
-    final result = await getNotificationsUseCase(userId);
+    final result = await getNotificationsUseCase(resolved);
     result.fold(
       (failure) => emit(NotificationError(failure.message)),
       (notifications) {
@@ -59,7 +68,9 @@ class NotificationCubit extends Cubit<NotificationState> {
   }
 
   Future<void> markAllAsRead(String userId) async {
-    final result = await notificationRepository.markAllAsRead(userId);
+    final resolved = resolveNotificationUserId(userId);
+    if (resolved == null) return;
+    final result = await notificationRepository.markAllAsRead(resolved);
     result.fold(
       (failure) => null,
       (_) => loadNotifications(userId),

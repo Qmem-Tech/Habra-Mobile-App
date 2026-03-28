@@ -31,19 +31,44 @@ abstract class DashboardRepository {
 }
 
 /// Status of legal documents for a business.
+///
+/// **API assumptions:** `business_legal_documents.document_type` values include
+/// `business_license` (required for new uploads), optional `ein_proof`, and legacy
+/// `doc_1` / `doc_2`. Rows have `status`: `pending` | `approved` | `rejected`.
 class LegalDocumentsStatus {
   final int uploadedCount;
   final int approvedCount;
   final bool hasRejected;
+  final bool hasBusinessLicense;
+  final bool businessLicenseApproved;
+  final bool hasEinProof;
+  final bool einProofApproved;
+  final bool hasLegacyDocPair;
 
   const LegalDocumentsStatus({
     required this.uploadedCount,
     required this.approvedCount,
     this.hasRejected = false,
+    this.hasBusinessLicense = false,
+    this.businessLicenseApproved = false,
+    this.hasEinProof = false,
+    this.einProofApproved = false,
+    this.hasLegacyDocPair = false,
   });
 
-  bool get hasRequiredUploaded => uploadedCount >= 2;
-  bool get isFullyApproved => approvedCount >= 2;
+  /// At least business license on file, or two legacy generic documents.
+  bool get hasRequiredUploaded =>
+      hasBusinessLicense || hasLegacyDocPair || uploadedCount >= 2;
+
+  /// License approved; if EIN was uploaded it must be approved too. Legacy: both docs approved.
+  bool get isFullyApproved {
+    if (hasLegacyDocPair || (!hasBusinessLicense && uploadedCount >= 2)) {
+      return approvedCount >= 2 && !hasRejected;
+    }
+    if (!businessLicenseApproved) return false;
+    if (hasEinProof && !einProofApproved) return false;
+    return true;
+  }
 }
 
 /// Rating overview for reviews tab.

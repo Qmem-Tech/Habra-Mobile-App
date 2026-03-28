@@ -4,6 +4,7 @@ import 'package:intl_phone_field/phone_number.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../widgets/business_registration_hours_sheet.dart';
 import 'add_photos_step4_page.dart';
 
 /// Contact Details step 3: Phone, Email, Website (optional), Business hours, Next.
@@ -26,15 +27,22 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
 
   static final RegExp _emailRe = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
 
-  static const List<({String day, String hours})> _defaultHours = [
-    (day: 'Monday', hours: '9:00 AM - 5:00 PM'),
-    (day: 'Tuesday', hours: '9:00 AM - 5:00 PM'),
-    (day: 'Wednesday', hours: '9:00 AM - 5:00 PM'),
-    (day: 'Thursday', hours: '9:00 AM - 5:00 PM'),
-    (day: 'Friday', hours: '9:00 AM - 5:00 PM'),
-    (day: 'Saturday', hours: '10:00 AM - 4:00 PM'),
-    (day: 'Sunday', hours: 'Closed'),
-  ];
+  late RegistrationHoursResult _hoursResult;
+
+  @override
+  void initState() {
+    super.initState();
+    _hoursResult = RegistrationHoursResult.defaultSchedule();
+  }
+
+  Future<void> _onEditHours() async {
+    final updated = await showBusinessRegistrationHoursSheet(
+      context,
+      initial: _hoursResult,
+    );
+    if (!mounted || updated == null) return;
+    setState(() => _hoursResult = updated);
+  }
 
   @override
   void dispose() {
@@ -206,7 +214,7 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
                       ),
                     ),
                     TextButton.icon(
-                      onPressed: () {},
+                      onPressed: _onEditHours,
                       icon: Icon(Icons.edit, size: 18, color: AppColors.brandSecondary),
                       label: Text(
                         'Edit Hours',
@@ -220,46 +228,49 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                ..._defaultHours.map((e) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            e.day,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textPrimary,
+                ...List.generate(7, (i) {
+                  final isClosed = _hoursResult.dayClosed[i];
+                  final hoursText = _hoursResult.hoursLabelForDay(i);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          RegistrationHoursResult.weekdayNames[i],
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Container(
+                          padding: isClosed
+                              ? const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                )
+                              : null,
+                          decoration: isClosed
+                              ? BoxDecoration(
+                                  color: AppColors.error.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                )
+                              : null,
+                          child: Text(
+                            hoursText,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isClosed
+                                  ? AppColors.error
+                                  : AppColors.textSecondary,
                             ),
                           ),
-                          Container(
-                            padding: e.hours == 'Closed'
-                                ? const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  )
-                                : null,
-                            decoration: e.hours == 'Closed'
-                                ? BoxDecoration(
-                                    color: AppColors.error.withValues(alpha: 0.1),
-                                    borderRadius:
-                                        BorderRadius.circular(20),
-                                  )
-                                : null,
-                            child: Text(
-                              e.hours,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: e.hours == 'Closed'
-                                    ? AppColors.error
-                                    : AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
                 const SizedBox(height: 48),
               ],
             ),
@@ -304,8 +315,8 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
       'phone': _phoneNumber,
       'email': _emailController.text.trim(),
       'website': _websiteController.text.trim(),
-      'opening_time': '09:00',
-      'closing_time': '17:00',
+      'opening_time': _hoursResult.openingTime,
+      'closing_time': _hoursResult.closingTime,
     };
     Navigator.push(
       context,

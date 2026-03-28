@@ -168,6 +168,16 @@ class _UpdateHoursPageState extends State<UpdateHoursPage> {
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'These times apply to your listing as a single schedule (same as registration). '
+                    'Per-day differences are not stored in the database yet.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textTertiary,
+                      height: 1.35,
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   _buildTimeSection('Opening Time', _openingController),
                   const SizedBox(height: 20),
