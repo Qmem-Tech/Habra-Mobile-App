@@ -5,6 +5,7 @@ import 'package:habra_mobile_app/features/auth/domain/usecases/sign_in_with_goog
 import 'package:habra_mobile_app/l10n/app_localizations.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/services/revenue_cat_service.dart';
+import 'core/services/stripe_payment_service.dart';
 import 'injection/injection_container.dart' as di;
 import 'core/supabase/supabase_config.dart';
 import 'core/theme/app_theme.dart';
@@ -50,6 +51,16 @@ void main() async {
     ),
     iosApiKey: const String.fromEnvironment(
       'REVENUECAT_IOS_API_KEY',
+      defaultValue: '',
+    ),
+  );
+  await di.sl<StripePaymentService>().initialize(
+    publishableKey: const String.fromEnvironment(
+      'STRIPE_PUBLISHABLE_KEY',
+      defaultValue: '',
+    ),
+    merchantIdentifier: const String.fromEnvironment(
+      'STRIPE_MERCHANT_ID',
       defaultValue: '',
     ),
   );

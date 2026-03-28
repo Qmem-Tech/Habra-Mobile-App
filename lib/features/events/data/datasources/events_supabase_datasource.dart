@@ -349,6 +349,17 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       await _insertEventTicketPurchases(orderId, eventId, buyerId);
 
       final eventDetail = await getEventDetail(eventId);
+      final ticketRows = await _client
+          .from(SupabaseTables.tickets)
+          .select('id')
+          .eq('order_id', orderId);
+      final issuedIds = <String>[];
+      for (final r in ticketRows as List<dynamic>) {
+        final row = Map<String, dynamic>.from(r as Map);
+        final tid = parseString(row['id']);
+        if (tid != null) issuedIds.add(tid);
+      }
+
       return OrderModel(
         id: orderId,
         event: eventDetail,
@@ -358,6 +369,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         total: parseDouble(row['total_amount']) ?? 0,
         createdAt: parseTimestampRequired(row['created_at']),
         status: events_domain.OrderStatus.completed,
+        issuedTicketIds: issuedIds,
       );
     });
   }

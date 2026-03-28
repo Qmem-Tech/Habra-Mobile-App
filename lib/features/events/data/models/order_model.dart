@@ -13,9 +13,11 @@ class OrderModel extends events.Order {
     required super.total,
     required super.createdAt,
     required super.status,
+    super.issuedTicketIds,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
+    final ids = json['issuedTicketIds'];
     return OrderModel(
       id: json['id'] as String,
       event: EventDetailModel.fromJson(json['event'] as Map<String, dynamic>),
@@ -33,6 +35,9 @@ class OrderModel extends events.Order {
         (e) => e.toString() == 'OrderStatus.${json['status']}',
         orElse: () => events.OrderStatus.pending,
       ),
+      issuedTicketIds: ids is List
+          ? ids.map((e) => e.toString()).toList()
+          : const [],
     );
   }
 
@@ -53,6 +58,7 @@ class OrderModel extends events.Order {
       'total': total,
       'createdAt': createdAt.toIso8601String(),
       'status': status.toString().split('.').last,
+      'issuedTicketIds': issuedTicketIds,
     };
   }
 
@@ -70,6 +76,7 @@ class OrderModel extends events.Order {
       total: entity.total,
       createdAt: entity.createdAt,
       status: entity.status,
+      issuedTicketIds: entity.issuedTicketIds,
     );
   }
 }

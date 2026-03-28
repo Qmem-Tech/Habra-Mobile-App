@@ -12,6 +12,9 @@ class Order extends Equatable {
   final DateTime createdAt;
   final OrderStatus status;
 
+  /// Individual ticket row IDs from `tickets` table (for QR / entry). Filled after payment completes.
+  final List<String> issuedTicketIds;
+
   const Order({
     required this.id,
     required this.event,
@@ -21,6 +24,7 @@ class Order extends Equatable {
     required this.total,
     required this.createdAt,
     required this.status,
+    this.issuedTicketIds = const [],
   });
 
   int get totalTickets {
@@ -37,6 +41,7 @@ class Order extends Equatable {
         total,
         createdAt,
         status,
+        issuedTicketIds,
       ];
 }
 

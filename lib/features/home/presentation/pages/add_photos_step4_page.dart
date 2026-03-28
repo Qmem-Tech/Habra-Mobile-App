@@ -598,17 +598,18 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
       if (businessId == null) {
         throw Exception('Failed to create business');
       }
+      final createdBusinessId = businessId;
 
       final cubit = di.sl<DashboardCubit>();
       final storage = di.sl<StorageService>();
       try {
         final licenseUrl = await storage.uploadDocument(
           SupabaseBuckets.legalDocuments,
-          '$businessId/reg_business_license',
+          '$createdBusinessId/reg_business_license',
           _licenseFile!,
         );
         await cubit.uploadLegalDocument(
-          businessId,
+          createdBusinessId,
           'business_license',
           licenseUrl,
           fileName: _fileBasename(_licenseFile!.path),
@@ -616,11 +617,11 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
         if (_einFile != null) {
           final einUrl = await storage.uploadDocument(
             SupabaseBuckets.legalDocuments,
-            '$businessId/reg_ein_proof',
+            '$createdBusinessId/reg_ein_proof',
             _einFile!,
           );
           await cubit.uploadLegalDocument(
-            businessId,
+            createdBusinessId,
             'ein_proof',
             einUrl,
             fileName: _fileBasename(_einFile!.path),
@@ -639,6 +640,7 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
         }
       }
 
+      if (!ctx.mounted) return;
       await LoaderHelper.hide(ctx);
       if (!ctx.mounted) return;
       setState(() => _isSubmitting = false);
@@ -647,8 +649,8 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
         MaterialPageRoute(
           builder: (_) => ListingStatusPage(
             isVerified: false,
-            businessId: businessId,
-            businessName: widget.step3Data['name'] ?? 'Your business',
+            businessId: createdBusinessId,
+            businessName: widget.step3Data['name']?.toString() ?? 'Your business',
             imageUrl: logoUrl ?? backgroundUrl ?? '',
           ),
         ),
