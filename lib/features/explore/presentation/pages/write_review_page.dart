@@ -39,9 +39,15 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
       );
       return;
     }
-    if (_commentController.text.isEmpty) {
+    if (_commentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please write a review')),
+      );
+      return;
+    }
+    if (_commentController.text.trim().length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Review must be at least 10 characters')),
       );
       return;
     }
@@ -50,7 +56,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
     context.read<ReviewsCubit>().writeReview(
           businessId: widget.businessId,
           rating: _rating,
-          comment: _commentController.text,
+          comment: _commentController.text.trim(),
           photoUrls: null,
         );
   }
@@ -208,6 +214,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
       child: TextField(
         controller: _commentController,
         maxLines: 6,
+        maxLength: 2000,
         decoration: const InputDecoration(
           hintText: 'Share your experience...',
           border: InputBorder.none,

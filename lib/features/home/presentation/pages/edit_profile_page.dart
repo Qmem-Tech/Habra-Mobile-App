@@ -65,10 +65,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   void _save(BuildContext context) {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Full name is required')),
+      );
+      return;
+    }
+    if (name.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Name must be at least 2 characters')),
+      );
+      return;
+    }
     context.read<EditProfileCubit>().saveProfile(
           widget.user.id,
           UserProfileUpdate(
-            fullName: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
+            fullName: name,
             phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
             bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
             location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),

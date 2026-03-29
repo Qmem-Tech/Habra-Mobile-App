@@ -130,9 +130,21 @@ class _FeedbackPageState extends State<FeedbackPage> {
                   onPressed: isSubmitting
                       ? null
                       : () {
+                          if (_textController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please write your feedback before sending')),
+                            );
+                            return;
+                          }
+                          if (_textController.text.trim().length < 10) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Feedback must be at least 10 characters')),
+                            );
+                            return;
+                          }
                           context.read<FeedbackCubit>().submit(
                                 type: _selectedType,
-                                text: _textController.text,
+                                text: _textController.text.trim(),
                               );
                         },
                   isLoading: isSubmitting,

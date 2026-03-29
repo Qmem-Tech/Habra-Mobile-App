@@ -39,6 +39,9 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
 
   File? _logoFile;
   File? _backgroundFile;
+  bool _showValidation = false;
+
+  static final RegExp _emailRe = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
 
   @override
   void initState() {
@@ -80,10 +83,28 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
     if (file != null && mounted) setState(() => _backgroundFile = file);
   }
 
+  String? _validate() {
+    if (_nameController.text.trim().isEmpty) return 'Business name is required';
+    final email = _emailController.text.trim();
+    if (email.isNotEmpty && !_emailRe.hasMatch(email)) {
+      return 'Please enter a valid email address';
+    }
+    final website = _websiteController.text.trim();
+    if (website.isNotEmpty) {
+      final uri = Uri.tryParse(website);
+      if (uri == null || !uri.hasScheme || (uri.scheme != 'http' && uri.scheme != 'https')) {
+        return 'Please enter a valid website URL (https://...)';
+      }
+    }
+    return null;
+  }
+
   Future<void> _save() async {
-    if (_nameController.text.trim().isEmpty) {
+    final error = _validate();
+    if (error != null) {
+      setState(() => _showValidation = true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Business name is required')),
+        SnackBar(content: Text(error)),
       );
       return;
     }
@@ -198,17 +219,46 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
             const SizedBox(height: 24),
             _sectionTitle('Basic Info'),
             const SizedBox(height: 12),
-            _buildField('Business Name', _nameController),
+            _buildField(
+              'Business Name *',
+              _nameController,
+              errorText: _showValidation && _nameController.text.trim().isEmpty
+                  ? 'Business name is required'
+                  : null,
+            ),
             const SizedBox(height: 12),
             _buildField('Description', _descriptionController, maxLines: 3),
             const SizedBox(height: 24),
             _sectionTitle('Contact'),
             const SizedBox(height: 12),
-            _buildField('Phone', _phoneController),
+            _buildField('Phone', _phoneController, keyboardType: TextInputType.phone),
             const SizedBox(height: 12),
-            _buildField('Email', _emailController),
+            _buildField(
+              'Email',
+              _emailController,
+              keyboardType: TextInputType.emailAddress,
+              errorText: _showValidation &&
+                      _emailController.text.trim().isNotEmpty &&
+                      !_emailRe.hasMatch(_emailController.text.trim())
+                  ? 'Enter a valid email'
+                  : null,
+            ),
             const SizedBox(height: 12),
-            _buildField('Website', _websiteController),
+            _buildField(
+              'Website',
+              _websiteController,
+              keyboardType: TextInputType.url,
+              errorText: () {
+                if (!_showValidation) return null;
+                final w = _websiteController.text.trim();
+                if (w.isEmpty) return null;
+                final uri = Uri.tryParse(w);
+                if (uri == null || !uri.hasScheme || (uri.scheme != 'http' && uri.scheme != 'https')) {
+                  return 'Enter a valid URL (https://...)';
+                }
+                return null;
+              }(),
+            ),
             const SizedBox(height: 24),
             _sectionTitle('Address'),
             const SizedBox(height: 12),
@@ -305,7 +355,14 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller, {int maxLines = 1}) {
+  Widget _buildField(
+    String label,
+    TextEditingController controller, {
+    int maxLines = 1,
+    String? errorText,
+    TextInputType? keyboardType,
+  }) {
+    final hasError = errorText != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -314,11 +371,26 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
         TextField(
           controller: controller,
           maxLines: maxLines,
+          keyboardType: keyboardType,
+          onChanged: (_) {
+            if (_showValidation) setState(() {});
+          },
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.backgroundWhite,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppResources.radiusM), borderSide: BorderSide(color: AppColors.backgroundGrey)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppResources.radiusM), borderSide: BorderSide(color: AppColors.backgroundGrey)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: BorderSide(color: hasError ? AppColors.error : AppColors.backgroundGrey),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: BorderSide(color: hasError ? AppColors.error : AppColors.backgroundGrey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: BorderSide(color: hasError ? AppColors.error : AppColors.brandPrimary),
+            ),
+            errorText: errorText,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),

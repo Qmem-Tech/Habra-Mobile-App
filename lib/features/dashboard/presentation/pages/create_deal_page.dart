@@ -98,16 +98,32 @@ class _CreateDealPageState extends State<CreateDealPage> {
     };
   }
 
+  String? _validateForPublish() {
+    if (_getSelectedBusinessId() == null) return 'Please select a business';
+    if (_titleController.text.trim().isEmpty) return 'Please enter a deal title';
+    if (_offerType == OfferType.percentOff) {
+      final pct = int.tryParse(_discountController.text.trim());
+      if (pct == null || pct < 1 || pct > 100) {
+        return 'Discount percentage must be between 1 and 100';
+      }
+    }
+    if (_startDate != null && _endDate != null && _endDate!.isBefore(_startDate!)) {
+      return 'End date must be after start date';
+    }
+    if (_selectedDays.isEmpty) return 'Select at least one available day';
+    return null;
+  }
+
   Future<void> _publishDeal() async {
-    final bizId = _getSelectedBusinessId();
-    final isTitleMissing = _titleController.text.trim().isEmpty;
-    if (bizId == null || isTitleMissing) {
+    final error = _validateForPublish();
+    if (error != null) {
       setState(() => _showValidation = true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in the deal title and select a business')),
+        SnackBar(content: Text(error)),
       );
       return;
     }
+    final bizId = _getSelectedBusinessId()!;
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Publishing...');
     try {
@@ -132,8 +148,7 @@ class _CreateDealPageState extends State<CreateDealPage> {
 
   Future<void> _saveDraft() async {
     final bizId = _getSelectedBusinessId();
-    final isTitleMissing = _titleController.text.trim().isEmpty;
-    if (bizId == null || isTitleMissing) {
+    if (bizId == null || _titleController.text.trim().isEmpty) {
       setState(() => _showValidation = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in the deal title and select a business')),
@@ -236,7 +251,17 @@ class _CreateDealPageState extends State<CreateDealPage> {
             ),
             const SizedBox(height: 12),
             if (_offerType == OfferType.percentOff)
-              _buildTextField('Discount Percentage', controller: _discountController),
+              _buildTextField(
+                'Discount Percentage',
+                controller: _discountController,
+                isRequired: true,
+                showError: _showValidation && (() {
+                  final pct = int.tryParse(_discountController.text.trim());
+                  return pct == null || pct < 1 || pct > 100;
+                })(),
+                errorMessage: 'Enter a value between 1 and 100',
+                keyboardType: TextInputType.number,
+              ),
             const SizedBox(height: 12),
             _buildTextField(
               'Description',
@@ -497,6 +522,8 @@ class _CreateDealPageState extends State<CreateDealPage> {
     int? maxLength,
     bool isRequired = false,
     bool showError = false,
+    String? errorMessage,
+    TextInputType? keyboardType,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -525,6 +552,7 @@ class _CreateDealPageState extends State<CreateDealPage> {
           controller: controller,
           maxLines: maxLines,
           maxLength: maxLength,
+          keyboardType: keyboardType,
           onChanged: (_) {
             if (_showValidation) setState(() {});
           },
@@ -549,7 +577,7 @@ class _CreateDealPageState extends State<CreateDealPage> {
                 color: showError ? AppColors.error : AppColors.brandPrimary,
               ),
             ),
-            errorText: showError ? 'This field is required' : null,
+            errorText: showError ? (errorMessage ?? 'This field is required') : null,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),

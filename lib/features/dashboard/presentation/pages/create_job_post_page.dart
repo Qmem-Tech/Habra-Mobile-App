@@ -66,16 +66,34 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     };
   }
 
+  String? _validateForPost() {
+    if (_getSelectedBusinessId() == null) return 'Please select a business';
+    if (_titleController.text.trim().isEmpty) return 'Please enter a job title';
+    if (_descriptionController.text.trim().isEmpty) return 'Please enter a job description';
+    final minSalary = int.tryParse(_minSalaryController.text.trim());
+    final maxSalary = int.tryParse(_maxSalaryController.text.trim());
+    if (_minSalaryController.text.trim().isNotEmpty && minSalary == null) {
+      return 'Minimum salary must be a number';
+    }
+    if (_maxSalaryController.text.trim().isNotEmpty && maxSalary == null) {
+      return 'Maximum salary must be a number';
+    }
+    if (minSalary != null && maxSalary != null && minSalary > maxSalary) {
+      return 'Minimum salary cannot exceed maximum salary';
+    }
+    return null;
+  }
+
   Future<void> _postJob() async {
-    final bizId = _getSelectedBusinessId();
-    final isTitleMissing = _titleController.text.trim().isEmpty;
-    if (bizId == null || isTitleMissing) {
+    final error = _validateForPost();
+    if (error != null) {
       setState(() => _showValidation = true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in the job title and select a business')),
+        SnackBar(content: Text(error)),
       );
       return;
     }
+    final bizId = _getSelectedBusinessId()!;
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Posting job...');
     bool success = false;
@@ -227,14 +245,30 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
             Row(
               children: [
                 Expanded(
-                  child: _buildTextField('Minimum', controller: _minSalaryController),
+                  child: _buildTextField(
+                    'Minimum',
+                    controller: _minSalaryController,
+                    keyboardType: TextInputType.number,
+                    showError: _showValidation &&
+                        _minSalaryController.text.trim().isNotEmpty &&
+                        int.tryParse(_minSalaryController.text.trim()) == null,
+                    errorMessage: 'Must be a number',
+                  ),
                 ),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 12),
                   child: Text('to', style: TextStyle(color: AppColors.brandPrimary, fontWeight: FontWeight.w600)),
                 ),
                 Expanded(
-                  child: _buildTextField('Maximum', controller: _maxSalaryController),
+                  child: _buildTextField(
+                    'Maximum',
+                    controller: _maxSalaryController,
+                    keyboardType: TextInputType.number,
+                    showError: _showValidation &&
+                        _maxSalaryController.text.trim().isNotEmpty &&
+                        int.tryParse(_maxSalaryController.text.trim()) == null,
+                    errorMessage: 'Must be a number',
+                  ),
                 ),
               ],
             ),
@@ -245,6 +279,8 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
               'Description',
               controller: _descriptionController,
               maxLines: 5,
+              isRequired: true,
+              showError: _showValidation && _descriptionController.text.trim().isEmpty,
             ),
             const SizedBox(height: 24),
             _sectionTitle('Requirements'),
@@ -293,6 +329,8 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     int maxLines = 1,
     bool isRequired = false,
     bool showError = false,
+    String? errorMessage,
+    TextInputType? keyboardType,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,6 +347,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
         TextField(
           controller: controller,
           maxLines: maxLines,
+          keyboardType: keyboardType,
           onChanged: (_) {
             if (_showValidation) setState(() {});
           },
@@ -333,7 +372,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
                 color: showError ? AppColors.error : AppColors.brandPrimary,
               ),
             ),
-            errorText: showError ? 'This field is required' : null,
+            errorText: showError ? (errorMessage ?? 'This field is required') : null,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),
