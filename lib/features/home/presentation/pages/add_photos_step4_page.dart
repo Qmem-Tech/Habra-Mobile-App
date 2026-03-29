@@ -15,6 +15,7 @@ import '../../../../core/widgets/error_display_helper.dart';
 import '../../../../core/services/image_picker_service.dart';
 import 'package:habra_mobile_app/core/services/storage_service.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../dashboard/domain/repositories/dashboard_repository.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import 'listing_status_page.dart';
 
@@ -578,7 +579,6 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
 
       final data = <String, dynamic>{
         'name': widget.step3Data['name'] ?? 'New Business',
-        'description': widget.step3Data['category'],
         'phone': widget.step3Data['phone']?.isNotEmpty == true
             ? widget.step3Data['phone']
             : null,
@@ -613,6 +613,14 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
         throw Exception('Failed to create business');
       }
       final createdBusinessId = businessId;
+
+      final categoryId = widget.step3Data['category_id'];
+      if (categoryId != null && categoryId.trim().isNotEmpty) {
+        await di.sl<DashboardRepository>().replaceBusinessCategoryLinks(
+          createdBusinessId,
+          [categoryId.trim()],
+        );
+      }
 
       final cubit = di.sl<DashboardCubit>();
       final storage = di.sl<StorageService>();

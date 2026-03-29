@@ -28,6 +28,8 @@ abstract class DashboardRepository {
   Future<void> updateBusinessHours(String businessId, Map<String, dynamic> hours);
   Future<Map<String, String?>?> getBusinessHours(String businessId);
   Future<String> createBusiness(String ownerId, Map<String, dynamic> data);
+  /// Replaces rows in `business_categories` for this business (owner flow).
+  Future<void> replaceBusinessCategoryLinks(String businessId, List<String> categoryIds);
   Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId);
   Future<List<BusinessLegalDocument>> listBusinessLegalDocuments(String businessId);
   Future<void> uploadLegalDocument(
@@ -49,7 +51,8 @@ abstract class DashboardRepository {
 ///
 /// **API assumptions:** `business_legal_documents.document_type` values include
 /// `business_license` (required for new uploads), optional `ein_proof`, and legacy
-/// `doc_1` / `doc_2`. Rows have `status`: `pending` | `approved` | `rejected`.
+/// `doc_1` / `doc_2`. Rows use `review_status` when present (Super Admin), else `status`:
+/// `pending` | `approved` | `rejected`.
 ///
 /// Use [needsOwnerAction] for upload prompts; [isFullyApproved] when every row
 /// is approved. While docs are `pending` review, [awaitingLegalDocReview] is true

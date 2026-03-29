@@ -3,6 +3,8 @@ import 'business_category.dart';
 
 class BusinessFilters extends Equatable {
   final BusinessCategory? category;
+  /// When set, filters businesses that have this `categories.id` in `business_categories`.
+  final String? listingCategoryId;
   final double? minRating;
   final String? priceRange;
   final bool? isOpenNow;
@@ -11,6 +13,7 @@ class BusinessFilters extends Equatable {
 
   const BusinessFilters({
     this.category,
+    this.listingCategoryId,
     this.minRating,
     this.priceRange,
     this.isOpenNow,
@@ -20,6 +23,7 @@ class BusinessFilters extends Equatable {
 
   BusinessFilters copyWith({
     BusinessCategory? category,
+    String? listingCategoryId,
     double? minRating,
     String? priceRange,
     bool? isOpenNow,
@@ -28,6 +32,7 @@ class BusinessFilters extends Equatable {
   }) {
     return BusinessFilters(
       category: category ?? this.category,
+      listingCategoryId: listingCategoryId ?? this.listingCategoryId,
       minRating: minRating ?? this.minRating,
       priceRange: priceRange ?? this.priceRange,
       isOpenNow: isOpenNow ?? this.isOpenNow,
@@ -38,6 +43,7 @@ class BusinessFilters extends Equatable {
 
   bool get hasActiveFilters {
     return category != null ||
+        listingCategoryId != null ||
         minRating != null ||
         priceRange != null ||
         isOpenNow != null ||
@@ -48,6 +54,7 @@ class BusinessFilters extends Equatable {
   @override
   List<Object?> get props => [
         category,
+        listingCategoryId,
         minRating,
         priceRange,
         isOpenNow,

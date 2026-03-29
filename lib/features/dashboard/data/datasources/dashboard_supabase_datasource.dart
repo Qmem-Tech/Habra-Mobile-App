@@ -559,6 +559,31 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     });
   }
 
+  @override
+  Future<void> replaceBusinessCategoryLinks(
+    String businessId,
+    List<String> categoryIds,
+  ) async {
+    return SupabaseFailureMapper.guard(() async {
+      await _client
+          .from(SupabaseTables.businessCategories)
+          .delete()
+          .eq('business_id', businessId);
+      final unique = categoryIds.where((e) => e.trim().isNotEmpty).toSet().toList();
+      if (unique.isEmpty) return;
+      await _client.from(SupabaseTables.businessCategories).insert(
+            unique
+                .map(
+                  (id) => {
+                    'business_id': businessId,
+                    'category_id': id,
+                  },
+                )
+                .toList(),
+          );
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Update business
   // ---------------------------------------------------------------------------
@@ -629,7 +654,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from(SupabaseTables.businessLegalDocuments)
-          .select('status, document_type, rejection_reason')
+          .select('status, review_status, document_type, rejection_reason')
           .eq('business_id', businessId);
       final rows = (res as List).cast<Map<String, dynamic>>();
       var approvedCount = 0;
@@ -642,7 +667,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       final types = <String>{};
       final rejectionReasons = <String>[];
       for (final row in rows) {
-        final status = _legalDocumentRowStatus(row['status']);
+        final status = _legalDocumentStatusFromRow(row);
         final type = parseString(row['document_type']) ?? '';
         types.add(type);
         if (status == 'pending') hasPendingRows = true;
@@ -685,25 +710,33 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   static String _legalDocumentRowStatus(dynamic value) =>
       (parseString(value) ?? '').trim().toLowerCase();
 
+  /// Prefers `review_status` when the column exists (Super Admin alignment).
+  static String _legalDocumentStatusFromRow(Map<String, dynamic> row) {
+    final r = _legalDocumentRowStatus(row['review_status']);
+    if (r.isNotEmpty) return r;
+    return _legalDocumentRowStatus(row['status']);
+  }
+
   @override
   Future<List<BusinessLegalDocument>> listBusinessLegalDocuments(String businessId) async {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from(SupabaseTables.businessLegalDocuments)
           .select(
-            'id, business_id, document_type, file_url, file_name, status, uploaded_at, reviewed_at, rejection_reason',
+            'id, business_id, document_type, file_url, file_name, status, review_status, uploaded_at, reviewed_at, rejection_reason',
           )
           .eq('business_id', businessId)
           .order('uploaded_at', ascending: false);
       final rows = (res as List).cast<Map<String, dynamic>>();
       return rows.map((row) {
+        final status = _legalDocumentStatusFromRow(row);
         return BusinessLegalDocument(
           id: parseStringRequired(row['id']),
           businessId: parseStringRequired(row['business_id']),
           documentType: parseStringRequired(row['document_type']),
           fileUrl: parseStringRequired(row['file_url']),
           fileName: parseString(row['file_name']),
-          status: parseStringRequired(row['status'], 'pending'),
+          status: status.isNotEmpty ? status : 'pending',
           uploadedAt: parseTimestamp(row['uploaded_at']),
           reviewedAt: parseTimestamp(row['reviewed_at']),
           rejectionReason: parseString(row['rejection_reason']),

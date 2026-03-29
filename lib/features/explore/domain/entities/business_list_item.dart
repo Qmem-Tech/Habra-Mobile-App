@@ -6,6 +6,8 @@ class BusinessListItem extends Equatable {
   final String name;
   final String imageUrl;
   final List<BusinessCategory> categories;
+  /// Category row IDs from `business_categories` / `categories` (for dynamic filters).
+  final List<String> listingCategoryIds;
   final String address;
   final String city;
   final String state;
@@ -24,6 +26,7 @@ class BusinessListItem extends Equatable {
     required this.name,
     required this.imageUrl,
     required this.categories,
+    this.listingCategoryIds = const [],
     required this.address,
     required this.city,
     required this.state,
@@ -54,6 +57,7 @@ class BusinessListItem extends Equatable {
         name,
         imageUrl,
         categories,
+        listingCategoryIds,
         address,
         city,
         state,

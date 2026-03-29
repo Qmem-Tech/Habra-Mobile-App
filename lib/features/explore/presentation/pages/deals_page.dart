@@ -3,8 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
-import '../../domain/entities/business_category.dart';
 import '../../domain/entities/deal.dart';
+import '../../domain/entities/listing_category.dart';
+import '../../domain/usecases/get_active_listing_categories_usecase.dart';
 import '../bloc/deals_cubit.dart';
 import '../bloc/deals_state.dart';
 import '../widgets/deal_card.dart';
@@ -19,8 +20,28 @@ class DealsPage extends StatefulWidget {
 
 class _DealsPageState extends State<DealsPage> {
   final TextEditingController _searchController = TextEditingController();
-  BusinessCategory _selectedCategory = BusinessCategory.all;
+  String? _selectedListingCategoryId;
+  List<ListingCategory> _listingCategories = [];
+  bool _listingCategoriesLoading = true;
   final String _currentLocation = 'Washington, D.C.';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadListingCategories();
+  }
+
+  Future<void> _loadListingCategories() async {
+    final result = await di.sl<GetActiveListingCategoriesUseCase>()();
+    if (!mounted) return;
+    result.fold(
+      (_) => setState(() => _listingCategoriesLoading = false),
+      (list) => setState(() {
+        _listingCategories = list;
+        _listingCategoriesLoading = false;
+      }),
+    );
+  }
 
   @override
   void dispose() {
@@ -131,58 +152,67 @@ class _DealsPageState extends State<DealsPage> {
   }
 
   Widget _buildCategoryFilters() {
-    final categories = [
-      BusinessCategory.all,
-      BusinessCategory.food,
-      BusinessCategory.beauty,
-      BusinessCategory.grocery,
-    ];
+    if (_listingCategoriesLoading) {
+      return const SizedBox(
+        height: 50,
+        child: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
 
     return SizedBox(
       height: 50,
-      child: ListView.builder(
+      child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          final isSelected = category == _selectedCategory;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedCategory = category;
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.brandPrimary : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,
-                  ),
-                ),
-                child: Text(
-                  category.displayName,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isSelected ? Colors.white : AppColors.textPrimary,
-                  ),
-                ),
-              ),
+        children: [
+          _dealCategoryChip(label: 'All', id: null),
+          ..._listingCategories.map((c) => _dealCategoryChip(label: c.name, id: c.id)),
+        ],
+      ),
+    );
+  }
+
+  Widget _dealCategoryChip({required String label, required String? id}) {
+    final isSelected = _selectedListingCategoryId == id;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedListingCategoryId = id),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.brandPrimary : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,
             ),
-          );
-        },
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildDealsList(List<Deal> deals) {
-    final hotDeals = deals.where((d) => d.type == DealType.hotDeal).toList();
-    final happyHour = deals.where((d) => d.type == DealType.happyHour).toList();
+    final cid = _selectedListingCategoryId;
+    final scoped = cid == null || cid.isEmpty
+        ? deals
+        : deals.where((d) => d.business.listingCategoryIds.contains(cid)).toList();
+    final hotDeals = scoped.where((d) => d.type == DealType.hotDeal).toList();
+    final happyHour = scoped.where((d) => d.type == DealType.happyHour).toList();
 
     return RefreshIndicator(
       onRefresh: () async {

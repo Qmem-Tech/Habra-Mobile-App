@@ -85,6 +85,11 @@ class _BusinessLegalDocumentsDetailPageState extends State<BusinessLegalDocument
     }
   }
 
+  static String _statusLabel(String status) {
+    if (status.isEmpty) return 'Pending';
+    return status[0].toUpperCase() + status.substring(1).toLowerCase();
+  }
+
   Future<void> _openUrl(BuildContext context, String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
@@ -199,7 +204,7 @@ class _BusinessLegalDocumentsDetailPageState extends State<BusinessLegalDocument
                                                 borderRadius: BorderRadius.circular(20),
                                               ),
                                               child: Text(
-                                                d.status,
+                                                _statusLabel(d.status),
                                                 style: TextStyle(
                                                   color: _statusColor(d.status),
                                                   fontWeight: FontWeight.w600,

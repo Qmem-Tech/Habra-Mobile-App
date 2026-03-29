@@ -6,14 +6,15 @@ import '../../../../core/widgets/notification_icon_with_badge.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../home/presentation/pages/notification_page.dart';
-import '../../domain/entities/business_category.dart';
 import '../../domain/entities/deal.dart';
+import '../../domain/entities/listing_category.dart';
+import '../../domain/usecases/get_active_listing_categories_usecase.dart';
 import '../bloc/businesses_cubit.dart';
 import '../bloc/businesses_state.dart';
 import '../bloc/deals_cubit.dart';
 import '../bloc/deals_state.dart';
-import '../widgets/category_button.dart';
 import '../widgets/business_card.dart';
+import '../widgets/listing_category_icon.dart';
 import '../widgets/deal_card.dart';
 import 'directory_page.dart';
 import 'deals_page.dart';
@@ -33,13 +34,27 @@ class _ExplorePageState extends State<ExplorePage> {
   static const bool _locationFilterOnHold = true;
   final TextEditingController _searchController = TextEditingController();
   String? _currentLocation;
-  // ignore: unused_field - used when filtering by category
-  BusinessCategory _selectedCategory = BusinessCategory.all;
+  String? _selectedListingCategoryId;
+  List<ListingCategory> _listingCategories = [];
+  bool _listingCategoriesLoading = true;
 
   @override
   void initState() {
     super.initState();
     _currentLocation = widget.location ?? 'Washington, D.C.';
+    _loadListingCategories();
+  }
+
+  Future<void> _loadListingCategories() async {
+    final result = await di.sl<GetActiveListingCategoriesUseCase>()();
+    if (!mounted) return;
+    result.fold(
+      (_) => setState(() => _listingCategoriesLoading = false),
+      (list) => setState(() {
+        _listingCategories = list;
+        _listingCategoriesLoading = false;
+      }),
+    );
   }
 
   @override
@@ -54,8 +69,7 @@ class _ExplorePageState extends State<ExplorePage> {
       context,
       MaterialPageRoute(
         builder: (_) => DirectoryPage(
-          initialCategory:
-              _selectedCategory == BusinessCategory.all ? null : _selectedCategory,
+          initialListingCategoryId: _selectedListingCategoryId,
         ),
       ),
     );
@@ -224,14 +238,15 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Widget _buildCategoryFilters() {
-    final categories = [
-      BusinessCategory.food,
-      BusinessCategory.beauty,
-      BusinessCategory.grocery,
-      BusinessCategory.legal,
-      BusinessCategory.coffee,
-      BusinessCategory.spices,
-    ];
+    if (_listingCategoriesLoading) {
+      return const SizedBox(
+        height: 120,
+        child: Center(child: HabraCircularLoader()),
+      );
+    }
+    if (_listingCategories.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return SizedBox(
       height: 120,
@@ -253,26 +268,53 @@ class _ExplorePageState extends State<ExplorePage> {
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: categories.length,
+              itemCount: _listingCategories.length,
               itemBuilder: (context, index) {
-                final category = categories[index];
+                final category = _listingCategories[index];
                 return Padding(
                   padding: const EdgeInsets.only(right: 12),
-                  child: CategoryButton(
-                    category: category,
+                  child: GestureDetector(
                     onTap: () {
-                      setState(() {
-                        _selectedCategory = category;
-                      });
+                      setState(() => _selectedListingCategoryId = category.id);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => DirectoryPage(
-                            initialCategory: category,
+                            initialListingCategoryId: category.id,
                           ),
                         ),
                       );
                     },
+                    child: Container(
+                      width: 80,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundLight,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            listingCategoryIcon(category.iconKey),
+                            size: 32,
+                            color: AppColors.brandPrimary,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            category.name,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 );
               },

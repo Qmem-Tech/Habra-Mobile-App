@@ -92,8 +92,12 @@ import '../features/events/presentation/bloc/create_event_cubit.dart';
 // Explore feature
 import '../features/explore/data/datasources/businesses_remote_datasource.dart';
 import '../features/explore/data/datasources/businesses_supabase_datasource.dart';
+import '../features/explore/data/datasources/categories_remote_datasource.dart';
+import '../features/explore/data/datasources/categories_supabase_datasource.dart';
 import '../features/explore/data/repositories/businesses_repository_impl.dart';
+import '../features/explore/data/repositories/categories_repository_impl.dart';
 import '../features/explore/domain/repositories/businesses_repository.dart';
+import '../features/explore/domain/repositories/categories_repository.dart';
 import '../features/explore/domain/usecases/get_businesses_usecase.dart';
 import '../features/explore/domain/usecases/get_business_detail_usecase.dart';
 import '../features/explore/domain/usecases/get_deals_usecase.dart';
@@ -104,6 +108,7 @@ import '../features/explore/domain/usecases/redeem_deal_usecase.dart';
 import '../features/explore/domain/usecases/get_my_reviews_usecase.dart';
 import '../features/explore/domain/usecases/update_my_review_usecase.dart';
 import '../features/explore/domain/usecases/delete_my_review_usecase.dart';
+import '../features/explore/domain/usecases/get_active_listing_categories_usecase.dart';
 import '../features/explore/presentation/bloc/businesses_cubit.dart';
 import '../features/explore/presentation/bloc/deals_cubit.dart';
 import '../features/explore/presentation/bloc/reviews_cubit.dart';
@@ -343,13 +348,20 @@ Future<void> init() async {
   sl.registerLazySingleton<BusinessesRemoteDataSource>(
     () => BusinessesSupabaseDataSource(),
   );
+  sl.registerLazySingleton<CategoriesRemoteDataSource>(
+    () => CategoriesSupabaseDataSource(),
+  );
 
   // Repositories
   sl.registerLazySingleton<BusinessesRepository>(
     () => BusinessesRepositoryImpl(remoteDataSource: sl<BusinessesRemoteDataSource>()),
   );
+  sl.registerLazySingleton<CategoriesRepository>(
+    () => CategoriesRepositoryImpl(remoteDataSource: sl<CategoriesRemoteDataSource>()),
+  );
 
   // Use cases
+  sl.registerLazySingleton(() => GetActiveListingCategoriesUseCase(sl<CategoriesRepository>()));
   sl.registerLazySingleton(() => GetBusinessesUseCase(sl<BusinessesRepository>()));
   sl.registerLazySingleton(() => GetBusinessDetailUseCase(sl<BusinessesRepository>()));
   sl.registerLazySingleton(() => GetDealsUseCase(sl<BusinessesRepository>()));

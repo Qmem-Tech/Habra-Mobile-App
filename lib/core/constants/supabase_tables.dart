@@ -24,6 +24,7 @@ class SupabaseTables {
   static const String businessCategories = 'business_categories';
   static const String businessLegalDocuments = 'business_legal_documents';
   static const String notifications = 'notifications';
+  static const String platformNotifications = 'platform_notifications';
 }
 
 /// Supabase storage bucket names.

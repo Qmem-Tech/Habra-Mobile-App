@@ -82,6 +82,10 @@ class DashboardRepositoryImpl implements DashboardRepository {
       _remote.createBusiness(ownerId, data);
 
   @override
+  Future<void> replaceBusinessCategoryLinks(String businessId, List<String> categoryIds) =>
+      _remote.replaceBusinessCategoryLinks(businessId, categoryIds);
+
+  @override
   Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId) =>
       _remote.getLegalDocumentsStatus(businessId);
 

@@ -28,6 +28,7 @@ abstract class DashboardRemoteDataSource {
   Future<void> updateBusinessHours(String businessId, Map<String, dynamic> hours);
   Future<Map<String, String?>?> getBusinessHours(String businessId);
   Future<String> createBusiness(String ownerId, Map<String, dynamic> data);
+  Future<void> replaceBusinessCategoryLinks(String businessId, List<String> categoryIds);
   Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId);
   Future<List<BusinessLegalDocument>> listBusinessLegalDocuments(String businessId);
   Future<void> uploadLegalDocument(

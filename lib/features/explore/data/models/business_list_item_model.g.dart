@@ -15,6 +15,10 @@ BusinessListItemModel _$BusinessListItemModelFromJson(
   categories: (json['categories'] as List<dynamic>)
       .map((e) => $enumDecode(_$BusinessCategoryEnumMap, e))
       .toList(),
+  listingCategoryIds: (json['listingCategoryIds'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const [],
   address: json['address'] as String,
   city: json['city'] as String,
   state: json['state'] as String,
@@ -38,6 +42,7 @@ Map<String, dynamic> _$BusinessListItemModelToJson(
   'categories': instance.categories
       .map((e) => _$BusinessCategoryEnumMap[e]!)
       .toList(),
+  'listingCategoryIds': instance.listingCategoryIds,
   'address': instance.address,
   'city': instance.city,
   'state': instance.state,

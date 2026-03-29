@@ -5,17 +5,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
-import '../../domain/entities/business_category.dart';
 import '../../domain/entities/business_filters.dart';
+import '../../domain/entities/listing_category.dart';
+import '../../domain/usecases/get_active_listing_categories_usecase.dart';
 import '../bloc/businesses_cubit.dart';
 import '../bloc/businesses_state.dart';
 import '../widgets/business_list_item_widget.dart';
 import 'business_detail_page.dart';
 
 class DirectoryPage extends StatefulWidget {
-  final BusinessCategory? initialCategory;
+  /// `categories.id` from Supabase, or null for “all”.
+  final String? initialListingCategoryId;
 
-  const DirectoryPage({super.key, this.initialCategory});
+  const DirectoryPage({super.key, this.initialListingCategoryId});
 
   @override
   State<DirectoryPage> createState() => _DirectoryPageState();
@@ -23,16 +25,29 @@ class DirectoryPage extends StatefulWidget {
 
 class _DirectoryPageState extends State<DirectoryPage> {
   final TextEditingController _searchController = TextEditingController();
-  BusinessCategory _selectedCategory = BusinessCategory.all;
+  String? _selectedListingCategoryId;
+  List<ListingCategory> _listingCategories = [];
+  bool _categoriesLoading = true;
   final String _currentLocation = 'Washington, D.C.';
   Timer? _searchDebounce;
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialCategory != null) {
-      _selectedCategory = widget.initialCategory!;
-    }
+    _selectedListingCategoryId = widget.initialListingCategoryId;
+    _loadCategoryRows();
+  }
+
+  Future<void> _loadCategoryRows() async {
+    final result = await di.sl<GetActiveListingCategoriesUseCase>()();
+    if (!mounted) return;
+    result.fold(
+      (_) => setState(() => _categoriesLoading = false),
+      (list) => setState(() {
+        _listingCategories = list;
+        _categoriesLoading = false;
+      }),
+    );
   }
 
   @override
@@ -43,8 +58,9 @@ class _DirectoryPageState extends State<DirectoryPage> {
   }
 
   void _loadBusinesses(BuildContext context) {
-    final filters = _selectedCategory != BusinessCategory.all
-        ? BusinessFilters(category: _selectedCategory)
+    final cid = _selectedListingCategoryId;
+    final filters = (cid != null && cid.isNotEmpty)
+        ? BusinessFilters(listingCategoryId: cid)
         : null;
     context.read<BusinessesCubit>().loadBusinesses(
           location: _currentLocation,
@@ -173,55 +189,61 @@ class _DirectoryPageState extends State<DirectoryPage> {
   }
 
   Widget _buildCategoryFilters() {
-    final categories = [
-      BusinessCategory.all,
-      BusinessCategory.food,
-      BusinessCategory.beauty,
-      BusinessCategory.grocery,
-      BusinessCategory.legal,
-      BusinessCategory.coffee,
-      BusinessCategory.spices,
-    ];
+    if (_categoriesLoading) {
+      return const SizedBox(
+        height: 50,
+        child: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
 
     return SizedBox(
       height: 50,
-      child: ListView.builder(
+      child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          final isSelected = category == _selectedCategory;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedCategory = category;
-                });
-                _loadBusinesses(context);
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.brandPrimary : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,
-                  ),
-                ),
-                child: Text(
-                  category.displayName,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isSelected ? Colors.white : AppColors.textPrimary,
-                  ),
-                ),
-              ),
-            ),
-          );
+        children: [
+          _directoryCategoryChip(label: 'All', id: null),
+          ..._listingCategories.map(
+            (c) => _directoryCategoryChip(label: c.name, id: c.id),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _directoryCategoryChip({required String label, required String? id}) {
+    final isSelected = _selectedListingCategoryId == id;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: () {
+          setState(() => _selectedListingCategoryId = id);
+          _loadBusinesses(context);
         },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.brandPrimary : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+        ),
       ),
     );
   }

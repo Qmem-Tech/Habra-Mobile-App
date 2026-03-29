@@ -3,9 +3,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/validation/business_onboarding_validators.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../injection/injection_container.dart' as di;
+import '../../../explore/domain/entities/listing_category.dart';
+import '../../../explore/domain/usecases/get_active_listing_categories_usecase.dart';
 import 'business_location_step2_page.dart';
 
-/// Business Details step 1: Business Name, Business Category, Next.
+/// Business Details step 1: Business Name, listing category from Supabase, Next.
 class BusinessDetailsStep1Page extends StatefulWidget {
   const BusinessDetailsStep1Page({super.key});
 
@@ -17,26 +20,40 @@ class BusinessDetailsStep1Page extends StatefulWidget {
 class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  String? _selectedCategory;
-
-  static const List<String> _categories = [
-    'Restaurant & Cafe',
-    'Retail Store',
-    'Service Provider',
-    'Entertainment',
-    'Health & Wellness',
-    'Education',
-    'Automotive',
-    'Real Estate',
-    'Other',
-  ];
+  String? _selectedCategoryId;
+  List<ListingCategory> _listingCategories = [];
+  bool _listingCategoriesLoading = true;
+  String? _listingCategoriesError;
 
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadListingCategories();
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadListingCategories() async {
+    final result = await di.sl<GetActiveListingCategoriesUseCase>()();
+    if (!mounted) return;
+    result.fold(
+      (failure) => setState(() {
+        _listingCategoriesError = failure.message;
+        _listingCategoriesLoading = false;
+      }),
+      (list) => setState(() {
+        _listingCategories = list;
+        _listingCategoriesLoading = false;
+        _listingCategoriesError =
+            list.isEmpty ? 'No categories are available yet.' : null;
+      }),
+    );
   }
 
   @override
@@ -136,46 +153,75 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  // ignore: deprecated_member_use - use initialValue when form API is updated
-                  value: _selectedCategory,
-                  decoration: InputDecoration(
-                    hintText: 'Select category',
-                    hintStyle: TextStyle(color: AppColors.textTertiary),
-                    suffixIcon: const Icon(Icons.arrow_drop_down),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppResources.radiusM),
-                      borderSide: BorderSide(color: AppColors.backgroundGrey),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppResources.radiusM),
-                      borderSide: BorderSide(color: AppColors.backgroundGrey),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppResources.radiusM),
-                      borderSide: const BorderSide(color: AppColors.brandPrimary),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                  ),
-                  items: _categories
-                      .map(
-                        (c) => DropdownMenuItem<String>(
-                          value: c,
-                          child: Text(c),
+                if (_listingCategoriesLoading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_listingCategoriesError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _listingCategoriesError!,
+                          style: TextStyle(color: AppColors.error, fontSize: 14),
                         ),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() => _selectedCategory = v),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select a business category';
-                    }
-                    return null;
-                  },
-                ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _listingCategoriesLoading = true;
+                              _listingCategoriesError = null;
+                            });
+                            _loadListingCategories();
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  DropdownButtonFormField<String>(
+                    // ignore: deprecated_member_use - use initialValue when form API is updated
+                    value: _selectedCategoryId,
+                    decoration: InputDecoration(
+                      hintText: 'Select category',
+                      hintStyle: TextStyle(color: AppColors.textTertiary),
+                      suffixIcon: const Icon(Icons.arrow_drop_down),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppResources.radiusM),
+                        borderSide: BorderSide(color: AppColors.backgroundGrey),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppResources.radiusM),
+                        borderSide: BorderSide(color: AppColors.backgroundGrey),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppResources.radiusM),
+                        borderSide: const BorderSide(color: AppColors.brandPrimary),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    items: _listingCategories
+                        .map(
+                          (c) => DropdownMenuItem<String>(
+                            value: c.id,
+                            child: Text(c.name),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => _selectedCategoryId = v),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please select a business category';
+                      }
+                      return null;
+                    },
+                  ),
                 const SizedBox(height: 48),
               ],
             ),
@@ -187,7 +233,12 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
           padding: const EdgeInsets.all(AppResources.spacingM),
           child: AppButton(
             text: 'Next',
-            onPressed: _isLoading ? null : _onNext,
+            onPressed: (_isLoading ||
+                    _listingCategoriesLoading ||
+                    _listingCategoriesError != null ||
+                    _listingCategories.isEmpty)
+                ? null
+                : _onNext,
             isLoading: _isLoading,
           ),
         ),
@@ -199,8 +250,8 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
-    final category = _selectedCategory;
-    if (category == null) {
+    final categoryId = _selectedCategoryId;
+    if (categoryId == null) {
       return;
     }
 
@@ -214,7 +265,7 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
         builder: (_) => BusinessLocationStep2Page(
           step1Data: {
             'name': _nameController.text.trim(),
-            'category': category,
+            'category_id': categoryId,
           },
         ),
       ),

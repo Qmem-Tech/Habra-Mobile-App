@@ -48,6 +48,8 @@ class UserModel extends User {
   static UserRole _roleFromString(String value) {
     switch (value) {
       case 'businessOwner':
+      case 'business_owner':
+      case 'business_owners':
         return UserRole.businessOwner;
       case 'admin':
         return UserRole.admin;

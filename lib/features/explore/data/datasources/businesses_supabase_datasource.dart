@@ -19,9 +19,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
 
   SupabaseClient get _client => Supabase.instance.client;
 
-  static BusinessCategory _categoryFromName(String? name) {
-    if (name == null || name.isEmpty) return BusinessCategory.other;
-    final lower = name.toLowerCase();
+  static BusinessCategory _categoryFromListing(String? name, String? slug) {
     final map = <String, BusinessCategory>{
       'food': BusinessCategory.food,
       'beauty': BusinessCategory.beauty,
@@ -35,7 +33,29 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
       'salon': BusinessCategory.salon,
       'import': BusinessCategory.import,
     };
-    return map[lower] ?? BusinessCategory.other;
+    for (final raw in [slug, name]) {
+      if (raw == null || raw.isEmpty) continue;
+      final hit = map[raw.toLowerCase().trim()];
+      if (hit != null) return hit;
+    }
+    return BusinessCategory.other;
+  }
+
+  List<String> _listingCategoryIdsFromRow(Map<String, dynamic> row) {
+    final ids = <String>[];
+    final bc = row['business_categories'];
+    if (bc is List) {
+      for (final e in bc) {
+        if (e is Map) {
+          final c = e['categories'];
+          if (c is Map) {
+            final id = parseString(c['id']);
+            if (id != null) ids.add(id);
+          }
+        }
+      }
+    }
+    return ids;
   }
 
   List<BusinessCategory> _categoriesFromRow(dynamic row) {
@@ -47,7 +67,10 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
           final c = e['categories'];
           if (c is Map) {
             final name = parseString(c['name']);
-            if (name != null) list.add(_categoryFromName(name));
+            final slug = parseString(c['slug']);
+            if (name != null || slug != null) {
+              list.add(_categoryFromListing(name, slug));
+            }
           }
         }
       }
@@ -73,12 +96,14 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
     final openingTime = row['opening_time']?.toString();
     final closingTime = row['closing_time']?.toString();
     final categories = _categoriesFromRow(row);
+    final listingCategoryIds = _listingCategoryIdsFromRow(row);
 
     return BusinessListItem(
       id: id,
       name: name,
       imageUrl: imageUrl.isEmpty ? 'https://placehold.co/400x300?text=Business' : imageUrl,
       categories: categories,
+      listingCategoryIds: listingCategoryIds,
       address: address.isEmpty ? city : address,
       city: city,
       state: state,
@@ -104,7 +129,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       var query = _client
           .from('businesses')
-          .select('*, business_categories(categories(name))')
+          .select('*, business_categories(categories(id, name, slug))')
           .eq('approval_status', 'approved')
           .eq('is_active', true);
 
@@ -135,6 +160,12 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
         if (category != null && category != BusinessCategory.all) {
           items = items.where((b) => b.categories.contains(category)).toList();
         }
+        final listingCategoryId = filters.listingCategoryId;
+        if (listingCategoryId != null && listingCategoryId.isNotEmpty) {
+          items = items
+              .where((b) => b.listingCategoryIds.contains(listingCategoryId))
+              .toList();
+        }
       }
 
       return items;
@@ -146,7 +177,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from('businesses')
-          .select('*, business_categories(categories(name))')
+          .select('*, business_categories(categories(id, name, slug))')
           .eq('id', businessId)
           .maybeSingle();
       if (res == null) throw Exception('Business not found');
@@ -225,6 +256,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
         name: '',
         imageUrl: imageUrl,
         categories: const [BusinessCategory.other],
+        listingCategoryIds: const [],
         address: '',
         city: '',
         state: '',
@@ -276,7 +308,9 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
 
       var query = _client
           .from('deals')
-          .select('*, businesses!deals_business_id_fkey(id, name, address_city, address_state, logo_url, image_urls)')
+          .select(
+            '*, businesses!deals_business_id_fkey(id, name, address_city, address_state, logo_url, image_urls, business_categories(categories(id, name, slug)))',
+          )
           .eq('status', 'active')
           .gte('valid_until', DateTime.now().toIso8601String())
           .inFilter('business_id', approvedIds);
@@ -298,7 +332,8 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
             id: bid ?? '',
             name: bname,
             imageUrl: parseString(biz['logo_url']) ?? '',
-            categories: const [BusinessCategory.other],
+            categories: _categoriesFromRow(biz),
+            listingCategoryIds: _listingCategoryIdsFromRow(biz),
             address: '',
             city: parseStringRequired(biz['address_city']),
             state: parseStringRequired(biz['address_state']),
@@ -318,7 +353,9 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from('deals')
-          .select('*, businesses!deals_business_id_fkey(id, name, address_city, address_state, logo_url, image_urls)')
+          .select(
+            '*, businesses!deals_business_id_fkey(id, name, address_city, address_state, logo_url, image_urls, business_categories(categories(id, name, slug)))',
+          )
           .eq('id', dealId)
           .maybeSingle();
       if (res == null) throw Exception('Deal not found');
@@ -331,7 +368,8 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
           id: bid ?? '',
           name: parseStringRequired(biz['name']),
           imageUrl: parseString(biz['logo_url']) ?? '',
-          categories: const [BusinessCategory.other],
+          categories: _categoriesFromRow(biz),
+          listingCategoryIds: _listingCategoryIdsFromRow(biz),
           address: '',
           city: parseStringRequired(biz['address_city']),
           state: parseStringRequired(biz['address_state']),
