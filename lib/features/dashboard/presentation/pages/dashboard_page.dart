@@ -327,10 +327,10 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  void _openNotifications() {
-    Navigator.push(
+  Future<void> _openNotifications() async {
+    await Navigator.push<void>(
       context,
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (_) => BusinessOwnerNotificationPage(userId: widget.user.id),
       ),
     );

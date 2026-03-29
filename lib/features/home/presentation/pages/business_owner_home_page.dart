@@ -11,6 +11,7 @@ import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
+import '../../../../core/widgets/notification_icon_with_badge.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../domain/entities/business_presence.dart';
 import '../../domain/entities/owner_snapshot_metrics.dart';
@@ -576,29 +577,12 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           onPressed: () => _refreshOwnerHome(context),
           tooltip: 'Refresh',
         ),
-        IconButton(
-          icon: Stack(
-            children: [
-              const Icon(Icons.notifications_outlined,
-                  color: AppColors.textPrimary),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.error,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          onPressed: () {
-            Navigator.push(
+        NotificationIconWithBadge(
+          userId: widget.user.id,
+          onOpenNotifications: () async {
+            await Navigator.push<void>(
               context,
-              MaterialPageRoute(
+              MaterialPageRoute<void>(
                 builder: (_) => BusinessOwnerNotificationPage(userId: widget.user.id),
               ),
             );
@@ -857,13 +841,14 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             ),
           ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
-              onPressed: () {
-                Navigator.push(
+            NotificationIconWithBadge(
+              userId: widget.user.id,
+              onOpenNotifications: () async {
+                await Navigator.push<void>(
                   context,
-                  MaterialPageRoute(
-                      builder: (_) => BusinessOwnerNotificationPage(userId: widget.user.id)),
+                  MaterialPageRoute<void>(
+                    builder: (_) => BusinessOwnerNotificationPage(userId: widget.user.id),
+                  ),
                 );
               },
             ),
@@ -1847,6 +1832,10 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       case OwnerActivityType.applicant:
         iconData = Icons.person_add;
         iconBg = AppColors.info.withValues(alpha: 0.2);
+        break;
+      case OwnerActivityType.event:
+        iconData = Icons.event;
+        iconBg = AppColors.brandPrimary.withValues(alpha: 0.15);
         break;
       default:
         iconData = Icons.notifications;

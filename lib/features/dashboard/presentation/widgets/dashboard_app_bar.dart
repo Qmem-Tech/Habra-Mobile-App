@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/notification_icon_with_badge.dart';
 import '../../../home/domain/entities/business_presence.dart';
 
 /// Reusable app bar for dashboard: menu, business selector, notifications.
@@ -18,7 +19,7 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String userId;
   final BusinessPresence? selectedPresence;
   final VoidCallback onBusinessTap;
-  final VoidCallback onNotificationsTap;
+  final Future<void> Function() onNotificationsTap;
   final VoidCallback? onRefresh;
 
   @override
@@ -72,25 +73,9 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
             onPressed: onRefresh,
             tooltip: 'Refresh',
           ),
-        IconButton(
-          icon: Stack(
-            children: [
-              const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.error,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          onPressed: onNotificationsTap,
+        NotificationIconWithBadge(
+          userId: userId,
+          onOpenNotifications: onNotificationsTap,
         ),
       ],
     );

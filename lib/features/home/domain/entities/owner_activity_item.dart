@@ -5,6 +5,7 @@ enum OwnerActivityType {
   applicant,
   message,
   deal,
+  event,
   general,
 }
 

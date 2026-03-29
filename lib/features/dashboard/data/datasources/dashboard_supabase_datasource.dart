@@ -13,6 +13,7 @@ import '../../domain/entities/dashboard_analytics.dart';
 import '../../domain/entities/dashboard_deal.dart';
 import '../../domain/entities/dashboard_job.dart';
 import '../../domain/entities/job_applicant.dart';
+import '../../domain/entities/owner_upcoming_event.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import 'dashboard_remote_datasource.dart';
 
@@ -752,6 +753,40 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         }
       }
       return ids;
+    });
+  }
+
+  @override
+  Future<List<OwnerUpcomingEvent>> getOwnerUpcomingEvents(
+    String ownerId, {
+    String? businessId,
+  }) async {
+    return SupabaseFailureMapper.guard(() async {
+      final res = await _client
+          .from(SupabaseTables.events)
+          .select('id,title,start_at,business_id')
+          .eq('organizer_id', ownerId)
+          .eq('is_active', true)
+          .order('start_at', ascending: false)
+          .limit(30);
+      var rows = (res as List).cast<Map<String, dynamic>>();
+      if (businessId != null) {
+        rows = rows
+            .where((row) =>
+                row['business_id'] == null ||
+                parseString(row['business_id']) == businessId)
+            .toList();
+      }
+      return rows
+          .map(
+            (row) => OwnerUpcomingEvent(
+              id: parseStringRequired(row['id']),
+              title: parseStringRequired(row['title']),
+              startAt: parseTimestampRequired(row['start_at']),
+            ),
+          )
+          .take(10)
+          .toList();
     });
   }
 

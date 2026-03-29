@@ -8,6 +8,7 @@ import '../../domain/entities/dashboard_deal.dart';
 import '../../domain/entities/dashboard_job.dart';
 import '../../domain/entities/job_applicant.dart';
 import '../../domain/entities/business_legal_document.dart';
+import '../../domain/entities/owner_upcoming_event.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 
 abstract class DashboardRemoteDataSource {
@@ -36,4 +37,9 @@ abstract class DashboardRemoteDataSource {
     String? fileName,
   });
   Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId);
+
+  Future<List<OwnerUpcomingEvent>> getOwnerUpcomingEvents(
+    String ownerId, {
+    String? businessId,
+  });
 }

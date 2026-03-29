@@ -7,6 +7,7 @@ import '../../domain/entities/dashboard_analytics.dart';
 import '../../domain/entities/dashboard_deal.dart';
 import '../../domain/entities/dashboard_job.dart';
 import '../../domain/entities/job_applicant.dart';
+import '../../domain/entities/owner_upcoming_event.dart';
 import '../../domain/entities/business_legal_document.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../datasources/dashboard_remote_datasource.dart';
@@ -100,4 +101,11 @@ class DashboardRepositoryImpl implements DashboardRepository {
   @override
   Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId) =>
       _remote.getBusinessIdsNeedingLegalDocs(ownerId);
+
+  @override
+  Future<List<OwnerUpcomingEvent>> getOwnerUpcomingEvents(
+    String ownerId, {
+    String? businessId,
+  }) =>
+      _remote.getOwnerUpcomingEvents(ownerId, businessId: businessId);
 }

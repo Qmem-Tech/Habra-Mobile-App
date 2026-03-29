@@ -6,6 +6,7 @@ import '../../../../core/resources/app_assets.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
+import '../../../../core/widgets/notification_icon_with_badge.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
@@ -302,28 +303,12 @@ class _BoostsPageState extends State<BoostsPage> {
               child: _buildBusinessSelector(presence),
             ),
             actions: [
-              IconButton(
-                icon: Stack(
-                  children: [
-                    const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: AppColors.success,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                onPressed: () {
-                  Navigator.push(
+              NotificationIconWithBadge(
+                userId: widget.user.id,
+                onOpenNotifications: () async {
+                  await Navigator.push<void>(
                     context,
-                    MaterialPageRoute(
+                    MaterialPageRoute<void>(
                       builder: (_) => BusinessOwnerNotificationPage(userId: widget.user.id),
                     ),
                   );

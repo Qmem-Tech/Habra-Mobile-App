@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/navigation/main_nav_scope.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/notification_icon_with_badge.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../home/presentation/pages/notification_page.dart';
@@ -175,28 +176,12 @@ class _ExplorePageState extends State<ExplorePage> {
               ),
             ),
           ),
-          IconButton(
-            icon: Stack(
-              children: [
-                const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            onPressed: () {
-              Navigator.push(
+          NotificationIconWithBadge(
+            userId: MainNavScope.maybeOf(context)?.userId,
+            onOpenNotifications: () async {
+              await Navigator.push<void>(
                 context,
-                MaterialPageRoute(
+                MaterialPageRoute<void>(
                   builder: (_) => NotificationPage(userId: MainNavScope.maybeOf(context)?.userId),
                 ),
               );

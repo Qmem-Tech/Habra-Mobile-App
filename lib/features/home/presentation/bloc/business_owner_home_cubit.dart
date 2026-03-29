@@ -170,24 +170,49 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
 
   Future<List<OwnerActivityItem>> _loadActivityForHome(
       String businessId) async {
+    final ownerId = _ownerId;
+    if (ownerId == null) return [];
     try {
       final reviews = await _dashboardRepository.getReviews(businessId);
-      return reviews
-          .take(5)
-          .map((r) => OwnerActivityItem(
-                id: r.id,
-                type: OwnerActivityType.review,
-                title: '${r.authorName} left a ${r.rating}-star review',
-                body: r.text,
-                authorName: r.authorName,
-                createdAt: DateTime.now(),
-                actionLabel: r.hasResponse ? null : 'Reply',
-                actionId: r.id,
-              ))
-          .toList();
+      final events = await _dashboardRepository.getOwnerUpcomingEvents(
+        ownerId,
+        businessId: businessId,
+      );
+      final reviewItems = reviews.take(5).map((r) => OwnerActivityItem(
+            id: r.id,
+            type: OwnerActivityType.review,
+            title: '${r.authorName} left a ${r.rating}-star review',
+            body: r.text,
+            authorName: r.authorName,
+            createdAt: DateTime.now(),
+            actionLabel: r.hasResponse ? null : 'Reply',
+            actionId: r.id,
+          ));
+      final eventItems = events.map(
+        (e) => OwnerActivityItem(
+          id: e.id,
+          type: OwnerActivityType.event,
+          title: e.title,
+          subtitle: 'Your event',
+          body:
+              'Starts ${e.startAt.year}-${e.startAt.month.toString().padLeft(2, '0')}-${e.startAt.day.toString().padLeft(2, '0')} · ${_formatEventTime(e.startAt)}',
+          createdAt: e.startAt,
+        ),
+      );
+      final merged = [...eventItems, ...reviewItems].toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return merged.take(10).toList();
     } catch (_) {
       return [];
     }
+  }
+
+  String _formatEventTime(DateTime dt) {
+    final h = dt.hour;
+    final m = dt.minute.toString().padLeft(2, '0');
+    final am = h < 12;
+    final h12 = h > 12 ? h - 12 : (h == 0 ? 12 : h);
+    return '$h12:$m ${am ? 'AM' : 'PM'}';
   }
 
   Future<OwnerSnapshotMetrics> _loadSnapshot(String businessId) async {

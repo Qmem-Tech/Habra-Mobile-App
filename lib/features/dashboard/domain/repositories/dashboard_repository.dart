@@ -8,6 +8,7 @@ import '../entities/dashboard_analytics.dart';
 import '../entities/dashboard_deal.dart';
 import '../entities/dashboard_job.dart';
 import '../entities/job_applicant.dart';
+import '../entities/owner_upcoming_event.dart';
 
 /// Repository for business owner dashboard data.
 abstract class DashboardRepository {
@@ -36,6 +37,12 @@ abstract class DashboardRepository {
     String? fileName,
   });
   Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId);
+
+  /// Events the user organizes, optionally scoped to a business (includes rows with null `business_id`).
+  Future<List<OwnerUpcomingEvent>> getOwnerUpcomingEvents(
+    String ownerId, {
+    String? businessId,
+  });
 }
 
 /// Status of legal documents for a business.

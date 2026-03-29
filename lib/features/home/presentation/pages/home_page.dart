@@ -23,6 +23,7 @@ import '../../../explore/presentation/pages/deals_page.dart';
 import '../../../explore/presentation/pages/directory_page.dart';
 import '../../../events/presentation/pages/event_detail_page.dart';
 import '../../../../core/navigation/main_nav_scope.dart';
+import '../../../../core/widgets/notification_icon_with_badge.dart';
 import 'notification_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -159,29 +160,13 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       actions: [
-        IconButton(
-          icon: Stack(
-            children: [
-              const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          onPressed: () {
+        NotificationIconWithBadge(
+          userId: MainNavScope.maybeOf(context)?.userId,
+          onOpenNotifications: () async {
             final scope = MainNavScope.maybeOf(context);
-            Navigator.push(
+            await Navigator.push<void>(
               context,
-              MaterialPageRoute(
+              MaterialPageRoute<void>(
                 builder: (_) => NotificationPage(userId: scope?.userId),
               ),
             );
