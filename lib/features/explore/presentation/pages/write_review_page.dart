@@ -1,14 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/error_display_helper.dart';
-import '../../../../core/services/image_picker_service.dart';
-import '../../../../core/services/storage_service.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/reviews_cubit.dart';
 import '../bloc/reviews_state.dart';
@@ -28,9 +22,9 @@ class WriteReviewPage extends StatefulWidget {
 }
 
 class _WriteReviewPageState extends State<WriteReviewPage> {
-  int _rating = 4;
+  /// 0 = no selection (cleared default)
+  int _rating = 0;
   final TextEditingController _commentController = TextEditingController();
-  final List<File> _photoFiles = [];
 
   @override
   void dispose() {
@@ -39,6 +33,12 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
   }
 
   Future<void> _submitReview(BuildContext context) async {
+    if (_rating < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a star rating')),
+      );
+      return;
+    }
     if (_commentController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please write a review')),
@@ -46,30 +46,20 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
       return;
     }
 
-    List<String>? photoUrls;
-    if (_photoFiles.isNotEmpty) {
-      try {
-        final userId = Supabase.instance.client.auth.currentUser?.id ?? 'anon';
-        final pathPrefix = '$userId/${widget.businessId}';
-        photoUrls = await di.sl<StorageService>().uploadImages(
-          SupabaseBuckets.reviews,
-          pathPrefix,
-          _photoFiles,
-        );
-      } catch (e) {
-        if (!context.mounted) return;
-        ErrorDisplayHelper.show(context, error: e, title: 'Photo upload failed');
-        return;
-      }
-    }
-
     if (!context.mounted) return;
     context.read<ReviewsCubit>().writeReview(
           businessId: widget.businessId,
           rating: _rating,
           comment: _commentController.text,
-          photoUrls: photoUrls,
+          photoUrls: null,
         );
+  }
+
+  void _clearForm() {
+    setState(() {
+      _rating = 0;
+      _commentController.clear();
+    });
   }
 
   String _getRatingText(int rating) {
@@ -85,7 +75,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
       case 1:
         return 'Very Poor';
       default:
-        return 'Good';
+        return 'Tap stars to rate';
     }
   }
 
@@ -98,12 +88,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
           title: const Text('Write Review'),
           actions: [
             TextButton(
-              onPressed: () {
-                _rating = 4;
-                _commentController.clear();
-                _photoFiles.clear();
-                setState(() {});
-              },
+              onPressed: _clearForm,
               child: const Text(
                 'Reset',
                 style: TextStyle(color: AppColors.brandSecondary),
@@ -143,8 +128,6 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
                 _buildStarRating(),
                 const SizedBox(height: 24),
                 _buildCommentField(),
-                const SizedBox(height: 24),
-                _buildPhotoSection(),
                 const SizedBox(height: 32),
                 _buildSubmitButton(),
               ],
@@ -169,26 +152,13 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.businessName,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Ethiopian Cuisine • Bole, Addis Ababa',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
+          child: Text(
+            widget.businessName,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
       ],
@@ -247,103 +217,6 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildPhotoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Add Photos',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            Text(
-              '${_photoFiles.length}/5',
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              ..._photoFiles.asMap().entries.map((e) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          e.value,
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() => _photoFiles.removeAt(e.key));
-                          },
-                          child: const Icon(Icons.close, size: 20, color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-              if (_photoFiles.length < 5)
-                GestureDetector(
-                  onTap: () async {
-                    final file = await di.sl<ImagePickerService>().pickImage(context);
-                    if (file != null && mounted) {
-                      setState(() => _photoFiles.add(file));
-                    }
-                  },
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: AppColors.backgroundLight,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.backgroundGrey),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_a_photo, color: AppColors.brandPrimary, size: 32),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Add',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.brandPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 

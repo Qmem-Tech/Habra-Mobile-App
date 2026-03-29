@@ -16,7 +16,6 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
-  SearchCategory _selectedCategory = SearchCategory.all;
 
   @override
   void dispose() {
@@ -54,7 +53,8 @@ class _SearchPageState extends State<SearchPage> {
             onChanged: (value) {
               setState(() {});
               if (value.isEmpty) {
-                context.read<SearchCubit>().search('', _selectedCategory, '');
+                final cat = context.read<SearchCubit>().state.selectedCategory;
+                context.read<SearchCubit>().search('', cat, '');
               }
             },
             onSubmitted: (value) {
@@ -83,14 +83,14 @@ class _SearchPageState extends State<SearchPage> {
             );
           }
 
-          return _buildSearchInitialView(state);
+          return _buildSearchInitialView(context, state);
         },
       ),
       ),
     );
   }
 
-  Widget _buildSearchInitialView(SearchState state) {
+  Widget _buildSearchInitialView(BuildContext context, SearchState state) {
     final recentSearches = state.recentSearches;
     final trendingSearches = state.trendingSearches;
 
@@ -99,7 +99,7 @@ class _SearchPageState extends State<SearchPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildCategoryFilters(state),
+          _buildCategoryFilters(context, state),
           const SizedBox(height: 24),
           if (recentSearches.isNotEmpty) _buildRecentSearches(recentSearches, state),
           if (trendingSearches.isNotEmpty) _buildTrendingSearches(trendingSearches),
@@ -108,27 +108,30 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  Widget _buildCategoryFilters(SearchState state) {
+  Widget _buildCategoryFilters(BuildContext context, SearchState state) {
+    final selected = state.selectedCategory;
     return Row(
       children: [
-        _buildCategoryFilter(SearchCategory.all, 'All', state.selectedCategory),
+        _buildCategoryFilter(context, SearchCategory.all, 'All', selected),
         const SizedBox(width: 8),
-        _buildCategoryFilter(SearchCategory.events, 'Events', state.selectedCategory),
+        _buildCategoryFilter(context, SearchCategory.events, 'Events', selected),
         const SizedBox(width: 8),
-        _buildCategoryFilter(SearchCategory.business, 'Business', state.selectedCategory),
+        _buildCategoryFilter(context, SearchCategory.business, 'Business', selected),
         const SizedBox(width: 8),
-        _buildCategoryFilter(SearchCategory.jobs, 'Jobs', state.selectedCategory),
+        _buildCategoryFilter(context, SearchCategory.jobs, 'Jobs', selected),
       ],
     );
   }
 
-  Widget _buildCategoryFilter(SearchCategory category, String label, SearchCategory selected) {
+  Widget _buildCategoryFilter(
+    BuildContext context,
+    SearchCategory category,
+    String label,
+    SearchCategory selected,
+  ) {
     final isSelected = category == selected;
     return GestureDetector(
       onTap: () {
-        setState(() {
-          _selectedCategory = category;
-        });
         context.read<SearchCubit>().setCategory(category);
       },
       child: Container(
@@ -290,7 +293,8 @@ class _SearchPageState extends State<SearchPage> {
 
   void _performSearch(String query) {
     if (query.isNotEmpty) {
-      context.read<SearchCubit>().search(query, _selectedCategory, ''); // TODO: Pass location
+      final cat = context.read<SearchCubit>().state.selectedCategory;
+      context.read<SearchCubit>().search(query, cat, '');
     }
   }
 }

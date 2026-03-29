@@ -43,10 +43,22 @@ class _EventsPageState extends State<EventsPage> {
     super.dispose();
   }
 
+  /// Merges the horizontal category chips into [EventFilters.eventTypes] for the API
+  /// (chips were previously ignored — only sheet filters were sent).
+  EventFilters? _effectiveFilters() {
+    final sheet = _activeFilters;
+    if (_selectedCategory != EventCategory.all) {
+      final base = sheet ?? const EventFilters();
+      return base.copyWith(eventTypes: [_selectedCategory]);
+    }
+    if (sheet == null || !sheet.hasActiveFilters) return null;
+    return sheet;
+  }
+
   void _loadEvents(BuildContext context) {
     context.read<EventsCubit>().loadEvents(
           location: _currentLocation,
-          filters: _activeFilters,
+          filters: _effectiveFilters(),
           searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
         );
   }
@@ -60,7 +72,7 @@ class _EventsPageState extends State<EventsPage> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           cubit.loadEvents(
             location: _currentLocation,
-            filters: _activeFilters,
+            filters: _effectiveFilters(),
             searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
           );
         });
@@ -192,9 +204,10 @@ class _EventsPageState extends State<EventsPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => events_search.SearchPage(
+                    builder: (searchContext) => events_search.SearchPage(
                       onSearch: (query) {
                         _searchController.text = query;
+                        // State's [context] finds [EventsCubit] from this page.
                         _loadEvents(context);
                       },
                     ),

@@ -69,7 +69,7 @@ class _EventFiltersPageState extends State<EventFiltersPage> {
             _buildPriceRangeSection(),
             const SizedBox(height: 32),
             AppButton(
-              text: 'Show ${_getEventCount()} Events',
+              text: 'Apply filters',
               onPressed: () {
                 Navigator.pop(context, _filters);
               },
@@ -301,8 +301,4 @@ class _EventFiltersPageState extends State<EventFiltersPage> {
     return now.add(Duration(days: daysUntilSaturday));
   }
 
-  int _getEventCount() {
-    // TODO: get count from API when available
-    return 24;
-  }
 }

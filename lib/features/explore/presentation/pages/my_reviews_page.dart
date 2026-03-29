@@ -124,20 +124,6 @@ class _ReviewCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                child: review.businessImageUrl != null &&
-                        review.businessImageUrl!.isNotEmpty
-                    ? Image.network(
-                        review.businessImageUrl!,
-                        width: 56,
-                        height: 56,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _placeholder(),
-                      )
-                    : _placeholder(),
-              ),
-              const SizedBox(width: AppResources.spacingM),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,15 +201,6 @@ class _ReviewCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      width: 56,
-      height: 56,
-      color: AppColors.backgroundGrey.withValues(alpha: 0.5),
-      child: const Icon(Icons.store, color: AppColors.textTertiary),
     );
   }
 

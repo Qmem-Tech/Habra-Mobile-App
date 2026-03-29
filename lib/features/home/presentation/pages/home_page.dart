@@ -18,6 +18,10 @@ import 'search_page.dart';
 import 'location_selection_page.dart';
 import '../../../jobs/presentation/pages/job_detail_page.dart';
 import '../../../explore/presentation/pages/business_detail_page.dart';
+import '../../../explore/presentation/pages/deal_detail_page.dart';
+import '../../../explore/presentation/pages/deals_page.dart';
+import '../../../explore/presentation/pages/directory_page.dart';
+import '../../../events/presentation/pages/event_detail_page.dart';
 import '../../../../core/navigation/main_nav_scope.dart';
 import 'notification_page.dart';
 
@@ -362,7 +366,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildEventsSection(List<dynamic> events) {
+  Widget _buildEventsSection(List<Event> events) {
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,7 +414,18 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: events.length,
               itemBuilder: (context, index) {
-                return EventCard(event: events[index]);
+                final event = events[index];
+                return EventCard(
+                  event: event,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EventDetailPage(eventId: event.id),
+                      ),
+                    );
+                  },
+                );
               },
             ),
           ),
@@ -440,7 +455,12 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {}, // TODO: Navigate to all deals
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DealsPage()),
+                    );
+                  },
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     minimumSize: Size.zero,
@@ -465,7 +485,18 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: deals.length,
               itemBuilder: (context, index) {
-                return DealCard(deal: deals[index]);
+                final deal = deals[index];
+                return DealCard(
+                  deal: deal,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DealDetailPage(dealId: deal.id),
+                      ),
+                    );
+                  },
+                );
               },
             ),
           ),
@@ -494,7 +525,12 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {}, // TODO: Navigate to all businesses
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DirectoryPage()),
+                    );
+                  },
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     minimumSize: Size.zero,
@@ -519,7 +555,18 @@ class _HomePageState extends State<HomePage> {
               physics: const NeverScrollableScrollPhysics(),
               itemCount: businesses.length,
               itemBuilder: (context, index) {
-                return BusinessCard(business: businesses[index]);
+                final b = businesses[index];
+                return BusinessCard(
+                  business: b,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BusinessDetailPage(businessId: b.id),
+                      ),
+                    );
+                  },
+                );
               },
             ),
           ),

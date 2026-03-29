@@ -69,6 +69,9 @@ class JobsCubit extends Cubit<JobsState> {
   }
 
   Future<void> toggleBookmark(String jobId, bool isBookmarked) async {
+    final detailBefore = state is JobDetailLoaded ? state as JobDetailLoaded : null;
+    final jobsBefore = state is JobsLoaded ? state as JobsLoaded : null;
+
     final result = await toggleBookmarkUseCase(jobId, isBookmarked);
 
     result.fold(
@@ -76,13 +79,16 @@ class JobsCubit extends Cubit<JobsState> {
         // Handle error silently or show snackbar
       },
       (_) {
-        // Reload jobs to reflect bookmark changes
-        if (state is JobsLoaded) {
-          final currentState = state as JobsLoaded;
+        if (detailBefore != null && detailBefore.jobDetail.id == jobId) {
+          emit(JobDetailLoaded(
+            detailBefore.jobDetail.copyWith(isBookmarked: isBookmarked),
+          ));
+        }
+        if (jobsBefore != null) {
           loadJobs(
-            location: currentState.location,
-            filters: currentState.activeFilters,
-            searchQuery: currentState.searchQuery,
+            location: jobsBefore.location,
+            filters: jobsBefore.activeFilters,
+            searchQuery: jobsBefore.searchQuery,
           );
         }
       },

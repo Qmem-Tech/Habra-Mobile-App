@@ -24,4 +24,7 @@ abstract class AuthRepository {
 
   /// Updates the current user's password (requires recovery session from reset link).
   Future<Either<Failure, void>> updatePassword(String newPassword);
+
+  /// Updates local auth cache (name, avatar, etc.) after profile edits; no remote call.
+  Future<Either<Failure, void>> cacheUserProfile(User user);
 }

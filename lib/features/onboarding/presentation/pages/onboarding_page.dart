@@ -184,72 +184,69 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   Widget _buildOnboardingPage(OnboardingPageData pageData) {
-    return Padding(
-      padding: const EdgeInsets.all(AppResources.spacingL),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Illustration
-          Flexible(
-            flex: 4,
-            child: Image.asset(
-              pageData.imageAsset,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                // Fallback placeholder
-                return Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.backgroundLight,
-                    borderRadius: BorderRadius.circular(AppResources.radiusL),
-                  ),
-                  child: const Icon(
-                    Icons.image,
-                    size: 110,
-                    color: AppColors.textTertiary,
-                  ),
-                );
-              },
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxImage = (constraints.maxHeight * 0.52).clamp(140.0, 280.0);
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppResources.spacingL,
+            vertical: AppResources.spacingS,
           ),
-
-          const SizedBox(height: AppResources.spacingM),
-
-          // Title + description (scrollable on small screens)
-          Flexible(
-            flex: 1,
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    pageData.title,
-                    style: AppTextStyles.largeTitle(context, color: AppColors.textPrimary),
-                    textAlign: TextAlign.center,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  height: maxImage,
+                  width: double.infinity,
+                  child: Image.asset(
+                    pageData.imageAsset,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundLight,
+                          borderRadius: BorderRadius.circular(AppResources.radiusL),
+                        ),
+                        child: const Icon(
+                          Icons.image,
+                          size: 110,
+                          color: AppColors.textTertiary,
+                        ),
+                      );
+                    },
                   ),
+                ),
+                const SizedBox(height: AppResources.spacingM),
+                Text(
+                  pageData.title,
+                  style: AppTextStyles.largeTitle(context, color: AppColors.textPrimary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppResources.spacingM),
+                Text(
+                  pageData.description,
+                  style: AppTextStyles.bodyDescription(context),
+                  textAlign: TextAlign.center,
+                ),
+                if (pageData.pageIndex == 2) ...[
                   const SizedBox(height: AppResources.spacingM),
                   Text(
-                    pageData.description,
-                    style: AppTextStyles.bodyDescription(context),
+                    '(Together we succeed)',
+                    style: AppTextStyles.bodyDescription(
+                      context,
+                      color: AppColors.textTertiary,
+                    ),
                     textAlign: TextAlign.center,
                   ),
-                  if (pageData.pageIndex == 2) ...[
-                    const SizedBox(height: AppResources.spacingM),
-                    Text(
-                      '(Together we succeed)',
-                      style: AppTextStyles.bodyDescription(
-                        context,
-                        color: AppColors.textTertiary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
                 ],
-              ),
+              ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

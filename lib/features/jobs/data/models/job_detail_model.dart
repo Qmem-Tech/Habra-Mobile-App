@@ -24,6 +24,7 @@ class JobDetailModel extends JobDetail {
     super.isRemote = false,
     super.latitude,
     super.longitude,
+    super.isBookmarked = false,
   });
 
   factory JobDetailModel.fromJson(Map<String, dynamic> json) =>
@@ -51,6 +52,7 @@ class JobDetailModel extends JobDetail {
       isRemote: entity.isRemote,
       latitude: entity.latitude,
       longitude: entity.longitude,
+      isBookmarked: entity.isBookmarked,
     );
   }
 }

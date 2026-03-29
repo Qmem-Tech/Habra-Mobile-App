@@ -6,6 +6,8 @@ import '../../../../core/services/image_picker_service.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
+import '../../../auth/presentation/bloc/auth_cubit.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../profile/domain/entities/user_profile.dart';
 import '../../../profile/domain/repositories/profile_repository.dart';
 import '../../../profile/presentation/bloc/edit_profile_cubit.dart';
@@ -121,6 +123,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
         }
         if (state is EditProfileSaveSuccess) {
           _avatarUrl = state.profile.avatarUrl;
+          final auth = context.read<AuthCubit>().state;
+          if (auth is AuthAuthenticated) {
+            final u = auth.user;
+            final updated = User(
+              id: u.id,
+              email: u.email,
+              name: state.profile.fullName,
+              role: u.role,
+              avatarUrl: state.profile.avatarUrl,
+            );
+            context.read<AuthCubit>().applyProfileEditsToSession(updated);
+          }
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Profile updated'),

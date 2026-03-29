@@ -13,12 +13,15 @@ class User extends Equatable {
   final String email;
   final String name;
   final UserRole role;
+  /// Public avatar from `profiles.avatar_url` when available.
+  final String? avatarUrl;
 
   const User({
     required this.id,
     required this.email,
     required this.name,
     required this.role,
+    this.avatarUrl,
   });
 
   bool get isGuest => role == UserRole.guest;
@@ -27,5 +30,5 @@ class User extends Equatable {
   bool get isAdmin => role == UserRole.admin;
 
   @override
-  List<Object> get props => [id, email, name, role];
+  List<Object?> get props => [id, email, name, role, avatarUrl];
 }

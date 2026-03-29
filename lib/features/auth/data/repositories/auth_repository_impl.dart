@@ -2,6 +2,7 @@ import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
 import '../datasources/auth_local_datasource.dart';
+import '../models/user_model.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/network_info.dart';
@@ -176,6 +177,24 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final user = await localDataSource.getCachedUser();
       return Right(user);
+    } on CacheException catch (e) {
+      return Left(CacheFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> cacheUserProfile(User user) async {
+    try {
+      await localDataSource.cacheUser(
+        UserModel(
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          avatarUrl: user.avatarUrl,
+        ),
+      );
+      return const Right(null);
     } on CacheException catch (e) {
       return Left(CacheFailure(e.message));
     }

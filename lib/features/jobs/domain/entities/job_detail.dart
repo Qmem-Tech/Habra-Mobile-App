@@ -20,6 +20,7 @@ class JobDetail extends Equatable {
   final bool isRemote;
   final double? latitude;
   final double? longitude;
+  final bool isBookmarked;
 
   const JobDetail({
     required this.id,
@@ -40,7 +41,32 @@ class JobDetail extends Equatable {
     this.isRemote = false,
     this.latitude,
     this.longitude,
+    this.isBookmarked = false,
   });
+
+  JobDetail copyWith({bool? isBookmarked}) {
+    return JobDetail(
+      id: id,
+      title: title,
+      companyName: companyName,
+      companyId: companyId,
+      companyLogoUrl: companyLogoUrl,
+      companyRating: companyRating,
+      jobType: jobType,
+      salary: salary,
+      location: location,
+      postedDate: postedDate,
+      description: description,
+      requirements: requirements,
+      benefits: benefits,
+      category: category,
+      isFeatured: isFeatured,
+      isRemote: isRemote,
+      latitude: latitude,
+      longitude: longitude,
+      isBookmarked: isBookmarked ?? this.isBookmarked,
+    );
+  }
 
   @override
   List<Object?> get props => [
@@ -60,7 +86,8 @@ class JobDetail extends Equatable {
         category,
         isFeatured,
         isRemote,
-        latitude,
-        longitude,
+    latitude,
+    longitude,
+    isBookmarked,
       ];
 }

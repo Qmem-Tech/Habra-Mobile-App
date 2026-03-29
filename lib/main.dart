@@ -12,6 +12,7 @@ import 'core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/localization/localization_cubit.dart';
 import 'features/auth/presentation/bloc/auth_cubit.dart';
+import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/domain/usecases/login_usecase.dart';
 import 'features/auth/domain/usecases/logout_usecase.dart';
 import 'features/auth/domain/usecases/register_usecase.dart';
@@ -129,6 +130,7 @@ class MyApp extends StatelessWidget {
             resetPasswordForEmailUseCase: di.sl<ResetPasswordForEmailUseCase>(),
             updatePasswordUseCase: di.sl<UpdatePasswordUseCase>(),
             revenueCatService: di.sl<RevenueCatService>(),
+            authRepository: di.sl<AuthRepository>(),
           ),
         ),
         BlocProvider(

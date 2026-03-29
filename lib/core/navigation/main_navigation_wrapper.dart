@@ -23,6 +23,8 @@ class MainNavigationWrapper extends StatefulWidget {
   final String? userEmail;
   /// Full user for Profile tab. When null, Profile tab still shown but may show placeholder.
   final User? user;
+  /// Profile photo for drawer header (same source as [User.avatarUrl] when available).
+  final String? userAvatarUrl;
 
   const MainNavigationWrapper({
     super.key,
@@ -33,6 +35,7 @@ class MainNavigationWrapper extends StatefulWidget {
     this.userName,
     this.userEmail,
     this.user,
+    this.userAvatarUrl,
   });
 
   static void navigateToTab(BuildContext context, int index) {
@@ -92,6 +95,7 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
               userId: widget.userId!,
               userName: widget.userName!,
               userEmail: widget.userEmail ?? '',
+              avatarUrl: widget.userAvatarUrl ?? widget.user?.avatarUrl,
             )
           : null,
       body: MainNavScope(

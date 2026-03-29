@@ -114,6 +114,17 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
       }
       final desc = parseString(row['description']);
       final reqList = desc != null && desc.isNotEmpty ? desc.split('\n').where((e) => e.trim().isNotEmpty).toList() : <String>[];
+      final userId = _client.auth.currentUser?.id;
+      bool bookmarked = false;
+      if (userId != null) {
+        final bm = await _client
+            .from('job_bookmarks')
+            .select('job_id')
+            .eq('user_id', userId)
+            .eq('job_id', parseStringRequired(row['id']))
+            .maybeSingle();
+        bookmarked = bm != null;
+      }
       return JobDetail(
         id: parseStringRequired(row['id']),
         title: parseStringRequired(row['title']),
@@ -133,6 +144,7 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
         isRemote: parseString(row['location'])?.toLowerCase().contains('remote') ?? false,
         latitude: null,
         longitude: null,
+        isBookmarked: bookmarked,
       );
     });
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_share.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/job_applications_cubit.dart';
@@ -158,19 +160,25 @@ class JobDetailPage extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.share),
           onPressed: () {
-            // TODO: Implement share
+            final buf = StringBuffer('${job.title} — ${job.companyName}');
+            if (job.location != null && job.location!.isNotEmpty) {
+              buf.write('\n${job.location}');
+            }
+            buf.write('\n\nJob on Habra');
+            shareText(buf.toString(), subject: job.title);
           },
         ),
-        BlocBuilder<JobsCubit, JobsState>(
-          builder: (context, state) {
-            // TODO: track bookmark from cubit and toggle on pressed
-            return IconButton(
-              icon: const Icon(Icons.bookmark_border),
-              color: AppColors.textPrimary,
-              onPressed: () {
-                // TODO: Toggle bookmark
-              },
-            );
+        IconButton(
+          icon: Icon(job.isBookmarked ? Icons.bookmark : Icons.bookmark_border),
+          color: AppColors.textPrimary,
+          onPressed: () {
+            if (Supabase.instance.client.auth.currentUser == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Sign in to save jobs')),
+              );
+              return;
+            }
+            context.read<JobsCubit>().toggleBookmark(job.id, !job.isBookmarked);
           },
         ),
       ],

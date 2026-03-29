@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_share.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -94,11 +96,22 @@ class BusinessDetailPage extends StatelessWidget {
       actions: [
         IconButton(
           icon: const Icon(Icons.share, color: Colors.white),
-          onPressed: () {},
+          onPressed: () {
+            final name = business.name as String? ?? 'Business';
+            final addr = business.fullAddress as String? ?? '';
+            shareText(
+              addr.isNotEmpty ? '$name\n$addr' : name,
+              subject: name,
+            );
+          },
         ),
         IconButton(
           icon: const Icon(Icons.bookmark_border, color: Colors.white),
-          onPressed: () {},
+          onPressed: () {
+            // saved_items table only supports event/deal; share is the supported “save” path for businesses today.
+            final name = business.name as String? ?? 'Business';
+            shareText('Saved via Habra: $name', subject: name);
+          },
         ),
       ],
     );
@@ -197,9 +210,7 @@ class BusinessDetailPage extends StatelessWidget {
             child: _buildActionButton(
               icon: Icons.phone,
               label: 'Call',
-              onTap: () {
-                // Handle call
-              },
+              onTap: () => _launchDialer(context, business.phoneNumber as String?),
             ),
           ),
           const SizedBox(width: 12),
@@ -223,16 +234,6 @@ class BusinessDetailPage extends StatelessWidget {
                     ),
                   ),
                 );
-              },
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildActionButton(
-              icon: Icons.chat_bubble_outline,
-              label: 'Chat',
-              onTap: () {
-                // Handle chat
               },
             ),
           ),
@@ -688,6 +689,30 @@ class BusinessDetailPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static Future<void> _launchDialer(BuildContext context, String? raw) async {
+    if (raw == null || raw.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No phone number available')),
+      );
+      return;
+    }
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No valid phone number')),
+      );
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: digits);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot open phone dialer')),
+      );
+    }
   }
 
   Widget _buildErrorView(BuildContext context, String message) {

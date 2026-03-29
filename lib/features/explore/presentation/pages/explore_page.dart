@@ -47,6 +47,19 @@ class _ExplorePageState extends State<ExplorePage> {
     super.dispose();
   }
 
+  /// Opens directory; respects last tapped category chip (not just "All").
+  void _openDirectory(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DirectoryPage(
+          initialCategory:
+              _selectedCategory == BusinessCategory.all ? null : _selectedCategory,
+        ),
+      ),
+    );
+  }
+
   Future<void> _loadData(BuildContext context) async {
     if (!context.mounted) return;
     await context.read<BusinessesCubit>().loadBusinesses(
@@ -198,12 +211,7 @@ class _ExplorePageState extends State<ExplorePage> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const DirectoryPage()),
-          );
-        },
+        onTap: () => _openDirectory(context),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
@@ -324,12 +332,7 @@ class _ExplorePageState extends State<ExplorePage> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const DirectoryPage()),
-                        );
-                      },
+                      onTap: () => _openDirectory(context),
                       child: const Text(
                         'View All >',
                         style: TextStyle(
@@ -502,12 +505,7 @@ class _ExplorePageState extends State<ExplorePage> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const DirectoryPage()),
-                        );
-                      },
+                      onTap: () => _openDirectory(context),
                       child: const Text(
                         'View All >',
                         style: TextStyle(

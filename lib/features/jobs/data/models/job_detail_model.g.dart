@@ -36,6 +36,7 @@ JobDetailModel _$JobDetailModelFromJson(Map<String, dynamic> json) =>
       isRemote: json['isRemote'] as bool? ?? false,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
+      isBookmarked: json['isBookmarked'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$JobDetailModelToJson(JobDetailModel instance) =>
@@ -58,4 +59,5 @@ Map<String, dynamic> _$JobDetailModelToJson(JobDetailModel instance) =>
       'isRemote': instance.isRemote,
       'latitude': instance.latitude,
       'longitude': instance.longitude,
+      'isBookmarked': instance.isBookmarked,
     };

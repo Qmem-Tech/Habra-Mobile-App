@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_share.dart';
+import '../../../../injection/injection_container.dart' as di;
+import '../../../saved_items/domain/entities/saved_item.dart';
+import '../../../saved_items/domain/usecases/save_item_usecase.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/event_detail.dart';
 import '../bloc/events_cubit.dart';
 import '../bloc/events_state.dart';
@@ -47,7 +51,7 @@ class EventDetailPage extends StatelessWidget {
     final event = state.event;
     return CustomScrollView(
       slivers: [
-        _buildAppBar(context, event.imageUrl),
+        _buildAppBar(context, event),
         SliverToBoxAdapter(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,7 +69,8 @@ class EventDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildAppBar(BuildContext context, String imageUrl) {
+  Widget _buildAppBar(BuildContext context, EventDetail event) {
+    final imageUrl = event.imageUrl;
     return SliverAppBar(
       expandedHeight: 300,
       pinned: true,
@@ -113,7 +118,12 @@ class EventDetailPage extends StatelessWidget {
             ),
             child: const Icon(Icons.share, color: Colors.white),
           ),
-          onPressed: () {},
+          onPressed: () {
+            shareText(
+              '${event.title}\n${event.venue}\n${event.fullAddress}',
+              subject: event.title,
+            );
+          },
         ),
         IconButton(
           icon: Container(
@@ -124,7 +134,27 @@ class EventDetailPage extends StatelessWidget {
             ),
             child: const Icon(Icons.bookmark, color: Colors.white),
           ),
-          onPressed: () {},
+          onPressed: () async {
+            if (Supabase.instance.client.auth.currentUser == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Sign in to save events')),
+              );
+              return;
+            }
+            final result = await di.sl<SaveItemUseCase>()(
+              itemType: SavedItemType.event,
+              referenceId: event.id,
+            );
+            if (!context.mounted) return;
+            result.fold(
+              (f) => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(f.message)),
+              ),
+              (_) => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Event saved to your list')),
+              ),
+            );
+          },
         ),
       ],
     );

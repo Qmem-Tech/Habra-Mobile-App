@@ -5,9 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/constants/supabase_tables.dart';
-import '../../../../core/services/image_picker_service.dart';
-import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/error_display_helper.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -42,7 +39,6 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
 
   String _phoneNumber = '';
   File? _resumeFile;
-  File? _photoFile;
   String? _selectedScreeningAnswer;
 
   @override
@@ -75,15 +71,6 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
     _emailController.dispose();
     _coverLetterController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickPhoto() async {
-    final ctx = context;
-    final file = await di.sl<ImagePickerService>().pickImage(ctx);
-    if (!ctx.mounted) return;
-    if (file != null) {
-      setState(() => _photoFile = file);
-    }
   }
 
   Future<void> _pickResume() async {
@@ -133,25 +120,6 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
       resumeUrl = url;
     }
 
-    String? photoUrl;
-    if (_photoFile != null) {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId != null) {
-        try {
-          photoUrl = await di.sl<StorageService>().uploadImage(
-            SupabaseBuckets.applicantPhotos,
-            '$userId/${widget.jobId}',
-            _photoFile!,
-          );
-        } catch (e) {
-          if (mounted) {
-            ErrorDisplayHelper.show(context, error: e, title: 'Photo upload failed');
-          }
-          return;
-        }
-      }
-    }
-
     if (!mounted) return;
     context.read<JobApplicationsCubit>().submitApplication(
           jobId: widget.jobId,
@@ -162,7 +130,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
           coverLetter: _coverLetterController.text.isEmpty
               ? null
               : _coverLetterController.text,
-          photoUrl: photoUrl,
+          photoUrl: null,
           screeningAnswers: _selectedScreeningAnswer != null
               ? {
                   'Are you legally authorized to work in the United States?':
@@ -206,8 +174,6 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
                   _buildContactSection(),
                   const SizedBox(height: 24),
                   _buildResumeSection(),
-                  const SizedBox(height: 24),
-                  _buildPhotoSection(),
                   const SizedBox(height: 24),
                   _buildCoverLetterSection(),
                   const SizedBox(height: 24),
@@ -371,78 +337,6 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
             }
             return null;
           },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPhotoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Text(
-              'Profile Photo',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Optional',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.textTertiary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        GestureDetector(
-          onTap: _pickPhoto,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.backgroundLight,
-              border: Border.all(
-                color: AppColors.backgroundGrey,
-                width: 1,
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                if (_photoFile != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      _photoFile!,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                else
-                  Icon(
-                    Icons.add_a_photo_outlined,
-                    size: 40,
-                    color: AppColors.textTertiary,
-                  ),
-                const SizedBox(height: 12),
-                Text(
-                  _photoFile != null ? 'Change photo' : 'Add a photo (optional)',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ],
     );

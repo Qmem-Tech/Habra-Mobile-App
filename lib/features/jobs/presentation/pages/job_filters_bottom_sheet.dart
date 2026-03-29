@@ -70,11 +70,6 @@ class _JobFiltersBottomSheetState extends State<JobFiltersBottomSheet> {
     });
   }
 
-  int _getJobCount() {
-    // TODO: get count from API when available
-    return 24;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -172,7 +167,7 @@ class _JobFiltersBottomSheetState extends State<JobFiltersBottomSheet> {
                     ),
                   ),
                   child: Text(
-                    'Show ${_getJobCount()} Jobs',
+                    'Apply filters',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

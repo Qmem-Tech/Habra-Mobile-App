@@ -19,7 +19,11 @@ class SearchCubit extends Cubit<SearchState> {
     final result = await searchRepository.getRecentSearches();
     result.fold(
       (failure) => null,
-      (searches) => emit(SearchInitial(recentSearches: searches)),
+      (searches) => emit(SearchInitial(
+        recentSearches: searches,
+        trendingSearches: state.trendingSearches,
+        selectedCategory: state.selectedCategory,
+      )),
     );
   }
 
@@ -33,9 +37,13 @@ class SearchCubit extends Cubit<SearchState> {
           emit(SearchInitial(
             recentSearches: currentState.recentSearches,
             trendingSearches: trending,
+            selectedCategory: currentState.selectedCategory,
           ));
         } else {
-          emit(SearchInitial(trendingSearches: trending));
+          emit(SearchInitial(
+            trendingSearches: trending,
+            selectedCategory: currentState.selectedCategory,
+          ));
         }
       },
     );
@@ -46,6 +54,7 @@ class SearchCubit extends Cubit<SearchState> {
       emit(SearchInitial(
         recentSearches: state.recentSearches,
         trendingSearches: state.trendingSearches,
+        selectedCategory: category,
       ));
       return;
     }
@@ -53,6 +62,7 @@ class SearchCubit extends Cubit<SearchState> {
     emit(SearchLoading(
       recentSearches: state.recentSearches,
       trendingSearches: state.trendingSearches,
+      selectedCategory: category,
     ));
 
     final result = await searchUseCase(query, category, location);
@@ -61,6 +71,7 @@ class SearchCubit extends Cubit<SearchState> {
         failure.message,
         recentSearches: state.recentSearches,
         trendingSearches: state.trendingSearches,
+        selectedCategory: category,
       )),
       (results) => emit(SearchResultsLoaded(
         results: results,
@@ -68,6 +79,7 @@ class SearchCubit extends Cubit<SearchState> {
         category: category,
         recentSearches: state.recentSearches,
         trendingSearches: state.trendingSearches,
+        selectedCategory: category,
       )),
     );
   }
@@ -79,6 +91,7 @@ class SearchCubit extends Cubit<SearchState> {
       (_) => emit(SearchInitial(
         recentSearches: [],
         trendingSearches: state.trendingSearches,
+        selectedCategory: state.selectedCategory,
       )),
     );
   }

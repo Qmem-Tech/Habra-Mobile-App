@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../auth/domain/entities/user.dart';
+import '../../../auth/presentation/bloc/auth_cubit.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../bloc/home_cubit.dart';
@@ -21,17 +23,29 @@ class CustomerHomePage extends StatelessWidget {
         BlocProvider(create: (_) => di.sl<SearchCubit>()),
         BlocProvider(create: (_) => di.sl<NotificationCubit>()),
       ],
-      child: MainNavigationWrapper(
-        initialIndex: 0,
-        userId: user.id,
-        userName: user.name,
-        userEmail: user.email,
-        user: user,
-        homePage: HomePage(
-          userId: user.id,
-          userName: user.name,
-          currentLocation: null, // TODO: Get from location service or storage
-        ),
+      child: BlocBuilder<AuthCubit, AuthState>(
+        buildWhen: (prev, curr) {
+          if (curr is! AuthAuthenticated) return false;
+          final prevUser = prev is AuthAuthenticated ? prev.user : null;
+          return prevUser != curr.user;
+        },
+        builder: (context, authState) {
+          final effective =
+              authState is AuthAuthenticated ? authState.user : user;
+          return MainNavigationWrapper(
+            initialIndex: 0,
+            userId: effective.id,
+            userName: effective.name,
+            userEmail: effective.email,
+            user: effective,
+            userAvatarUrl: effective.avatarUrl,
+            homePage: HomePage(
+              userId: effective.id,
+              userName: effective.name,
+              currentLocation: null, // TODO: Get from location service or storage
+            ),
+          );
+        },
       ),
     );
   }

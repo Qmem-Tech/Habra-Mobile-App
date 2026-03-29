@@ -9,6 +9,7 @@ import '../../domain/usecases/resend_verification_email_usecase.dart';
 import '../../domain/usecases/reset_password_for_email_usecase.dart';
 import '../../domain/usecases/update_password_usecase.dart';
 import '../../domain/entities/user.dart';
+import '../../domain/repositories/auth_repository.dart';
 import '../../../../core/error/failures.dart';
 import 'auth_state.dart';
 
@@ -22,6 +23,7 @@ class AuthCubit extends Cubit<AuthState> {
   final ResetPasswordForEmailUseCase resetPasswordForEmailUseCase;
   final UpdatePasswordUseCase updatePasswordUseCase;
   final RevenueCatService revenueCatService;
+  final AuthRepository authRepository;
 
   AuthCubit({
     required this.loginUseCase,
@@ -33,6 +35,7 @@ class AuthCubit extends Cubit<AuthState> {
     required this.resetPasswordForEmailUseCase,
     required this.updatePasswordUseCase,
     required this.revenueCatService,
+    required this.authRepository,
   }) : super(AuthInitial());
 
   Future<void> login(String email, String password) async {
@@ -151,5 +154,11 @@ class AuthCubit extends Cubit<AuthState> {
   /// Resets to initial state (e.g. when leaving forgot-password success screen).
   void resetToInitial() {
     emit(AuthInitial());
+  }
+
+  /// After profile save: refresh session user + disk cache so drawer / shell update.
+  Future<void> applyProfileEditsToSession(User updated) async {
+    await authRepository.cacheUserProfile(updated);
+    emit(AuthAuthenticated(updated));
   }
 }

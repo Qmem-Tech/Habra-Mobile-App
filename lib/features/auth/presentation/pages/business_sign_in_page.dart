@@ -270,8 +270,8 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
                                       }
                                     },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.brandPrimary,
-                                foregroundColor: AppColors.textOnPrimary,
+                                backgroundColor: AppColors.brandSecondary,
+                                foregroundColor: AppColors.textPrimary,
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                                 shape: RoundedRectangleBorder(
@@ -284,12 +284,12 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
                                       width: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.textPrimary),
                                       ),
                                     )
                                   : Text(
                                       'Sign In',
-                                      style: AppFonts.button(color: AppColors.textOnPrimary).copyWith(
+                                      style: AppFonts.button(color: AppColors.textPrimary).copyWith(
                                         height: 1.0,
                                       ),
                                       textAlign: TextAlign.center,

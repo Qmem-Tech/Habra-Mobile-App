@@ -93,16 +93,16 @@ class SignUpOptionsPage extends StatelessWidget {
             children: [
               const SizedBox(height: AppResources.spacingXL),
 
-              // Title with highlighted "User"
+              // Title aligned with business sign-in pattern (Figma: Community + sign up)
               RichText(
                 text: TextSpan(
                   style: AppFonts.largeTitle(color: AppColors.textPrimary),
                   children: [
                     TextSpan(
-                      text: 'User ',
+                      text: 'Community ',
                       style: AppFonts.largeTitle(color: AppColors.brandSecondary),
                     ),
-                    const TextSpan(text: 'account sign up'),
+                    const TextSpan(text: 'sign up'),
                   ],
                 ),
               ),

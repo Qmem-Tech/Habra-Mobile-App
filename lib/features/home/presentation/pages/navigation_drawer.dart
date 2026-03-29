@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
@@ -12,17 +13,20 @@ import '../../../saved_items/presentation/pages/saved_items_page.dart';
 import '../../../explore/presentation/pages/my_reviews_page.dart';
 import '../../../jobs/presentation/pages/my_applications_page.dart';
 import '../../../jobs/presentation/bloc/job_applications_cubit.dart';
+import '../../../events/presentation/pages/my_tickets_page.dart';
 
 class NavigationDrawer extends StatelessWidget {
   final String userId;
   final String userName;
   final String userEmail;
+  final String? avatarUrl;
 
   const NavigationDrawer({
     super.key,
     required this.userId,
     required this.userName,
     required this.userEmail,
+    this.avatarUrl,
   });
 
   @override
@@ -76,17 +80,37 @@ class NavigationDrawer extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Center(
-                  child: Text(
-                    userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: -1,
-                    ),
-                  ),
-                ),
+                child: avatarUrl != null && avatarUrl!.isNotEmpty
+                    ? ClipOval(
+                        child: Image.network(
+                          avatarUrl!,
+                          width: 88,
+                          height: 88,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(
+                              userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                              style: const TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: -1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                          style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: -1,
+                          ),
+                        ),
+                      ),
               ),
               // Online indicator
               Positioned(
@@ -144,6 +168,7 @@ class NavigationDrawer extends StatelessWidget {
                 email: userEmail.isNotEmpty ? userEmail : 'user@example.com',
                 name: userName,
                 role: UserRole.customer,
+                avatarUrl: avatarUrl,
               );
               if (!context.mounted) return;
               Navigator.push(
@@ -189,16 +214,7 @@ class NavigationDrawer extends StatelessWidget {
         title: 'Events',
         onTap: () {
           Navigator.pop(context);
-          // TODO: Navigate to events page
-        },
-      ),
-      _MenuItemData(
-        icon: Icons.groups_outlined,
-        activeIcon: Icons.groups,
-        title: 'Community Groups',
-        onTap: () {
-          Navigator.pop(context);
-          // TODO: Navigate to community groups
+          MainNavigationWrapper.navigateToTab(context, 1);
         },
       ),
       _MenuItemData(
@@ -207,7 +223,11 @@ class NavigationDrawer extends StatelessWidget {
         title: 'My Tickets',
         onTap: () {
           Navigator.pop(context);
-          // TODO: Navigate to tickets
+          if (!context.mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MyTicketsPage()),
+          );
         },
       ),
       _MenuItemData(
