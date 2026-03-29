@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../../../core/constants/support_contact.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -27,6 +30,7 @@ import '../../../../injection/injection_container.dart' as di;
 import '../../../events/presentation/bloc/create_event_cubit.dart';
 import '../../../events/presentation/pages/create_event_page.dart';
 import '../../../dashboard/presentation/pages/job_applicants_page.dart';
+import '../../../dashboard/domain/repositories/dashboard_repository.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../dashboard/presentation/widgets/business_images_upload_dialog.dart';
 import '../../../dashboard/presentation/widgets/choose_business_for_images_dialog.dart';
@@ -50,8 +54,11 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _imagesDialogShownThisSession = false;
   bool _legalDocsDialogShownThisSession = false;
-  bool _selectedBusinessNeedsLegalDocs = false;
+  bool _selectedBusinessMissingLegalDocs = false;
+  bool _selectedBusinessLegalRejected = false;
+  List<String> _selectedBusinessLegalRejectionReasons = [];
   bool _selectedBusinessLegalAwaitingReview = false;
+  bool _selectedBusinessLegalDocsApproved = false;
 
   /// Session dismissals for home info banners (under review, legal pending, etc.).
   final Set<String> _dismissedHomeBannerKeys = <String>{};
@@ -211,11 +218,12 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       final status = await dashboardCubit.getLegalDocumentsStatus(businessId);
       if (!mounted) return;
       setState(() {
-        _selectedBusinessNeedsLegalDocs = status.needsOwnerAction;
-        _selectedBusinessLegalAwaitingReview = status.awaitingLegalDocReview;
+        _applyLegalStatusToSelectionState(status);
         _lastCheckedPresenceId = businessId;
         _dismissedHomeBannerKeys.remove('legal_pending_$businessId');
         _dismissedHomeBannerKeys.remove('legal_required_$businessId');
+        _dismissedHomeBannerKeys.remove('legal_rejected_$businessId');
+        _dismissedHomeBannerKeys.remove('legal_approved_$businessId');
       });
     } catch (_) {
       if (mounted) {
@@ -256,15 +264,28 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     });
   }
 
+  void _applyLegalStatusToSelectionState(LegalDocumentsStatus status) {
+    _selectedBusinessMissingLegalDocs = status.missingInitialUpload;
+    _selectedBusinessLegalRejected = status.hasRejected;
+    _selectedBusinessLegalRejectionReasons = List<String>.from(status.rejectionReasons);
+    _selectedBusinessLegalAwaitingReview = status.awaitingLegalDocReview;
+    _selectedBusinessLegalDocsApproved = status.showLegalApprovalSuccess;
+  }
+
   void _checkSelectedBusinessLegalDocs(BusinessOwnerHomeLoaded state) {
     final selected = state.selectedPresence;
     if (selected == null || selected.id == 'all') {
-      if (_selectedBusinessNeedsLegalDocs ||
+      if (_selectedBusinessMissingLegalDocs ||
           _selectedBusinessLegalAwaitingReview ||
+          _selectedBusinessLegalRejected ||
+          _selectedBusinessLegalDocsApproved ||
           _lastCheckedPresenceId != null) {
         setState(() {
-          _selectedBusinessNeedsLegalDocs = false;
+          _selectedBusinessMissingLegalDocs = false;
           _selectedBusinessLegalAwaitingReview = false;
+          _selectedBusinessLegalRejected = false;
+          _selectedBusinessLegalRejectionReasons = [];
+          _selectedBusinessLegalDocsApproved = false;
           _lastCheckedPresenceId = null;
         });
       }
@@ -278,14 +299,16 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         final status = await context.read<DashboardCubit>().getLegalDocumentsStatus(selected.id);
         if (!mounted) return;
         setState(() {
-          _selectedBusinessNeedsLegalDocs = status.needsOwnerAction;
-          _selectedBusinessLegalAwaitingReview = status.awaitingLegalDocReview;
+          _applyLegalStatusToSelectionState(status);
         });
       } catch (_) {
         if (!mounted) return;
         setState(() {
-          _selectedBusinessNeedsLegalDocs = true;
+          _selectedBusinessMissingLegalDocs = false;
+          _selectedBusinessLegalRejected = false;
+          _selectedBusinessLegalRejectionReasons = [];
           _selectedBusinessLegalAwaitingReview = false;
+          _selectedBusinessLegalDocsApproved = false;
         });
       } finally {
         _checkingLegalDocsForPresence = false;
@@ -302,12 +325,13 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           await context.read<DashboardCubit>().getLegalDocumentsStatus(selected.id);
       if (!mounted) return;
       if (!status.needsOwnerAction) {
+        final msg = status.showLegalApprovalSuccess
+            ? 'Your legal documents are already approved.'
+            : 'Legal documents are already submitted or under review. Upload again only if we rejected a file or asked for a replacement.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             showCloseIcon: true,
-            content: const Text(
-              'Legal documents are already submitted or under review. You only need to upload again if we rejected a file.',
-            ),
+            content: Text(msg),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -608,16 +632,27 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
               _buildBannerTitleRow(presence),
               if (presence != null && presence.isPendingApproval)
                 _buildUnderReviewNotice('under_review_${presence.id}'),
-              if (_selectedBusinessNeedsLegalDocs && presence != null)
+              if (_selectedBusinessLegalRejected && presence != null)
+                _buildLegalDocsRejectedNotice(
+                  dismissKey: 'legal_rejected_${presence.id}',
+                  reasons: _selectedBusinessLegalRejectionReasons,
+                ),
+              if (_selectedBusinessMissingLegalDocs && presence != null)
                 _buildLegalDocsRequiredNotice(
                   singleBusiness: true,
                   dismissKey: 'legal_required_${presence.id}',
                 ),
-              if (!_selectedBusinessNeedsLegalDocs &&
+              if (!_selectedBusinessMissingLegalDocs &&
+                  !_selectedBusinessLegalRejected &&
                   _selectedBusinessLegalAwaitingReview &&
                   presence != null)
                 _buildLegalDocsPendingReviewNotice(
                   'legal_pending_${presence.id}',
+                ),
+              if (_selectedBusinessLegalDocsApproved && presence != null)
+                _buildLegalAndListingApprovedNotice(
+                  dismissKey: 'legal_approved_${presence.id}',
+                  presence: presence,
                 ),
               if (presence != null)
                 Padding(
@@ -1375,6 +1410,198 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         ],
       ),
     );
+  }
+
+  Widget _buildLegalDocsRejectedNotice({
+    required String dismissKey,
+    required List<String> reasons,
+  }) {
+    return _buildDismissibleHomeBanner(
+      dismissKey: dismissKey,
+      backgroundColor: AppColors.error.withValues(alpha: 0.08),
+      borderColor: AppColors.error.withValues(alpha: 0.35),
+      outerPadding: const EdgeInsets.fromLTRB(
+        AppResources.spacingM,
+        8,
+        AppResources.spacingM,
+        8,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.error_outline, color: AppColors.error, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Document update required',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.error,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppResources.spacingS),
+          const Text(
+            'A reviewer could not accept your submission. Please upload corrected files.',
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.textPrimary,
+              height: 1.35,
+            ),
+          ),
+          if (reasons.isNotEmpty) ...[
+            const SizedBox(height: AppResources.spacingS),
+            const Text(
+              'Details from the reviewer:',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            ...reasons.map(
+              (r) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('• ', style: TextStyle(color: AppColors.textSecondary)),
+                    Expanded(
+                      child: Text(
+                        r,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textPrimary,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: AppResources.spacingS),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              TextButton(
+                onPressed: _openLegalDocsRequiredFlow,
+                child: const Text('Upload replacement'),
+              ),
+              TextButton(
+                onPressed: () => _openSupportEmail(
+                  subject: 'Habra — legal document question',
+                ),
+                child: const Text('Contact support'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegalAndListingApprovedNotice({
+    required String dismissKey,
+    required BusinessPresence presence,
+  }) {
+    final listingApproved =
+        (presence.statusText ?? '').toLowerCase() == 'approved';
+    final body = listingApproved
+        ? 'Your legal documents are approved and your business listing is approved. You can use the dashboard, deals, jobs, and boosts as usual.'
+        : 'Your legal documents are approved. If your business listing still shows as pending, it will update after our team completes the final listing review.';
+
+    return _buildDismissibleHomeBanner(
+      dismissKey: dismissKey,
+      backgroundColor: Colors.green.shade50,
+      borderColor: Colors.green.shade200,
+      outerPadding: const EdgeInsets.fromLTRB(
+        AppResources.spacingM,
+        8,
+        AppResources.spacingM,
+        8,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.check_circle_outline, color: Colors.green.shade700, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  listingApproved ? 'You’re all set' : 'Documents approved',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.green.shade900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppResources.spacingS),
+          Text(
+            body,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.green.shade900,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openSupportEmail({required String subject}) async {
+    if (kSupportEmail.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Support email is not configured in the app build. Reach out through your usual Habra support channel.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    final uri = Uri(
+      scheme: 'mailto',
+      path: kSupportEmail,
+      queryParameters: {'subject': subject},
+    );
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Email us at $kSupportEmail'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Email us at $kSupportEmail'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildSnapshotCards(OwnerSnapshotMetrics snapshot) {

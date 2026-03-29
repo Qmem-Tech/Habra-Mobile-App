@@ -2,7 +2,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Resolves the Supabase auth user id for notification queries.
 ///
-/// **API:** `notifications.user_id` is assumed to match `auth.users.id`.
+/// **API:** Recipient column on `notifications` defaults to `user_id` (see
+/// [kNotificationsRecipientColumn]); must match `auth.uid()` / `profiles.id`.
 /// Passing a placeholder (e.g. `'current_user'`) breaks the query; always prefer auth.
 String? resolveNotificationUserId(String? passedFromCaller) {
   final authId = Supabase.instance.client.auth.currentUser?.id;

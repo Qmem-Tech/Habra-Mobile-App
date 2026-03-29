@@ -628,22 +628,34 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from(SupabaseTables.businessLegalDocuments)
-          .select('status, document_type')
+          .select('status, document_type, rejection_reason')
           .eq('business_id', businessId);
       final rows = (res as List).cast<Map<String, dynamic>>();
       var approvedCount = 0;
       var hasRejected = false;
+      var hasPendingRows = false;
       var hasBusinessLicense = false;
       var businessLicenseApproved = false;
       var hasEinProof = false;
       var einProofApproved = false;
       final types = <String>{};
+      final rejectionReasons = <String>[];
       for (final row in rows) {
-        final status = parseString(row['status']);
+        final status = _legalDocumentRowStatus(row['status']);
         final type = parseString(row['document_type']) ?? '';
         types.add(type);
+        if (status == 'pending') hasPendingRows = true;
         if (status == 'approved') approvedCount++;
-        if (status == 'rejected') hasRejected = true;
+        if (status == 'rejected') {
+          hasRejected = true;
+          final reason = parseString(row['rejection_reason']);
+          if (reason != null && reason.trim().isNotEmpty) {
+            final trimmed = reason.trim();
+            if (!rejectionReasons.contains(trimmed)) {
+              rejectionReasons.add(trimmed);
+            }
+          }
+        }
         if (type == 'business_license') {
           hasBusinessLicense = true;
           if (status == 'approved') businessLicenseApproved = true;
@@ -663,9 +675,14 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         hasEinProof: hasEinProof,
         einProofApproved: einProofApproved,
         hasLegacyDocPair: hasLegacyDocPair,
+        hasPendingRows: hasPendingRows,
+        rejectionReasons: rejectionReasons,
       );
     });
   }
+
+  static String _legalDocumentRowStatus(dynamic value) =>
+      (parseString(value) ?? '').trim().toLowerCase();
 
   @override
   Future<List<BusinessLegalDocument>> listBusinessLegalDocuments(String businessId) async {

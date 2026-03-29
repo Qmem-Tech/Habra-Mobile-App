@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/config/notification_table_config.dart';
 import '../../../../core/constants/supabase_tables.dart';
 import 'notification_remote_datasource.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
@@ -20,7 +21,7 @@ class NotificationSupabaseDataSource implements NotificationRemoteDataSource {
     final res = await SupabaseFailureMapper.guard(() => _client
         .from(SupabaseTables.notifications)
         .select()
-        .eq('user_id', userId)
+        .eq(kNotificationsRecipientColumn, userId)
         .order('created_at', ascending: false)
         .limit(100));
 
@@ -102,7 +103,7 @@ class NotificationSupabaseDataSource implements NotificationRemoteDataSource {
     await SupabaseFailureMapper.guard(() => _client
         .from(SupabaseTables.notifications)
         .update({'is_read': true})
-        .eq('user_id', userId));
+        .eq(kNotificationsRecipientColumn, userId));
   }
 
   @override
@@ -110,7 +111,7 @@ class NotificationSupabaseDataSource implements NotificationRemoteDataSource {
     final res = await SupabaseFailureMapper.guard(() => _client
         .from(SupabaseTables.notifications)
         .select()
-        .eq('user_id', userId)
+        .eq(kNotificationsRecipientColumn, userId)
         .eq('is_read', false));
 
     return (res as List).length;

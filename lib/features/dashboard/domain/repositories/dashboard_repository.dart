@@ -47,6 +47,9 @@ abstract class DashboardRepository {
 /// Use [needsOwnerAction] for upload prompts; [isFullyApproved] when every row
 /// is approved. While docs are `pending` review, [awaitingLegalDocReview] is true
 /// and the owner should not be nagged to upload again.
+///
+/// [hasPendingRows] is derived from rows with status `pending` (case-insensitive).
+/// [rejectionReasons] come from `rejection_reason` on rejected rows.
 class LegalDocumentsStatus {
   final int uploadedCount;
   final int approvedCount;
@@ -56,6 +59,8 @@ class LegalDocumentsStatus {
   final bool hasEinProof;
   final bool einProofApproved;
   final bool hasLegacyDocPair;
+  final bool hasPendingRows;
+  final List<String> rejectionReasons;
 
   const LegalDocumentsStatus({
     required this.uploadedCount,
@@ -66,6 +71,8 @@ class LegalDocumentsStatus {
     this.hasEinProof = false,
     this.einProofApproved = false,
     this.hasLegacyDocPair = false,
+    this.hasPendingRows = false,
+    this.rejectionReasons = const [],
   });
 
   /// At least business license on file, or two legacy generic documents.
@@ -85,9 +92,21 @@ class LegalDocumentsStatus {
   /// Owner must upload (or re-upload after rejection).
   bool get needsOwnerAction => !hasRequiredUploaded || hasRejected;
 
-  /// Submitted and not rejected, but at least one row still pending admin approval.
+  /// Nothing on file yet and nothing rejected (first-time upload prompt).
+  bool get missingInitialUpload => !hasRequiredUploaded && !hasRejected;
+
+  /// Submitted and not rejected, but at least one row still `pending` admin review.
+  /// If the admin marked all rows approved, [hasPendingRows] is false so this is false
+  /// even if [isFullyApproved] were miscalculated.
   bool get awaitingLegalDocReview =>
-      hasRequiredUploaded && !hasRejected && !isFullyApproved;
+      hasRequiredUploaded &&
+      !hasRejected &&
+      !isFullyApproved &&
+      hasPendingRows;
+
+  /// All required documents approved; show success / compliance-complete UI.
+  bool get showLegalApprovalSuccess =>
+      hasRequiredUploaded && !hasRejected && isFullyApproved;
 }
 
 /// Rating overview for reviews tab.

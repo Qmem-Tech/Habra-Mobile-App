@@ -287,6 +287,9 @@ class _SummaryCard extends StatelessWidget {
       line = 'Documents are submitted and awaiting review.';
     } else if (status.hasRejected) {
       line = 'At least one document was rejected — upload a replacement where needed.';
+      if (status.rejectionReasons.isNotEmpty) {
+        line = '$line\n\nReviewer notes: ${status.rejectionReasons.join(' · ')}';
+      }
     } else if (status.needsOwnerAction) {
       line = 'Required documents are missing. Complete upload from home or business tools.';
     } else {
