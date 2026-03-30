@@ -5,6 +5,7 @@ import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
 import '../../../../core/widgets/error_display_helper.dart';
+import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../bloc/dashboard_cubit.dart';
@@ -27,6 +28,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
   bool _isHourly = false;
   bool _remotePosition = true;
   bool _showValidation = false;
+  String? _pickedBusinessId;
 
   @override
   void dispose() {
@@ -41,6 +43,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
   }
 
   String? _getSelectedBusinessId() {
+    if (_pickedBusinessId != null) return _pickedBusinessId;
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
     if (homeState is BusinessOwnerHomeLoaded &&
         homeState.selectedPresence != null &&
@@ -48,6 +51,22 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
       return homeState.selectedPresence!.id;
     }
     return null;
+  }
+
+  List<BusinessPresence> _getBusinesses() {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is BusinessOwnerHomeLoaded) {
+      return homeState.presences.where((p) => p.id != 'all').toList();
+    }
+    return [];
+  }
+
+  bool get _needsBusinessPicker {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is BusinessOwnerHomeLoaded) {
+      return homeState.isAllBusinessesView || homeState.presences.length > 1;
+    }
+    return false;
   }
 
   Map<String, dynamic> _buildPayload({String status = 'open'}) {
@@ -168,6 +187,10 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_needsBusinessPicker) ...[
+              _buildBusinessPicker(),
+              const SizedBox(height: 20),
+            ],
             _sectionTitle('Job Details'),
             const SizedBox(height: 12),
             _buildTextField(
@@ -309,6 +332,52 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBusinessPicker() {
+    final businesses = _getBusinesses();
+    final effectiveId = _getSelectedBusinessId();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Business *',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          value: effectiveId != null && businesses.any((b) => b.id == effectiveId) ? effectiveId : null,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.backgroundWhite,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: BorderSide(
+                color: _showValidation && _getSelectedBusinessId() == null
+                    ? AppColors.error
+                    : AppColors.backgroundGrey,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: BorderSide(
+                color: _showValidation && _getSelectedBusinessId() == null
+                    ? AppColors.error
+                    : AppColors.backgroundGrey,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            errorText: _showValidation && _getSelectedBusinessId() == null ? 'Please select a business' : null,
+          ),
+          hint: const Text('Select a business'),
+          isExpanded: true,
+          items: businesses
+              .map((b) => DropdownMenuItem<String>(value: b.id, child: Text(b.name, overflow: TextOverflow.ellipsis)))
+              .toList(),
+          onChanged: (v) => setState(() => _pickedBusinessId = v),
+        ),
+      ],
     );
   }
 

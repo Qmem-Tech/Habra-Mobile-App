@@ -12,6 +12,7 @@ import '../../../../core/widgets/error_display_helper.dart';
 import '../../../../core/services/image_picker_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../bloc/dashboard_cubit.dart';
@@ -38,6 +39,7 @@ class _CreateDealPageState extends State<CreateDealPage> {
   TimeOfDay? _endTime;
   final Set<int> _selectedDays = {1, 2, 5, 6, 7};
   bool _showValidation = false;
+  String? _pickedBusinessId;
 
   static const List<int> _dayKeys = [1, 2, 3, 4, 5, 6, 7];
   static const List<String> _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -61,6 +63,7 @@ class _CreateDealPageState extends State<CreateDealPage> {
   }
 
   String? _getSelectedBusinessId() {
+    if (_pickedBusinessId != null) return _pickedBusinessId;
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
     if (homeState is BusinessOwnerHomeLoaded &&
         homeState.selectedPresence != null &&
@@ -68,6 +71,22 @@ class _CreateDealPageState extends State<CreateDealPage> {
       return homeState.selectedPresence!.id;
     }
     return null;
+  }
+
+  List<BusinessPresence> _getBusinesses() {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is BusinessOwnerHomeLoaded) {
+      return homeState.presences.where((p) => p.id != 'all').toList();
+    }
+    return [];
+  }
+
+  bool get _needsBusinessPicker {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is BusinessOwnerHomeLoaded) {
+      return homeState.isAllBusinessesView || homeState.presences.length > 1;
+    }
+    return false;
   }
 
   Future<Map<String, dynamic>> _buildPayload(String status) async {
@@ -210,6 +229,10 @@ class _CreateDealPageState extends State<CreateDealPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_needsBusinessPicker) ...[
+              _buildBusinessPicker(),
+              const SizedBox(height: 20),
+            ],
             const Text(
               'Offer Type',
               style: TextStyle(
@@ -394,6 +417,52 @@ class _CreateDealPageState extends State<CreateDealPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBusinessPicker() {
+    final businesses = _getBusinesses();
+    final effectiveId = _getSelectedBusinessId();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Business *',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          value: effectiveId != null && businesses.any((b) => b.id == effectiveId) ? effectiveId : null,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.backgroundWhite,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: BorderSide(
+                color: _showValidation && _getSelectedBusinessId() == null
+                    ? AppColors.error
+                    : AppColors.backgroundGrey,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: BorderSide(
+                color: _showValidation && _getSelectedBusinessId() == null
+                    ? AppColors.error
+                    : AppColors.backgroundGrey,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            errorText: _showValidation && _getSelectedBusinessId() == null ? 'Please select a business' : null,
+          ),
+          hint: const Text('Select a business'),
+          isExpanded: true,
+          items: businesses
+              .map((b) => DropdownMenuItem<String>(value: b.id, child: Text(b.name, overflow: TextOverflow.ellipsis)))
+              .toList(),
+          onChanged: (v) => setState(() => _pickedBusinessId = v),
+        ),
+      ],
     );
   }
 

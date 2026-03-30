@@ -30,7 +30,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from(SupabaseTables.businesses)
-          .select('*')
+          .select('*, ${SupabaseTables.businessCategories}(${SupabaseTables.categories}(name))')
           .eq('owner_id', ownerId)
           .order('created_at', ascending: false);
       final rows = (res as List).cast<Map<String, dynamic>>();
@@ -42,11 +42,25 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     final logoUrl = parseString(row['logo_url']);
     final backgroundUrl = parseString(row['background_url']);
     final imageUrl = logoUrl ?? 'https://placehold.co/400x300?text=Business';
+
+    String category = parseString(row['description']) ?? 'Business';
+    final catLinks = row[SupabaseTables.businessCategories];
+    if (catLinks is List && catLinks.isNotEmpty) {
+      final firstLink = catLinks.first;
+      if (firstLink is Map) {
+        final catRow = firstLink[SupabaseTables.categories];
+        if (catRow is Map) {
+          final catName = parseString(catRow['name']);
+          if (catName != null && catName.isNotEmpty) category = catName;
+        }
+      }
+    }
+
     return BusinessPresence(
       id: parseStringRequired(row['id']),
       name: parseStringRequired(row['name']),
       locationName: parseString(row['address_street']),
-      category: parseString(row['description']) ?? 'Business',
+      category: category,
       city: parseString(row['address_city']),
       state: parseString(row['address_state']),
       phone: parseString(row['phone']),

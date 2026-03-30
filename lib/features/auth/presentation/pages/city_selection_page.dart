@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../../../core/widgets/location_picker_bottom_sheet.dart';
 import 'interests_selection_page.dart';
 
 class CitySelectionPage extends StatefulWidget {
@@ -14,15 +15,7 @@ class CitySelectionPage extends StatefulWidget {
 class _CitySelectionPageState extends State<CitySelectionPage> {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedCity;
-  final List<String> _cities = [
-    'Washington, D.C., USA',
-    'Dallas, TX, USA',
-    'Atlanta, GA, USA',
-    'Seattle, WA, USA',
-    'Denver, CO',
-    'Las Vegas, NV',
-    'Portland, OR',
-  ];
+  final List<String> _cities = kPopularUSCities;
   List<String> _filteredCities = [];
 
   @override

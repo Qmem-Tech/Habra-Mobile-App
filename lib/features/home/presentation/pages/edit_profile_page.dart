@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl_phone_field/phone_number.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/services/image_picker_service.dart';
-import '../../../../core/services/location_service.dart';
+import '../../../../core/widgets/location_picker_bottom_sheet.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
@@ -26,9 +28,10 @@ class EditProfilePage extends StatefulWidget {
 class _EditProfilePageState extends State<EditProfilePage> {
   late final TextEditingController _nameController;
   late final TextEditingController _emailController;
-  late final TextEditingController _phoneController;
   late final TextEditingController _locationController;
   late final TextEditingController _bioController;
+  String _phoneNumber = '';
+  String _initialPhoneNumber = '';
   bool _profileLoadTriggered = false;
   bool _hasPrefilledFromProfile = false;
   String? _avatarUrl;
@@ -38,11 +41,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     super.initState();
     _nameController = TextEditingController(text: widget.user.name);
     _emailController = TextEditingController(text: widget.user.email);
-    _phoneController = TextEditingController();
-    _locationController = TextEditingController(text: 'Washington, D.C.');
-    _bioController = TextEditingController(
-      text: 'Coffee lover, tech enthusiast, and proud Habesha connecting with my roots.',
-    );
+    _locationController = TextEditingController();
+    _bioController = TextEditingController();
   }
 
   @override
@@ -58,7 +58,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _locationController.dispose();
     _bioController.dispose();
     super.dispose();
@@ -82,7 +81,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           widget.user.id,
           UserProfileUpdate(
             fullName: name,
-            phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+            phone: _phoneNumber.isEmpty ? null : _phoneNumber,
             bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
             location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
           ),
@@ -95,19 +94,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
     context.read<EditProfileCubit>().uploadPhoto(widget.user.id, file);
   }
 
-  Future<void> _useCurrentLocation(BuildContext context) async {
-    final result = await di.sl<LocationService>().getCurrentLocation();
-    result.fold(
-      (failure) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(failure.message), backgroundColor: AppColors.error),
-        );
-      },
-      (location) {
-        setState(() => _locationController.text = location.fullDisplayName);
-      },
+  Future<void> _openLocationPicker() async {
+    final result = await LocationPickerBottomSheet.show(
+      context,
+      currentValue: _locationController.text.trim(),
     );
+    if (result != null && mounted) {
+      setState(() => _locationController.text = result);
+    }
   }
 
   void _prefillFromProfile(UserProfile profile) {
@@ -121,10 +115,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
         _bioController.text = profile.bio!;
       }
       if (profile.phone != null && profile.phone!.isNotEmpty) {
-        _phoneController.text = profile.phone!;
+        _phoneNumber = profile.phone!;
+        _initialPhoneNumber = profile.phone!;
       }
       _avatarUrl = profile.avatarUrl;
     });
+  }
+
+  /// Strips a leading country code (e.g. "+1") so `IntlPhoneField` can handle
+  /// the national part. Returns only digits after the first country-code group.
+  String _stripCountryCode(String phone) {
+    if (phone.isEmpty) return '';
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.length > 10 && phone.startsWith('+')) {
+      return digits.substring(digits.length - 10);
+    }
+    return digits;
   }
 
   @override
@@ -234,7 +240,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 const SizedBox(height: AppResources.spacingXL),
                 _LabeledField(
                   label: 'Full Name',
-                  child: TextField(controller: _nameController),
+                  child: TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter your full name',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: AppResources.spacingM),
                 _LabeledField(
@@ -242,31 +255,58 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   child: TextField(
                     controller: _emailController,
                     readOnly: true,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      filled: true,
+                      fillColor: AppColors.backgroundLight,
+                      suffixIcon: Icon(Icons.lock_outline, size: 18, color: AppColors.textTertiary),
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppResources.spacingM),
                 _LabeledField(
                   label: 'Phone Number',
-                  child: TextField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
+                  child: IntlPhoneField(
+                    disableLengthCheck: true,
+                    initialValue: _stripCountryCode(_initialPhoneNumber),
+                    initialCountryCode: 'US',
+                    decoration: const InputDecoration(
+                      hintText: 'Phone number',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                    onChanged: (PhoneNumber phone) {
+                      _phoneNumber = phone.completeNumber;
+                    },
+                    validator: (PhoneNumber? phone) {
+                      if (phone == null || phone.number.isEmpty) return null;
+                      final digits = phone.completeNumber.replaceAll(RegExp(r'\D'), '');
+                      if (digits.length < 10) return 'Enter a valid phone number';
+                      return null;
+                    },
                   ),
                 ),
                 const SizedBox(height: AppResources.spacingM),
                 _LabeledField(
                   label: 'Location',
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(controller: _locationController),
+                  child: GestureDetector(
+                    onTap: saving ? null : _openLocationPicker,
+                    child: AbsorbPointer(
+                      child: TextField(
+                        controller: _locationController,
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          hintText: 'Select your city...',
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          suffixIcon: Icon(
+                            Icons.arrow_drop_down,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: AppResources.spacingS),
-                      IconButton(
-                        icon: const Icon(Icons.my_location),
-                        onPressed: saving ? null : () => _useCurrentLocation(context),
-                        tooltip: 'Use current location',
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppResources.spacingM),
@@ -276,6 +316,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     controller: _bioController,
                     maxLines: 4,
                     maxLength: 160,
+                    decoration: const InputDecoration(
+                      hintText: 'Tell us a little about yourself...',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.all(14),
+                    ),
                   ),
                 ),
               ],

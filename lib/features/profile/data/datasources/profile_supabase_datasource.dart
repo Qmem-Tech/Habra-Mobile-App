@@ -8,16 +8,20 @@ import '../../domain/repositories/profile_repository.dart';
 import 'profile_remote_datasource.dart';
 
 /// Profile CRUD via Supabase `profiles` table.
-/// Expected columns: id, email, full_name, role, avatar_url, phone, bio, city.
-/// Run the migration `add_profiles_bio_column.sql` if `bio` does not yet exist.
+///
+/// Core columns (always present): id, email, full_name, role, avatar_url, phone, created_at.
+/// Optional columns the app can use: bio, city.
+/// Run `add_profiles_optional_columns.sql` to add any that are missing.
 class ProfileSupabaseDataSource implements ProfileRemoteDataSource {
   ProfileSupabaseDataSource();
 
   SupabaseClient get _client => Supabase.instance.client;
 
-  /// Lazily detected: `true` once we confirm the column exists, `false` after
-  /// a schema error, `null` before the first write attempt.
-  static bool? _bioColumnExists;
+  /// Column names that failed a schema check and should be excluded from writes.
+  static final Set<String> _missingColumns = {};
+
+  /// Whether we've done the initial schema probe.
+  static bool _schemaProbed = false;
 
   @override
   Future<UserProfile> getProfile(String userId) async {
@@ -29,6 +33,14 @@ class ProfileSupabaseDataSource implements ProfileRemoteDataSource {
           .maybeSingle();
       if (res == null) throw Exception('Profile not found');
       final row = Map<String, dynamic>.from(res as Map);
+
+      if (!_schemaProbed) {
+        _schemaProbed = true;
+        for (final col in ['bio', 'city']) {
+          if (!row.containsKey(col)) _missingColumns.add(col);
+        }
+      }
+
       return UserProfile(
         userId: parseStringRequired(row['id']),
         email: parseStringRequired(row['email']),
@@ -48,10 +60,12 @@ class ProfileSupabaseDataSource implements ProfileRemoteDataSource {
       final Map<String, dynamic> payload = {};
       if (update.fullName != null) payload['full_name'] = update.fullName!;
       if (update.phone != null) payload['phone'] = update.phone!;
-      if (update.location != null) payload['city'] = update.location!;
       if (update.avatarUrl != null) payload['avatar_url'] = update.avatarUrl!;
 
-      if (update.bio != null && _bioColumnExists != false) {
+      if (update.location != null && !_missingColumns.contains('city')) {
+        payload['city'] = update.location!;
+      }
+      if (update.bio != null && !_missingColumns.contains('bio')) {
         payload['bio'] = update.bio!;
       }
 
@@ -59,13 +73,9 @@ class ProfileSupabaseDataSource implements ProfileRemoteDataSource {
 
       try {
         await _client.from('profiles').update(payload).eq('id', userId);
-        if (update.bio != null) _bioColumnExists = true;
       } on PostgrestException catch (e) {
-        if (update.bio != null &&
-            e.message.contains('bio') &&
-            _bioColumnExists == null) {
-          _bioColumnExists = false;
-          payload.remove('bio');
+        final stripped = _stripMissingColumns(payload, e.message);
+        if (stripped) {
           if (payload.isNotEmpty) {
             await _client.from('profiles').update(payload).eq('id', userId);
           }
@@ -75,6 +85,21 @@ class ProfileSupabaseDataSource implements ProfileRemoteDataSource {
       }
       return getProfile(userId);
     });
+  }
+
+  /// Inspects a Postgrest error message for column-not-found hints, removes
+  /// the offending keys from [payload], and records them for future calls.
+  /// Returns `true` if at least one column was stripped (retry is possible).
+  bool _stripMissingColumns(Map<String, dynamic> payload, String message) {
+    bool stripped = false;
+    for (final col in ['bio', 'city']) {
+      if (payload.containsKey(col) && message.contains(col)) {
+        _missingColumns.add(col);
+        payload.remove(col);
+        stripped = true;
+      }
+    }
+    return stripped;
   }
 
   static const String _avatarsBucket = 'avatars';

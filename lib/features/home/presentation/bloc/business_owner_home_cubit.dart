@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/storage/local_storage.dart';
 import '../../../dashboard/domain/repositories/dashboard_repository.dart';
+import '../../domain/entities/business_presence.dart';
 import '../../domain/entities/owner_snapshot_metrics.dart';
 import '../../domain/entities/owner_activity_item.dart';
 import '../../domain/entities/deal.dart';
@@ -53,18 +54,23 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
           ? savedId
           : presences.first.id;
 
-      final deals = initialId == 'all'
-          ? <Deal>[]
-          : await _loadDealsForHome(initialId);
-      final jobs = initialId == 'all'
-          ? <Job>[]
-          : await _loadJobsForHome(initialId);
-      final activity = initialId == 'all'
-          ? <OwnerActivityItem>[]
-          : await _loadActivityForHome(initialId);
-      final snapshot = initialId == 'all'
-          ? _emptySnapshot
-          : await _loadSnapshot(initialId);
+      final List<Deal> deals;
+      final List<Job> jobs;
+      final List<OwnerActivityItem> activity;
+      final OwnerSnapshotMetrics snapshot;
+
+      if (initialId == 'all') {
+        final result = await _loadAggregated(presences);
+        deals = result.deals;
+        jobs = result.jobs;
+        activity = result.activity;
+        snapshot = result.snapshot;
+      } else {
+        deals = await _loadDealsForHome(initialId);
+        jobs = await _loadJobsForHome(initialId);
+        activity = await _loadActivityForHome(initialId);
+        snapshot = await _loadSnapshot(initialId);
+      }
 
       emit(BusinessOwnerHomeLoaded(
         presences: presences,
@@ -91,12 +97,13 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
       if (_ownerId != null) {
         await _localStorage.setString('${_storageKeyPrefix}_$_ownerId', 'all');
       }
+      final result = await _loadAggregated(current.presences);
       emit(current.copyWith(
         selectedPresenceId: 'all',
-        snapshot: _emptySnapshot,
-        activeDeals: const [],
-        jobPosts: const [],
-        recentActivity: const [],
+        snapshot: result.snapshot,
+        activeDeals: result.deals,
+        jobPosts: result.jobs,
+        recentActivity: result.activity,
       ));
       return;
     }
@@ -127,6 +134,46 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
 
   void setSelectedPresenceId(String? id) {
     selectPresence(id);
+  }
+
+  Future<_AggregatedData> _loadAggregated(List<BusinessPresence> presences) async {
+    final bizIds = presences.map((p) => p.id).where((id) => id != 'all').toList();
+    if (bizIds.isEmpty) {
+      return _AggregatedData(
+        deals: const [],
+        jobs: const [],
+        activity: const [],
+        snapshot: _emptySnapshot,
+      );
+    }
+
+    final allDeals = <Deal>[];
+    final allJobs = <Job>[];
+    final allActivity = <OwnerActivityItem>[];
+    int totalViews = 0, totalClicks = 0, totalMessages = 0;
+
+    for (final bizId in bizIds) {
+      allDeals.addAll(await _loadDealsForHome(bizId));
+      allJobs.addAll(await _loadJobsForHome(bizId));
+      allActivity.addAll(await _loadActivityForHome(bizId));
+      final snap = await _loadSnapshot(bizId);
+      totalViews += snap.views;
+      totalClicks += snap.clicks;
+      totalMessages += snap.messages;
+    }
+
+    allActivity.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    return _AggregatedData(
+      deals: allDeals,
+      jobs: allJobs,
+      activity: allActivity.take(10).toList(),
+      snapshot: OwnerSnapshotMetrics(
+        views: totalViews,
+        clicks: totalClicks,
+        messages: totalMessages,
+      ),
+    );
   }
 
   Future<List<Deal>> _loadDealsForHome(String businessId) async {
@@ -237,4 +284,18 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
     clicks: 0,
     messages: 0,
   );
+}
+
+class _AggregatedData {
+  final List<Deal> deals;
+  final List<Job> jobs;
+  final List<OwnerActivityItem> activity;
+  final OwnerSnapshotMetrics snapshot;
+
+  const _AggregatedData({
+    required this.deals,
+    required this.jobs,
+    required this.activity,
+    required this.snapshot,
+  });
 }

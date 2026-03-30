@@ -35,16 +35,26 @@ class _ChooseBusinessBrandPageState extends State<ChooseBusinessBrandPage> {
   }
 
   List<BusinessBrandEntity> get _brands {
-    final nonAll =
-        widget.presences.where((p) => p.id != 'all').toList();
-    return nonAll
-        .map((p) => BusinessBrandEntity(
-              id: p.id,
-              name: p.name,
-              activeLocationsCount: 1,
-              logoUrl: p.logoUrl,
-            ))
-        .toList();
+    final nonAll = widget.presences.where((p) => p.id != 'all').toList();
+
+    final nameCount = <String, int>{};
+    for (final p in nonAll) {
+      nameCount[p.name] = (nameCount[p.name] ?? 0) + 1;
+    }
+
+    final seen = <String>{};
+    final brands = <BusinessBrandEntity>[];
+    for (final p in nonAll) {
+      if (seen.contains(p.name)) continue;
+      seen.add(p.name);
+      brands.add(BusinessBrandEntity(
+        id: p.id,
+        name: p.name,
+        activeLocationsCount: nameCount[p.name] ?? 1,
+        logoUrl: p.logoUrl,
+      ));
+    }
+    return brands;
   }
 
   List<BusinessBrandEntity> get _filteredBrands {
