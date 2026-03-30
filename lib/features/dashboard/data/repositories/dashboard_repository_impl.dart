@@ -103,6 +103,10 @@ class DashboardRepositoryImpl implements DashboardRepository {
       _remote.uploadLegalDocument(businessId, documentType, upload, fileName: fileName);
 
   @override
+  Future<void> deleteLegalDocument(String documentId) =>
+      _remote.deleteLegalDocument(documentId);
+
+  @override
   Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId) =>
       _remote.getBusinessIdsNeedingLegalDocs(ownerId);
 

@@ -226,12 +226,27 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   @override
   Future<List<DashboardJob>> getJobs(String businessId) async {
     return SupabaseFailureMapper.guard(() async {
-      final res = await _client
-          .from(SupabaseTables.jobs)
-          .select('*, ${SupabaseTables.businesses}!jobs_business_id_fkey(name, logo_url)')
-          .eq('business_id', businessId)
-          .order('created_at', ascending: false);
-      final rows = (res as List).cast<Map<String, dynamic>>();
+      List<dynamic> res;
+      try {
+        res = await _client
+            .from(SupabaseTables.jobs)
+            .select('*, ${SupabaseTables.businesses}!jobs_business_id_fkey(name, logo_url)')
+            .eq('business_id', businessId)
+            .order('created_at', ascending: false) as List;
+      } on PostgrestException catch (e) {
+        if (e.message.contains('could not find') ||
+            e.message.contains('relationship') ||
+            e.code == 'PGRST200') {
+          res = await _client
+              .from(SupabaseTables.jobs)
+              .select()
+              .eq('business_id', businessId)
+              .order('created_at', ascending: false) as List;
+        } else {
+          rethrow;
+        }
+      }
+      final rows = res.cast<Map<String, dynamic>>();
       final List<DashboardJob> result = [];
       for (final row in rows) {
         final jobId = parseStringRequired(row['id']);
@@ -490,6 +505,10 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   // ---------------------------------------------------------------------------
   // Create Job
   // ---------------------------------------------------------------------------
+
+  /// Columns that the app expects on `jobs` but may not exist yet.
+  static final Set<String> _missingJobColumns = {};
+
   @override
   Future<DashboardJob> createJob(
       String businessId, Map<String, dynamic> data) async {
@@ -505,17 +524,25 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         'salary_min': data['salary_min'],
         'salary_max': data['salary_max'],
         'is_active': !isDraft,
-        'status': status,
       };
+      if (!_missingJobColumns.contains('status')) {
+        payload['status'] = status;
+      }
       payload.removeWhere((_, v) => v == null);
-      final res = await _client
-          .from(SupabaseTables.jobs)
-          .insert(payload)
-          .select('*, ${SupabaseTables.businesses}!jobs_business_id_fkey(name, logo_url)')
-          .single();
-      final row = Map<String, dynamic>.from(res);
+
+      Map<String, dynamic> row;
+      try {
+        row = Map<String, dynamic>.from(await _insertJob(payload));
+      } on PostgrestException catch (e) {
+        if (_stripMissingJobColumn(payload, e.message)) {
+          row = Map<String, dynamic>.from(await _insertJob(payload));
+        } else {
+          rethrow;
+        }
+      }
+
       final biz = row[SupabaseTables.businesses];
-      final statusStr = parseString(row['status']) ?? status;
+      final statusStr = parseString(row['status']) ?? (isDraft ? 'draft' : 'open');
       final jobStatus = statusStr == 'draft'
           ? DashboardJobStatus.draft
           : statusStr == 'closed'
@@ -537,6 +564,40 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         status: jobStatus,
       );
     });
+  }
+
+  Future<dynamic> _insertJob(Map<String, dynamic> payload) async {
+    try {
+      return await _client
+          .from(SupabaseTables.jobs)
+          .insert(payload)
+          .select('*, ${SupabaseTables.businesses}!jobs_business_id_fkey(name, logo_url)')
+          .single();
+    } on PostgrestException catch (e) {
+      // FK hint may not match — retry with a bare select.
+      if (e.message.contains('could not find') ||
+          e.message.contains('relationship') ||
+          e.code == 'PGRST200') {
+        return await _client
+            .from(SupabaseTables.jobs)
+            .insert(payload)
+            .select()
+            .single();
+      }
+      rethrow;
+    }
+  }
+
+  bool _stripMissingJobColumn(Map<String, dynamic> payload, String message) {
+    final lower = message.toLowerCase();
+    for (final col in ['status']) {
+      if (lower.contains(col) && payload.containsKey(col)) {
+        payload.remove(col);
+        _missingJobColumns.add(col);
+        return true;
+      }
+    }
+    return false;
   }
 
   // ---------------------------------------------------------------------------
@@ -767,6 +828,15 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     String? fileName,
   }) async {
     return SupabaseFailureMapper.guard(() async {
+      // Remove any previously rejected row for the same business + type so the
+      // rejection doesn't permanently lock the dashboard after re-submission.
+      await _client
+          .from(SupabaseTables.businessLegalDocuments)
+          .delete()
+          .eq('business_id', businessId)
+          .eq('document_type', documentType)
+          .eq('status', 'rejected');
+
       final row = <String, dynamic>{
         'business_id': businessId,
         'document_type': documentType,
@@ -780,6 +850,16 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       };
       row.removeWhere((k, v) => v == null);
       await _client.from(SupabaseTables.businessLegalDocuments).insert(row);
+    });
+  }
+
+  @override
+  Future<void> deleteLegalDocument(String documentId) async {
+    return SupabaseFailureMapper.guard(() async {
+      await _client
+          .from(SupabaseTables.businessLegalDocuments)
+          .delete()
+          .eq('id', documentId);
     });
   }
 

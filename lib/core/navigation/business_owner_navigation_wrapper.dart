@@ -7,6 +7,7 @@ import '../../injection/injection_container.dart' as di;
 import '../../features/home/presentation/pages/business_owner_home_page.dart';
 import '../../features/home/presentation/bloc/business_owner_subscription_cubit.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
+import '../../features/dashboard/presentation/pages/business_legal_documents_detail_page.dart';
 import '../../features/boosts/presentation/bloc/boosts_cubit.dart';
 import '../../features/boosts/presentation/pages/boosts_page.dart';
 import '../../features/auth/domain/entities/user.dart';
@@ -50,6 +51,9 @@ class _BusinessOwnerNavigationWrapperState
   int? _pendingDashboardTab;
   bool? _hasBusinessToolsAccess;
   bool _isCheckingBusinessToolsAccess = false;
+  String? _blockedBusinessId;
+  String? _blockedBusinessName;
+  String? _lockReason;
 
   @override
   void initState() {
@@ -111,6 +115,7 @@ class _BusinessOwnerNavigationWrapperState
       final businesses = await dashboardCubit.getOwnerBusinesses(widget.user.id);
       if (businesses.isEmpty) {
         _hasBusinessToolsAccess = false;
+        _lockReason = 'No businesses found.';
         return false;
       }
       for (final business in businesses) {
@@ -118,18 +123,32 @@ class _BusinessOwnerNavigationWrapperState
         final isApproved = approvalStatus == 'approved';
         if (!isApproved) {
           _hasBusinessToolsAccess = false;
+          _blockedBusinessId = business.id;
+          _blockedBusinessName = business.name;
+          _lockReason = 'Your business listing is pending approval.';
           return false;
         }
         final legalStatus =
             await dashboardCubit.getLegalDocumentsStatus(business.id);
-        // Business listing approved: allow tools once required docs are submitted
-        // and none rejected — do not block while rows are still `pending` review.
-        if (legalStatus.hasRejected || !legalStatus.hasRequiredUploaded) {
+        if (legalStatus.hasRejected) {
           _hasBusinessToolsAccess = false;
+          _blockedBusinessId = business.id;
+          _blockedBusinessName = business.name;
+          _lockReason = 'A legal document was rejected. Please re-upload a corrected file.';
+          return false;
+        }
+        if (!legalStatus.hasRequiredUploaded) {
+          _hasBusinessToolsAccess = false;
+          _blockedBusinessId = business.id;
+          _blockedBusinessName = business.name;
+          _lockReason = 'Required legal documents have not been uploaded yet.';
           return false;
         }
       }
       _hasBusinessToolsAccess = true;
+      _blockedBusinessId = null;
+      _blockedBusinessName = null;
+      _lockReason = null;
       return true;
     } catch (_) {
       _hasBusinessToolsAccess = false;
@@ -144,11 +163,30 @@ class _BusinessOwnerNavigationWrapperState
       final canAccessBusinessTools = await _ensureBusinessToolsAccess();
       if (!mounted) return;
       if (!canAccessBusinessTools) {
+        final reason = _lockReason ??
+            'Business dashboard is locked until your listing is approved and legal documents are submitted.';
+        final bizId = _blockedBusinessId;
+        final bizName = _blockedBusinessName;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Business dashboard is locked until your business listing is approved and required legal documents are submitted (not rejected).',
-            ),
+          SnackBar(
+            content: Text(reason),
+            duration: const Duration(seconds: 6),
+            action: bizId != null
+                ? SnackBarAction(
+                    label: 'View Documents',
+                    textColor: AppColors.brandSecondaryLight,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => BusinessLegalDocumentsDetailPage(
+                            businessId: bizId,
+                            businessName: bizName ?? 'Business',
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : null,
           ),
         );
         return;

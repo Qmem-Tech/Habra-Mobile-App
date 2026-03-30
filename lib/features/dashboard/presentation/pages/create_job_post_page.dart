@@ -5,6 +5,7 @@ import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
 import '../../../../core/widgets/error_display_helper.dart';
+import '../../../../core/widgets/location_picker_bottom_sheet.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
@@ -69,6 +70,16 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     return false;
   }
 
+  Future<void> _openLocationPicker() async {
+    final result = await LocationPickerBottomSheet.show(
+      context,
+      currentValue: _locationController.text.trim(),
+    );
+    if (result != null && mounted) {
+      setState(() => _locationController.text = result);
+    }
+  }
+
   Map<String, dynamic> _buildPayload({String status = 'open'}) {
     return {
       'title': _titleController.text.trim(),
@@ -115,10 +126,13 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     final bizId = _getSelectedBusinessId()!;
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Posting job...');
+    String? errorMessage;
     bool success = false;
     try {
       final result = await ctx.read<DashboardCubit>().createJob(bizId, _buildPayload(status: 'open'));
       success = result != null;
+    } catch (e) {
+      errorMessage = e.toString();
     } finally {
       if (ctx.mounted) {
         await LoaderHelper.hide(ctx);
@@ -128,7 +142,11 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     if (success) {
       Navigator.pop(ctx, true);
     } else {
-      ErrorDisplayHelper.show(ctx, message: 'We couldn\'t post your job. Please try again.', title: 'Post failed');
+      ErrorDisplayHelper.show(
+        ctx,
+        message: errorMessage ?? 'We couldn\'t post your job. Please try again.',
+        title: 'Post failed',
+      );
     }
   }
 
@@ -144,10 +162,13 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     }
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Saving draft...');
+    String? errorMessage;
     bool success = false;
     try {
       final result = await ctx.read<DashboardCubit>().createJob(bizId, _buildPayload(status: 'draft'));
       success = result != null;
+    } catch (e) {
+      errorMessage = e.toString();
     } finally {
       if (ctx.mounted) {
         await LoaderHelper.hide(ctx);
@@ -157,7 +178,11 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     if (success) {
       Navigator.pop(ctx, true);
     } else {
-      ErrorDisplayHelper.show(ctx, message: 'We couldn\'t save your draft. Please try again.', title: 'Save failed');
+      ErrorDisplayHelper.show(
+        ctx,
+        message: errorMessage ?? 'We couldn\'t save your draft. Please try again.',
+        title: 'Save failed',
+      );
     }
   }
 
@@ -202,7 +227,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
             const SizedBox(height: 12),
             _buildTextField('Job Type', controller: _jobTypeController),
             const SizedBox(height: 12),
-            _buildTextField('Location', controller: _locationController),
+            _buildLocationField(),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
@@ -376,6 +401,50 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
               .map((b) => DropdownMenuItem<String>(value: b.id, child: Text(b.name, overflow: TextOverflow.ellipsis)))
               .toList(),
           onChanged: (v) => setState(() => _pickedBusinessId = v),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Location',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: _openLocationPicker,
+          child: AbsorbPointer(
+            child: TextField(
+              controller: _locationController,
+              readOnly: true,
+              decoration: InputDecoration(
+                hintText: 'Select city or address...',
+                filled: true,
+                fillColor: AppColors.backgroundWhite,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppResources.radiusM),
+                  borderSide: const BorderSide(color: AppColors.backgroundGrey),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppResources.radiusM),
+                  borderSide: const BorderSide(color: AppColors.backgroundGrey),
+                ),
+                suffixIcon: Icon(
+                  Icons.arrow_drop_down,
+                  color: AppColors.textSecondary,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+            ),
+          ),
         ),
       ],
     );

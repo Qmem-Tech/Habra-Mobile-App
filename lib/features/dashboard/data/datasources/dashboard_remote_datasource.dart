@@ -37,6 +37,7 @@ abstract class DashboardRemoteDataSource {
     LegalDocumentUploadResult upload, {
     String? fileName,
   });
+  Future<void> deleteLegalDocument(String documentId);
   Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId);
 
   Future<List<OwnerUpcomingEvent>> getOwnerUpcomingEvents(

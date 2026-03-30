@@ -175,6 +175,9 @@ class DashboardCubit extends Cubit<DashboardState> {
   }) =>
       _repository.uploadLegalDocument(businessId, documentType, upload, fileName: fileName);
 
+  Future<void> deleteLegalDocument(String documentId) =>
+      _repository.deleteLegalDocument(documentId);
+
   Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId) =>
       _repository.getBusinessIdsNeedingLegalDocs(ownerId);
 

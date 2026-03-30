@@ -1,8 +1,15 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/constants/legal_document_storage.dart';
+import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
+import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/resources/app_resources.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/business_legal_document.dart';
 import '../../domain/repositories/dashboard_repository.dart';
@@ -88,6 +95,61 @@ class _BusinessLegalDocumentsDetailPageState extends State<BusinessLegalDocument
   static String _statusLabel(String status) {
     if (status.isEmpty) return 'Pending';
     return status[0].toUpperCase() + status.substring(1).toLowerCase();
+  }
+
+  Future<void> _reuploadDocument(BusinessLegalDocument doc) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp'],
+      allowMultiple: false,
+    );
+    if (result == null || result.files.single.path == null || !mounted) return;
+
+    final file = File(result.files.single.path!);
+    final size = await file.length();
+    if (size > 10 * 1024 * 1024) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('File must be under 10 MB.')),
+      );
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      final repo = di.sl<DashboardRepository>();
+      final storage = di.sl<StorageService>();
+      final upload = await storage.uploadLegalDocumentFile(
+        file,
+        pathPrefix: '${widget.businessId}/${doc.documentType}',
+      );
+      // Delete the rejected row, then insert a fresh pending row.
+      await repo.deleteLegalDocument(doc.id);
+      await repo.uploadLegalDocument(
+        widget.businessId,
+        doc.documentType,
+        upload,
+        fileName: file.path.split(Platform.pathSeparator).last,
+      );
+      if (!mounted) return;
+      BusinessOwnerNavigationWrapper.invalidateBusinessToolsAccessCache(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Document re-submitted for review.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Re-upload failed: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _openUrl(BuildContext context, String url) async {
@@ -257,10 +319,28 @@ class _BusinessLegalDocumentsDetailPageState extends State<BusinessLegalDocument
                                           ),
                                         ],
                                         const SizedBox(height: 12),
-                                        TextButton.icon(
-                                          onPressed: () => _openUrl(context, d.fileUrl),
-                                          icon: const Icon(Icons.open_in_new, size: 18),
-                                          label: const Text('View file'),
+                                        Wrap(
+                                          spacing: 8,
+                                          children: [
+                                            TextButton.icon(
+                                              onPressed: () => _openUrl(context, d.fileUrl),
+                                              icon: const Icon(Icons.open_in_new, size: 18),
+                                              label: const Text('View file'),
+                                            ),
+                                            if (d.status == 'rejected')
+                                              FilledButton.icon(
+                                                onPressed: () => _reuploadDocument(d),
+                                                icon: const Icon(Icons.upload_file, size: 18),
+                                                label: const Text('Re-upload'),
+                                                style: FilledButton.styleFrom(
+                                                  backgroundColor: AppColors.brandPrimary,
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: AppResources.spacingM,
+                                                    vertical: AppResources.spacingS,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ],
                                     ),

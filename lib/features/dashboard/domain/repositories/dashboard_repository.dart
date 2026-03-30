@@ -38,6 +38,7 @@ abstract class DashboardRepository {
     LegalDocumentUploadResult upload, {
     String? fileName,
   });
+  Future<void> deleteLegalDocument(String documentId);
   Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId);
 
   /// Events the user organizes, optionally scoped to a business (includes rows with null `business_id`).
