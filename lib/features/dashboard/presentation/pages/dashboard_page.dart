@@ -95,19 +95,51 @@ class _DashboardPageState extends State<DashboardPage> {
               onHomeTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 0),
               onDashboardTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1),
               onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
-              onEditBusinessTap: () {
-                if (selectedPresence != null && selectedPresence.id != 'all') {
-                  final dashboardCubit = context.read<DashboardCubit>();
-                  Navigator.push(
-                    context,
+              onEditBusinessTap: () async {
+                if (state is! BusinessOwnerHomeLoaded) return;
+                final loadedState = state as BusinessOwnerHomeLoaded;
+                final presences = loadedState.presences
+                    .where((p) => p.id != 'all')
+                    .toList();
+                if (presences.isEmpty) return;
+                final navContext = _scaffoldKey.currentContext;
+                if (navContext == null || !navContext.mounted) return;
+
+                BusinessPresence targetPresence;
+                if (presences.length == 1) {
+                  targetPresence = presences.first;
+                } else {
+                  final selectedId = await Navigator.push<String?>(
+                    navContext,
                     MaterialPageRoute(
-                      builder: (_) => BlocProvider<DashboardCubit>.value(
-                        value: dashboardCubit,
-                        child: EditBusinessPage(business: selectedPresence),
+                      builder: (_) => BusinessLocationsPage(
+                        presences: presences,
+                        currentPresenceId: loadedState.selectedPresenceId,
                       ),
                     ),
                   );
+                  final afterPicker = _scaffoldKey.currentContext;
+                  if (afterPicker == null ||
+                      !afterPicker.mounted ||
+                      selectedId == null) {
+                    return;
+                  }
+                  final match = presences.where((p) => p.id == selectedId);
+                  if (match.isEmpty) return;
+                  targetPresence = match.first;
                 }
+                final forEdit = _scaffoldKey.currentContext;
+                if (forEdit == null || !forEdit.mounted) return;
+                final dashboardCubit = forEdit.read<DashboardCubit>();
+                Navigator.push(
+                  forEdit,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider<DashboardCubit>.value(
+                      value: dashboardCubit,
+                      child: EditBusinessPage(business: targetPresence),
+                    ),
+                  ),
+                );
               },
               onUpdateHoursTap: () {
                 if (selectedPresence != null && selectedPresence.id != 'all') {

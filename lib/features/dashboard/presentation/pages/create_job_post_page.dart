@@ -19,6 +19,7 @@ class CreateJobPostPage extends StatefulWidget {
 }
 
 class _CreateJobPostPageState extends State<CreateJobPostPage> {
+  final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _jobTypeController = TextEditingController();
   final _locationController = TextEditingController();
@@ -81,6 +82,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
   }
 
   Map<String, dynamic> _buildPayload({String status = 'open'}) {
+    final requirements = _requirementsController.text.trim();
     return {
       'title': _titleController.text.trim(),
       'description': _descriptionController.text.trim(),
@@ -92,34 +94,52 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
           : 'full-time',
       'salary_min': int.tryParse(_minSalaryController.text.trim()),
       'salary_max': int.tryParse(_maxSalaryController.text.trim()),
+      'salary_type': _isHourly ? 'hourly' : 'yearly',
+      'is_remote': _remotePosition,
+      if (requirements.isNotEmpty) 'requirements': requirements,
       'status': status,
     };
   }
 
-  String? _validateForPost() {
-    if (_getSelectedBusinessId() == null) return 'Please select a business';
-    if (_titleController.text.trim().isEmpty) return 'Please enter a job title';
-    if (_descriptionController.text.trim().isEmpty) return 'Please enter a job description';
-    final minSalary = int.tryParse(_minSalaryController.text.trim());
-    final maxSalary = int.tryParse(_maxSalaryController.text.trim());
-    if (_minSalaryController.text.trim().isNotEmpty && minSalary == null) {
-      return 'Minimum salary must be a number';
+  List<String> _collectErrors({bool isDraft = false}) {
+    final errors = <String>[];
+    if (_getSelectedBusinessId() == null) {
+      errors.add('Please select a business');
     }
-    if (_maxSalaryController.text.trim().isNotEmpty && maxSalary == null) {
-      return 'Maximum salary must be a number';
+    if (_titleController.text.trim().isEmpty) {
+      errors.add('Please enter a job title');
+    }
+    if (!isDraft && _descriptionController.text.trim().isEmpty) {
+      errors.add('Please enter a job description');
+    }
+    final minText = _minSalaryController.text.trim();
+    final maxText = _maxSalaryController.text.trim();
+    final minSalary = int.tryParse(minText);
+    final maxSalary = int.tryParse(maxText);
+    if (minText.isNotEmpty && minSalary == null) {
+      errors.add('Minimum salary must be a valid number');
+    }
+    if (maxText.isNotEmpty && maxSalary == null) {
+      errors.add('Maximum salary must be a valid number');
     }
     if (minSalary != null && maxSalary != null && minSalary > maxSalary) {
-      return 'Minimum salary cannot exceed maximum salary';
+      errors.add('Minimum salary cannot exceed maximum salary');
     }
-    return null;
+    return errors;
+  }
+
+  bool get _isSalaryRangeInvalid {
+    final min = int.tryParse(_minSalaryController.text.trim());
+    final max = int.tryParse(_maxSalaryController.text.trim());
+    return min != null && max != null && min > max;
   }
 
   Future<void> _postJob() async {
-    final error = _validateForPost();
-    if (error != null) {
+    final errors = _collectErrors();
+    if (errors.isNotEmpty) {
       setState(() => _showValidation = true);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
+        SnackBar(content: Text(errors.first)),
       );
       return;
     }
@@ -151,15 +171,15 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
   }
 
   Future<void> _saveDraft() async {
-    final bizId = _getSelectedBusinessId();
-    final isTitleMissing = _titleController.text.trim().isEmpty;
-    if (bizId == null || isTitleMissing) {
+    final errors = _collectErrors(isDraft: true);
+    if (errors.isNotEmpty) {
       setState(() => _showValidation = true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in the job title and select a business')),
+        SnackBar(content: Text(errors.first)),
       );
       return;
     }
+    final bizId = _getSelectedBusinessId()!;
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Saving draft...');
     String? errorMessage;
@@ -207,11 +227,13 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppResources.spacingM),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppResources.spacingM),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             if (_needsBusinessPicker) ...[
               _buildBusinessPicker(),
               const SizedBox(height: 20),
@@ -298,9 +320,13 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
                     controller: _minSalaryController,
                     keyboardType: TextInputType.number,
                     showError: _showValidation &&
-                        _minSalaryController.text.trim().isNotEmpty &&
-                        int.tryParse(_minSalaryController.text.trim()) == null,
-                    errorMessage: 'Must be a number',
+                        ((_minSalaryController.text.trim().isNotEmpty &&
+                                int.tryParse(_minSalaryController.text.trim()) == null) ||
+                            _isSalaryRangeInvalid),
+                    errorMessage: _minSalaryController.text.trim().isNotEmpty &&
+                            int.tryParse(_minSalaryController.text.trim()) == null
+                        ? 'Must be a number'
+                        : (_isSalaryRangeInvalid ? 'Min exceeds max' : null),
                   ),
                 ),
                 const Padding(
@@ -313,9 +339,13 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
                     controller: _maxSalaryController,
                     keyboardType: TextInputType.number,
                     showError: _showValidation &&
-                        _maxSalaryController.text.trim().isNotEmpty &&
-                        int.tryParse(_maxSalaryController.text.trim()) == null,
-                    errorMessage: 'Must be a number',
+                        ((_maxSalaryController.text.trim().isNotEmpty &&
+                                int.tryParse(_maxSalaryController.text.trim()) == null) ||
+                            _isSalaryRangeInvalid),
+                    errorMessage: _maxSalaryController.text.trim().isNotEmpty &&
+                            int.tryParse(_maxSalaryController.text.trim()) == null
+                        ? 'Must be a number'
+                        : null,
                   ),
                 ),
               ],
@@ -355,6 +385,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
               borderColor: AppColors.backgroundGrey,
             ),
           ],
+          ),
         ),
       ),
     );

@@ -401,23 +401,53 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             onHomeTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 0),
             onDashboardTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1),
             onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
-            onEditBusinessTap: () {
-              if (selectedPresence != null && selectedPresence.id != 'all') {
-                final dashboardCubit = context.read<DashboardCubit>();
-                Navigator.push(
-                  context,
+            onEditBusinessTap: () async {
+              if (state is! BusinessOwnerHomeLoaded) return;
+              final loadedState = state as BusinessOwnerHomeLoaded;
+              final presences = loadedState.presences
+                  .where((p) => p.id != 'all')
+                  .toList();
+              if (presences.isEmpty) return;
+              // Use scaffold context — drawer BlocBuilder's context can unmount
+              // when the drawer closes, which breaks navigation after async picker.
+              final navContext = _scaffoldKey.currentContext;
+              if (navContext == null || !navContext.mounted) return;
+
+              BusinessPresence targetPresence;
+              if (presences.length == 1) {
+                targetPresence = presences.first;
+              } else {
+                final selectedId = await Navigator.push<String?>(
+                  navContext,
                   MaterialPageRoute(
-                    builder: (_) => BlocProvider<DashboardCubit>.value(
-                      value: dashboardCubit,
-                      child: EditBusinessPage(business: selectedPresence),
+                    builder: (_) => BusinessLocationsPage(
+                      presences: presences,
+                      currentPresenceId: loadedState.selectedPresenceId,
                     ),
                   ),
                 );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Select a business first')),
-                );
+                final afterPicker = _scaffoldKey.currentContext;
+                if (afterPicker == null ||
+                    !afterPicker.mounted ||
+                    selectedId == null) {
+                  return;
+                }
+                final match = presences.where((p) => p.id == selectedId);
+                if (match.isEmpty) return;
+                targetPresence = match.first;
               }
+              final forEdit = _scaffoldKey.currentContext;
+              if (forEdit == null || !forEdit.mounted) return;
+              final dashboardCubit = forEdit.read<DashboardCubit>();
+              Navigator.push(
+                forEdit,
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider<DashboardCubit>.value(
+                    value: dashboardCubit,
+                    child: EditBusinessPage(business: targetPresence),
+                  ),
+                ),
+              );
             },
             onUpdateHoursTap: () {
               if (selectedPresence != null && selectedPresence.id != 'all') {
@@ -958,16 +988,37 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     if (!task.isLocked) {
       switch (task.id) {
         case SetupTaskId.completeProfile:
-          final presence = state.selectedPresence;
-          if (presence != null && presence.id != 'all') {
-            onTap = () {
+          final presences = state.presences
+              .where((p) => p.id != 'all')
+              .toList();
+          if (presences.isNotEmpty) {
+            onTap = () async {
+              BusinessPresence targetPresence;
+              if (presences.length == 1) {
+                targetPresence = presences.first;
+              } else {
+                final selectedId = await Navigator.push<String?>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BusinessLocationsPage(
+                      presences: presences,
+                      currentPresenceId: state.selectedPresenceId,
+                    ),
+                  ),
+                );
+                if (!context.mounted || selectedId == null) return;
+                final match = presences.where((p) => p.id == selectedId);
+                if (match.isEmpty) return;
+                targetPresence = match.first;
+              }
+              if (!context.mounted) return;
               final dashboardCubit = context.read<DashboardCubit>();
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => BlocProvider<DashboardCubit>.value(
                     value: dashboardCubit,
-                    child: EditBusinessPage(business: presence),
+                    child: EditBusinessPage(business: targetPresence),
                   ),
                 ),
               );
