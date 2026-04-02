@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/resources/app_assets.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
 import '../../../auth/presentation/pages/sign_in_page.dart';
 import '../../domain/entities/business_presence.dart';
@@ -16,9 +15,12 @@ class BusinessOwnerDrawer extends StatelessWidget {
   final VoidCallback? onDashboardTap;
   final VoidCallback? onMessagesTap;
   final VoidCallback? onEditBusinessTap;
+  final VoidCallback? onBusinessPhotosTap;
   final VoidCallback? onUpdateHoursTap;
   final VoidCallback? onBoostListingTap;
   final VoidCallback? onSettingsTap;
+  /// When false (no businesses yet), hides Dashboard, edit, hours, and Boosts.
+  final bool showBusinessToolsMenu;
 
   const BusinessOwnerDrawer({
     super.key,
@@ -30,9 +32,11 @@ class BusinessOwnerDrawer extends StatelessWidget {
     this.onDashboardTap,
     this.onMessagesTap,
     this.onEditBusinessTap,
+    this.onBusinessPhotosTap,
     this.onUpdateHoursTap,
     this.onBoostListingTap,
     this.onSettingsTap,
+    this.showBusinessToolsMenu = true,
   });
 
   @override
@@ -58,6 +62,7 @@ class BusinessOwnerDrawer extends StatelessWidget {
     final businessName = business?.name ?? 'My Business';
     final location = business?.locationDisplay ?? 'Business Account';
     final imageUrl = business?.imageUrl;
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
@@ -76,34 +81,19 @@ class BusinessOwnerDrawer extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  imageUrl ?? '',
-                  width: 70,
-                  height: 70,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 70,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        color: AppColors.backgroundGrey,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Image.asset(
-                        AppAssets.businessPlaceholder,
+              hasImage
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        imageUrl!,
+                        width: 70,
+                        height: 70,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const Icon(
-                          Icons.store,
-                          size: 36,
-                          color: AppColors.textSecondary,
-                        ),
+                        errorBuilder: (context, error, stackTrace) =>
+                            _drawerBusinessIconAvatar(),
                       ),
-                    );
-                  },
-                ),
-              ),
+                    )
+                  : _drawerBusinessIconAvatar(),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -181,8 +171,25 @@ class BusinessOwnerDrawer extends StatelessWidget {
     );
   }
 
+  /// Shown when there is no listing image or the network image fails to load.
+  Widget _drawerBusinessIconAvatar() {
+    return Container(
+      width: 70,
+      height: 70,
+      decoration: BoxDecoration(
+        color: AppColors.backgroundGrey,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(
+        Icons.storefront_outlined,
+        size: 36,
+        color: AppColors.textSecondary,
+      ),
+    );
+  }
+
   Widget _buildMenuItems(BuildContext context) {
-    final menuItems = [
+    final menuItems = <_DrawerMenuItemData>[
       _DrawerMenuItemData(
         icon: Icons.home_outlined,
         activeIcon: Icons.home,
@@ -193,43 +200,54 @@ class BusinessOwnerDrawer extends StatelessWidget {
           onHomeTap?.call();
         },
       ),
-      _DrawerMenuItemData(
-        icon: Icons.dashboard_outlined,
-        activeIcon: Icons.dashboard,
-        title: 'Dashboard',
-        onTap: () {
-          Navigator.pop(context);
-          onDashboardTap?.call();
-        },
-      ),
-      _DrawerMenuItemData(
-        icon: Icons.edit_outlined,
-        activeIcon: Icons.edit,
-        title: 'Edit Business Info',
-        onTap: () {
-          Navigator.pop(context);
-          onEditBusinessTap?.call();
-        },
-      ),
-      _DrawerMenuItemData(
-        icon: Icons.schedule_outlined,
-        activeIcon: Icons.schedule,
-        title: 'Update Hours',
-        onTap: () {
-          Navigator.pop(context);
-          onUpdateHoursTap?.call();
-        },
-      ),
-      _DrawerMenuItemData(
-        icon: Icons.rocket_launch_outlined,
-        activeIcon: Icons.rocket_launch,
-        title: 'Boost Listing',
-        iconColor: AppColors.brandPrimary,
-        onTap: () {
-          Navigator.pop(context);
-          onBoostListingTap?.call();
-        },
-      ),
+      if (showBusinessToolsMenu) ...[
+        _DrawerMenuItemData(
+          icon: Icons.dashboard_outlined,
+          activeIcon: Icons.dashboard,
+          title: 'Dashboard',
+          onTap: () {
+            Navigator.pop(context);
+            onDashboardTap?.call();
+          },
+        ),
+        _DrawerMenuItemData(
+          icon: Icons.edit_outlined,
+          activeIcon: Icons.edit,
+          title: 'Edit Business Info',
+          onTap: () {
+            Navigator.pop(context);
+            onEditBusinessTap?.call();
+          },
+        ),
+        _DrawerMenuItemData(
+          icon: Icons.photo_library_outlined,
+          activeIcon: Icons.photo_library,
+          title: 'Business photos',
+          onTap: () {
+            Navigator.pop(context);
+            onBusinessPhotosTap?.call();
+          },
+        ),
+        _DrawerMenuItemData(
+          icon: Icons.schedule_outlined,
+          activeIcon: Icons.schedule,
+          title: 'Update Hours',
+          onTap: () {
+            Navigator.pop(context);
+            onUpdateHoursTap?.call();
+          },
+        ),
+        _DrawerMenuItemData(
+          icon: Icons.rocket_launch_outlined,
+          activeIcon: Icons.rocket_launch,
+          title: 'Boost Listing',
+          iconColor: AppColors.brandPrimary,
+          onTap: () {
+            Navigator.pop(context);
+            onBoostListingTap?.call();
+          },
+        ),
+      ],
       _DrawerMenuItemData(
         icon: Icons.settings_outlined,
         activeIcon: Icons.settings,

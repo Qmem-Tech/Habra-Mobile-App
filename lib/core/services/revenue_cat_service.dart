@@ -82,6 +82,38 @@ class RevenueCatService {
     }
   }
 
+  /// Packages to sell business-owner tools. Uses [offeringIdentifier] if set, else current offering.
+  Future<List<Package>> getOwnerToolsPackages({String? offeringIdentifier}) async {
+    if (!_initialized) return [];
+    try {
+      final offerings = await Purchases.getOfferings();
+      Offering? offering;
+      final id = offeringIdentifier?.trim() ?? '';
+      if (id.isNotEmpty) {
+        offering = offerings.all[id];
+      }
+      offering ??= offerings.current;
+      if (offering == null && offerings.all.isNotEmpty) {
+        offering = offerings.all.values.first;
+      }
+      return offering?.availablePackages ?? [];
+    } catch (e) {
+      debugPrint('RevenueCat getOwnerToolsPackages error: $e');
+      return [];
+    }
+  }
+
+  /// Restore purchases (e.g. new device). Caller should re-check entitlements afterward.
+  Future<void> restorePurchases() async {
+    if (!_initialized) return;
+    try {
+      await Purchases.restorePurchases();
+    } catch (e) {
+      debugPrint('RevenueCat restorePurchases error: $e');
+      rethrow;
+    }
+  }
+
   /// Identify user after login (optional, for cross-device).
   Future<void> identifyUser(String userId, {String? email}) async {
     if (!_initialized) return;

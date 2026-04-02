@@ -18,6 +18,11 @@ class DashboardCubit extends Cubit<DashboardState> {
     return _repository.getOwnerBusinesses(ownerId);
   }
 
+  /// Show a load error without hitting the network (e.g. no business to load).
+  void setLoadError(String message) {
+    emit(DashboardError(message));
+  }
+
   Future<void> loadDashboard(String businessId) async {
     emit(DashboardLoading());
     try {
@@ -152,7 +157,7 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
-  Future<Map<String, String?>?> getBusinessHours(String businessId) async {
+  Future<Map<String, dynamic>?> getBusinessHours(String businessId) async {
     try {
       return await _repository.getBusinessHours(businessId);
     } catch (e) {

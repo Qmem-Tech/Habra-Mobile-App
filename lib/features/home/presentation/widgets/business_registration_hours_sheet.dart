@@ -5,7 +5,8 @@ import '../../../../core/widgets/app_button.dart';
 
 /// Result of editing hours during business registration.
 ///
-/// **API:** `businesses.opening_time` / `closing_time` are a single pair (HH:mm).
+/// **API:** Registration uses a single `opening_time` / `closing_time` pair (HH:mm).
+/// Owners can set per-day hours later under Dashboard → Update Hours (`weekly_hours` JSON).
 /// Per-day closed flags are UI-only; the API does not store a weekly schedule.
 /// All non-closed days are assumed to use [openingTime] and [closingTime].
 class RegistrationHoursResult {
@@ -74,12 +75,17 @@ Future<RegistrationHoursResult?> showBusinessRegistrationHoursSheet(
   return showModalBottomSheet<RegistrationHoursResult>(
     context: context,
     isScrollControlled: true,
+    useRootNavigator: true,
     backgroundColor: AppColors.backgroundWhite,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
     builder: (ctx) {
-      return _RegistrationHoursSheetBody(initial: initial);
+      final maxH = MediaQuery.sizeOf(ctx).height * 0.92;
+      return ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxH),
+        child: _RegistrationHoursSheetBody(initial: initial),
+      );
     },
   );
 }
@@ -115,7 +121,11 @@ class _RegistrationHoursSheetBodyState extends State<_RegistrationHoursSheetBody
       hour: int.tryParse(parts[0]) ?? 9,
       minute: parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0,
     );
-    final picked = await showTimePicker(context: context, initialTime: initial);
+    final rootNav = Navigator.of(context, rootNavigator: true);
+    final picked = await showTimePicker(
+      context: rootNav.context,
+      initialTime: initial,
+    );
     if (picked != null && mounted) {
       setState(() {
         final s =
@@ -148,8 +158,7 @@ class _RegistrationHoursSheetBodyState extends State<_RegistrationHoursSheetBody
       );
       return;
     }
-    Navigator.pop(
-      context,
+    Navigator.of(context, rootNavigator: true).pop(
       RegistrationHoursResult(
         openingTime: _open,
         closingTime: _close,
@@ -168,12 +177,13 @@ class _RegistrationHoursSheetBodyState extends State<_RegistrationHoursSheetBody
   @override
   Widget build(BuildContext context) {
     final pad = MediaQuery.paddingOf(context);
-    return Padding(
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    return SingleChildScrollView(
       padding: EdgeInsets.only(
         left: AppResources.spacingL,
         right: AppResources.spacingL,
         top: AppResources.spacingM,
-        bottom: pad.bottom + AppResources.spacingL,
+        bottom: pad.bottom + AppResources.spacingL + bottomInset,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -288,3 +298,4 @@ class _RegistrationHoursSheetBodyState extends State<_RegistrationHoursSheetBody
     );
   }
 }
+

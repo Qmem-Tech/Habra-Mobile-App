@@ -6,6 +6,7 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/business_address_input.dart';
 import '../../domain/entities/business_brand_entity.dart';
 import '../../domain/entities/business_presence.dart';
+import '../../../dashboard/domain/repositories/dashboard_repository.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../../core/widgets/error_display_helper.dart';
@@ -233,6 +234,20 @@ class _AddLocationPageState extends State<AddLocationPage> {
         'logo_url': parent?.logoUrl ?? widget.selectedBrand.logoUrl,
         'background_url': parent?.backgroundUrl,
       };
+      // Additional locations inherit parent approval; only brand-new businesses
+      // use default pending in [DashboardSupabaseDataSource.createBusiness].
+      if (parent != null) {
+        if (parent.isPendingApproval) {
+          data['approval_status'] = 'pending';
+          data['is_verified'] = false;
+        } else if (parent.statusText == 'rejected') {
+          data['approval_status'] = 'rejected';
+          data['is_verified'] = false;
+        } else {
+          data['approval_status'] = 'approved';
+          data['is_verified'] = parent.isVerified;
+        }
+      }
       if (_sameHoursAsMain && parent != null) {
         final hours = await di.sl<DashboardCubit>().getBusinessHours(parent.id);
         if (hours != null) {
@@ -251,12 +266,27 @@ class _AddLocationPageState extends State<AddLocationPage> {
       if (businessId == null) {
         throw Exception('Failed to create location');
       }
+      if (parent != null) {
+        try {
+          final repo = di.sl<DashboardRepository>();
+          final categoryIds = await repo.listCategoryIdsForBusiness(parent.id);
+          if (categoryIds.isNotEmpty) {
+            await repo.replaceBusinessCategoryLinks(businessId, categoryIds);
+          }
+        } catch (_) {
+          // Listing exists; category copy is best-effort.
+        }
+      }
+      if (!ctx.mounted) return;
       setState(() => _isLoading = false);
       if (!ctx.mounted) return;
+      final showAsLive = parent != null &&
+          !parent.isPendingApproval &&
+          parent.statusText != 'rejected';
       Navigator.of(ctx).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => ListingStatusPage(
-            isVerified: false,
+            isVerified: showAsLive,
             businessId: businessId,
             businessName: widget.selectedBrand.name,
             imageUrl: parent?.logoUrl ?? widget.selectedBrand.logoUrl ?? '',

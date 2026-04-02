@@ -34,12 +34,6 @@ class BusinessOwnerOnboardingPage extends StatelessWidget {
               ),
               const SizedBox(height: AppResources.spacingXL),
               _StepCard(
-                icon: Icons.verified_user_outlined,
-                title: 'Verify your email',
-                subtitle: 'Use the verification link sent to your inbox.',
-              ),
-              const SizedBox(height: AppResources.spacingM),
-              _StepCard(
                 icon: Icons.description_outlined,
                 title: 'Upload legal documents',
                 subtitle:

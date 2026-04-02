@@ -19,7 +19,7 @@ class _BusinessBasicsPageState extends State<BusinessBasicsPage> {
   String? _selectedCategory;
 
   final List<String> _categories = [
-    'Restaurant & Cafe',
+    'Restaurant',
     'Retail Store',
     'Service Provider',
     'Entertainment',
@@ -38,17 +38,36 @@ class _BusinessBasicsPageState extends State<BusinessBasicsPage> {
   }
 
   void _onNext() {
-    if (_formKey.currentState!.validate() && _selectedCategory != null) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const BusinessLocationPage(),
-        ),
-      );
-    } else if (_selectedCategory == null) {
+    final formState = _formKey.currentState;
+    if (formState == null) return;
+
+    if (!formState.validate()) {
+      if (!mounted) return;
+      if (_businessNameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter your business name')),
+        );
+      } else if (_selectedCategory == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a business category')),
+        );
+      }
+      return;
+    }
+
+    if (_selectedCategory == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a business category')),
       );
+      return;
     }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const BusinessLocationPage(),
+      ),
+    );
   }
 
   @override
@@ -93,6 +112,7 @@ class _BusinessBasicsPageState extends State<BusinessBasicsPage> {
           ),
           child: Form(
             key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -135,9 +155,17 @@ class _BusinessBasicsPageState extends State<BusinessBasicsPage> {
                       borderRadius: BorderRadius.circular(AppResources.radiusM),
                       borderSide: const BorderSide(color: AppColors.brandPrimary),
                     ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.error),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.error, width: 2),
+                    ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
+                    if (value == null || value.trim().isEmpty) {
                       return 'Please enter your name';
                     }
                     return null;
@@ -176,6 +204,14 @@ class _BusinessBasicsPageState extends State<BusinessBasicsPage> {
                       borderRadius: BorderRadius.circular(AppResources.radiusM),
                       borderSide: const BorderSide(color: AppColors.brandPrimary),
                     ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.error),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.error, width: 2),
+                    ),
                   ),
                   validator: BusinessOnboardingValidators.businessName,
                 ),
@@ -204,6 +240,14 @@ class _BusinessBasicsPageState extends State<BusinessBasicsPage> {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppResources.radiusM),
                       borderSide: const BorderSide(color: AppColors.brandPrimary),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.error),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.error, width: 2),
                     ),
                     suffixIcon: const Icon(Icons.arrow_drop_down),
                   ),

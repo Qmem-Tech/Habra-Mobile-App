@@ -26,12 +26,15 @@ class BusinessImagesUploadDialog extends StatefulWidget {
     required this.businessName,
     this.initialLogoUrl,
     this.initialBackgroundUrl,
+    this.initialGalleryUrls,
   });
 
   final String businessId;
   final String businessName;
   final String? initialLogoUrl;
   final String? initialBackgroundUrl;
+  /// Existing gallery URLs to keep; new picks are appended (capped at [BusinessMediaLimits.maxGalleryImages]).
+  final List<String>? initialGalleryUrls;
 
   @override
   State<BusinessImagesUploadDialog> createState() =>
@@ -68,13 +71,16 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
     }
   }
 
+  int get _existingGalleryCount => widget.initialGalleryUrls?.length ?? 0;
+
   Future<void> _pickGalleryImage() async {
-    if (_galleryFiles.length >= BusinessMediaLimits.maxGalleryImages) {
+    if (_existingGalleryCount + _galleryFiles.length >=
+        BusinessMediaLimits.maxGalleryImages) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'You can add up to ${BusinessMediaLimits.maxGalleryImages} gallery photos.',
+            'You can have up to ${BusinessMediaLimits.maxGalleryImages} gallery photos in total.',
           ),
         ),
       );
@@ -146,7 +152,11 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
           '${widget.businessId}/gallery',
           _galleryFiles,
         );
-        data['image_urls'] = urls;
+        final existing = widget.initialGalleryUrls ?? const <String>[];
+        final merged = [...existing, ...urls];
+        data['image_urls'] = merged.length > BusinessMediaLimits.maxGalleryImages
+            ? merged.sublist(0, BusinessMediaLimits.maxGalleryImages)
+            : merged;
       }
 
       data.removeWhere((_, v) => v == null);
@@ -211,7 +221,9 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
                 const SizedBox(height: 8),
                 Text(
                   'Logo and background are required for ${widget.businessName}. '
-                  'Optional: up to ${BusinessMediaLimits.maxGalleryImages} gallery photos. Max 5 MB per file.',
+                  'Optional: up to ${BusinessMediaLimits.maxGalleryImages} gallery photos total '
+                  '${_existingGalleryCount > 0 ? '($_existingGalleryCount already saved) ' : ''}'
+                  '(new ones are added). Max 5 MB per file.',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,

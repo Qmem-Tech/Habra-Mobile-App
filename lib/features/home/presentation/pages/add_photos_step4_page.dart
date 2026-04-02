@@ -23,7 +23,7 @@ import 'listing_status_page.dart';
 // for extra photos; `business_legal_documents` accepts `document_type` `business_license`
 // and optional `ein_proof`. Adjust payload if your schema differs.
 
-/// Add Photos step 4: Cover, logo, optional gallery, business license (required), optional EIN.
+/// Registration step 4: Cover, logo, optional gallery, Business License (required), EIN Proof (optional).
 class AddPhotosStep4Page extends StatefulWidget {
   const AddPhotosStep4Page({super.key, this.step3Data = const {}});
 
@@ -93,7 +93,8 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Showcase your business to the community. Great photos attract more customers.',
+                'Showcase your business with photos, then upload your business license (required) '
+                'and EIN proof (optional) so we can verify your listing.',
                 style: TextStyle(
                   fontSize: 15,
                   color: AppColors.textSecondary,
@@ -207,53 +208,87 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
               ),
               const SizedBox(height: 28),
               Text(
-                'Business license',
+                'Legal documents',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 4),
-              Row(
+              const SizedBox(height: 6),
+              Text(
+                'Required for registration. Files are reviewed by our team.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: 4,
+                runSpacing: 4,
                 children: [
+                  Text(
+                    'Business License ',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
                   Text(
                     '(Required)',
                     style: TextStyle(
                       fontSize: 14,
                       color: AppColors.error,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'PDF or image, max 10 MB. EIN proof is optional below.',
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
+              Text(
+                'Current business license, resale certificate, or similar. PDF or image, max 10 MB.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
               const SizedBox(height: 12),
               _buildLegalFileTile(
                 file: _licenseFile,
-                emptyLabel: 'Tap to upload business license',
+                emptyLabel: 'Tap to upload Business License',
                 onTap: () => _pickLegalFile(isLicense: true),
                 onRemove: () => setState(() => _licenseFile = null),
               ),
-              const SizedBox(height: 20),
-              Text(
-                'EIN proof (optional)',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+              const SizedBox(height: 24),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  Text(
+                    'EIN Proof ',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    '(Optional)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
+              Text(
+                'IRS EIN assignment letter, Form SS-4 confirmation, or equivalent. PDF or image, max 10 MB.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
               _buildLegalFileTile(
                 file: _einFile,
-                emptyLabel: 'Tap to upload EIN document',
+                emptyLabel: 'Tap to upload EIN Proof',
                 onTap: () => _pickLegalFile(isLicense: false),
                 onRemove: () => setState(() => _einFile = null),
               ),
@@ -273,7 +308,6 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
                     !_isSubmitting)
                 ? _onComplete
                 : null,
-            isLoading: _isSubmitting,
           ),
         ),
       ),
@@ -532,7 +566,10 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
     if (!ctx.mounted) return;
 
     setState(() => _isSubmitting = true);
-    LoaderHelper.show(ctx, message: 'Completing registration...');
+    LoaderHelper.show(
+      ctx,
+      backgroundColor: Colors.white.withValues(alpha: 0.82),
+    );
 
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;

@@ -60,7 +60,7 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
         if (!_revenueCat.isInitialized) {
           return false;
         }
-        return _revenueCat.hasEntitlement(
+        return await _revenueCat.hasEntitlement(
           BusinessSubscriptionConfig.revenueCatEntitlementId,
         );
       case BusinessOwnerSubscriptionMode.profile:

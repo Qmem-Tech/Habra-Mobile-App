@@ -14,6 +14,8 @@ class BusinessPresence extends Equatable {
   final String imageUrl;
   final String? logoUrl;
   final String? backgroundUrl;
+  /// Extra storefront photos (`businesses.image_urls`); app enforces a small max count on upload.
+  final List<String> imageUrls;
   final bool isVerified;
   final bool isOpenNow;
   final double? rating;
@@ -35,6 +37,7 @@ class BusinessPresence extends Equatable {
     required this.imageUrl,
     this.logoUrl,
     this.backgroundUrl,
+    this.imageUrls = const [],
     this.isVerified = false,
     this.isOpenNow = true,
     this.rating,
@@ -85,6 +88,7 @@ class BusinessPresence extends Equatable {
         imageUrl,
         logoUrl,
         backgroundUrl,
+        imageUrls,
         isVerified,
         isOpenNow,
         rating,

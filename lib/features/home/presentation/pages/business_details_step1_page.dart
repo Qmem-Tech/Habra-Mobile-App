@@ -39,6 +39,12 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
     super.dispose();
   }
 
+  /// Aligns display with app copy (avoid legacy combined label in category pickers).
+  static String _listingCategoryDisplayName(String name) {
+    if (name == 'Restaurant & Cafe') return 'Restaurant';
+    return name;
+  }
+
   Future<void> _loadListingCategories() async {
     final result = await di.sl<GetActiveListingCategoriesUseCase>()();
     if (!mounted) return;
@@ -89,6 +95,7 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
           padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingL),
           child: Form(
             key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -122,8 +129,6 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
                   }) =>
                       const SizedBox.shrink(),
                   decoration: InputDecoration(
-                    hintText: 'Enter business name',
-                    hintStyle: TextStyle(color: AppColors.textTertiary),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppResources.radiusM),
                       borderSide: BorderSide(color: AppColors.backgroundGrey),
@@ -135,6 +140,14 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppResources.radiusM),
                       borderSide: const BorderSide(color: AppColors.brandPrimary),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.error),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      borderSide: const BorderSide(color: AppColors.error, width: 2),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -186,8 +199,6 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
                     // ignore: deprecated_member_use - use initialValue when form API is updated
                     value: _selectedCategoryId,
                     decoration: InputDecoration(
-                      hintText: 'Select category',
-                      hintStyle: TextStyle(color: AppColors.textTertiary),
                       suffixIcon: const Icon(Icons.arrow_drop_down),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppResources.radiusM),
@@ -201,6 +212,14 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
                         borderRadius: BorderRadius.circular(AppResources.radiusM),
                         borderSide: const BorderSide(color: AppColors.brandPrimary),
                       ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppResources.radiusM),
+                        borderSide: const BorderSide(color: AppColors.error),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppResources.radiusM),
+                        borderSide: const BorderSide(color: AppColors.error, width: 2),
+                      ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 14,
@@ -210,7 +229,7 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
                         .map(
                           (c) => DropdownMenuItem<String>(
                             value: c.id,
-                            child: Text(c.name),
+                            child: Text(_listingCategoryDisplayName(c.name)),
                           ),
                         )
                         .toList(),
@@ -258,13 +277,27 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
+
+    final nameError = BusinessOnboardingValidators.businessName(_nameController.text);
+    if (nameError != null) {
+      setState(() => _isLoading = false);
+      _formKey.currentState?.validate();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(nameError)),
+      );
+      return;
+    }
+
+    final trimmedName = _nameController.text.trim();
     setState(() => _isLoading = false);
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => BusinessLocationStep2Page(
           step1Data: {
-            'name': _nameController.text.trim(),
+            'name': trimmedName,
             'category_id': categoryId,
           },
         ),

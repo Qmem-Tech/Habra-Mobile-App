@@ -11,7 +11,10 @@ import 'address_autocomplete_dialog.dart';
 import 'address_map_picker_page.dart';
 import '../../injection/injection_container.dart' as di;
 
-/// Reusable business address input with 4 methods: current location, search, map picker, paste link.
+/// Reusable business address input.
+///
+/// When [showOptionalAddressMethods] is true (default): current location, search, map, paste link.
+/// When false (new business registration): only a full-width **Use current location** action.
 class BusinessAddressInput extends StatelessWidget {
   const BusinessAddressInput({
     super.key,
@@ -23,6 +26,11 @@ class BusinessAddressInput extends StatelessWidget {
     this.defaultState = 'AL',
     /// When false, only "Current location" is shown (new business registration flow).
     this.showOptionalAddressMethods = true,
+    /// When non-null, uses [TextFormField] so [FormState.validate] runs (e.g. registration).
+    this.streetValidator,
+    this.cityValidator,
+    this.stateValidator,
+    this.zipValidator,
   });
 
   final TextEditingController streetController;
@@ -32,6 +40,10 @@ class BusinessAddressInput extends StatelessWidget {
   final TextEditingController zipController;
   final String defaultState;
   final bool showOptionalAddressMethods;
+  final String? Function(String?)? streetValidator;
+  final String? Function(String?)? cityValidator;
+  final String? Function(String?)? stateValidator;
+  final String? Function(String?)? zipValidator;
 
   void _applyAddress(BuildContext context, BusinessAddressData data) {
     if (data.street != null) streetController.text = data.street!;
@@ -43,6 +55,12 @@ class BusinessAddressInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showFieldHints = showOptionalAddressMethods;
+    final streetHint = showFieldHints ? 'Enter street address' : '';
+    final suiteHint = showFieldHints ? 'Optional' : '';
+    final stateHint = showFieldHints ? defaultState : '';
+    final zipHint = showFieldHints ? 'ZIP' : '';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -53,15 +71,25 @@ class BusinessAddressInput extends StatelessWidget {
         const SizedBox(height: 20),
         _buildLabel('Street Address'),
         const SizedBox(height: 8),
-        _buildTextField(context, streetController, 'Enter street address'),
+        _buildTextField(
+          context,
+          streetController,
+          streetHint,
+          validator: streetValidator,
+        ),
         const SizedBox(height: 16),
         _buildLabel('Suite / Unit'),
         const SizedBox(height: 8),
-        _buildTextField(context, suiteController, 'Optional'),
+        _buildTextField(context, suiteController, suiteHint),
         const SizedBox(height: 16),
         _buildLabel('City'),
         const SizedBox(height: 8),
-        _buildTextField(context, cityController, 'Enter city'),
+        _buildTextField(
+          context,
+          cityController,
+          '',
+          validator: cityValidator,
+        ),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -72,7 +100,18 @@ class BusinessAddressInput extends StatelessWidget {
                 children: [
                   _buildLabel('State'),
                   const SizedBox(height: 8),
-                  _buildTextField(context, stateController, defaultState),
+                  _buildTextField(
+                    context,
+                    stateController,
+                    stateHint,
+                    validator: stateValidator,
+                    textCapitalization: stateValidator != null
+                        ? TextCapitalization.characters
+                        : TextCapitalization.none,
+                    inputFormatters: stateValidator != null
+                        ? <TextInputFormatter>[_StateAbbrevInputFormatter()]
+                        : null,
+                  ),
                 ],
               ),
             ),
@@ -83,7 +122,18 @@ class BusinessAddressInput extends StatelessWidget {
                 children: [
                   _buildLabel('ZIP Code'),
                   const SizedBox(height: 8),
-                  _buildTextField(context, zipController, 'ZIP'),
+                  _buildTextField(
+                    context,
+                    zipController,
+                    zipHint,
+                    validator: zipValidator,
+                    inputFormatters: zipValidator != null
+                        ? <TextInputFormatter>[
+                            FilteringTextInputFormatter.allow(RegExp(r'[0-9-]')),
+                            LengthLimitingTextInputFormatter(10),
+                          ]
+                        : null,
+                  ),
                 ],
               ),
             ),
@@ -98,18 +148,54 @@ class BusinessAddressInput extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Set address',
+          'Use your current address',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 12),
-        _MethodChip(
-          icon: Icons.my_location,
-          label: 'Current location',
-          onTap: () => _onUseCurrentLocation(context),
+        const SizedBox(height: 6),
+        Text(
+          'We\'ll fill street, city, state, and ZIP. You can edit the fields below.',
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.35,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: AppResources.buttonHeightL,
+          child: OutlinedButton.icon(
+            onPressed: () => _onUseCurrentLocation(context),
+            icon: Icon(
+              Icons.my_location_rounded,
+              size: 22,
+              color: AppColors.brandPrimary,
+            ),
+            label: const Text(
+              'Use current location',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.brandPrimary,
+              backgroundColor: AppColors.brandPrimary.withValues(alpha: 0.08),
+              side: BorderSide(
+                color: AppColors.brandPrimary.withValues(alpha: 0.4),
+                width: 1.5,
+              ),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppResources.radiusM),
+              ),
+              alignment: Alignment.center,
+            ),
+          ),
         ),
       ],
     );
@@ -273,23 +359,73 @@ class BusinessAddressInput extends StatelessWidget {
   Widget _buildTextField(
     BuildContext context,
     TextEditingController controller,
-    String hint,
-  ) {
+    String hint, {
+    String? Function(String?)? validator,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+  }) {
+    final decoration = InputDecoration(
+      hintText: hint.isEmpty ? null : hint,
+      hintStyle: TextStyle(color: AppColors.textTertiary),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        borderSide: BorderSide(color: AppColors.backgroundGrey),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        borderSide: BorderSide(color: AppColors.backgroundGrey),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        borderSide: const BorderSide(color: AppColors.brandPrimary),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        borderSide: const BorderSide(color: AppColors.error),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        borderSide: const BorderSide(color: AppColors.error),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+
+    if (validator != null) {
+      return TextFormField(
+        controller: controller,
+        validator: validator,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        textCapitalization: textCapitalization,
+        decoration: decoration,
+      );
+    }
+
     return TextField(
       controller: controller,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: AppColors.textTertiary),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppResources.radiusM),
-          borderSide: BorderSide(color: AppColors.backgroundGrey),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppResources.radiusM),
-          borderSide: BorderSide(color: AppColors.backgroundGrey),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      textCapitalization: textCapitalization,
+      decoration: decoration,
+    );
+  }
+}
+
+/// Uppercase A-Z only, max 2 characters (US state abbreviation).
+class _StateAbbrevInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    var t = newValue.text.toUpperCase().replaceAll(RegExp(r'[^A-Z]'), '');
+    if (t.length > 2) {
+      t = t.substring(0, 2);
+    }
+    return TextEditingValue(
+      text: t,
+      selection: TextSelection.collapsed(offset: t.length),
     );
   }
 }

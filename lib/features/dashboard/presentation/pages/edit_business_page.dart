@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/constants/business_media_limits.dart';
 import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_utils.dart';
@@ -15,6 +16,7 @@ import '../../../../core/widgets/business_address_input.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../home/domain/entities/business_presence.dart';
 import '../bloc/dashboard_cubit.dart';
+import '../widgets/business_gallery_photos_dialog.dart';
 
 class EditBusinessPage extends StatefulWidget {
   const EditBusinessPage({super.key, required this.business});
@@ -39,6 +41,7 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
 
   File? _logoFile;
   File? _backgroundFile;
+  late List<String> _galleryUrls;
   bool _showValidation = false;
 
   static final RegExp _emailRe = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
@@ -56,6 +59,24 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
     _cityController = TextEditingController(text: widget.business.city ?? '');
     _stateController = TextEditingController(text: widget.business.state ?? '');
     _zipController = TextEditingController();
+    _galleryUrls = List<String>.from(widget.business.imageUrls);
+  }
+
+  Future<void> _openGalleryPhotos() async {
+    final ctx = context;
+    final updated = await showDialog<List<String>?>(
+      context: ctx,
+      builder: (_) => BlocProvider.value(
+        value: ctx.read<DashboardCubit>(),
+        child: BusinessGalleryPhotosDialog(
+          businessId: widget.business.id,
+          businessName: widget.business.displayName,
+          initialImageUrls: _galleryUrls,
+        ),
+      ),
+    );
+    if (!mounted || updated == null) return;
+    setState(() => _galleryUrls = List<String>.from(updated));
   }
 
   @override
@@ -215,6 +236,27 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
                   onTap: _pickBackground,
                 ),
               ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'More photos',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${_galleryUrls.length} of ${BusinessMediaLimits.maxGalleryImages} slots used. '
+              'These appear alongside your listing in Explore.',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _openGalleryPhotos,
+              icon: const Icon(Icons.add_photo_alternate_outlined, size: 20),
+              label: const Text('Add or remove photos'),
             ),
             const SizedBox(height: 24),
             _sectionTitle('Basic Info'),

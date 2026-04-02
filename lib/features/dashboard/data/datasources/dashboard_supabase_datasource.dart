@@ -41,6 +41,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   BusinessPresence _rowToPresence(Map<String, dynamic> row) {
     final logoUrl = parseString(row['logo_url']);
     final backgroundUrl = parseString(row['background_url']);
+    final galleryUrls = parseStringList(row['image_urls']);
     final imageUrl = logoUrl ?? 'https://placehold.co/400x300?text=Business';
 
     String category = parseString(row['description']) ?? 'Business';
@@ -69,6 +70,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       imageUrl: imageUrl,
       logoUrl: logoUrl,
       backgroundUrl: backgroundUrl,
+      imageUrls: galleryUrls,
       isVerified: parseBool(row['is_verified']),
       isOpenNow: parseBool(row['is_active']),
       rating: parseDouble(row['rating']),
@@ -152,15 +154,34 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   Future<List<DashboardDeal>> getDeals(String businessId,
       {DashboardDealStatus? status}) async {
     return SupabaseFailureMapper.guard(() async {
-      var query = _client
-          .from(SupabaseTables.deals)
-          .select('*, ${SupabaseTables.businesses}!deals_business_id_fkey(name)')
-          .eq('business_id', businessId);
-      if (status != null) {
-        query = query.eq('status', _dealStatusToString(status));
+      List<dynamic> res;
+      try {
+        var query = _client
+            .from(SupabaseTables.deals)
+            .select(
+                '*, ${SupabaseTables.businesses}!deals_business_id_fkey(name)')
+            .eq('business_id', businessId);
+        if (status != null) {
+          query = query.eq('status', _dealStatusToString(status));
+        }
+        res = await query.order('created_at', ascending: false) as List;
+      } on PostgrestException catch (e) {
+        if (e.message.contains('could not find') ||
+            e.message.contains('relationship') ||
+            e.code == 'PGRST200') {
+          var query = _client
+              .from(SupabaseTables.deals)
+              .select()
+              .eq('business_id', businessId);
+          if (status != null) {
+            query = query.eq('status', _dealStatusToString(status));
+          }
+          res = await query.order('created_at', ascending: false) as List;
+        } else {
+          rethrow;
+        }
       }
-      final res = await query.order('created_at', ascending: false);
-      final rows = (res as List).cast<Map<String, dynamic>>();
+      final rows = res.cast<Map<String, dynamic>>();
       return rows.map(_rowToDashboardDeal).toList();
     });
   }
@@ -198,6 +219,8 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     final merchantName =
         biz is Map<String, dynamic> ? parseString(biz['name']) : null;
     final discountPct = parseInt(row['discount_percentage']) ?? 0;
+    final discountedPrice = parseInt(row['discounted_price']);
+    final dealCategory = parseString(row['category']);
     final validUntil = parseTimestamp(row['valid_until']);
     final validFrom = parseTimestamp(row['valid_from']);
     String validity = '';
@@ -205,13 +228,23 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       validity =
           '${validFrom.month}/${validFrom.day} - ${validUntil.month}/${validUntil.day}';
     }
+    final String dealTypeLabel;
+    if (dealCategory == 'fixed_amount' &&
+        discountedPrice != null &&
+        discountedPrice > 0) {
+      dealTypeLabel = '\$$discountedPrice off';
+    } else if (dealCategory == 'free_item') {
+      dealTypeLabel = 'Free item';
+    } else {
+      dealTypeLabel = '$discountPct% off';
+    }
     return DashboardDeal(
       id: parseStringRequired(row['id']),
       title: parseStringRequired(row['title']),
       description: parseStringRequired(row['description']),
       imageUrl: parseString(row['image_url']) ??
           'https://placehold.co/400x300?text=Deal',
-      dealTypeLabel: '$discountPct% off',
+      dealTypeLabel: dealTypeLabel,
       validityDescription: validity,
       redeemedCount: parseInt(row['redemption_count']) ?? 0,
       expiryDate: validUntil,
@@ -328,12 +361,28 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   @override
   Future<List<BusinessReview>> getReviews(String businessId) async {
     return SupabaseFailureMapper.guard(() async {
-      final res = await _client
-          .from(SupabaseTables.reviews)
-          .select('*, ${SupabaseTables.profiles}!reviews_user_id_fkey(full_name, avatar_url)')
-          .eq('business_id', businessId)
-          .order('created_at', ascending: false);
-      final rows = (res as List).cast<Map<String, dynamic>>();
+      List<dynamic> res;
+      try {
+        res = await _client
+            .from(SupabaseTables.reviews)
+            .select(
+                '*, ${SupabaseTables.profiles}!reviews_user_id_fkey(full_name, avatar_url)')
+            .eq('business_id', businessId)
+            .order('created_at', ascending: false) as List;
+      } on PostgrestException catch (e) {
+        if (e.message.contains('could not find') ||
+            e.message.contains('relationship') ||
+            e.code == 'PGRST200') {
+          res = await _client
+              .from(SupabaseTables.reviews)
+              .select()
+              .eq('business_id', businessId)
+              .order('created_at', ascending: false) as List;
+        } else {
+          rethrow;
+        }
+      }
+      final rows = res.cast<Map<String, dynamic>>();
       return rows.map((row) {
         final profile = row[SupabaseTables.profiles];
         final authorName = profile is Map<String, dynamic>
@@ -622,7 +671,9 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final payload = Map<String, dynamic>.from(data);
       payload['owner_id'] = ownerId;
-      payload['approval_status'] = 'pending';
+      if (!payload.containsKey('approval_status')) {
+        payload['approval_status'] = 'pending';
+      }
       payload['updated_at'] = DateTime.now().toIso8601String();
       final res = await _client
           .from(SupabaseTables.businesses)
@@ -659,6 +710,24 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     });
   }
 
+  @override
+  Future<List<String>> listCategoryIdsForBusiness(String businessId) async {
+    return SupabaseFailureMapper.guard(() async {
+      final res = await _client
+          .from(SupabaseTables.businessCategories)
+          .select('category_id')
+          .eq('business_id', businessId);
+      final list = res as List<dynamic>;
+      final ids = <String>[];
+      for (final row in list) {
+        if (row is! Map) continue;
+        final id = parseString(Map<String, dynamic>.from(row)['category_id']);
+        if (id != null && id.isNotEmpty) ids.add(id);
+      }
+      return ids;
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Update business
   // ---------------------------------------------------------------------------
@@ -678,38 +747,113 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   // ---------------------------------------------------------------------------
   // Update business hours
   // ---------------------------------------------------------------------------
+  static final Set<String> _missingBusinessColumns = {};
+
   @override
   Future<void> updateBusinessHours(
       String businessId, Map<String, dynamic> hours) async {
     return SupabaseFailureMapper.guard(() async {
-      await _client.from(SupabaseTables.businesses).update({
+      final payload = <String, dynamic>{
         'opening_time': hours['opening_time'],
         'closing_time': hours['closing_time'],
         'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', businessId);
+      };
+      final weekly = hours['weekly_hours'];
+      if (weekly != null &&
+          !_missingBusinessColumns.contains('weekly_hours')) {
+        payload['weekly_hours'] = weekly;
+      }
+      try {
+        await _client
+            .from(SupabaseTables.businesses)
+            .update(payload)
+            .eq('id', businessId);
+      } on PostgrestException catch (e) {
+        if (_stripWeeklyHoursIfMissing(payload, e.message)) {
+          await _client
+              .from(SupabaseTables.businesses)
+              .update(payload)
+              .eq('id', businessId);
+        } else {
+          rethrow;
+        }
+      }
     });
+  }
+
+  bool _stripWeeklyHoursIfMissing(
+    Map<String, dynamic> payload,
+    String message,
+  ) {
+    final lower = message.toLowerCase();
+    if (!payload.containsKey('weekly_hours')) return false;
+    if (lower.contains('weekly_hours')) {
+      payload.remove('weekly_hours');
+      _missingBusinessColumns.add('weekly_hours');
+      return true;
+    }
+    return false;
   }
 
   // ---------------------------------------------------------------------------
   // Get business hours
   // ---------------------------------------------------------------------------
   @override
-  Future<Map<String, String?>?> getBusinessHours(String businessId) async {
+  Future<Map<String, dynamic>?> getBusinessHours(String businessId) async {
     return SupabaseFailureMapper.guard(() async {
-      final res = await _client
-          .from(SupabaseTables.businesses)
-          .select('opening_time, closing_time')
-          .eq('id', businessId)
-          .maybeSingle();
-      if (res == null) return null;
-      final row = Map<String, dynamic>.from(res);
+      Map<String, dynamic>? row;
+      if (!_missingBusinessColumns.contains('weekly_hours')) {
+        try {
+          final res = await _client
+              .from(SupabaseTables.businesses)
+              .select('opening_time, closing_time, weekly_hours')
+              .eq('id', businessId)
+              .maybeSingle();
+          if (res != null) {
+            row = Map<String, dynamic>.from(res as Map);
+          }
+        } on PostgrestException catch (e) {
+          if (_weeklyHoursSelectMissing(e.message)) {
+            _missingBusinessColumns.add('weekly_hours');
+          } else {
+            rethrow;
+          }
+        }
+      }
+      row ??= await _getBusinessHoursLegacyRow(businessId);
+      if (row == null) return null;
       final opening = row['opening_time']?.toString();
       final closing = row['closing_time']?.toString();
+      final weeklyRaw = row['weekly_hours'];
+      Map<String, dynamic>? weeklyMap;
+      if (weeklyRaw is Map<String, dynamic>) {
+        weeklyMap = weeklyRaw;
+      } else if (weeklyRaw is Map) {
+        weeklyMap = Map<String, dynamic>.from(weeklyRaw);
+      }
       return {
         'opening_time': _normalizeTime(opening),
         'closing_time': _normalizeTime(closing),
+        if (weeklyMap != null) 'weekly_hours': weeklyMap,
       };
     });
+  }
+
+  bool _weeklyHoursSelectMissing(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('weekly_hours') ||
+        (lower.contains('column') && lower.contains('does not exist'));
+  }
+
+  Future<Map<String, dynamic>?> _getBusinessHoursLegacyRow(
+      String businessId) async {
+    final res = await _client
+        .from(SupabaseTables.businesses)
+        .select('opening_time, closing_time')
+        .eq('id', businessId)
+        .maybeSingle();
+    if (res == null) return null;
+    return Map<String, dynamic>.from(res as Map);
   }
 
   static String? _normalizeTime(String? value) {
@@ -745,6 +889,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         final status = _legalDocumentStatusFromRow(row);
         final type = parseString(row['document_type']) ?? '';
         types.add(type);
+        final typeKey = _normalizeLegalDocumentType(type);
         if (status == 'pending') hasPendingRows = true;
         if (status == 'approved') approvedCount++;
         if (status == 'rejected') {
@@ -757,16 +902,18 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
             }
           }
         }
-        if (type == 'business_license') {
+        if (typeKey == 'business_license') {
           hasBusinessLicense = true;
           if (status == 'approved') businessLicenseApproved = true;
         }
-        if (type == 'ein_proof') {
+        if (typeKey == 'ein_proof') {
           hasEinProof = true;
           if (status == 'approved') einProofApproved = true;
         }
       }
-      final hasLegacyDocPair = types.contains('doc_1') && types.contains('doc_2');
+      final normalizedTypes = types.map(_normalizeLegalDocumentType).toSet();
+      final hasLegacyDocPair =
+          normalizedTypes.contains('doc_1') && normalizedTypes.contains('doc_2');
       return LegalDocumentsStatus(
         uploadedCount: rows.length,
         approvedCount: approvedCount,
@@ -784,6 +931,13 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
 
   static String _legalDocumentRowStatus(dynamic value) =>
       (parseString(value) ?? '').trim().toLowerCase();
+
+  /// Aligns mobile + admin consoles that may use `business-license`, `Business License`, etc.
+  static String _normalizeLegalDocumentType(String? type) {
+    final raw = (type ?? '').trim().toLowerCase();
+    if (raw.isEmpty) return '';
+    return raw.replaceAll('-', '_').replaceAll(' ', '_');
+  }
 
   /// Prefers `review_status` when the column exists (Super Admin alignment).
   static String _legalDocumentStatusFromRow(Map<String, dynamic> row) {

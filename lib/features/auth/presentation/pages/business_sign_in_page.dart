@@ -101,14 +101,14 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
                   SnackBar(content: Text(state.message)),
                 );
               } else if (state is AuthEmailVerificationPending) {
-                Navigator.of(context).pushAndRemoveUntil(
+                Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => EmailVerificationPage(
                       email: state.email,
                       signUpRole: UserRole.businessOwner,
+                      usePopWhenLeaving: true,
                     ),
                   ),
-                  (route) => false,
                 );
               } else if (state is AuthAuthenticated) {
                 _handleNavigationForUser(context, state.user);

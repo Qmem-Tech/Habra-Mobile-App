@@ -104,14 +104,14 @@ class _SignInPageState extends State<SignInPage> {
                 SnackBar(content: Text(state.message)),
               );
             } else if (state is AuthEmailVerificationPending) {
-              Navigator.of(context).pushAndRemoveUntil(
+              Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => EmailVerificationPage(
                     email: state.email,
                     signUpRole: UserRole.customer,
+                    usePopWhenLeaving: true,
                   ),
                 ),
-                (route) => false,
               );
             } else if (state is AuthAuthenticated) {
               _handleNavigationForUser(context, state.user);

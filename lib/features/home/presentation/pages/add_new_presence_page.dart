@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
-import '../../../../core/resources/app_assets.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../domain/entities/business_presence.dart';
 import 'business_details_step1_page.dart';
@@ -62,9 +61,8 @@ class _AddNewPresencePageState extends State<AddNewPresencePage> {
                 description:
                     'Create a profile for a completely new brand or company.',
                 example: 'Ex: Opening your first coffee shop.',
-                iconPath: AppAssets.businessOwnerNewBusiness,
+                leadingIcon: Icons.storefront_outlined,
                 isSelected: _isNewBusiness,
-                radioValue: true,
                 onTap: () => setState(() => _isNewBusiness = true),
               ),
               const SizedBox(height: 16),
@@ -73,9 +71,8 @@ class _AddNewPresencePageState extends State<AddNewPresencePage> {
                 description:
                     'Add a new branch or outlet to a business you already manage.',
                 example: 'Ex: Adding a second location for \'Habesha Market\'.',
-                iconPath: AppAssets.businessOwnerNewLocation,
+                leadingIcon: Icons.add_location_alt_outlined,
                 isSelected: !_isNewBusiness,
-                radioValue: false,
                 onTap: () => setState(() => _isNewBusiness = false),
               ),
               const SizedBox(height: 48),
@@ -99,9 +96,8 @@ class _AddNewPresencePageState extends State<AddNewPresencePage> {
     required String title,
     required String description,
     required String example,
-    required String iconPath,
+    required IconData leadingIcon,
     required bool isSelected,
-    required bool radioValue,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -120,19 +116,17 @@ class _AddNewPresencePageState extends State<AddNewPresencePage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppResources.radiusM),
-              child: Image.asset(
-                iconPath,
-                width: 56,
-                height: 56,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 56,
-                  height: 56,
-                  color: AppColors.backgroundLight,
-                  child: const Icon(Icons.store, color: AppColors.brandPrimary),
-                ),
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppColors.backgroundLight,
+                borderRadius: BorderRadius.circular(AppResources.radiusM),
+              ),
+              child: Icon(
+                leadingIcon,
+                size: 28,
+                color: AppColors.brandPrimary,
               ),
             ),
             const SizedBox(width: 16),

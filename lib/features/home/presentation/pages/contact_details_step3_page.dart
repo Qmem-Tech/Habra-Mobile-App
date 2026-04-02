@@ -3,6 +3,7 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl_phone_field/phone_number.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/validation/business_onboarding_validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../widgets/business_registration_hours_sheet.dart';
 import 'add_photos_step4_page.dart';
@@ -25,8 +26,6 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
   final _websiteController = TextEditingController();
   bool _isLoading = false;
 
-  static final RegExp _emailRe = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
-
   late RegistrationHoursResult _hoursResult;
 
   @override
@@ -36,6 +35,8 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
   }
 
   Future<void> _onEditHours() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (!mounted) return;
     final updated = await showBusinessRegistrationHoursSheet(
       context,
       initial: _hoursResult,
@@ -84,6 +85,7 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
           padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingL),
           child: Form(
             key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -96,14 +98,20 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
                     color: AppColors.textPrimary,
                   ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  'Next you\'ll add photos, then Business License (required) and EIN Proof (optional).',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 const SizedBox(height: 24),
                 _buildLabel('Business Phone'),
                 const SizedBox(height: 8),
                 IntlPhoneField(
                   disableLengthCheck: true,
                   decoration: InputDecoration(
-                    hintText: 'Phone number',
-                    hintStyle: TextStyle(color: AppColors.textTertiary),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppResources.radiusM),
                       borderSide: BorderSide(color: AppColors.backgroundGrey),
@@ -121,15 +129,12 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
                   initialCountryCode: 'US',
                   onChanged: (phone) => setState(() => _phoneNumber = phone.completeNumber),
                   validator: (PhoneNumber? phone) {
-                    if (phone == null || phone.number.isEmpty) {
+                    if (phone == null || phone.number.trim().isEmpty) {
                       return 'Please enter phone number';
                     }
-                    final digits =
-                        phone.completeNumber.replaceAll(RegExp(r'\D'), '');
-                    if (digits.length < 10) {
-                      return 'Please enter a valid phone number';
-                    }
-                    return null;
+                    return BusinessOnboardingValidators.businessPhone(
+                      phone.completeNumber,
+                    );
                   },
                 ),
                 const SizedBox(height: 16),
@@ -139,8 +144,6 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    hintText: 'Email',
-                    hintStyle: TextStyle(color: AppColors.textTertiary),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppResources.radiusM),
                       borderSide: BorderSide(color: AppColors.backgroundGrey),
@@ -155,16 +158,7 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
                     ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
-                  validator: (value) {
-                    final v = value?.trim() ?? '';
-                    if (v.isEmpty) {
-                      return 'Please enter business email';
-                    }
-                    if (!_emailRe.hasMatch(v)) {
-                      return 'Please enter a valid email';
-                    }
-                    return null;
-                  },
+                  validator: BusinessOnboardingValidators.businessEmail,
                 ),
                 const SizedBox(height: 16),
                 _buildLabel('Website (Optional)'),
@@ -173,8 +167,6 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
                   controller: _websiteController,
                   keyboardType: TextInputType.url,
                   decoration: InputDecoration(
-                    hintText: 'https://',
-                    hintStyle: TextStyle(color: AppColors.textTertiary),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppResources.radiusM),
                       borderSide: BorderSide(color: AppColors.backgroundGrey),
@@ -189,17 +181,7 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
                     ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
-                  validator: (value) {
-                    final v = value?.trim() ?? '';
-                    if (v.isEmpty) return null;
-                    final uri = Uri.tryParse(v);
-                    if (uri == null ||
-                        (!uri.hasScheme ||
-                            (uri.scheme != 'http' && uri.scheme != 'https'))) {
-                      return 'Enter a valid URL (https://...)';
-                    }
-                    return null;
-                  },
+                  validator: BusinessOnboardingValidators.businessWebsiteOptional,
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -303,6 +285,19 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
 
   Future<void> _onNext() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    final hoursErr = BusinessOnboardingValidators.registrationBusinessHours(
+      dayClosed: _hoursResult.dayClosed,
+      openingTime: _hoursResult.openingTime,
+      closingTime: _hoursResult.closingTime,
+    );
+    if (hoursErr != null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(hoursErr)),
+      );
       return;
     }
 

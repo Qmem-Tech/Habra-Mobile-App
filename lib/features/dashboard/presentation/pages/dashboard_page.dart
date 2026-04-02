@@ -24,6 +24,7 @@ import 'create_deal_page.dart';
 import 'create_job_post_page.dart';
 import 'edit_business_page.dart';
 import 'update_hours_page.dart';
+import '../widgets/business_gallery_photos_dialog.dart';
 import 'job_applicants_page.dart';
 import 'reply_to_review_page.dart';
 import '../../domain/entities/dashboard_job.dart';
@@ -44,12 +45,13 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late int _tabIndex;
+  /// One post-frame resync per time we land on [DashboardInitial] (avoids spam + restores after sub-flows).
+  bool _scheduledInitialResync = false;
 
   @override
   void initState() {
     super.initState();
     _tabIndex = widget.initialTabIndex ?? 0;
-    _loadDashboard();
   }
 
   @override
@@ -61,24 +63,53 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  Future<void> _loadDashboard() async {
-    final homeState = context.read<BusinessOwnerHomeCubit>().state;
-    if (homeState is BusinessOwnerHomeLoaded && homeState.selectedPresence != null) {
-      final id = homeState.selectedPresence!.id;
-      if (id != 'all') {
-        await context.read<DashboardCubit>().loadDashboard(id);
-      }
+  /// Picks a concrete business id for dashboard APIs. When "All businesses" is
+  /// selected, [BusinessOwnerHomeLoaded.selectedPresence] is often null — we fall
+  /// back to the first real listing so the dashboard can load.
+  static String? _resolveDashboardBusinessId(BusinessOwnerHomeLoaded home) {
+    final selectedId = home.selectedPresenceId;
+    if (selectedId != null &&
+        selectedId != 'all' &&
+        home.presences.any((p) => p.id == selectedId)) {
+      return selectedId;
     }
+    final concrete =
+        home.presences.where((p) => p.id != 'all').toList(growable: false);
+    if (concrete.isEmpty) return null;
+    return concrete.first.id;
+  }
+
+  Future<void> _syncDashboardWithHome() async {
+    if (!mounted) return;
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is! BusinessOwnerHomeLoaded) return;
+    final businessId = _resolveDashboardBusinessId(homeState);
+    final cubit = context.read<DashboardCubit>();
+    if (businessId == null) {
+      cubit.setLoadError(
+        'No business listing is available yet. Add one from Home, then open Dashboard again.',
+      );
+      return;
+    }
+    await cubit.loadDashboard(businessId);
+  }
+
+  Future<void> _loadDashboard() async {
+    await _syncDashboardWithHome();
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocListener<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
+      listenWhen: (previous, current) {
+        if (current is! BusinessOwnerHomeLoaded) return false;
+        if (previous is! BusinessOwnerHomeLoaded) return true;
+        return previous.selectedPresenceId != current.selectedPresenceId ||
+            previous.presences.length != current.presences.length;
+      },
       listener: (context, state) {
-        if (state is BusinessOwnerHomeLoaded &&
-            state.selectedPresence != null &&
-            state.selectedPresence!.id != 'all') {
-          context.read<DashboardCubit>().loadDashboard(state.selectedPresence!.id);
+        if (state is BusinessOwnerHomeLoaded) {
+          _syncDashboardWithHome();
         }
       },
       child: Scaffold(
@@ -140,6 +171,58 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                   ),
                 );
+              },
+              onBusinessPhotosTap: () async {
+                if (state is! BusinessOwnerHomeLoaded) return;
+                final loadedState = state as BusinessOwnerHomeLoaded;
+                final presences =
+                    loadedState.presences.where((p) => p.id != 'all').toList();
+                if (presences.isEmpty) return;
+                final navContext = _scaffoldKey.currentContext;
+                if (navContext == null || !navContext.mounted) return;
+
+                BusinessPresence targetPresence;
+                if (presences.length == 1) {
+                  targetPresence = presences.first;
+                } else {
+                  final selectedId = await Navigator.push<String?>(
+                    navContext,
+                    MaterialPageRoute(
+                      builder: (_) => BusinessLocationsPage(
+                        presences: presences,
+                        currentPresenceId: loadedState.selectedPresenceId,
+                      ),
+                    ),
+                  );
+                  final afterPicker = _scaffoldKey.currentContext;
+                  if (afterPicker == null ||
+                      !afterPicker.mounted ||
+                      selectedId == null) {
+                    return;
+                  }
+                  final match = presences.where((p) => p.id == selectedId);
+                  if (match.isEmpty) return;
+                  targetPresence = match.first;
+                }
+                final dlgCtx = _scaffoldKey.currentContext;
+                if (dlgCtx == null || !dlgCtx.mounted) return;
+                final dashboardCubit = dlgCtx.read<DashboardCubit>();
+                final result = await showDialog<List<String>?>(
+                  dlgCtx,
+                  builder: (_) => BlocProvider<DashboardCubit>.value(
+                    value: dashboardCubit,
+                    child: BusinessGalleryPhotosDialog(
+                      businessId: targetPresence.id,
+                      businessName: targetPresence.displayName,
+                      initialImageUrls: targetPresence.imageUrls,
+                    ),
+                  ),
+                );
+                if (!mounted || result == null) return;
+                await context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
+                      ownerId: widget.user.id,
+                      showSetupIncomplete: false,
+                    );
               },
               onUpdateHoursTap: () {
                 if (selectedPresence != null && selectedPresence.id != 'all') {
@@ -210,17 +293,16 @@ class _DashboardPageState extends State<DashboardPage> {
               child: BlocBuilder<DashboardCubit, DashboardState>(
                 builder: (context, state) {
                   if (state is DashboardLoading || state is DashboardInitial) {
-                    if (state is DashboardInitial) {
+                    if (state is DashboardInitial && !_scheduledInitialResync) {
+                      _scheduledInitialResync = true;
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        final homeState = context.read<BusinessOwnerHomeCubit>().state;
-                        if (homeState is BusinessOwnerHomeLoaded &&
-                            homeState.selectedPresence != null &&
-                            homeState.selectedPresence!.id != 'all') {
-                          context.read<DashboardCubit>().loadDashboard(homeState.selectedPresence!.id);
-                        }
+                        if (mounted) _syncDashboardWithHome();
                       });
                     }
                     return const HabraCircularLoader(fullScreen: true);
+                  }
+                  if (state is! DashboardInitial) {
+                    _scheduledInitialResync = false;
                   }
                   if (state is DashboardError) {
                     return Center(
@@ -274,13 +356,14 @@ class _DashboardPageState extends State<DashboardPage> {
                         filter: state.dealsFilter,
                         onFilterChanged: (f) {
                           final homeState = context.read<BusinessOwnerHomeCubit>().state;
-                          if (homeState is BusinessOwnerHomeLoaded &&
-                              homeState.selectedPresence != null &&
-                              homeState.selectedPresence!.id != 'all') {
-                            context.read<DashboardCubit>().setDealsFilter(
-                                  homeState.selectedPresence!.id,
-                                  f,
-                                );
+                          if (homeState is BusinessOwnerHomeLoaded) {
+                            final bid = _resolveDashboardBusinessId(homeState);
+                            if (bid != null) {
+                              context.read<DashboardCubit>().setDealsFilter(
+                                    bid,
+                                    f,
+                                  );
+                            }
                           }
                         },
                         onCreateDeal: () => _navigateToCreateDeal(),

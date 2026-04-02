@@ -22,10 +22,15 @@ class EmailVerificationPage extends StatefulWidget {
     super.key,
     required this.email,
     this.signUpRole = UserRole.customer,
+    /// When true, "Back to sign in" / close pops after logout (verification was
+    /// [Navigator.push] on top of sign-in). When false, replaces with sign-in
+    /// (e.g. after sign-up [pushReplacement] or an isolated stack).
+    this.usePopWhenLeaving = false,
   });
 
   final String email;
   final UserRole signUpRole;
+  final bool usePopWhenLeaving;
 
   @override
   State<EmailVerificationPage> createState() => _EmailVerificationPageState();
@@ -66,18 +71,22 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   }
 
   Future<void> _exitVerificationFlow() async {
-    final navigator = Navigator.of(context);
+    if (!mounted) return;
+    final navigator = Navigator.of(context, rootNavigator: true);
     final authCubit = context.read<AuthCubit>();
     await authCubit.logout();
     if (!mounted) return;
     authCubit.resetToInitial();
     if (!mounted) return;
-    final Widget root = widget.signUpRole == UserRole.businessOwner
+    if (widget.usePopWhenLeaving && navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    final Widget next = widget.signUpRole == UserRole.businessOwner
         ? const BusinessSignInPage()
         : const SignInPage();
-    navigator.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => root),
-      (route) => false,
+    navigator.pushReplacement(
+      MaterialPageRoute(builder: (_) => next),
     );
   }
 

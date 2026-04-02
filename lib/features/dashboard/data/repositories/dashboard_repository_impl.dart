@@ -74,7 +74,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
       _remote.updateBusinessHours(businessId, hours);
 
   @override
-  Future<Map<String, String?>?> getBusinessHours(String businessId) =>
+  Future<Map<String, dynamic>?> getBusinessHours(String businessId) =>
       _remote.getBusinessHours(businessId);
 
   @override
@@ -84,6 +84,10 @@ class DashboardRepositoryImpl implements DashboardRepository {
   @override
   Future<void> replaceBusinessCategoryLinks(String businessId, List<String> categoryIds) =>
       _remote.replaceBusinessCategoryLinks(businessId, categoryIds);
+
+  @override
+  Future<List<String>> listCategoryIdsForBusiness(String businessId) =>
+      _remote.listCategoryIdsForBusiness(businessId);
 
   @override
   Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId) =>

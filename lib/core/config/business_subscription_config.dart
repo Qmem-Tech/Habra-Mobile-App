@@ -40,6 +40,12 @@ class BusinessSubscriptionConfig {
     defaultValue: 'business_owner_tools',
   );
 
+  /// RevenueCat offering identifier (dashboard → Offerings). Empty = use [Offerings.current].
+  static const String revenueCatOfferingIdentifier = String.fromEnvironment(
+    'REVENUECAT_BUSINESS_OFFERING_ID',
+    defaultValue: '',
+  );
+
   static bool get gatesPaidBusinessTabs =>
       mode != BusinessOwnerSubscriptionMode.off;
 }

@@ -98,15 +98,15 @@ class _AuthCallbackVerificationPageState
   }
 
   Future<void> _leaveToSignInEntry() async {
-    final navigator = Navigator.of(context);
+    if (!mounted) return;
+    final navigator = Navigator.of(context, rootNavigator: true);
     final authCubit = context.read<AuthCubit>();
     await authCubit.logout();
     if (!mounted) return;
     authCubit.resetToInitial();
     if (!mounted) return;
-    navigator.pushAndRemoveUntil(
+    navigator.pushReplacement(
       MaterialPageRoute(builder: (_) => const ChoosePathPage()),
-      (route) => false,
     );
   }
 

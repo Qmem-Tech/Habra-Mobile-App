@@ -199,7 +199,6 @@ class _BusinessLocationPageState extends State<BusinessLocationPage> {
                 TextFormField(
                   controller: _cityController,
                   decoration: InputDecoration(
-                    hintText: 'Enter city',
                     hintStyle: AppFonts.body(color: AppColors.textTertiary),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppResources.radiusM),

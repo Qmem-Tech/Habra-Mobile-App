@@ -12,7 +12,11 @@ import '../../features/boosts/presentation/bloc/boosts_cubit.dart';
 import '../../features/boosts/presentation/pages/boosts_page.dart';
 import '../../features/auth/domain/entities/user.dart';
 import '../../features/dashboard/presentation/bloc/dashboard_cubit.dart';
+import '../../features/dashboard/domain/repositories/dashboard_repository.dart';
+import '../../features/home/presentation/bloc/business_owner_home_cubit.dart';
+import '../../features/home/presentation/bloc/business_owner_home_state.dart';
 import '../../features/home/presentation/pages/profile_page.dart';
+import '../../features/home/presentation/pages/business_owner_subscription_page.dart';
 
 /// Bottom nav for business owner: Home, Dash, Boosts, Profile.
 class BusinessOwnerNavigationWrapper extends StatefulWidget {
@@ -37,6 +41,21 @@ class BusinessOwnerNavigationWrapper extends StatefulWidget {
     final state =
         context.findAncestorStateOfType<_BusinessOwnerNavigationWrapperState>();
     state?._resetBusinessToolsAccessCache();
+  }
+
+  /// Opens business-owner subscription / paywall (requires [BusinessOwnerSubscriptionCubit] above context).
+  static Future<void> openBusinessOwnerSubscription(
+    BuildContext context,
+    User user,
+  ) {
+    return Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (ctx) => BlocProvider.value(
+          value: context.read<BusinessOwnerSubscriptionCubit>(),
+          child: BusinessOwnerSubscriptionPage(user: user),
+        ),
+      ),
+    );
   }
 
   @override
@@ -92,10 +111,19 @@ class _BusinessOwnerNavigationWrapperState
     if (cubit.state.hasActiveSubscription) {
       return true;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'An active business subscription is required for the Dashboard. Open Boosts to manage your plan.',
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Text(
+          'An active business subscription is required for the Dashboard.',
+        ),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Subscribe',
+          onPressed: () {
+            openBusinessOwnerSubscription(context, widget.user);
+          },
         ),
       ),
     );
@@ -128,20 +156,20 @@ class _BusinessOwnerNavigationWrapperState
           _lockReason = 'Your business listing is pending approval.';
           return false;
         }
-        final legalStatus =
-            await dashboardCubit.getLegalDocumentsStatus(business.id);
+        // Super Admin approval is the source of truth for opening Dashboard/Boosts.
+        // We only hard-block here when we can read legal rows and at least one is rejected.
+        LegalDocumentsStatus legalStatus;
+        try {
+          legalStatus = await dashboardCubit.getLegalDocumentsStatus(business.id);
+        } catch (_) {
+          // RLS/network/parse issues: do not lock out an approved listing.
+          continue;
+        }
         if (legalStatus.hasRejected) {
           _hasBusinessToolsAccess = false;
           _blockedBusinessId = business.id;
           _blockedBusinessName = business.name;
           _lockReason = 'A legal document was rejected. Please re-upload a corrected file.';
-          return false;
-        }
-        if (!legalStatus.hasRequiredUploaded) {
-          _hasBusinessToolsAccess = false;
-          _blockedBusinessId = business.id;
-          _blockedBusinessName = business.name;
-          _lockReason = 'Required legal documents have not been uploaded yet.';
           return false;
         }
       }
@@ -167,15 +195,19 @@ class _BusinessOwnerNavigationWrapperState
             'Business dashboard is locked until your listing is approved and legal documents are submitted.';
         final bizId = _blockedBusinessId;
         final bizName = _blockedBusinessName;
-        ScaffoldMessenger.of(context).showSnackBar(
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.clearSnackBars();
+        messenger.showSnackBar(
           SnackBar(
             content: Text(reason),
             duration: const Duration(seconds: 6),
+            behavior: SnackBarBehavior.floating,
             action: bizId != null
                 ? SnackBarAction(
                     label: 'View Documents',
                     textColor: AppColors.brandSecondaryLight,
                     onPressed: () {
+                      messenger.hideCurrentSnackBar();
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => BusinessLegalDocumentsDetailPage(
@@ -186,7 +218,11 @@ class _BusinessOwnerNavigationWrapperState
                       );
                     },
                   )
-                : null,
+                : SnackBarAction(
+                    label: 'OK',
+                    textColor: AppColors.brandSecondaryLight,
+                    onPressed: () => messenger.hideCurrentSnackBar(),
+                  ),
           ),
         );
         return;

@@ -89,6 +89,28 @@ class _CreateDealPageState extends State<CreateDealPage> {
     return false;
   }
 
+  DateTime? get _composedValidFrom {
+    if (_startDate == null || _startTime == null) return null;
+    return DateTime(
+      _startDate!.year,
+      _startDate!.month,
+      _startDate!.day,
+      _startTime!.hour,
+      _startTime!.minute,
+    );
+  }
+
+  DateTime? get _composedValidUntil {
+    if (_endDate == null || _endTime == null) return null;
+    return DateTime(
+      _endDate!.year,
+      _endDate!.month,
+      _endDate!.day,
+      _endTime!.hour,
+      _endTime!.minute,
+    );
+  }
+
   Future<Map<String, dynamic>> _buildPayload(String status) async {
     String? imageUrl;
     if (_imageFile != null) {
@@ -100,16 +122,35 @@ class _CreateDealPageState extends State<CreateDealPage> {
       );
     }
     final now = DateTime.now();
-    final validFrom = _startDate != null && _startTime != null
-        ? DateTime(_startDate!.year, _startDate!.month, _startDate!.day, _startTime!.hour, _startTime!.minute)
-        : now;
-    final validUntil = _endDate != null && _endTime != null
-        ? DateTime(_endDate!.year, _endDate!.month, _endDate!.day, _endTime!.hour, _endTime!.minute)
-        : now.add(const Duration(days: 7));
+    final validFrom = _composedValidFrom ?? now;
+    final validUntil = _composedValidUntil ?? now.add(const Duration(days: 7));
+
+    final discountRaw = _discountController.text.trim();
+    final parsedDiscount = int.tryParse(discountRaw);
+    late final String category;
+    int? discountPercentage;
+    int? discountedPrice;
+    switch (_offerType) {
+      case OfferType.percentOff:
+        category = 'percent_off';
+        discountPercentage = parsedDiscount;
+        break;
+      case OfferType.fixedAmount:
+        category = 'fixed_amount';
+        discountedPrice = parsedDiscount;
+        break;
+      case OfferType.freeItem:
+        category = 'free_item';
+        discountPercentage = 0;
+        break;
+    }
+
     return {
       'title': _titleController.text.trim(),
       'description': _descriptionController.text.trim(),
-      'discount_percentage': int.tryParse(_discountController.text.trim()),
+      'discount_percentage': discountPercentage,
+      'discounted_price': discountedPrice,
+      'category': category,
       'valid_from': validFrom.toIso8601String(),
       'valid_until': validUntil.toIso8601String(),
       'status': status,
@@ -117,28 +158,67 @@ class _CreateDealPageState extends State<CreateDealPage> {
     };
   }
 
-  String? _validateForPublish() {
-    if (_getSelectedBusinessId() == null) return 'Please select a business';
-    if (_titleController.text.trim().isEmpty) return 'Please enter a deal title';
-    if (_offerType == OfferType.percentOff) {
-      final pct = int.tryParse(_discountController.text.trim());
-      if (pct == null || pct < 1 || pct > 100) {
-        return 'Discount percentage must be between 1 and 100';
-      }
+  List<String> _collectErrors({required bool forDraft}) {
+    final errors = <String>[];
+    if (_getSelectedBusinessId() == null) {
+      errors.add('Please select a business');
     }
-    if (_startDate != null && _endDate != null && _endDate!.isBefore(_startDate!)) {
-      return 'End date must be after start date';
+    if (_titleController.text.trim().isEmpty) {
+      errors.add('Please enter a deal title');
     }
-    if (_selectedDays.isEmpty) return 'Select at least one available day';
-    return null;
+    if (forDraft) return errors;
+
+    if (_descriptionController.text.trim().isEmpty) {
+      errors.add('Please enter a deal description');
+    }
+    if (_composedValidFrom == null) {
+      errors.add('Please select a start date and start time');
+    }
+    if (_composedValidUntil == null) {
+      errors.add('Please select an end date and end time');
+    }
+    final from = _composedValidFrom;
+    final until = _composedValidUntil;
+    if (from != null && until != null && !until.isAfter(from)) {
+      errors.add('End date and time must be after the start');
+    }
+    switch (_offerType) {
+      case OfferType.percentOff:
+        final pct = int.tryParse(_discountController.text.trim());
+        if (pct == null || pct < 1 || pct > 100) {
+          errors.add('Discount percentage must be between 1 and 100');
+        }
+        break;
+      case OfferType.fixedAmount:
+        final amt = int.tryParse(_discountController.text.trim());
+        if (amt == null || amt < 1) {
+          errors.add('Enter a whole dollar amount of at least 1');
+        }
+        break;
+      case OfferType.freeItem:
+        break;
+    }
+    if (_selectedDays.isEmpty) {
+      errors.add('Select at least one available day');
+    }
+    return errors;
+  }
+
+  bool get _scheduleHasError {
+    if (!_showValidation) return false;
+    return _composedValidFrom == null ||
+        _composedValidUntil == null ||
+        (_composedValidFrom != null &&
+            _composedValidUntil != null &&
+            !_composedValidUntil!.isAfter(_composedValidFrom!));
   }
 
   Future<void> _publishDeal() async {
-    final error = _validateForPublish();
-    if (error != null) {
+    final errors = _collectErrors(forDraft: false);
+    if (errors.isNotEmpty) {
       setState(() => _showValidation = true);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
+        SnackBar(content: Text(errors.first)),
       );
       return;
     }
@@ -166,14 +246,15 @@ class _CreateDealPageState extends State<CreateDealPage> {
   }
 
   Future<void> _saveDraft() async {
-    final bizId = _getSelectedBusinessId();
-    if (bizId == null || _titleController.text.trim().isEmpty) {
+    final errors = _collectErrors(forDraft: true);
+    if (errors.isNotEmpty) {
       setState(() => _showValidation = true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in the deal title and select a business')),
+        SnackBar(content: Text(errors.first)),
       );
       return;
     }
+    final bizId = _getSelectedBusinessId()!;
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Saving draft...');
     try {
@@ -247,19 +328,28 @@ class _CreateDealPageState extends State<CreateDealPage> {
                 _OfferChip(
                   label: 'Percent Off',
                   selected: _offerType == OfferType.percentOff,
-                  onTap: () => setState(() => _offerType = OfferType.percentOff),
+                  onTap: () => setState(() {
+                    _offerType = OfferType.percentOff;
+                    _discountController.clear();
+                  }),
                 ),
                 const SizedBox(width: 8),
                 _OfferChip(
                   label: 'Fixed Amount',
                   selected: _offerType == OfferType.fixedAmount,
-                  onTap: () => setState(() => _offerType = OfferType.fixedAmount),
+                  onTap: () => setState(() {
+                    _offerType = OfferType.fixedAmount;
+                    _discountController.clear();
+                  }),
                 ),
                 const SizedBox(width: 8),
                 _OfferChip(
                   label: 'Free Item',
                   selected: _offerType == OfferType.freeItem,
-                  onTap: () => setState(() => _offerType = OfferType.freeItem),
+                  onTap: () => setState(() {
+                    _offerType = OfferType.freeItem;
+                    _discountController.clear();
+                  }),
                 ),
               ],
             ),
@@ -285,13 +375,38 @@ class _CreateDealPageState extends State<CreateDealPage> {
                 errorMessage: 'Enter a value between 1 and 100',
                 keyboardType: TextInputType.number,
               ),
+            if (_offerType == OfferType.fixedAmount)
+              _buildTextField(
+                'Amount off (\$)',
+                controller: _discountController,
+                isRequired: true,
+                showError: _showValidation && (() {
+                  final amt = int.tryParse(_discountController.text.trim());
+                  return amt == null || amt < 1;
+                })(),
+                errorMessage: 'Enter a whole dollar amount of at least 1',
+                keyboardType: TextInputType.number,
+              ),
+            if (_offerType == OfferType.freeItem)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'Describe the free item in the description field below.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    height: 1.35,
+                  ),
+                ),
+              ),
             const SizedBox(height: 12),
             _buildTextField(
               'Description',
               controller: _descriptionController,
               maxLines: 4,
-              hint: 'Optional',
+              isRequired: true,
               maxLength: 2000,
+              showError: _showValidation && _descriptionController.text.trim().isEmpty,
             ),
             const SizedBox(height: 12),
             _buildTextField(
@@ -334,22 +449,58 @@ class _CreateDealPageState extends State<CreateDealPage> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(child: _buildDateField('Start Date', _startDate, (d) => setState(() => _startDate = d))),
+                Expanded(
+                  child: _buildDateField(
+                    'Start Date',
+                    _startDate,
+                    (d) => setState(() => _startDate = d),
+                    showError: _scheduleHasError,
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _buildDateField('End Date', _endDate, (d) => setState(() => _endDate = d))),
+                Expanded(
+                  child: _buildDateField(
+                    'End Date',
+                    _endDate,
+                    (d) => setState(() => _endDate = d),
+                    showError: _scheduleHasError,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _buildTimeField('Start Time', _startTime, (t) => setState(() => _startTime = t))),
+                Expanded(
+                  child: _buildTimeField(
+                    'Start Time',
+                    _startTime,
+                    (t) => setState(() => _startTime = t),
+                    showError: _scheduleHasError,
+                  ),
+                ),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8),
                   child: Text('to', style: TextStyle(color: AppColors.brandPrimary, fontWeight: FontWeight.w600)),
                 ),
-                Expanded(child: _buildTimeField('End Time', _endTime, (t) => setState(() => _endTime = t))),
+                Expanded(
+                  child: _buildTimeField(
+                    'End Time',
+                    _endTime,
+                    (t) => setState(() => _endTime = t),
+                    showError: _scheduleHasError,
+                  ),
+                ),
               ],
             ),
+            if (_scheduleHasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Set all schedule fields so the offer ends after it starts.',
+                  style: TextStyle(fontSize: 13, color: AppColors.error),
+                ),
+              ),
             const SizedBox(height: 12),
             const Text(
               'Available Days',
@@ -395,6 +546,14 @@ class _CreateDealPageState extends State<CreateDealPage> {
                 );
               }),
             ),
+            if (_showValidation && _selectedDays.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Select at least one day this deal is available',
+                  style: TextStyle(fontSize: 13, color: AppColors.error),
+                ),
+              ),
             const SizedBox(height: 32),
             AppButton(
               text: 'Publish Deal',
@@ -484,7 +643,12 @@ class _CreateDealPageState extends State<CreateDealPage> {
     if (picked != null && mounted) onPicked(picked);
   }
 
-  Widget _buildDateField(String label, DateTime? value, void Function(DateTime) onPicked) {
+  Widget _buildDateField(
+    String label,
+    DateTime? value,
+    void Function(DateTime) onPicked, {
+    bool showError = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -505,7 +669,9 @@ class _CreateDealPageState extends State<CreateDealPage> {
             decoration: BoxDecoration(
               color: AppColors.backgroundWhite,
               borderRadius: BorderRadius.circular(AppResources.radiusM),
-              border: Border.all(color: AppColors.backgroundGrey),
+              border: Border.all(
+                color: showError ? AppColors.error : AppColors.backgroundGrey,
+              ),
             ),
             child: Row(
               children: [
@@ -526,7 +692,12 @@ class _CreateDealPageState extends State<CreateDealPage> {
     );
   }
 
-  Widget _buildTimeField(String label, TimeOfDay? value, void Function(TimeOfDay) onPicked) {
+  Widget _buildTimeField(
+    String label,
+    TimeOfDay? value,
+    void Function(TimeOfDay) onPicked, {
+    bool showError = false,
+  }) {
     final display = value != null
         ? _formatTimeOfDay(value)
         : 'Tap to select';
@@ -551,7 +722,9 @@ class _CreateDealPageState extends State<CreateDealPage> {
             decoration: BoxDecoration(
               color: AppColors.backgroundWhite,
               borderRadius: BorderRadius.circular(AppResources.radiusM),
-              border: Border.all(color: AppColors.backgroundGrey),
+              border: Border.all(
+                color: showError ? AppColors.error : AppColors.backgroundGrey,
+              ),
             ),
             child: Row(
               children: [

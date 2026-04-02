@@ -11,6 +11,7 @@ import '../../../auth/domain/entities/user.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
+import '../../../home/presentation/bloc/business_owner_subscription_cubit.dart';
 import '../../../home/presentation/pages/business_locations_page.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
 import '../../../home/presentation/widgets/business_owner_drawer.dart';
@@ -18,6 +19,7 @@ import '../../../settings/presentation/pages/settings_page.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../dashboard/presentation/pages/edit_business_page.dart';
 import '../../../dashboard/presentation/pages/update_hours_page.dart';
+import '../../../dashboard/presentation/widgets/business_gallery_photos_dialog.dart';
 import '../../../dashboard/presentation/widgets/empty_state_widget.dart';
 import '../../domain/entities/boost_filter.dart';
 import '../bloc/boosts_cubit.dart';
@@ -111,6 +113,58 @@ class _BoostsPageState extends State<BoostsPage> {
                     ),
                   );
                 },
+                onBusinessPhotosTap: () async {
+                  if (state is! BusinessOwnerHomeLoaded) return;
+                  final loadedState = state as BusinessOwnerHomeLoaded;
+                  final presences =
+                      loadedState.presences.where((p) => p.id != 'all').toList();
+                  if (presences.isEmpty) return;
+                  final navContext = _scaffoldKey.currentContext;
+                  if (navContext == null || !navContext.mounted) return;
+
+                  BusinessPresence targetPresence;
+                  if (presences.length == 1) {
+                    targetPresence = presences.first;
+                  } else {
+                    final selectedId = await Navigator.push<String?>(
+                      navContext,
+                      MaterialPageRoute(
+                        builder: (_) => BusinessLocationsPage(
+                          presences: presences,
+                          currentPresenceId: loadedState.selectedPresenceId,
+                        ),
+                      ),
+                    );
+                    final afterPicker = _scaffoldKey.currentContext;
+                    if (afterPicker == null ||
+                        !afterPicker.mounted ||
+                        selectedId == null) {
+                      return;
+                    }
+                    final match = presences.where((p) => p.id == selectedId);
+                    if (match.isEmpty) return;
+                    targetPresence = match.first;
+                  }
+                  final dlgCtx = _scaffoldKey.currentContext;
+                  if (dlgCtx == null || !dlgCtx.mounted) return;
+                  final dashboardCubit = dlgCtx.read<DashboardCubit>();
+                  final result = await showDialog<List<String>?>(
+                    dlgCtx,
+                    builder: (_) => BlocProvider<DashboardCubit>.value(
+                      value: dashboardCubit,
+                      child: BusinessGalleryPhotosDialog(
+                        businessId: targetPresence.id,
+                        businessName: targetPresence.displayName,
+                        initialImageUrls: targetPresence.imageUrls,
+                      ),
+                    ),
+                  );
+                  if (!mounted || result == null) return;
+                  await context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
+                        ownerId: widget.user.id,
+                        showSetupIncomplete: false,
+                      );
+                },
                 onUpdateHoursTap: () {
                   if (selected != null && selected.id != 'all') {
                     final dashboardCubit = context.read<DashboardCubit>();
@@ -135,7 +189,50 @@ class _BoostsPageState extends State<BoostsPage> {
             },
           ),
           appBar: _buildAppBar(context),
-          body: BlocConsumer<BoostsCubit, BoostsState>(
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              BlocBuilder<BusinessOwnerSubscriptionCubit,
+                  BusinessOwnerSubscriptionState>(
+                builder: (context, subState) {
+                  if (!subState.shouldShowSubscribeBanner) {
+                    return const SizedBox.shrink();
+                  }
+                  return Material(
+                    color: AppColors.brandPrimary.withValues(alpha: 0.1),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppResources.spacingM,
+                        vertical: AppResources.spacingS,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Subscribe to unlock the Dashboard.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                BusinessOwnerNavigationWrapper
+                                    .openBusinessOwnerSubscription(
+                              context,
+                              widget.user,
+                            ),
+                            child: const Text('Subscribe'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              Expanded(
+                child: BlocConsumer<BoostsCubit, BoostsState>(
             listener: (context, state) {
               if (state is! BoostsLoaded &&
                   state is! BoostsLoading &&
@@ -311,6 +408,9 @@ class _BoostsPageState extends State<BoostsPage> {
                 ],
               );
             },
+                ),
+              ),
+            ],
           ),
         );
       },

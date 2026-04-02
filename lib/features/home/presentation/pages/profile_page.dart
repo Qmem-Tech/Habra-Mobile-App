@@ -61,6 +61,18 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  static String _phoneDisplay(String? phone) {
+    final t = phone?.trim();
+    if (t == null || t.isEmpty) return '—';
+    return t;
+  }
+
+  static String _bioDisplay(String? bio) {
+    final t = bio?.trim();
+    if (t == null || t.isEmpty) return '—';
+    return t;
+  }
+
   static String _roleLabel(UserRole role) {
     switch (role) {
       case UserRole.customer:
@@ -194,14 +206,12 @@ class _ProfilePageState extends State<ProfilePage> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (_profile?.phone != null && _profile!.phone!.trim().isNotEmpty) ...[
-                          const SizedBox(height: AppResources.spacingM),
-                          _InfoTile(
-                            icon: Icons.phone_outlined,
-                            label: 'Phone',
-                            value: _profile!.phone!.trim(),
-                          ),
-                        ],
+                        const SizedBox(height: AppResources.spacingM),
+                        _InfoTile(
+                          icon: Icons.phone_outlined,
+                          label: 'Phone',
+                          value: _phoneDisplay(_profile?.phone),
+                        ),
                         if (_profile?.createdAt != null) ...[
                           const SizedBox(height: AppResources.spacingS),
                           _InfoTile(
@@ -301,30 +311,32 @@ class _ProfilePageState extends State<ProfilePage> {
                             value: _profile!.location!,
                           ),
                         ],
-                        if (_profile?.bio != null && _profile!.bio!.isNotEmpty) ...[
-                          const SizedBox(height: AppResources.spacingXL),
-                          Text(
-                            'About',
-                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                        const SizedBox(height: AppResources.spacingXL),
+                        Text(
+                          'About',
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                        const SizedBox(height: AppResources.spacingS),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(AppResources.spacingM),
+                          decoration: BoxDecoration(
+                            color: AppColors.backgroundLight,
+                            borderRadius:
+                                BorderRadius.circular(AppResources.radiusL),
                           ),
-                          const SizedBox(height: AppResources.spacingS),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(AppResources.spacingM),
-                            decoration: BoxDecoration(
-                              color: AppColors.backgroundLight,
-                              borderRadius:
-                                  BorderRadius.circular(AppResources.radiusL),
-                            ),
-                            child: Text(
-                              _profile!.bio!,
-                              style: AppFonts.body(color: AppColors.textPrimary),
+                          child: Text(
+                            _bioDisplay(_profile?.bio),
+                            style: AppFonts.body(
+                              color: (_profile?.bio?.trim().isNotEmpty ?? false)
+                                  ? AppColors.textPrimary
+                                  : AppColors.textTertiary,
                             ),
                           ),
-                        ],
+                        ),
                         const SizedBox(height: AppResources.spacingXL),
                         TextButton.icon(
                           onPressed: _openEditProfile,

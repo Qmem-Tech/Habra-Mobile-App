@@ -21,6 +21,7 @@ class BusinessLocationStep2Page extends StatefulWidget {
 }
 
 class _BusinessLocationStep2PageState extends State<BusinessLocationStep2Page> {
+  final _formKey = GlobalKey<FormState>();
   final _streetController = TextEditingController();
   final _suiteController = TextEditingController();
   final _cityController = TextEditingController();
@@ -69,30 +70,38 @@ class _BusinessLocationStep2PageState extends State<BusinessLocationStep2Page> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingL),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24),
-              const Text(
-                'Where is your business located?',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+          child: Form(
+            key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 24),
+                const Text(
+                  'Where is your business located?',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              BusinessAddressInput(
-                streetController: _streetController,
-                suiteController: _suiteController,
-                cityController: _cityController,
-                stateController: _stateController,
-                zipController: _zipController,
-                defaultState: 'AL',
-                showOptionalAddressMethods: false,
-              ),
-              const SizedBox(height: 48),
-            ],
+                const SizedBox(height: 20),
+                BusinessAddressInput(
+                  streetController: _streetController,
+                  suiteController: _suiteController,
+                  cityController: _cityController,
+                  stateController: _stateController,
+                  zipController: _zipController,
+                  defaultState: 'AL',
+                  showOptionalAddressMethods: false,
+                  streetValidator: BusinessOnboardingValidators.street,
+                  cityValidator: BusinessOnboardingValidators.city,
+                  stateValidator: BusinessOnboardingValidators.stateUsAbbrev,
+                  zipValidator: BusinessOnboardingValidators.zipUs,
+                ),
+                const SizedBox(height: 48),
+              ],
+            ),
           ),
         ),
       ),
@@ -110,15 +119,7 @@ class _BusinessLocationStep2PageState extends State<BusinessLocationStep2Page> {
   }
 
   Future<void> _onNext() async {
-    final err = BusinessOnboardingValidators.locationFields(
-      street: _streetController.text,
-      city: _cityController.text,
-      state: _stateController.text,
-      zip: _zipController.text,
-    );
-    if (err != null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+    if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
 
@@ -126,12 +127,15 @@ class _BusinessLocationStep2PageState extends State<BusinessLocationStep2Page> {
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     setState(() => _isLoading = false);
+    final stateAbbrev =
+        BusinessOnboardingValidators.normalizeStateToAbbrev(_stateController.text) ??
+            _stateController.text.trim();
     final step2Data = {
       ...widget.step1Data,
       'address_street': _streetController.text.trim(),
       'address_suite': _suiteController.text.trim(),
       'address_city': _cityController.text.trim(),
-      'address_state': _stateController.text.trim(),
+      'address_state': stateAbbrev,
       'address_zip': _zipController.text.trim(),
     };
     Navigator.push(

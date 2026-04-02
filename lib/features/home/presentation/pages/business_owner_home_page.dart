@@ -33,6 +33,7 @@ import '../../../events/presentation/pages/create_event_page.dart';
 import '../../../dashboard/presentation/pages/job_applicants_page.dart';
 import '../../../dashboard/domain/repositories/dashboard_repository.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
+import '../../../dashboard/presentation/widgets/business_gallery_photos_dialog.dart';
 import '../../../dashboard/presentation/widgets/business_images_upload_dialog.dart';
 import '../../../dashboard/presentation/widgets/choose_business_for_images_dialog.dart';
 import '../../../dashboard/presentation/widgets/choose_business_for_legal_docs_dialog.dart';
@@ -124,6 +125,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   businessName: selected.name,
                   initialLogoUrl: selected.logoUrl,
                   initialBackgroundUrl: selected.backgroundUrl,
+                  initialGalleryUrls: selected.imageUrls,
                 ),
               ),
             );
@@ -449,6 +451,58 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 ),
               );
             },
+            onBusinessPhotosTap: () async {
+              if (state is! BusinessOwnerHomeLoaded) return;
+              final loadedState = state as BusinessOwnerHomeLoaded;
+              final presences =
+                  loadedState.presences.where((p) => p.id != 'all').toList();
+              if (presences.isEmpty) return;
+              final navContext = _scaffoldKey.currentContext;
+              if (navContext == null || !navContext.mounted) return;
+
+              BusinessPresence targetPresence;
+              if (presences.length == 1) {
+                targetPresence = presences.first;
+              } else {
+                final selectedId = await Navigator.push<String?>(
+                  navContext,
+                  MaterialPageRoute(
+                    builder: (_) => BusinessLocationsPage(
+                      presences: presences,
+                      currentPresenceId: loadedState.selectedPresenceId,
+                    ),
+                  ),
+                );
+                final afterPicker = _scaffoldKey.currentContext;
+                if (afterPicker == null ||
+                    !afterPicker.mounted ||
+                    selectedId == null) {
+                  return;
+                }
+                final match = presences.where((p) => p.id == selectedId);
+                if (match.isEmpty) return;
+                targetPresence = match.first;
+              }
+              final dlgCtx = _scaffoldKey.currentContext;
+              if (dlgCtx == null || !dlgCtx.mounted) return;
+              final dashboardCubit = dlgCtx.read<DashboardCubit>();
+              final result = await showDialog<List<String>?>(
+                dlgCtx,
+                builder: (_) => BlocProvider<DashboardCubit>.value(
+                  value: dashboardCubit,
+                  child: BusinessGalleryPhotosDialog(
+                    businessId: targetPresence.id,
+                    businessName: targetPresence.displayName,
+                    initialImageUrls: targetPresence.imageUrls,
+                  ),
+                ),
+              );
+              if (!mounted || result == null) return;
+              await context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
+                    ownerId: widget.user.id,
+                    showSetupIncomplete: false,
+                  );
+            },
             onUpdateHoursTap: () {
               if (selectedPresence != null && selectedPresence.id != 'all') {
                 final dashboardCubit = context.read<DashboardCubit>();
@@ -498,9 +552,23 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Subscribe to unlock the Dashboard. Use Boosts to manage your plan.',
+                            'Subscribe to unlock the Dashboard and analytics.',
                             style:
                                 AppFonts.bodySmall(color: AppColors.textPrimary),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () =>
+                              BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
+                            context,
+                            widget.user,
+                          ),
+                          child: Text(
+                            'Subscribe',
+                            style: AppFonts.bodySmall(
+                              color: AppColors.brandPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                         TextButton(

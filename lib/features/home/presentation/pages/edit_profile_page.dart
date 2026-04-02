@@ -108,6 +108,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (_hasPrefilledFromProfile) return;
     _hasPrefilledFromProfile = true;
     setState(() {
+      if (profile.fullName.trim().isNotEmpty) {
+        _nameController.text = profile.fullName.trim();
+      }
       if (profile.location != null && profile.location!.isNotEmpty) {
         _locationController.text = profile.location!;
       }
@@ -243,7 +246,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   child: TextField(
                     controller: _nameController,
                     decoration: const InputDecoration(
-                      hintText: 'Enter your full name',
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),
@@ -268,11 +270,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 _LabeledField(
                   label: 'Phone Number',
                   child: IntlPhoneField(
+                    key: ValueKey<String>(_initialPhoneNumber),
                     disableLengthCheck: true,
                     initialValue: _stripCountryCode(_initialPhoneNumber),
                     initialCountryCode: 'US',
                     decoration: const InputDecoration(
-                      hintText: 'Phone number',
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),
@@ -317,7 +319,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     maxLines: 4,
                     maxLength: 160,
                     decoration: const InputDecoration(
-                      hintText: 'Tell us a little about yourself...',
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.all(14),
                     ),
