@@ -128,7 +128,7 @@ class _DashboardPageState extends State<DashboardPage> {
               onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
               onEditBusinessTap: () async {
                 if (state is! BusinessOwnerHomeLoaded) return;
-                final loadedState = state as BusinessOwnerHomeLoaded;
+                final loadedState = state;
                 final presences = loadedState.presences
                     .where((p) => p.id != 'all')
                     .toList();
@@ -174,7 +174,7 @@ class _DashboardPageState extends State<DashboardPage> {
               },
               onBusinessPhotosTap: () async {
                 if (state is! BusinessOwnerHomeLoaded) return;
-                final loadedState = state as BusinessOwnerHomeLoaded;
+                final loadedState = state;
                 final presences =
                     loadedState.presences.where((p) => p.id != 'all').toList();
                 if (presences.isEmpty) return;
@@ -208,7 +208,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 if (dlgCtx == null || !dlgCtx.mounted) return;
                 final dashboardCubit = dlgCtx.read<DashboardCubit>();
                 final result = await showDialog<List<String>?>(
-                  dlgCtx,
+                  context: dlgCtx,
                   builder: (_) => BlocProvider<DashboardCubit>.value(
                     value: dashboardCubit,
                     child: BusinessGalleryPhotosDialog(
@@ -219,7 +219,9 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 );
                 if (!mounted || result == null) return;
-                await context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
+                final homeCtx = _scaffoldKey.currentContext;
+                if (homeCtx == null || !homeCtx.mounted) return;
+                await homeCtx.read<BusinessOwnerHomeCubit>().loadOwnerHome(
                       ownerId: widget.user.id,
                       showSetupIncomplete: false,
                     );

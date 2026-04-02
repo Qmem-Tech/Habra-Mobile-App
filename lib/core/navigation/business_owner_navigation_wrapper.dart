@@ -13,8 +13,6 @@ import '../../features/boosts/presentation/pages/boosts_page.dart';
 import '../../features/auth/domain/entities/user.dart';
 import '../../features/dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../features/dashboard/domain/repositories/dashboard_repository.dart';
-import '../../features/home/presentation/bloc/business_owner_home_cubit.dart';
-import '../../features/home/presentation/bloc/business_owner_home_state.dart';
 import '../../features/home/presentation/pages/profile_page.dart';
 import '../../features/home/presentation/pages/business_owner_subscription_page.dart';
 
@@ -122,7 +120,10 @@ class _BusinessOwnerNavigationWrapperState
         action: SnackBarAction(
           label: 'Subscribe',
           onPressed: () {
-            openBusinessOwnerSubscription(context, widget.user);
+            BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
+              context,
+              widget.user,
+            );
           },
         ),
       ),

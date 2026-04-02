@@ -403,7 +403,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: effectiveId != null && businesses.any((b) => b.id == effectiveId) ? effectiveId : null,
+          initialValue: effectiveId != null && businesses.any((b) => b.id == effectiveId) ? effectiveId : null,
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.backgroundWhite,

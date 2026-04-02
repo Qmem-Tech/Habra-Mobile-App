@@ -405,7 +405,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
             onEditBusinessTap: () async {
               if (state is! BusinessOwnerHomeLoaded) return;
-              final loadedState = state as BusinessOwnerHomeLoaded;
+              final loadedState = state;
               final presences = loadedState.presences
                   .where((p) => p.id != 'all')
                   .toList();
@@ -453,7 +453,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             },
             onBusinessPhotosTap: () async {
               if (state is! BusinessOwnerHomeLoaded) return;
-              final loadedState = state as BusinessOwnerHomeLoaded;
+              final loadedState = state;
               final presences =
                   loadedState.presences.where((p) => p.id != 'all').toList();
               if (presences.isEmpty) return;
@@ -487,7 +487,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
               if (dlgCtx == null || !dlgCtx.mounted) return;
               final dashboardCubit = dlgCtx.read<DashboardCubit>();
               final result = await showDialog<List<String>?>(
-                dlgCtx,
+                context: dlgCtx,
                 builder: (_) => BlocProvider<DashboardCubit>.value(
                   value: dashboardCubit,
                   child: BusinessGalleryPhotosDialog(
@@ -498,7 +498,9 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 ),
               );
               if (!mounted || result == null) return;
-              await context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
+              final homeCtx = _scaffoldKey.currentContext;
+              if (homeCtx == null || !homeCtx.mounted) return;
+              await homeCtx.read<BusinessOwnerHomeCubit>().loadOwnerHome(
                     ownerId: widget.user.id,
                     showSetupIncomplete: false,
                   );
@@ -567,8 +569,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                             'Subscribe',
                             style: AppFonts.bodySmall(
                               color: AppColors.brandPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            ).copyWith(fontWeight: FontWeight.w600),
                           ),
                         ),
                         TextButton(

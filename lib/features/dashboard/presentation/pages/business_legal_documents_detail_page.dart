@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../../core/constants/legal_document_storage.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';

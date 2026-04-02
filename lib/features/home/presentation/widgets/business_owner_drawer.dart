@@ -85,7 +85,7 @@ class BusinessOwnerDrawer extends StatelessWidget {
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Image.network(
-                        imageUrl!,
+                        imageUrl,
                         width: 70,
                         height: 70,
                         fit: BoxFit.cover,

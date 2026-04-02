@@ -71,7 +71,7 @@ class _BusinessOwnerSubscriptionPageState
     if (_purchasing) return;
     setState(() => _purchasing = true);
     final ctx = context;
-    await LoaderHelper.show(ctx, message: 'Processing…');
+    LoaderHelper.show(ctx, message: 'Processing…');
     try {
       final ok = await di.sl<RevenueCatService>().purchasePackage(package);
       if (!ctx.mounted) return;
@@ -108,11 +108,12 @@ class _BusinessOwnerSubscriptionPageState
 
   Future<void> _onRestore() async {
     final ctx = context;
-    await LoaderHelper.show(ctx, message: 'Restoring…');
+    LoaderHelper.show(ctx, message: 'Restoring…');
     try {
       await di.sl<RevenueCatService>().restorePurchases();
       if (!ctx.mounted) return;
       await LoaderHelper.hide(ctx);
+      if (!ctx.mounted) return;
       await ctx.read<BusinessOwnerSubscriptionCubit>().refresh(widget.user.id);
       if (!ctx.mounted) return;
       if (ctx.read<BusinessOwnerSubscriptionCubit>().state
