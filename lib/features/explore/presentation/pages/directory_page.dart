@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/location/session_device_location_cubit.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -28,7 +29,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
   String? _selectedListingCategoryId;
   List<ListingCategory> _listingCategories = [];
   bool _categoriesLoading = true;
-  final String _currentLocation = 'Washington, D.C.';
+  String _currentLocation = 'Washington, D.C.';
   Timer? _searchDebounce;
 
   @override
@@ -62,15 +63,88 @@ class _DirectoryPageState extends State<DirectoryPage> {
     final filters = (cid != null && cid.isNotEmpty)
         ? BusinessFilters(listingCategoryId: cid)
         : null;
+    final loc = SessionDeviceLocationCubit.tryLabel(context) ??
+        _currentLocation;
     context.read<BusinessesCubit>().loadBusinesses(
-          location: _currentLocation,
+          location: loc,
           filters: filters,
           searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
         );
   }
 
+  String _displayLocationLabel(BuildContext context) {
+    return SessionDeviceLocationCubit.tryLabel(context) ?? _currentLocation;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final sessionCubit = SessionDeviceLocationCubit.maybeOf(context);
+    final scaffold = Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Directory',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
+            onPressed: () => _loadBusinesses(context),
+            tooltip: 'Refresh',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          _buildSearchBar(),
+          _buildCategoryFilters(),
+          _buildResultsHeader(),
+          Expanded(
+            child: BlocBuilder<BusinessesCubit, BusinessesState>(
+              builder: (context, state) {
+                if (state is BusinessesLoading) {
+                  return const HabraCircularLoader(fullScreen: true);
+                }
+
+                if (state is BusinessesError) {
+                  return _buildErrorView(state.message);
+                }
+
+                if (state is BusinessesLoaded) {
+                  if (state.businesses.isEmpty) {
+                    return _buildEmptyState();
+                  }
+                  return _buildBusinessesList(state.businesses);
+                }
+
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final synced = sessionCubit == null
+        ? scaffold
+        : BlocListener<SessionDeviceLocationCubit, SessionDeviceLocationState>(
+            listenWhen: (prev, curr) => curr is SessionDeviceLocationReady,
+            listener: (context, state) {
+              if (state is SessionDeviceLocationReady) {
+                setState(
+                  () => _currentLocation = state.location.fullDisplayName,
+                );
+                _loadBusinesses(context);
+              }
+            },
+            child: scaffold,
+          );
+
     return BlocProvider(
       create: (context) {
         final cubit = di.sl<BusinessesCubit>();
@@ -79,56 +153,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
         });
         return cubit;
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text(
-            'Directory',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
-              onPressed: () => _loadBusinesses(context),
-              tooltip: 'Refresh',
-            ),
-          ],
-        ),
-        body: Column(
-          children: [
-            _buildSearchBar(),
-            _buildCategoryFilters(),
-            _buildResultsHeader(),
-            Expanded(
-              child: BlocBuilder<BusinessesCubit, BusinessesState>(
-                builder: (context, state) {
-                  if (state is BusinessesLoading) {
-                    return const HabraCircularLoader(fullScreen: true);
-                  }
-
-                  if (state is BusinessesError) {
-                    return _buildErrorView(state.message);
-                  }
-
-                  if (state is BusinessesLoaded) {
-                    if (state.businesses.isEmpty) {
-                      return _buildEmptyState();
-                    }
-                    return _buildBusinessesList(state.businesses);
-                  }
-
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: synced,
     );
   }
 
@@ -266,7 +291,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
                 ),
               ),
               Text(
-                _currentLocation,
+                _displayLocationLabel(context),
                 style: TextStyle(
                   fontSize: 14,
                   color: AppColors.textSecondary,

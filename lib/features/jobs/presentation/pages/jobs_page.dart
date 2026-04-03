@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/location/session_device_location_cubit.dart';
 import '../../../../core/navigation/main_nav_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/notification_icon_with_badge.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../home/domain/entities/location_entity.dart';
+import '../../../home/presentation/pages/location_selection_page.dart';
 import '../../../home/presentation/pages/notification_page.dart';
 import '../bloc/job_applications_cubit.dart';
 import '../bloc/jobs_cubit.dart';
@@ -40,6 +43,23 @@ class _JobsPageState extends State<JobsPage> {
     _currentLocation = widget.initialLocation ?? 'Washington, D.C.';
   }
 
+  String _resolvedLocationLabel(BuildContext context) {
+    return SessionDeviceLocationCubit.tryLabel(context) ??
+        _currentLocation ??
+        'Washington, D.C.';
+  }
+
+  Future<void> _openLocationPicker() async {
+    final result = await Navigator.push<LocationEntity>(
+      context,
+      MaterialPageRoute(builder: (_) => const LocationSelectionPage()),
+    );
+    if (!mounted || result == null) return;
+    SessionDeviceLocationCubit.maybeOf(context)?.setSessionLocation(result);
+    setState(() => _currentLocation = result.fullDisplayName);
+    _loadJobs(context, null);
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -47,9 +67,13 @@ class _JobsPageState extends State<JobsPage> {
   }
 
   void _loadJobs(BuildContext? context, JobsCubit? cubit) {
-    final jobsCubit = cubit ?? (context ?? this.context).read<JobsCubit>();
+    final ctx = context ?? this.context;
+    final jobsCubit = cubit ?? ctx.read<JobsCubit>();
+    final loc = SessionDeviceLocationCubit.tryLabel(ctx) ??
+        _currentLocation ??
+        'Washington, D.C.';
     jobsCubit.loadJobs(
-      location: _currentLocation,
+      location: loc,
       filters: _activeFilters,
       searchQuery: _searchController.text.isEmpty
           ? null
@@ -82,13 +106,93 @@ class _JobsPageState extends State<JobsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final sessionCubit = SessionDeviceLocationCubit.maybeOf(context);
+    final scaffold = Scaffold(
+      backgroundColor: AppColors.backgroundLight,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildSearchBar(),
+            _buildCategoryFilters(),
+            Expanded(
+              child: BlocBuilder<JobsCubit, JobsState>(
+                builder: (context, state) {
+                  if (state is JobsLoading) {
+                    return const HabraCircularLoader(fullScreen: true);
+                  }
+
+                  if (state is JobsError) {
+                    return Center(
+                      child: Text(
+                        state.message,
+                        style: const TextStyle(color: AppColors.error),
+                      ),
+                    );
+                  }
+
+                  if (state is JobsLoaded) {
+                    if (state.jobs.isEmpty) {
+                      return NoJobsFoundPage(
+                        location: _resolvedLocationLabel(context),
+                        onLocationChange: () {
+                          _openLocationPicker();
+                        },
+                      );
+                    }
+
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        _loadJobs(context, null);
+                      },
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildFeaturedJobs(state.featuredJobs),
+                            const SizedBox(height: 24),
+                            _buildRecentJobs(state.recentJobs),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final synced = sessionCubit == null
+        ? scaffold
+        : BlocListener<SessionDeviceLocationCubit, SessionDeviceLocationState>(
+            listenWhen: (prev, curr) => curr is SessionDeviceLocationReady,
+            listener: (context, state) {
+              if (state is SessionDeviceLocationReady) {
+                setState(
+                  () => _currentLocation = state.location.fullDisplayName,
+                );
+                _loadJobs(context, null);
+              }
+            },
+            child: scaffold,
+          );
+
     return BlocProvider(
       create: (context) {
         final cubit = di.sl<JobsCubit>();
         WidgetsBinding.instance.addPostFrameCallback((_) {
           cubit.loadJobCategories();
+          final loc = SessionDeviceLocationCubit.tryLabel(context) ??
+              _currentLocation ??
+              'Washington, D.C.';
           cubit.loadJobs(
-            location: _currentLocation,
+            location: loc,
             filters: _activeFilters,
             searchQuery: _searchController.text.isEmpty
                 ? null
@@ -97,66 +201,7 @@ class _JobsPageState extends State<JobsPage> {
         });
         return cubit;
       },
-      child: Scaffold(
-        backgroundColor: AppColors.backgroundLight,
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              _buildSearchBar(),
-              _buildCategoryFilters(),
-              Expanded(
-                child: BlocBuilder<JobsCubit, JobsState>(
-                  builder: (context, state) {
-                    if (state is JobsLoading) {
-                      return const HabraCircularLoader(fullScreen: true);
-                    }
-
-                    if (state is JobsError) {
-                      return Center(
-                        child: Text(
-                          state.message,
-                          style: const TextStyle(color: AppColors.error),
-                        ),
-                      );
-                    }
-
-                    if (state is JobsLoaded) {
-                      if (state.jobs.isEmpty) {
-                        return NoJobsFoundPage(
-                          location: _currentLocation,
-                          onLocationChange: () {
-                            // TODO: Implement location change
-                          },
-                        );
-                      }
-
-                      return RefreshIndicator(
-                      onRefresh: () async {
-                        _loadJobs(context, null);
-                      },
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildFeaturedJobs(state.featuredJobs),
-                              const SizedBox(height: 24),
-                              _buildRecentJobs(state.recentJobs),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-
-                    return const SizedBox.shrink();
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: synced,
     );
   }
 
@@ -174,9 +219,7 @@ class _JobsPageState extends State<JobsPage> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                // TODO: Show location picker
-              },
+              onTap: _openLocationPicker,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -193,7 +236,7 @@ class _JobsPageState extends State<JobsPage> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      _currentLocation ?? 'Select Location',
+                      _resolvedLocationLabel(context),
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,

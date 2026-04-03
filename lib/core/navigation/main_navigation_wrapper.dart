@@ -112,9 +112,9 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
           },
           children: [
             widget.homePage,
-            EventsPage(location: widget.eventsLocation ?? 'Washington, D.C.'),
+            EventsPage(location: widget.eventsLocation),
             const ExplorePage(),
-            JobsPage(initialLocation: widget.eventsLocation ?? 'Washington, D.C.'),
+            JobsPage(initialLocation: widget.eventsLocation),
             ProfileTabPage(user: widget.user),
           ],
         ),

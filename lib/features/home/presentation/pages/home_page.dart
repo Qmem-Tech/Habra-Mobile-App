@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/location/location_access_messages.dart';
+import '../../../../core/location/session_device_location_cubit.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/navigation/main_navigation_wrapper.dart';
@@ -31,11 +33,15 @@ class HomePage extends StatefulWidget {
   final String userName;
   final LocationEntity? currentLocation;
 
+  /// When true, location comes from [SessionDeviceLocationCubit] (ephemeral GPS / session picks).
+  final bool useSessionDeviceLocation;
+
   const HomePage({
     super.key,
     required this.userId,
     required this.userName,
     this.currentLocation,
+    this.useSessionDeviceLocation = false,
   });
 
   @override
@@ -45,30 +51,83 @@ class HomePage extends StatefulWidget {
 enum _RecommendationFilter { all, businesses, events, deals }
 
 class _HomePageState extends State<HomePage> {
-  static const bool _locationFilterOnHold = true;
   LocationEntity? _currentLocation;
   _RecommendationFilter _recommendationFilter = _RecommendationFilter.all;
+
+  static const LocationEntity _fallbackMetro = LocationEntity(
+    id: 'default',
+    city: 'Washington',
+    state: 'D.C.',
+    country: 'USA',
+  );
 
   @override
   void initState() {
     super.initState();
-    _currentLocation = widget.currentLocation ?? const LocationEntity(
-      id: 'default',
-      city: 'Washington',
-      state: 'D.C.',
-      country: 'USA',
-    );
-    _loadHomeData();
+    _currentLocation = widget.currentLocation ?? _fallbackMetro;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadHomeData();
+    });
+  }
+
+  String _locationQueryString(BuildContext context) {
+    if (widget.useSessionDeviceLocation) {
+      return SessionDeviceLocationCubit.labelOrFallback(
+        context.read<SessionDeviceLocationCubit>().state,
+      );
+    }
+    return _currentLocation?.fullDisplayName ?? 'Washington, D.C.';
+  }
+
+  String _locationChipLabel(BuildContext context) {
+    if (widget.useSessionDeviceLocation) {
+      final s = context.watch<SessionDeviceLocationCubit>().state;
+      if (s is SessionDeviceLocationLoading) return 'Locating…';
+      if (s is SessionDeviceLocationReady) return s.location.fullDisplayName;
+      if (s is SessionDeviceLocationFailure) return 'Location unavailable';
+      return 'Washington, D.C.';
+    }
+    return _currentLocation?.fullDisplayName ?? 'Washington, D.C.';
+  }
+
+  String _emptyStateCityLabel(BuildContext context) {
+    if (widget.useSessionDeviceLocation) {
+      final s = context.read<SessionDeviceLocationCubit>().state;
+      if (s is SessionDeviceLocationReady) return s.location.city;
+      return 'your area';
+    }
+    return _currentLocation?.city ?? 'your location';
   }
 
   void _loadHomeData() {
-    final location = _currentLocation?.fullDisplayName ?? 'Washington, D.C.';
-    context.read<HomeCubit>().loadHomeData(location);
+    if (!mounted) return;
+    context.read<HomeCubit>().loadHomeData(_locationQueryString(context));
+  }
+
+  Future<void> _onLocationChipTapped() async {
+    if (widget.useSessionDeviceLocation) {
+      final cubit = context.read<SessionDeviceLocationCubit>();
+      final s = cubit.state;
+      if (s is SessionDeviceLocationLoading) return;
+      if (s is SessionDeviceLocationFailure) {
+        await cubit.refreshFromDeviceGps();
+        if (!mounted) return;
+        final next = cubit.state;
+        if (next is SessionDeviceLocationFailure) {
+          LocationAccessMessages.showFailureSnackBar(
+            context,
+            message: next.message,
+          );
+        }
+        return;
+      }
+    }
+    await _navigateToLocationSelection();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final scaffold = Scaffold(
       body: SafeArea(
         child: BlocBuilder<HomeCubit, HomeState>(
           builder: (context, state) {
@@ -90,6 +149,27 @@ class _HomePageState extends State<HomePage> {
           },
         ),
       ),
+    );
+
+    if (!widget.useSessionDeviceLocation) {
+      return scaffold;
+    }
+
+    return BlocListener<SessionDeviceLocationCubit, SessionDeviceLocationState>(
+      listenWhen: (prev, curr) =>
+          curr is SessionDeviceLocationReady ||
+          curr is SessionDeviceLocationFailure,
+      listener: (context, state) {
+        if (state is SessionDeviceLocationReady) {
+          _loadHomeData();
+        } else if (state is SessionDeviceLocationFailure) {
+          LocationAccessMessages.showFailureSnackBar(
+            context,
+            message: state.message,
+          );
+        }
+      },
+      child: scaffold,
     );
   }
 
@@ -130,7 +210,7 @@ class _HomePageState extends State<HomePage> {
       ),
       centerTitle: false,
       title: GestureDetector(
-        onTap: _locationFilterOnHold ? null : () => _navigateToLocationSelection(),
+        onTap: _onLocationChipTapped,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
@@ -144,7 +224,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
-                  _currentLocation?.fullDisplayName ?? 'Washington, D.C.',
+                  _locationChipLabel(context),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -153,8 +233,7 @@ class _HomePageState extends State<HomePage> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (!_locationFilterOnHold)
-                const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
+              const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
             ],
           ),
         ),
@@ -614,7 +693,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 24),
           Text(
-            "It's quiet in ${_currentLocation?.city ?? 'your location'}",
+            "It's quiet in ${_emptyStateCityLabel(context)}",
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -686,9 +765,13 @@ class _HomePageState extends State<HomePage> {
       MaterialPageRoute(builder: (_) => const LocationSelectionPage()),
     );
     if (result != null) {
-      setState(() {
-        _currentLocation = result;
-      });
+      if (widget.useSessionDeviceLocation) {
+        context.read<SessionDeviceLocationCubit>().setSessionLocation(result);
+      } else {
+        setState(() {
+          _currentLocation = result;
+        });
+      }
       _loadHomeData();
     }
   }

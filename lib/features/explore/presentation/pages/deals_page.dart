@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/location/session_device_location_cubit.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -23,7 +24,12 @@ class _DealsPageState extends State<DealsPage> {
   String? _selectedListingCategoryId;
   List<ListingCategory> _listingCategories = [];
   bool _listingCategoriesLoading = true;
-  final String _currentLocation = 'Washington, D.C.';
+  String _currentLocation = 'Washington, D.C.';
+
+  void _reloadDeals(BuildContext context) {
+    final loc = SessionDeviceLocationCubit.tryLabel(context) ?? _currentLocation;
+    context.read<DealsCubit>().loadDeals(location: loc);
+  }
 
   @override
   void initState() {
@@ -51,56 +57,76 @@ class _DealsPageState extends State<DealsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final sessionCubit = SessionDeviceLocationCubit.maybeOf(context);
+    final scaffold = Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Deals',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          _buildSearchBar(),
+          _buildCategoryFilters(),
+          Expanded(
+            child: BlocBuilder<DealsCubit, DealsState>(
+              builder: (context, state) {
+                if (state is DealsLoading) {
+                  return const HabraCircularLoader(fullScreen: true);
+                }
+
+                if (state is DealsError) {
+                  return _buildErrorView(state.message);
+                }
+
+                if (state is DealsLoaded) {
+                  if (state.deals.isEmpty) {
+                    return _buildEmptyState();
+                  }
+                  return _buildDealsList(state.deals);
+                }
+
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final synced = sessionCubit == null
+        ? scaffold
+        : BlocListener<SessionDeviceLocationCubit, SessionDeviceLocationState>(
+            listenWhen: (prev, curr) => curr is SessionDeviceLocationReady,
+            listener: (context, state) {
+              if (state is SessionDeviceLocationReady) {
+                setState(
+                  () => _currentLocation = state.location.fullDisplayName,
+                );
+                _reloadDeals(context);
+              }
+            },
+            child: scaffold,
+          );
+
     return BlocProvider(
       create: (context) {
         final cubit = di.sl<DealsCubit>();
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          cubit.loadDeals(location: _currentLocation);
+          final loc = SessionDeviceLocationCubit.tryLabel(context) ??
+              _currentLocation;
+          cubit.loadDeals(location: loc);
         });
         return cubit;
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text(
-            'Deals',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          backgroundColor: Colors.white,
-          elevation: 0,
-        ),
-        body: Column(
-          children: [
-            _buildSearchBar(),
-            _buildCategoryFilters(),
-            Expanded(
-              child: BlocBuilder<DealsCubit, DealsState>(
-                builder: (context, state) {
-                  if (state is DealsLoading) {
-                    return const HabraCircularLoader(fullScreen: true);
-                  }
-
-                  if (state is DealsError) {
-                    return _buildErrorView(state.message);
-                  }
-
-                  if (state is DealsLoaded) {
-                    if (state.deals.isEmpty) {
-                      return _buildEmptyState();
-                    }
-                    return _buildDealsList(state.deals);
-                  }
-
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: synced,
     );
   }
 
@@ -216,7 +242,7 @@ class _DealsPageState extends State<DealsPage> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        context.read<DealsCubit>().loadDeals(location: _currentLocation);
+        _reloadDeals(context);
       },
       child: ListView(
         padding: const EdgeInsets.all(16),

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/location/session_device_location_cubit.dart';
 import '../../../../core/navigation/main_nav_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/notification_icon_with_badge.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../home/domain/entities/location_entity.dart';
+import '../../../home/presentation/pages/location_selection_page.dart';
 import '../../../home/presentation/pages/notification_page.dart';
 import '../../domain/entities/deal.dart';
 import '../../domain/entities/listing_category.dart';
@@ -31,7 +34,6 @@ class ExplorePage extends StatefulWidget {
 }
 
 class _ExplorePageState extends State<ExplorePage> {
-  static const bool _locationFilterOnHold = true;
   final TextEditingController _searchController = TextEditingController();
   String? _currentLocation;
   String? _selectedListingCategoryId;
@@ -75,26 +77,90 @@ class _ExplorePageState extends State<ExplorePage> {
     );
   }
 
+  String _resolvedLocationLabel(BuildContext context) {
+    return SessionDeviceLocationCubit.tryLabel(context) ??
+        _currentLocation ??
+        'Washington, D.C.';
+  }
+
   Future<void> _loadData(BuildContext context) async {
     if (!context.mounted) return;
+    final loc = _resolvedLocationLabel(context);
     await context.read<BusinessesCubit>().loadBusinesses(
-          location: _currentLocation,
+          location: loc,
           featuredOnly: false,
         );
     if (!context.mounted) return;
-    await context.read<DealsCubit>().loadDeals(location: _currentLocation);
+    await context.read<DealsCubit>().loadDeals(location: loc);
+  }
+
+  Future<void> _openLocationPicker() async {
+    final result = await Navigator.push<LocationEntity>(
+      context,
+      MaterialPageRoute(builder: (_) => const LocationSelectionPage()),
+    );
+    if (!mounted || result == null) return;
+    SessionDeviceLocationCubit.maybeOf(context)?.setSessionLocation(result);
+    setState(() => _currentLocation = result.fullDisplayName);
+    _loadData(context);
   }
 
   @override
   Widget build(BuildContext context) {
+    final sessionCubit = SessionDeviceLocationCubit.maybeOf(context);
+    final scaffold = Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildSearchBar(),
+            _buildCategoryFilters(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => _loadData(context),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildFeaturedBusinesses(),
+                      _buildHotDeals(),
+                      _buildAllBusinesses(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final synced = sessionCubit == null
+        ? scaffold
+        : BlocListener<SessionDeviceLocationCubit, SessionDeviceLocationState>(
+            listenWhen: (prev, curr) => curr is SessionDeviceLocationReady,
+            listener: (context, state) {
+              if (state is SessionDeviceLocationReady) {
+                setState(
+                  () => _currentLocation = state.location.fullDisplayName,
+                );
+                _loadData(context);
+              }
+            },
+            child: scaffold,
+          );
+
     return MultiBlocProvider(
       providers: [
         BlocProvider(
           create: (context) {
             final cubit = di.sl<BusinessesCubit>();
             WidgetsBinding.instance.addPostFrameCallback((_) {
+              final loc = SessionDeviceLocationCubit.tryLabel(context) ??
+                  _currentLocation ??
+                  'Washington, D.C.';
               cubit.loadBusinesses(
-                location: _currentLocation,
+                location: loc,
                 featuredOnly: false,
               );
             });
@@ -105,38 +171,16 @@ class _ExplorePageState extends State<ExplorePage> {
           create: (context) {
             final cubit = di.sl<DealsCubit>();
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              cubit.loadDeals(location: _currentLocation);
+              final loc = SessionDeviceLocationCubit.tryLabel(context) ??
+                  _currentLocation ??
+                  'Washington, D.C.';
+              cubit.loadDeals(location: loc);
             });
             return cubit;
           },
         ),
       ],
-      child: Scaffold(
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              _buildSearchBar(),
-              _buildCategoryFilters(),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () => _loadData(context),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildFeaturedBusinesses(),
-                        _buildHotDeals(),
-                        _buildAllBusinesses(),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: synced,
     );
   }
 
@@ -153,11 +197,7 @@ class _ExplorePageState extends State<ExplorePage> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: _locationFilterOnHold
-                  ? null
-                  : () {
-                      // Navigate to location selection
-                    },
+              onTap: _openLocationPicker,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -171,7 +211,7 @@ class _ExplorePageState extends State<ExplorePage> {
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
-                        _currentLocation ?? 'Washington, D.C.',
+                        _resolvedLocationLabel(context),
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -181,10 +221,8 @@ class _ExplorePageState extends State<ExplorePage> {
                         maxLines: 1,
                       ),
                     ),
-                    if (!_locationFilterOnHold) ...[
-                      const SizedBox(width: 4),
-                      const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
-                    ],
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
                   ],
                 ),
               ),

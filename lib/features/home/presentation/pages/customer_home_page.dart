@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../../core/location/session_device_location_cubit.dart';
+import '../../../../core/services/location_service.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../bloc/home_cubit.dart';
@@ -22,6 +24,13 @@ class CustomerHomePage extends StatelessWidget {
         BlocProvider(create: (_) => di.sl<HomeCubit>()),
         BlocProvider(create: (_) => di.sl<SearchCubit>()),
         BlocProvider(create: (_) => di.sl<NotificationCubit>()),
+        BlocProvider(
+          create: (_) {
+            final c = SessionDeviceLocationCubit(di.sl<LocationService>());
+            c.refreshFromDeviceGps();
+            return c;
+          },
+        ),
       ],
       child: BlocBuilder<AuthCubit, AuthState>(
         buildWhen: (prev, curr) {
@@ -42,7 +51,7 @@ class CustomerHomePage extends StatelessWidget {
             homePage: HomePage(
               userId: effective.id,
               userName: effective.name,
-              currentLocation: null, // TODO: Get from location service or storage
+              useSessionDeviceLocation: true,
             ),
           );
         },

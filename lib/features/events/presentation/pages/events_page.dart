@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/location/session_device_location_cubit.dart';
 import '../../../../core/navigation/main_nav_scope.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/notification_icon_with_badge.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../home/domain/entities/location_entity.dart';
+import '../../../home/presentation/pages/location_selection_page.dart';
 import '../../../home/presentation/pages/notification_page.dart';
 import '../../domain/entities/event_list_item.dart';
 import '../../domain/entities/event_category.dart';
@@ -26,7 +29,6 @@ class EventsPage extends StatefulWidget {
 }
 
 class _EventsPageState extends State<EventsPage> {
-  static const bool _locationFilterOnHold = true;
   final TextEditingController _searchController = TextEditingController();
   EventCategory _selectedCategory = EventCategory.all;
   EventFilters? _activeFilters;
@@ -36,6 +38,23 @@ class _EventsPageState extends State<EventsPage> {
   void initState() {
     super.initState();
     _currentLocation = widget.location ?? 'Washington, D.C.';
+  }
+
+  String _headerLocationLabel(BuildContext context) {
+    return SessionDeviceLocationCubit.tryLabel(context) ??
+        _currentLocation ??
+        'Washington, D.C.';
+  }
+
+  Future<void> _openLocationPicker() async {
+    final result = await Navigator.push<LocationEntity>(
+      context,
+      MaterialPageRoute(builder: (_) => const LocationSelectionPage()),
+    );
+    if (!mounted || result == null) return;
+    SessionDeviceLocationCubit.maybeOf(context)?.setSessionLocation(result);
+    setState(() => _currentLocation = result.fullDisplayName);
+    _loadEvents(context);
   }
 
   @override
@@ -66,52 +85,72 @@ class _EventsPageState extends State<EventsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final sessionCubit = SessionDeviceLocationCubit.maybeOf(context);
+    final body = Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildSearchBar(),
+            _buildCategoryFilters(),
+            Expanded(
+              child: BlocBuilder<EventsCubit, EventsState>(
+                builder: (context, state) {
+                  if (state is EventsLoading) {
+                    return const HabraCircularLoader(fullScreen: true);
+                  }
+
+                  if (state is EventsError) {
+                    return _buildErrorView(state.message);
+                  }
+
+                  if (state is EventsLoaded) {
+                    if (state.events.isEmpty) {
+                      return _buildEmptyState();
+                    }
+                    return _buildEventsList(state.events);
+                  }
+
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final synced = sessionCubit == null
+        ? body
+        : BlocListener<SessionDeviceLocationCubit, SessionDeviceLocationState>(
+            listenWhen: (prev, curr) => curr is SessionDeviceLocationReady,
+            listener: (context, state) {
+              if (state is SessionDeviceLocationReady) {
+                setState(
+                  () => _currentLocation = state.location.fullDisplayName,
+                );
+                _loadEvents(context);
+              }
+            },
+            child: body,
+          );
+
     return BlocProvider(
       create: (context) {
         final cubit = di.sl<EventsCubit>();
-        // Load events after cubit is created
         WidgetsBinding.instance.addPostFrameCallback((_) {
+          final loc = SessionDeviceLocationCubit.tryLabel(context) ??
+              _currentLocation ??
+              'Washington, D.C.';
           cubit.loadEvents(
-            location: _currentLocation,
+            location: loc,
             filters: _effectiveFilters(),
             searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
           );
         });
         return cubit;
       },
-      child: Scaffold(
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              _buildSearchBar(),
-              _buildCategoryFilters(),
-              Expanded(
-                child: BlocBuilder<EventsCubit, EventsState>(
-                  builder: (context, state) {
-                    if (state is EventsLoading) {
-                      return const HabraCircularLoader(fullScreen: true);
-                    }
-
-                    if (state is EventsError) {
-                      return _buildErrorView(state.message);
-                    }
-
-                    if (state is EventsLoaded) {
-                      if (state.events.isEmpty) {
-                        return _buildEmptyState();
-                      }
-                      return _buildEventsList(state.events);
-                    }
-
-                    return const SizedBox.shrink();
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: synced,
     );
   }
 
@@ -128,11 +167,7 @@ class _EventsPageState extends State<EventsPage> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: _locationFilterOnHold
-                  ? null
-                  : () {
-                      // Navigate to location selection
-                    },
+              onTap: _openLocationPicker,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -146,7 +181,7 @@ class _EventsPageState extends State<EventsPage> {
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
-                        _currentLocation ?? 'Washington, D.C.',
+                        _headerLocationLabel(context),
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -155,8 +190,7 @@ class _EventsPageState extends State<EventsPage> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (!_locationFilterOnHold)
-                      const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
+                    const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
                   ],
                 ),
               ),
