@@ -12,9 +12,38 @@ import '../../features/boosts/presentation/bloc/boosts_cubit.dart';
 import '../../features/boosts/presentation/pages/boosts_page.dart';
 import '../../features/auth/domain/entities/user.dart';
 import '../../features/dashboard/presentation/bloc/dashboard_cubit.dart';
-import '../../features/dashboard/domain/repositories/dashboard_repository.dart';
 import '../../features/home/presentation/pages/profile_page.dart';
 import '../../features/home/presentation/pages/business_owner_subscription_page.dart';
+
+/// Result of evaluating listing approval + legal-doc rules for owner navigation.
+///
+/// **Product rules**
+/// - **Home** and **Profile** are always reachable.
+/// - **Dashboard** requires every owned listing `approval_status == approved`, no legal
+///   document rejected, and (when enabled) an active business subscription.
+/// - **Boosts** stays reachable while a listing is pending or rejected so owners can
+///   subscribe/boost prep; blocked only when there are no listings or a legal doc was rejected.
+class BusinessOwnerNavToolsSnapshot {
+  const BusinessOwnerNavToolsSnapshot({
+    required this.dashboardEnabled,
+    required this.boostsEnabled,
+    required this.gateEvaluated,
+    this.userMessage,
+    this.primaryBlockedBusinessId,
+    this.primaryBlockedBusinessName,
+    this.showLegalDocumentsSnackAction = false,
+  });
+
+  final bool dashboardEnabled;
+  final bool boostsEnabled;
+  /// False until the first gate computation finishes (UI may treat as “unknown”).
+  final bool gateEvaluated;
+  final String? userMessage;
+  final String? primaryBlockedBusinessId;
+  final String? primaryBlockedBusinessName;
+  /// When true, blocked-flow snackbars may offer “View Documents”.
+  final bool showLegalDocumentsSnackAction;
+}
 
 /// Bottom nav for business owner: Home, Dash, Boosts, Profile.
 class BusinessOwnerNavigationWrapper extends StatefulWidget {
@@ -39,6 +68,25 @@ class BusinessOwnerNavigationWrapper extends StatefulWidget {
     final state =
         context.findAncestorStateOfType<_BusinessOwnerNavigationWrapperState>();
     state?._resetBusinessToolsAccessCache();
+  }
+
+  /// Latest gate snapshot for drawer / banners; null before first evaluation.
+  static BusinessOwnerNavToolsSnapshot? toolsSnapshotOf(BuildContext context) {
+    return context
+        .findAncestorStateOfType<_BusinessOwnerNavigationWrapperState>()
+        ?._toolsSnapshot;
+  }
+
+  static bool drawerShowDashboardMenu(BuildContext context) {
+    final s = toolsSnapshotOf(context);
+    if (s == null || !s.gateEvaluated) return true;
+    return s.dashboardEnabled;
+  }
+
+  static bool drawerShowBoostsMenu(BuildContext context) {
+    final s = toolsSnapshotOf(context);
+    if (s == null || !s.gateEvaluated) return true;
+    return s.boostsEnabled;
   }
 
   /// Opens business-owner subscription / paywall (requires [BusinessOwnerSubscriptionCubit] above context).
@@ -66,11 +114,8 @@ class _BusinessOwnerNavigationWrapperState
   late int _currentIndex;
   late PageController _pageController;
   int? _pendingDashboardTab;
-  bool? _hasBusinessToolsAccess;
-  bool _isCheckingBusinessToolsAccess = false;
-  String? _blockedBusinessId;
-  String? _blockedBusinessName;
-  String? _lockReason;
+  BusinessOwnerNavToolsSnapshot? _toolsSnapshot;
+  Future<BusinessOwnerNavToolsSnapshot>? _gateFuture;
 
   @override
   void initState() {
@@ -79,9 +124,13 @@ class _BusinessOwnerNavigationWrapperState
     _pageController = PageController(initialPage: widget.initialIndex);
     di.sl<PushNotificationService>().registerTokenForUser(widget.user.id);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final hasAccess = await _ensureBusinessToolsAccess(forceRefresh: true);
+      final snap = await _ensureToolsSnapshot(forceRefresh: true);
       if (!mounted) return;
-      if (!hasAccess && _currentIndex != 0) {
+      if (!snap.dashboardEnabled && _currentIndex == 1) {
+        setState(() => _currentIndex = 0);
+        _pageController.jumpToPage(0);
+      }
+      if (!snap.boostsEnabled && _currentIndex == 2) {
         setState(() => _currentIndex = 0);
         _pageController.jumpToPage(0);
       }
@@ -96,7 +145,187 @@ class _BusinessOwnerNavigationWrapperState
 
   void _resetBusinessToolsAccessCache() {
     if (!mounted) return;
-    setState(() => _hasBusinessToolsAccess = null);
+    setState(() {
+      _toolsSnapshot = null;
+      _gateFuture = null;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _ensureToolsSnapshot(forceRefresh: true);
+    });
+  }
+
+  Future<BusinessOwnerNavToolsSnapshot> _ensureToolsSnapshot({
+    bool forceRefresh = false,
+  }) async {
+    if (forceRefresh) {
+      _toolsSnapshot = null;
+      _gateFuture = null;
+    }
+    if (_toolsSnapshot != null) {
+      return _toolsSnapshot!;
+    }
+    if (_gateFuture != null) {
+      return _gateFuture!;
+    }
+    _gateFuture = _computeToolsSnapshot().whenComplete(() {
+      if (mounted) {
+        setState(() => _gateFuture = null);
+      } else {
+        _gateFuture = null;
+      }
+    });
+    return _gateFuture!;
+  }
+
+  Future<BusinessOwnerNavToolsSnapshot> _computeToolsSnapshot() async {
+    String? userMessage;
+    String? blockedId;
+    String? blockedName;
+    var showLegalAction = false;
+
+    try {
+      final dashboardCubit = context.read<DashboardCubit>();
+      final businesses = await dashboardCubit.getOwnerBusinesses(widget.user.id);
+      if (businesses.isEmpty) {
+        userMessage = 'No businesses found.';
+        final snap = BusinessOwnerNavToolsSnapshot(
+          dashboardEnabled: false,
+          boostsEnabled: false,
+          gateEvaluated: true,
+          userMessage: userMessage,
+          showLegalDocumentsSnackAction: false,
+        );
+        if (mounted) setState(() => _toolsSnapshot = snap);
+        return snap;
+      }
+
+      var allListingsApproved = true;
+      var anyLegalRejected = false;
+
+      for (final business in businesses) {
+        final raw = (business.statusText ?? '').toLowerCase().trim();
+        final isApproved = raw == 'approved';
+        if (!isApproved) {
+          allListingsApproved = false;
+          blockedId ??= business.id;
+          blockedName ??= business.name;
+          if (raw == 'rejected') {
+            userMessage ??=
+                'Your business listing was rejected. Update your listing or contact support if you need help.';
+          } else {
+            userMessage ??=
+                'Your business listing is pending approval. You’ll get access to the dashboard once it’s approved.';
+          }
+        }
+
+        try {
+          final legalStatus =
+              await dashboardCubit.getLegalDocumentsStatus(business.id);
+          if (legalStatus.hasRejected) {
+            anyLegalRejected = true;
+            blockedId = business.id;
+            blockedName = business.name;
+            userMessage =
+                'A legal document was rejected. Please re-upload a corrected file.';
+            showLegalAction = true;
+            break;
+          }
+        } catch (_) {
+          // RLS/network: do not treat as rejection; keep evaluating other listings.
+          continue;
+        }
+      }
+
+      if (anyLegalRejected) {
+        final snap = BusinessOwnerNavToolsSnapshot(
+          dashboardEnabled: false,
+          boostsEnabled: false,
+          gateEvaluated: true,
+          userMessage: userMessage,
+          primaryBlockedBusinessId: blockedId,
+          primaryBlockedBusinessName: blockedName,
+          showLegalDocumentsSnackAction: showLegalAction,
+        );
+        if (mounted) setState(() => _toolsSnapshot = snap);
+        return snap;
+      }
+
+      if (!allListingsApproved) {
+        final snap = BusinessOwnerNavToolsSnapshot(
+          dashboardEnabled: false,
+          boostsEnabled: true,
+          gateEvaluated: true,
+          userMessage: userMessage,
+          primaryBlockedBusinessId: blockedId,
+          primaryBlockedBusinessName: blockedName,
+          showLegalDocumentsSnackAction: false,
+        );
+        if (mounted) setState(() => _toolsSnapshot = snap);
+        return snap;
+      }
+
+      final snap = const BusinessOwnerNavToolsSnapshot(
+        dashboardEnabled: true,
+        boostsEnabled: true,
+        gateEvaluated: true,
+        userMessage: null,
+        primaryBlockedBusinessId: null,
+        primaryBlockedBusinessName: null,
+        showLegalDocumentsSnackAction: false,
+      );
+      if (mounted) setState(() => _toolsSnapshot = snap);
+      return snap;
+    } catch (_) {
+      userMessage =
+          'Could not verify your business status. Check your connection and try again.';
+      final snap = BusinessOwnerNavToolsSnapshot(
+        dashboardEnabled: false,
+        boostsEnabled: false,
+        gateEvaluated: true,
+        userMessage: userMessage,
+        showLegalDocumentsSnackAction: false,
+      );
+      if (mounted) setState(() => _toolsSnapshot = snap);
+      return snap;
+    }
+  }
+
+  void _showGateSnackBar(BusinessOwnerNavToolsSnapshot snap) {
+    final reason = snap.userMessage ??
+        'This section is not available yet. Finish listing approval and legal requirements from Home.';
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    final bizId = snap.primaryBlockedBusinessId;
+    final showDocs = snap.showLegalDocumentsSnackAction && bizId != null;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(reason),
+        duration: const Duration(seconds: 6),
+        behavior: SnackBarBehavior.floating,
+        action: showDocs
+            ? SnackBarAction(
+                label: 'View Documents',
+                textColor: AppColors.brandSecondaryLight,
+                onPressed: () {
+                  messenger.hideCurrentSnackBar();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => BusinessLegalDocumentsDetailPage(
+                        businessId: bizId,
+                        businessName:
+                            snap.primaryBlockedBusinessName ?? 'Business',
+                      ),
+                    ),
+                  );
+                },
+              )
+            : SnackBarAction(
+                label: 'OK',
+                textColor: AppColors.brandSecondaryLight,
+                onPressed: () => messenger.hideCurrentSnackBar(),
+              ),
+      ),
+    );
   }
 
   Future<bool> _ensureSubscriptionAccess() async {
@@ -131,108 +360,22 @@ class _BusinessOwnerNavigationWrapperState
     return false;
   }
 
-  Future<bool> _ensureBusinessToolsAccess({bool forceRefresh = false}) async {
-    if (!forceRefresh && _hasBusinessToolsAccess != null) {
-      return _hasBusinessToolsAccess!;
-    }
-    if (_isCheckingBusinessToolsAccess) {
-      return _hasBusinessToolsAccess ?? false;
-    }
-    _isCheckingBusinessToolsAccess = true;
-    try {
-      final dashboardCubit = context.read<DashboardCubit>();
-      final businesses = await dashboardCubit.getOwnerBusinesses(widget.user.id);
-      if (businesses.isEmpty) {
-        _hasBusinessToolsAccess = false;
-        _lockReason = 'No businesses found.';
-        return false;
-      }
-      for (final business in businesses) {
-        final approvalStatus = (business.statusText ?? '').toLowerCase();
-        final isApproved = approvalStatus == 'approved';
-        if (!isApproved) {
-          _hasBusinessToolsAccess = false;
-          _blockedBusinessId = business.id;
-          _blockedBusinessName = business.name;
-          _lockReason = 'Your business listing is pending approval.';
-          return false;
-        }
-        // Super Admin approval is the source of truth for opening Dashboard/Boosts.
-        // We only hard-block here when we can read legal rows and at least one is rejected.
-        LegalDocumentsStatus legalStatus;
-        try {
-          legalStatus = await dashboardCubit.getLegalDocumentsStatus(business.id);
-        } catch (_) {
-          // RLS/network/parse issues: do not lock out an approved listing.
-          continue;
-        }
-        if (legalStatus.hasRejected) {
-          _hasBusinessToolsAccess = false;
-          _blockedBusinessId = business.id;
-          _blockedBusinessName = business.name;
-          _lockReason = 'A legal document was rejected. Please re-upload a corrected file.';
-          return false;
-        }
-      }
-      _hasBusinessToolsAccess = true;
-      _blockedBusinessId = null;
-      _blockedBusinessName = null;
-      _lockReason = null;
-      return true;
-    } catch (_) {
-      _hasBusinessToolsAccess = false;
-      return false;
-    } finally {
-      _isCheckingBusinessToolsAccess = false;
-    }
-  }
-
   Future<void> navigateToTab(int index, {int? dashboardTab}) async {
-    if (index == 1 || index == 2) {
-      final canAccessBusinessTools = await _ensureBusinessToolsAccess();
-      if (!mounted) return;
-      if (!canAccessBusinessTools) {
-        final reason = _lockReason ??
-            'Business dashboard is locked until your listing is approved and legal documents are submitted.';
-        final bizId = _blockedBusinessId;
-        final bizName = _blockedBusinessName;
-        final messenger = ScaffoldMessenger.of(context);
-        messenger.clearSnackBars();
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(reason),
-            duration: const Duration(seconds: 6),
-            behavior: SnackBarBehavior.floating,
-            action: bizId != null
-                ? SnackBarAction(
-                    label: 'View Documents',
-                    textColor: AppColors.brandSecondaryLight,
-                    onPressed: () {
-                      messenger.hideCurrentSnackBar();
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => BusinessLegalDocumentsDetailPage(
-                            businessId: bizId,
-                            businessName: bizName ?? 'Business',
-                          ),
-                        ),
-                      );
-                    },
-                  )
-                : SnackBarAction(
-                    label: 'OK',
-                    textColor: AppColors.brandSecondaryLight,
-                    onPressed: () => messenger.hideCurrentSnackBar(),
-                  ),
-          ),
-        );
-        return;
-      }
-      // Boosts (2) stays reachable so owners can purchase; Dashboard (1) is gated.
-      if (index == 1) {
-        final canAccessSubscription = await _ensureSubscriptionAccess();
-        if (!mounted || !canAccessSubscription) return;
-      }
+    final snap = await _ensureToolsSnapshot();
+    if (!mounted) return;
+
+    if (index == 1 && !snap.dashboardEnabled) {
+      _showGateSnackBar(snap);
+      return;
+    }
+    if (index == 2 && !snap.boostsEnabled) {
+      _showGateSnackBar(snap);
+      return;
+    }
+
+    if (index == 1) {
+      final canAccessSubscription = await _ensureSubscriptionAccess();
+      if (!mounted || !canAccessSubscription) return;
     }
 
     final shouldAnimate = _currentIndex != index;

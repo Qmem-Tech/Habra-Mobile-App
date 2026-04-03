@@ -21,6 +21,10 @@ class BusinessOwnerDrawer extends StatelessWidget {
   final VoidCallback? onSettingsTap;
   /// When false (no businesses yet), hides Dashboard, edit, hours, and Boosts.
   final bool showBusinessToolsMenu;
+  /// When false, hides Dashboard (e.g. listing not yet approved).
+  final bool showDashboardMenuItem;
+  /// When false, hides Boosts (e.g. legal docs rejected).
+  final bool showBoostsMenuItem;
 
   const BusinessOwnerDrawer({
     super.key,
@@ -37,6 +41,8 @@ class BusinessOwnerDrawer extends StatelessWidget {
     this.onBoostListingTap,
     this.onSettingsTap,
     this.showBusinessToolsMenu = true,
+    this.showDashboardMenuItem = true,
+    this.showBoostsMenuItem = true,
   });
 
   @override
@@ -201,15 +207,16 @@ class BusinessOwnerDrawer extends StatelessWidget {
         },
       ),
       if (showBusinessToolsMenu) ...[
-        _DrawerMenuItemData(
-          icon: Icons.dashboard_outlined,
-          activeIcon: Icons.dashboard,
-          title: 'Dashboard',
-          onTap: () {
-            Navigator.pop(context);
-            onDashboardTap?.call();
-          },
-        ),
+        if (showDashboardMenuItem)
+          _DrawerMenuItemData(
+            icon: Icons.dashboard_outlined,
+            activeIcon: Icons.dashboard,
+            title: 'Dashboard',
+            onTap: () {
+              Navigator.pop(context);
+              onDashboardTap?.call();
+            },
+          ),
         _DrawerMenuItemData(
           icon: Icons.edit_outlined,
           activeIcon: Icons.edit,
@@ -237,16 +244,17 @@ class BusinessOwnerDrawer extends StatelessWidget {
             onUpdateHoursTap?.call();
           },
         ),
-        _DrawerMenuItemData(
-          icon: Icons.rocket_launch_outlined,
-          activeIcon: Icons.rocket_launch,
-          title: 'Boost Listing',
-          iconColor: AppColors.brandPrimary,
-          onTap: () {
-            Navigator.pop(context);
-            onBoostListingTap?.call();
-          },
-        ),
+        if (showBoostsMenuItem)
+          _DrawerMenuItemData(
+            icon: Icons.rocket_launch_outlined,
+            activeIcon: Icons.rocket_launch,
+            title: 'Boost Listing',
+            iconColor: AppColors.brandPrimary,
+            onTap: () {
+              Navigator.pop(context);
+              onBoostListingTap?.call();
+            },
+          ),
       ],
       _DrawerMenuItemData(
         icon: Icons.settings_outlined,

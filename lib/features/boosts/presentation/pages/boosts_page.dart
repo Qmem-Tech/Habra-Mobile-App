@@ -64,6 +64,10 @@ class _BoostsPageState extends State<BoostsPage> {
                 userName: widget.user.name,
                 userEmail: widget.user.email,
                 selectedBusiness: selected,
+                showDashboardMenuItem:
+                    BusinessOwnerNavigationWrapper.drawerShowDashboardMenu(context),
+                showBoostsMenuItem:
+                    BusinessOwnerNavigationWrapper.drawerShowBoostsMenu(context),
                 onHomeTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 0),
                 onDashboardTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1),
                 onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
