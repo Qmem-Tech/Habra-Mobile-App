@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../domain/entities/saved_item.dart';
@@ -36,7 +37,10 @@ class SavedItemsSupabaseDataSource implements SavedItemsRemoteDataSource {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return <SavedItemModel>[];
 
-      var query = _client.from('saved_items').select().eq('user_id', userId);
+      var query = _client
+          .from(SupabaseTables.savedItems)
+          .select()
+          .eq('user_id', userId);
       if (filterType != null && filterType.isNotEmpty) {
         query = query.eq('item_type', filterType);
       }
@@ -53,11 +57,14 @@ class SavedItemsSupabaseDataSource implements SavedItemsRemoteDataSource {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('Not authenticated');
 
-      await _client.from('saved_items').insert({
-        'user_id': userId,
-        'item_type': itemType,
-        'reference_id': referenceId,
-      });
+      await _client.from(SupabaseTables.savedItems).upsert(
+            {
+              'user_id': userId,
+              'item_type': itemType,
+              'reference_id': referenceId,
+            },
+            onConflict: 'user_id,item_type,reference_id',
+          );
     });
   }
 
@@ -68,7 +75,7 @@ class SavedItemsSupabaseDataSource implements SavedItemsRemoteDataSource {
       if (userId == null) throw Exception('Not authenticated');
 
       await _client
-          .from('saved_items')
+          .from(SupabaseTables.savedItems)
           .delete()
           .eq('id', savedItemId)
           .eq('user_id', userId);

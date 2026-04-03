@@ -23,6 +23,7 @@ DROP TABLE IF EXISTS public.boosts CASCADE;
 DROP TABLE IF EXISTS public.boost_plans CASCADE;
 DROP TABLE IF EXISTS public.notifications CASCADE;
 DROP TABLE IF EXISTS public.job_bookmarks CASCADE;
+DROP TABLE IF EXISTS public.saved_items CASCADE;
 DROP TABLE IF EXISTS public.job_applications CASCADE;
 DROP TABLE IF EXISTS public.tickets CASCADE;
 DROP TABLE IF EXISTS public.orders CASCADE;

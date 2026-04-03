@@ -36,6 +36,19 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
     });
   }
 
+  static Map<String, String> _screeningAnswersFromRow(dynamic v) {
+    if (v == null) return {};
+    if (v is Map<String, dynamic>) {
+      return v.map((key, val) => MapEntry(key, val?.toString() ?? ''));
+    }
+    if (v is Map) {
+      return v.map(
+        (key, val) => MapEntry(key.toString(), val?.toString() ?? ''),
+      );
+    }
+    return {};
+  }
+
   static ApplicationStatus _statusFromString(String? s) {
     if (s == null) return ApplicationStatus.pending;
     switch (s.toLowerCase()) {
@@ -85,6 +98,7 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
         'cover_message': coverLetter,
         'resume_url': resumeUrl,
         'photo_url': photoUrl,
+        'screening_answers': screeningAnswers ?? <String, String>{},
         'status': 'pending',
       });
 
@@ -96,6 +110,8 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
           .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
+      final parsedAnswers =
+          screeningAnswers ?? const <String, String>{};
       if (appRes == null) {
         return JobApplicationModel(
           id: '',
@@ -109,12 +125,13 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
           resumeUrl: resumeUrl,
           coverLetter: coverLetter,
           photoUrl: photoUrl,
-          screeningAnswers: screeningAnswers ?? {},
+          screeningAnswers: parsedAnswers,
           status: ApplicationStatus.pending,
           appliedDate: DateTime.now(),
         );
       }
       final row = Map<String, dynamic>.from(appRes as Map);
+      final storedAnswers = _screeningAnswersFromRow(row['screening_answers']);
       return JobApplicationModel(
         id: parseStringRequired(row['id']),
         jobId: jobId,
@@ -127,7 +144,8 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
         resumeUrl: parseString(row['resume_url']),
         coverLetter: parseString(row['cover_message']),
         photoUrl: parseString(row['photo_url']),
-        screeningAnswers: screeningAnswers ?? {},
+        screeningAnswers:
+            storedAnswers.isNotEmpty ? storedAnswers : parsedAnswers,
         status: _statusFromString(row['status'] as String?),
         appliedDate: parseTimestampRequired(row['created_at']),
       );
@@ -142,7 +160,9 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
 
       var query = _client
           .from('job_applications')
-          .select('*, jobs!job_applications_job_id_fkey(title, business_id, businesses!jobs_business_id_fkey(name)), profiles!job_applications_user_id_fkey(full_name, email, phone, avatar_url)')
+          .select(
+            '*, jobs!job_applications_job_id_fkey(title, business_id, businesses!jobs_business_id_fkey(name)), profiles!job_applications_user_id_fkey(full_name, avatar_url)',
+          )
           .eq('user_id', userId);
       if (activeOnly) {
         query = query.inFilter('status', ['pending', 'reviewed', 'shortlisted']);
@@ -176,7 +196,7 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
           resumeUrl: parseString(row['resume_url']),
           coverLetter: parseString(row['cover_message']),
           photoUrl: parseString(row['photo_url']),
-          screeningAnswers: const {},
+          screeningAnswers: _screeningAnswersFromRow(row['screening_answers']),
           status: _statusFromString(row['status'] as String?),
           appliedDate: parseTimestampRequired(row['created_at']),
         );
@@ -191,14 +211,20 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
       if (userId == null) return null;
       final res = await _client
           .from('job_applications')
-          .select('*, jobs(title, business_id)')
+          .select(
+            '*, jobs!job_applications_job_id_fkey(title, business_id, businesses!jobs_business_id_fkey(name))',
+          )
           .eq('job_id', jobId)
           .eq('user_id', userId)
           .maybeSingle();
       if (res == null) return null;
       final row = Map<String, dynamic>.from(res as Map);
       final jobRow = row['jobs'];
-      final companyName = ''; // would need businesses join
+      final bizRow =
+          jobRow is Map<String, dynamic> ? jobRow['businesses'] : null;
+      final companyName = bizRow is Map<String, dynamic>
+          ? parseStringRequired(bizRow['name'])
+          : '';
       return JobApplicationModel(
         id: parseStringRequired(row['id']),
         jobId: jobId,
@@ -211,7 +237,7 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
         resumeUrl: parseString(row['resume_url']),
         coverLetter: parseString(row['cover_message']),
         photoUrl: parseString(row['photo_url']),
-        screeningAnswers: const {},
+        screeningAnswers: _screeningAnswersFromRow(row['screening_answers']),
         status: _statusFromString(row['status'] as String?),
         appliedDate: parseTimestampRequired(row['created_at']),
       );

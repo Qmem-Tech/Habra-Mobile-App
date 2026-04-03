@@ -229,7 +229,7 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
             child: Row(
               children: [
-                const Icon(Icons.auto_awesome, color: AppColors.brandSecondary, size: 22),
+                // const Icon(Icons.auto_awesome, color: AppColors.brandSecondary, size: 22),
                 const SizedBox(width: 8),
                 const Text(
                   'Recommended for you',
@@ -750,6 +750,7 @@ class _RecommendationBusinessCard extends StatelessWidget {
       },
       child: Container(
         width: 200,
+        height:150,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),

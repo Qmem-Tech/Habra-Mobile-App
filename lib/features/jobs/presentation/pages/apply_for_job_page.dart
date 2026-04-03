@@ -15,6 +15,48 @@ import '../bloc/job_applications_cubit.dart';
 import '../bloc/job_applications_state.dart';
 import 'application_submitted_page.dart';
 
+bool _looksLikeValidEmail(String email) {
+  final v = email.trim();
+  if (v.isEmpty) return false;
+  if (v.length > 254) return false;
+  final re = RegExp(
+    r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
+  );
+  return re.hasMatch(v);
+}
+
+String? _validateFullNameField(String? value) {
+  final v = value?.trim() ?? '';
+  if (v.isEmpty) {
+    return 'Please enter your full name';
+  }
+  if (v.length < 2) {
+    return 'Name is too short';
+  }
+  if (v.length > 120) {
+    return 'Name must be at most 120 characters';
+  }
+  if (!RegExp(r'[a-zA-Z\u00C0-\u024F\u0400-\u04FF]').hasMatch(v)) {
+    return 'Please use letters for your name';
+  }
+  final parts = v.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  if (parts.length < 2) {
+    return 'Please enter your first and last name';
+  }
+  return null;
+}
+
+String? _validateEmailField(String? value) {
+  final v = value?.trim() ?? '';
+  if (v.isEmpty) {
+    return 'Please enter your email';
+  }
+  if (!_looksLikeValidEmail(v)) {
+    return 'Please enter a valid email address';
+  }
+  return null;
+}
+
 class ApplyForJobPage extends StatefulWidget {
   final String jobId;
   final String jobTitle;
@@ -44,6 +86,9 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
   @override
   void initState() {
     super.initState();
+    _coverLetterController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _prefillFromProfile();
   }
 
@@ -95,6 +140,41 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
 
   Future<void> _submitApplication() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedScreeningAnswer == null) {
+      ErrorDisplayHelper.show(
+        context,
+        message: 'Please answer the screening question.',
+        title: 'Almost there',
+      );
+      return;
+    }
+    if (_selectedScreeningAnswer == 'No') {
+      ErrorDisplayHelper.show(
+        context,
+        message:
+            'This role requires legal authorization to work in the United States. '
+            'You can still browse other opportunities on Habra.',
+        title: 'Work authorization',
+      );
+      return;
+    }
+    if (_resumeFile == null) {
+      ErrorDisplayHelper.show(
+        context,
+        message: 'Please upload a resume (PDF, DOC, or DOCX, max 5MB).',
+        title: 'Resume required',
+      );
+      return;
+    }
+    final phoneDigits = _phoneNumber.replaceAll(RegExp(r'\D'), '');
+    if (phoneDigits.length < 8) {
+      ErrorDisplayHelper.show(
+        context,
+        message: 'Please enter a complete phone number including country/area code.',
+        title: 'Invalid phone',
+      );
+      return;
+    }
 
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) {
@@ -102,34 +182,30 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
       return;
     }
 
-    String? resumeUrl;
-    if (_resumeFile != null) {
-      final (url, error) = await context.read<JobApplicationsCubit>().uploadResume(
-            userId,
-            widget.jobId,
-            _resumeFile!,
-          );
-      if (url == null && mounted) {
-        ErrorDisplayHelper.show(
-          context,
-          message: error ?? 'Failed to upload resume. Please try again.',
-          title: 'Upload failed',
+    final (url, error) = await context.read<JobApplicationsCubit>().uploadResume(
+          userId,
+          widget.jobId,
+          _resumeFile!,
         );
-        return;
-      }
-      resumeUrl = url;
+    if (url == null && mounted) {
+      ErrorDisplayHelper.show(
+        context,
+        message: error ?? 'Failed to upload resume. Please try again.',
+        title: 'Upload failed',
+      );
+      return;
     }
+    final resumeUrl = url;
 
     if (!mounted) return;
+    final cover = _coverLetterController.text.trim();
     context.read<JobApplicationsCubit>().submitApplication(
           jobId: widget.jobId,
-          fullName: _fullNameController.text,
-          email: _emailController.text,
-          phoneNumber: _phoneNumber,
+          fullName: _fullNameController.text.trim(),
+          email: _emailController.text.trim(),
+          phoneNumber: _phoneNumber.trim(),
           resumeUrl: resumeUrl,
-          coverLetter: _coverLetterController.text.isEmpty
-              ? null
-              : _coverLetterController.text,
+          coverLetter: cover.isEmpty ? null : cover,
           photoUrl: null,
           screeningAnswers: _selectedScreeningAnswer != null
               ? {
@@ -166,6 +242,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
             padding: const EdgeInsets.all(16),
             child: Form(
               key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -292,16 +369,14 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
         const SizedBox(height: 16),
         TextFormField(
           controller: _fullNameController,
+          textCapitalization: TextCapitalization.words,
+          maxLength: 120,
           decoration: const InputDecoration(
             labelText: 'Full Name',
             border: OutlineInputBorder(),
+            counterText: '',
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please enter your full name';
-            }
-            return null;
-          },
+          validator: _validateFullNameField,
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -309,17 +384,12 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
           decoration: const InputDecoration(
             labelText: 'Email Address',
             border: OutlineInputBorder(),
+            counterText: '',
           ),
           keyboardType: TextInputType.emailAddress,
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please enter your email';
-            }
-            if (!value.contains('@')) {
-              return 'Please enter a valid email';
-            }
-            return null;
-          },
+          autocorrect: false,
+          maxLength: 254,
+          validator: _validateEmailField,
         ),
         const SizedBox(height: 16),
         IntlPhoneField(
@@ -328,12 +398,18 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
             border: OutlineInputBorder(),
           ),
           initialCountryCode: 'US',
+          invalidNumberMessage: 'Enter a valid phone number',
           onChanged: (phone) {
             setState(() => _phoneNumber = phone.completeNumber);
           },
           validator: (value) {
-            if (value == null || value.number.isEmpty) {
+            if (value == null || value.number.trim().isEmpty) {
               return 'Please enter your phone number';
+            }
+            final complete = value.completeNumber;
+            final digits = complete.replaceAll(RegExp(r'\D'), '');
+            if (digits.length < 8) {
+              return 'Phone number looks incomplete';
             }
             return null;
           },
@@ -346,13 +422,28 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Resume / CV',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            const Text(
+              'Resume / CV',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Required',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         GestureDetector(
@@ -453,6 +544,13 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
             border: OutlineInputBorder(),
             counterText: '',
           ),
+          validator: (value) {
+            final v = value ?? '';
+            if (v.length > 2000) {
+              return 'Cover letter must be at most 2000 characters';
+            }
+            return null;
+          },
         ),
         Align(
           alignment: Alignment.centerRight,

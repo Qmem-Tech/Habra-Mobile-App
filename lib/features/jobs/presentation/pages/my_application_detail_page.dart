@@ -64,6 +64,32 @@ class MyApplicationDetailPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
+            if (application.screeningAnswers.isNotEmpty) ...[
+              const Text(
+                'Screening',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 8),
+              AppCard(
+                margin: EdgeInsets.zero,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: application.screeningAnswers.entries
+                      .map(
+                        (e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            '${e.key}\n${e.value}',
+                            style: const TextStyle(fontSize: 14, height: 1.45),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
             if (application.coverLetter != null && application.coverLetter!.isNotEmpty) ...[
               const Text(
                 'Cover Letter',

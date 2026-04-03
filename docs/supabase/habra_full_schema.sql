@@ -213,6 +213,11 @@ CREATE TABLE public.job_applications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   job_id UUID NOT NULL REFERENCES public.jobs(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  full_name TEXT,
+  email TEXT,
+  phone TEXT,
+  photo_url TEXT,
+  screening_answers JSONB NOT NULL DEFAULT '{}'::jsonb,
   cover_message TEXT,
   resume_url TEXT,
   status job_application_status DEFAULT 'pending',
@@ -226,6 +231,19 @@ CREATE TABLE public.job_bookmarks (
   job_id UUID NOT NULL REFERENCES public.jobs(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, job_id)
+);
+
+-- Saved events/deals for the community member "Saved items" list (Flutter app).
+CREATE TABLE public.saved_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  item_type TEXT NOT NULL CHECK (item_type IN ('event', 'deal')),
+  reference_id UUID NOT NULL,
+  title TEXT,
+  subtitle TEXT,
+  image_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, item_type, reference_id)
 );
 
 CREATE TABLE public.notifications (
@@ -292,6 +310,7 @@ CREATE INDEX idx_reviews_business ON public.reviews(business_id);
 CREATE INDEX idx_orders_user ON public.orders(user_id);
 CREATE INDEX idx_notifications_user_unread ON public.notifications(user_id, is_read);
 CREATE INDEX idx_job_applications_job ON public.job_applications(job_id);
+CREATE INDEX idx_saved_items_user_created ON public.saved_items(user_id, created_at DESC);
 CREATE INDEX idx_audit_log_created_at ON public.audit_log(created_at DESC);
 CREATE INDEX idx_audit_log_actor ON public.audit_log(actor_id);
 
@@ -525,6 +544,13 @@ CREATE POLICY "job_applications_update_business" ON public.job_applications FOR 
 ALTER TABLE public.job_bookmarks ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "job_bookmarks_all" ON public.job_bookmarks FOR ALL USING (auth.uid() = user_id);
 
+-- Saved items (events / deals)
+ALTER TABLE public.saved_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "saved_items_select_own" ON public.saved_items FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "saved_items_insert_own" ON public.saved_items FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "saved_items_delete_own" ON public.saved_items FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "saved_items_update_own" ON public.saved_items FOR UPDATE USING (auth.uid() = user_id);
+
 -- Notifications
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "notifications_select" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
@@ -565,6 +591,7 @@ CREATE POLICY "admin_orders_select" ON public.orders FOR SELECT USING (public.is
 CREATE POLICY "admin_tickets_select" ON public.tickets FOR SELECT USING (public.is_admin());
 CREATE POLICY "admin_notifications_select" ON public.notifications FOR SELECT USING (public.is_admin());
 CREATE POLICY "admin_job_applications" ON public.job_applications FOR ALL USING (public.is_admin());
+CREATE POLICY "admin_saved_items" ON public.saved_items FOR ALL USING (public.is_admin());
 CREATE POLICY "admin_boosts" ON public.boosts FOR ALL USING (public.is_admin());
 
 -- =============================================================================

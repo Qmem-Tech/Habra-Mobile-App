@@ -22,6 +22,26 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
 
   SupabaseClient get _client => Supabase.instance.client;
 
+  /// Combines free-text cover message with structured screening answers for the detail UI.
+  String _mergeCoverLetterAndScreening(
+    dynamic coverMessage,
+    dynamic screeningRaw,
+  ) {
+    final cover = (parseString(coverMessage) ?? '').trim();
+    final screeningLines = <String>[];
+    if (screeningRaw is Map) {
+      screeningRaw.forEach((dynamic k, dynamic v) {
+        screeningLines.add('$k: ${v ?? ''}');
+      });
+    }
+    if (screeningLines.isEmpty) {
+      return cover;
+    }
+    final block = 'Screening responses\n${screeningLines.join('\n')}';
+    if (cover.isEmpty) return block;
+    return '$cover\n\n$block';
+  }
+
   // ---------------------------------------------------------------------------
   // Owner businesses
   // ---------------------------------------------------------------------------
@@ -453,8 +473,11 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from(SupabaseTables.jobApplications)
-          .select('*, ${SupabaseTables.profiles}!job_applications_user_id_fkey(full_name, avatar_url, email, phone), ${SupabaseTables.jobs}!job_applications_job_id_fkey(title)')
+          .select(
+            '*, ${SupabaseTables.profiles}!job_applications_user_id_fkey(full_name, avatar_url), ${SupabaseTables.jobs}!job_applications_job_id_fkey(title)',
+          )
           .eq('id', applicantId)
+          .eq('job_id', jobId)
           .maybeSingle();
       if (res == null) return null;
       final row = Map<String, dynamic>.from(res);
@@ -467,12 +490,11 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           ? parseString(profile['avatar_url'])
           : null;
       final appPhoto = parseString(row['photo_url']);
-      final profileEmail = profile is Map<String, dynamic>
-          ? parseString(profile['email'])
-          : parseString(row['email']);
-      final profilePhone = profile is Map<String, dynamic>
-          ? parseString(profile['phone'])
-          : parseString(row['phone']);
+      // Prefer columns on job_applications (apply form); profiles may omit email/phone.
+      final profileEmail = parseString(row['email']) ??
+          (profile is Map<String, dynamic> ? parseString(profile['email']) : null);
+      final profilePhone = parseString(row['phone']) ??
+          (profile is Map<String, dynamic> ? parseString(profile['phone']) : null);
       return ApplicantDetail(
         id: parseStringRequired(row['id']),
         name: profileName,
@@ -484,7 +506,10 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         appliedFor:
             job is Map<String, dynamic> ? parseStringRequired(job['title']) : '',
         receivedDate: _timeAgo(parseTimestampRequired(row['created_at'])),
-        coverLetter: parseStringRequired(row['cover_message']),
+        coverLetter: _mergeCoverLetterAndScreening(
+          row['cover_message'],
+          row['screening_answers'],
+        ),
         experience: const [],
         resumeFileName: parseString(row['resume_url']) != null
             ? 'Resume'
