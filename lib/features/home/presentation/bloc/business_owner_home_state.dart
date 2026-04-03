@@ -43,6 +43,20 @@ class BusinessOwnerHomeLoaded extends BusinessOwnerHomeState {
   bool get isAllBusinessesView =>
       selectedPresenceId == null || selectedPresenceId == 'all';
 
+  /// Selected listing, or first real listing when "All" is selected — same anchor as dashboard APIs and owner nav gating.
+  String? get focusBusinessIdForOwnerTools {
+    final selectedId = selectedPresenceId;
+    if (selectedId != null &&
+        selectedId != 'all' &&
+        presences.any((p) => p.id == selectedId)) {
+      return selectedId;
+    }
+    final concrete =
+        presences.where((p) => p.id != 'all').toList(growable: false);
+    if (concrete.isEmpty) return null;
+    return concrete.first.id;
+  }
+
   BusinessPresence? get selectedPresence {
     if (selectedPresenceId == null) return null;
     try {

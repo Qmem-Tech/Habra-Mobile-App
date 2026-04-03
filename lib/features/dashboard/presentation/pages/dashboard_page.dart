@@ -63,27 +63,11 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  /// Picks a concrete business id for dashboard APIs. When "All businesses" is
-  /// selected, [BusinessOwnerHomeLoaded.selectedPresence] is often null — we fall
-  /// back to the first real listing so the dashboard can load.
-  static String? _resolveDashboardBusinessId(BusinessOwnerHomeLoaded home) {
-    final selectedId = home.selectedPresenceId;
-    if (selectedId != null &&
-        selectedId != 'all' &&
-        home.presences.any((p) => p.id == selectedId)) {
-      return selectedId;
-    }
-    final concrete =
-        home.presences.where((p) => p.id != 'all').toList(growable: false);
-    if (concrete.isEmpty) return null;
-    return concrete.first.id;
-  }
-
   Future<void> _syncDashboardWithHome() async {
     if (!mounted) return;
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
     if (homeState is! BusinessOwnerHomeLoaded) return;
-    final businessId = _resolveDashboardBusinessId(homeState);
+    final businessId = homeState.focusBusinessIdForOwnerTools;
     final cubit = context.read<DashboardCubit>();
     if (businessId == null) {
       cubit.setLoadError(
@@ -363,7 +347,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         onFilterChanged: (f) {
                           final homeState = context.read<BusinessOwnerHomeCubit>().state;
                           if (homeState is BusinessOwnerHomeLoaded) {
-                            final bid = _resolveDashboardBusinessId(homeState);
+                            final bid = homeState.focusBusinessIdForOwnerTools;
                             if (bid != null) {
                               context.read<DashboardCubit>().setDealsFilter(
                                     bid,

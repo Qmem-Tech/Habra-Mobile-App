@@ -12,6 +12,9 @@ import '../../features/boosts/presentation/bloc/boosts_cubit.dart';
 import '../../features/boosts/presentation/pages/boosts_page.dart';
 import '../../features/auth/domain/entities/user.dart';
 import '../../features/dashboard/presentation/bloc/dashboard_cubit.dart';
+import '../../features/home/domain/entities/business_presence.dart';
+import '../../features/home/presentation/bloc/business_owner_home_cubit.dart';
+import '../../features/home/presentation/bloc/business_owner_home_state.dart';
 import '../../features/home/presentation/pages/profile_page.dart';
 import '../../features/home/presentation/pages/business_owner_subscription_page.dart';
 
@@ -19,10 +22,8 @@ import '../../features/home/presentation/pages/business_owner_subscription_page.
 ///
 /// **Product rules**
 /// - **Home** and **Profile** are always reachable.
-/// - **Dashboard** requires every owned listing `approval_status == approved`, no legal
-///   document rejected, and (when enabled) an active business subscription.
-/// - **Boosts** stays reachable while a listing is pending or rejected so owners can
-///   subscribe/boost prep; blocked only when there are no listings or a legal doc was rejected.
+/// - **Dashboard** uses the same focus listing as the dashboard APIs ([BusinessOwnerHomeLoaded.focusBusinessIdForOwnerTools]): that location must be `approved` and have no rejected legal row. Other locations do not block Dash for the selected one.
+/// - **Boosts** uses the same focus listing for legal checks; listing may be pending/rejected so owners can still open Boosts. Blocked when there are no listings or the focus location has a rejected legal doc.
 class BusinessOwnerNavToolsSnapshot {
   const BusinessOwnerNavToolsSnapshot({
     required this.dashboardEnabled,
@@ -111,6 +112,8 @@ class BusinessOwnerNavigationWrapper extends StatefulWidget {
 
 class _BusinessOwnerNavigationWrapperState
     extends State<BusinessOwnerNavigationWrapper> {
+  static const double _disabledNavOpacity = 0.38;
+
   late int _currentIndex;
   late PageController _pageController;
   int? _pendingDashboardTab;
@@ -154,6 +157,27 @@ class _BusinessOwnerNavigationWrapperState
     });
   }
 
+  void _refreshToolsGateDueToHomeChange() {
+    if (!mounted) return;
+    setState(() {
+      _toolsSnapshot = null;
+      _gateFuture = null;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final snap = await _ensureToolsSnapshot(forceRefresh: true);
+      if (!mounted) return;
+      if (!snap.dashboardEnabled && _currentIndex == 1) {
+        setState(() => _currentIndex = 0);
+        _pageController.jumpToPage(0);
+      }
+      if (!snap.boostsEnabled && _currentIndex == 2) {
+        setState(() => _currentIndex = 0);
+        _pageController.jumpToPage(0);
+      }
+    });
+  }
+
   Future<BusinessOwnerNavToolsSnapshot> _ensureToolsSnapshot({
     bool forceRefresh = false,
   }) async {
@@ -178,16 +202,15 @@ class _BusinessOwnerNavigationWrapperState
   }
 
   Future<BusinessOwnerNavToolsSnapshot> _computeToolsSnapshot() async {
-    String? userMessage;
-    String? blockedId;
-    String? blockedName;
-    var showLegalAction = false;
-
     try {
       final dashboardCubit = context.read<DashboardCubit>();
+      final homeCubit = context.read<BusinessOwnerHomeCubit>();
+      final homeState = homeCubit.state;
+
       final businesses = await dashboardCubit.getOwnerBusinesses(widget.user.id);
-      if (businesses.isEmpty) {
-        userMessage = 'No businesses found.';
+      final real = businesses.where((b) => b.id != 'all').toList();
+      if (real.isEmpty) {
+        const userMessage = 'No businesses found.';
         final snap = BusinessOwnerNavToolsSnapshot(
           dashboardEnabled: false,
           boostsEnabled: false,
@@ -199,65 +222,62 @@ class _BusinessOwnerNavigationWrapperState
         return snap;
       }
 
-      var allListingsApproved = true;
-      var anyLegalRejected = false;
+      String? focusId;
+      if (homeState is BusinessOwnerHomeLoaded) {
+        focusId = homeState.focusBusinessIdForOwnerTools;
+      }
+      focusId ??= real.first.id;
 
-      for (final business in businesses) {
-        final raw = (business.statusText ?? '').toLowerCase().trim();
-        final isApproved = raw == 'approved';
-        if (!isApproved) {
-          allListingsApproved = false;
-          blockedId ??= business.id;
-          blockedName ??= business.name;
-          if (raw == 'rejected') {
-            userMessage ??=
-                'Your business listing was rejected. Update your listing or contact support if you need help.';
-          } else {
-            userMessage ??=
-                'Your business listing is pending approval. You’ll get access to the dashboard once it’s approved.';
-          }
-        }
+      final BusinessPresence focus = real.any((b) => b.id == focusId)
+          ? real.firstWhere((b) => b.id == focusId)
+          : real.first;
+      focusId = focus.id;
 
-        try {
-          final legalStatus =
-              await dashboardCubit.getLegalDocumentsStatus(business.id);
-          if (legalStatus.hasRejected) {
-            anyLegalRejected = true;
-            blockedId = business.id;
-            blockedName = business.name;
-            userMessage =
-                'A legal document was rejected. Please re-upload a corrected file.';
-            showLegalAction = true;
-            break;
-          }
-        } catch (_) {
-          // RLS/network: do not treat as rejection; keep evaluating other listings.
-          continue;
+      final raw = (focus.statusText ?? '').toLowerCase().trim();
+      final listingApproved = raw == 'approved';
+
+      String? listingMessage;
+      if (!listingApproved) {
+        if (raw == 'rejected') {
+          listingMessage =
+              '${focus.name}: listing was rejected. Update this location or contact support if you need help.';
+        } else {
+          listingMessage =
+              '${focus.name}: listing is pending approval. Dashboard opens here once this location is approved.';
         }
       }
 
-      if (anyLegalRejected) {
+      var focusLegalRejected = false;
+      try {
+        focusLegalRejected = (await dashboardCubit.getLegalDocumentsStatus(focusId))
+            .hasRejected;
+      } catch (_) {
+        focusLegalRejected = false;
+      }
+
+      if (focusLegalRejected) {
         final snap = BusinessOwnerNavToolsSnapshot(
           dashboardEnabled: false,
           boostsEnabled: false,
           gateEvaluated: true,
-          userMessage: userMessage,
-          primaryBlockedBusinessId: blockedId,
-          primaryBlockedBusinessName: blockedName,
-          showLegalDocumentsSnackAction: showLegalAction,
+          userMessage:
+              'A legal document was rejected for ${focus.name}. Re-upload a corrected file to continue.',
+          primaryBlockedBusinessId: focusId,
+          primaryBlockedBusinessName: focus.name,
+          showLegalDocumentsSnackAction: true,
         );
         if (mounted) setState(() => _toolsSnapshot = snap);
         return snap;
       }
 
-      if (!allListingsApproved) {
+      if (!listingApproved) {
         final snap = BusinessOwnerNavToolsSnapshot(
           dashboardEnabled: false,
           boostsEnabled: true,
           gateEvaluated: true,
-          userMessage: userMessage,
-          primaryBlockedBusinessId: blockedId,
-          primaryBlockedBusinessName: blockedName,
+          userMessage: listingMessage,
+          primaryBlockedBusinessId: focusId,
+          primaryBlockedBusinessName: focus.name,
           showLegalDocumentsSnackAction: false,
         );
         if (mounted) setState(() => _toolsSnapshot = snap);
@@ -276,7 +296,7 @@ class _BusinessOwnerNavigationWrapperState
       if (mounted) setState(() => _toolsSnapshot = snap);
       return snap;
     } catch (_) {
-      userMessage =
+      const userMessage =
           'Could not verify your business status. Check your connection and try again.';
       final snap = BusinessOwnerNavToolsSnapshot(
         dashboardEnabled: false,
@@ -405,55 +425,94 @@ class _BusinessOwnerNavigationWrapperState
     navigateToTab(index);
   }
 
+  BottomNavigationBarItem _navBarItem({
+    required IconData outlined,
+    required IconData filled,
+    required String label,
+    required bool enabledWhenGated,
+  }) {
+    final snap = _toolsSnapshot;
+    final gated = snap?.gateEvaluated ?? false;
+    final enabled = !gated || enabledWhenGated;
+    final opacity = enabled ? 1.0 : _disabledNavOpacity;
+    return BottomNavigationBarItem(
+      icon: Opacity(opacity: opacity, child: Icon(outlined)),
+      activeIcon: Opacity(opacity: opacity, child: Icon(filled)),
+      label: label,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: PageView(
-        controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(),
-        onPageChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        children: [
-          BusinessOwnerHomePage(user: widget.user),
-          DashboardPage(user: widget.user, initialTabIndex: _pendingDashboardTab),
-          BlocProvider(
-            create: (_) => di.sl<BoostsCubit>(),
-            child: BoostsPage(user: widget.user),
-          ),
-          ProfilePage(user: widget.user),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.brandPrimary,
-        unselectedItemColor: AppColors.textSecondary,
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
-            activeIcon: Icon(Icons.dashboard),
-            label: 'Dash',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.rocket_launch_outlined),
-            activeIcon: Icon(Icons.rocket_launch),
-            label: 'Boosts',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
+    final snap = _toolsSnapshot;
+    final dashEnabled = snap == null || !snap.gateEvaluated || snap.dashboardEnabled;
+    final boostEnabled = snap == null || !snap.gateEvaluated || snap.boostsEnabled;
+
+    return BlocListener<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
+      listenWhen: (prev, curr) {
+        if (curr is! BusinessOwnerHomeLoaded) {
+          return prev is BusinessOwnerHomeLoaded;
+        }
+        if (prev is! BusinessOwnerHomeLoaded) return true;
+        return prev.selectedPresenceId != curr.selectedPresenceId ||
+            prev.presences != curr.presences;
+      },
+      listener: (context, state) => _refreshToolsGateDueToHomeChange(),
+      child: Scaffold(
+        body: PageView(
+          controller: _pageController,
+          physics: const NeverScrollableScrollPhysics(),
+          onPageChanged: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          children: [
+            BusinessOwnerHomePage(user: widget.user),
+            DashboardPage(
+              user: widget.user,
+              initialTabIndex: _pendingDashboardTab,
+            ),
+            BlocProvider(
+              create: (_) => di.sl<BoostsCubit>(),
+              child: BoostsPage(user: widget.user),
+            ),
+            ProfilePage(user: widget.user),
+          ],
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: AppColors.brandPrimary,
+          unselectedItemColor: AppColors.textSecondary,
+          currentIndex: _currentIndex,
+          onTap: _onTabTapped,
+          items: [
+            _navBarItem(
+              outlined: Icons.home_outlined,
+              filled: Icons.home,
+              label: 'Home',
+              enabledWhenGated: true,
+            ),
+            _navBarItem(
+              outlined: Icons.dashboard_outlined,
+              filled: Icons.dashboard,
+              label: 'Dash',
+              enabledWhenGated: dashEnabled,
+            ),
+            _navBarItem(
+              outlined: Icons.rocket_launch_outlined,
+              filled: Icons.rocket_launch,
+              label: 'Boosts',
+              enabledWhenGated: boostEnabled,
+            ),
+            _navBarItem(
+              outlined: Icons.person_outline,
+              filled: Icons.person,
+              label: 'Profile',
+              enabledWhenGated: true,
+            ),
+          ],
+        ),
       ),
     );
   }
