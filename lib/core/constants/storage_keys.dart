@@ -8,4 +8,7 @@ class StorageKeys {
   static const String hasCompletedBusinessOwnerOnboarding =
       'has_completed_business_owner_onboarding';
   static const String bookmarkedJobs = 'bookmarked_jobs';
+  /// Owner profile: local preference for marketing/push toggles (UI only until backend exists).
+  static const String ownerPushNotificationsEnabled =
+      'owner_push_notifications_enabled';
 }

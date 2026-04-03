@@ -10,11 +10,14 @@ import 'add_new_presence_page.dart';
 class BusinessLocationsPage extends StatefulWidget {
   final List<BusinessPresence> presences;
   final String? currentPresenceId;
+  /// When set, replaces the dynamic group/location title in the app bar (e.g. "My Businesses").
+  final String? overrideAppBarTitle;
 
   const BusinessLocationsPage({
     super.key,
     this.presences = const <BusinessPresence>[],
     this.currentPresenceId,
+    this.overrideAppBarTitle,
   });
 
   @override
@@ -80,29 +83,38 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
           icon: const Icon(Icons.close, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _groupName ?? 'Businesses',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            if (_selectedId != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                _selectedLocationName,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
+        title: widget.overrideAppBarTitle != null
+            ? Text(
+                widget.overrideAppBarTitle!,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _groupName ?? 'Businesses',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  if (_selectedId != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      _selectedLocationName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ],
-        ),
         centerTitle: true,
       ),
       body: ListView(

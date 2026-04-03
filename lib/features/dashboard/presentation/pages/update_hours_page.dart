@@ -47,9 +47,14 @@ class _DaySchedule {
 }
 
 class UpdateHoursPage extends StatefulWidget {
-  const UpdateHoursPage({super.key, required this.businessId});
+  const UpdateHoursPage({
+    super.key,
+    required this.businessId,
+    this.appBarTitle = 'Update Hours',
+  });
 
   final String businessId;
+  final String appBarTitle;
 
   @override
   State<UpdateHoursPage> createState() => _UpdateHoursPageState();
@@ -294,9 +299,9 @@ class _UpdateHoursPageState extends State<UpdateHoursPage> {
         backgroundColor: AppColors.backgroundWhite,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
-        title: const Text(
-          'Update Hours',
-          style: TextStyle(
+        title: Text(
+          widget.appBarTitle,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,

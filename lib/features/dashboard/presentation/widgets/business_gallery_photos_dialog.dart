@@ -27,11 +27,14 @@ class BusinessGalleryPhotosDialog extends StatefulWidget {
     required this.businessId,
     required this.businessName,
     this.initialImageUrls = const [],
+    /// Full-screen page (back button, no modal dialog).
+    this.embeddedAsPage = false,
   });
 
   final String businessId;
   final String businessName;
   final List<String> initialImageUrls;
+  final bool embeddedAsPage;
 
   @override
   State<BusinessGalleryPhotosDialog> createState() =>
@@ -42,6 +45,14 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
   late List<String> _savedUrls;
   late List<String> _initialSnapshot;
   final List<File> _newFiles = [];
+
+  void _popNavigator([List<String>? result]) {
+    if (widget.embeddedAsPage) {
+      Navigator.of(context).pop(result);
+    } else {
+      Navigator.of(context, rootNavigator: true).pop(result);
+    }
+  }
 
   @override
   void initState() {
@@ -83,7 +94,7 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
 
   Future<void> _save() async {
     if (!_dirty) {
-      Navigator.of(context, rootNavigator: true).pop();
+      _popNavigator();
       return;
     }
 
@@ -132,7 +143,7 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
       if (!ctx.mounted) return;
 
       if (success) {
-        Navigator.of(ctx, rootNavigator: true).pop(merged);
+        _popNavigator(merged);
       } else {
         final errorMsg = cubit.state is DashboardError
             ? (cubit.state as DashboardError).message
@@ -156,6 +167,159 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
 
   @override
   Widget build(BuildContext context) {
+    final description = Text(
+      '${widget.businessName} — up to ${BusinessMediaLimits.maxGalleryImages} '
+      'extra photos (shown on your listing). Max 5 MB each.',
+      style: TextStyle(
+        fontSize: 13,
+        color: AppColors.textSecondary,
+      ),
+    );
+
+    final gridSection = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_savedUrls.isEmpty && _newFiles.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Text(
+                'No extra photos yet. Tap + to add.',
+                style: TextStyle(color: AppColors.textTertiary),
+              ),
+            ),
+          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundLight,
+                  borderRadius: BorderRadius.circular(AppResources.radiusM),
+                  border: Border.all(color: AppColors.backgroundGrey),
+                ),
+                child: Icon(Icons.add, color: AppColors.textTertiary),
+              ),
+            ),
+            ...List.generate(_savedUrls.length, (i) {
+              final url = _savedUrls[i];
+              return _thumbShell(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppResources.radiusM),
+                  child: Image.network(
+                    url,
+                    width: 88,
+                    height: 88,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 88,
+                      height: 88,
+                      color: AppColors.backgroundGrey,
+                      child: const Icon(Icons.broken_image_outlined),
+                    ),
+                  ),
+                ),
+                onRemove: () => _removeSaved(i),
+              );
+            }),
+            ...List.generate(_newFiles.length, (i) {
+              final file = _newFiles[i];
+              return _thumbShell(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppResources.radiusM),
+                  child: Image.file(
+                    file,
+                    width: 88,
+                    height: 88,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                onRemove: () => _removeNew(i),
+              );
+            }),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '$_totalCount / ${BusinessMediaLimits.maxGalleryImages}',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.textTertiary,
+          ),
+        ),
+      ],
+    );
+
+    final actionRow = Padding(
+      padding: const EdgeInsets.all(AppResources.spacingL),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => _popNavigator(),
+              child: const Text('Cancel'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: AppButton(
+              text: 'Save',
+              onPressed: _dirty ? _save : null,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (widget.embeddedAsPage) {
+      return Scaffold(
+        backgroundColor: AppColors.backgroundWhite,
+        appBar: AppBar(
+          backgroundColor: AppColors.backgroundWhite,
+          foregroundColor: AppColors.textPrimary,
+          elevation: 0,
+          title: const Text(
+            'Manage photos',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          centerTitle: true,
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppResources.spacingL,
+                0,
+                AppResources.spacingL,
+                AppResources.spacingS,
+              ),
+              child: description,
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppResources.spacingL,
+                ),
+                child: gridSection,
+              ),
+            ),
+            actionRow,
+          ],
+        ),
+      );
+    }
+
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: ConstrainedBox(
@@ -176,10 +340,10 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
                   const Icon(Icons.photo_library_outlined,
                       color: AppColors.brandPrimary, size: 26),
                   const SizedBox(width: 10),
-                  Expanded(
+                  const Expanded(
                     child: Text(
                       'Business photos',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: AppColors.textPrimary,
@@ -188,8 +352,7 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
-                    onPressed: () =>
-                        Navigator.of(context, rootNavigator: true).pop(),
+                    onPressed: () => _popNavigator(),
                   ),
                 ],
               ),
@@ -198,14 +361,7 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
               padding: const EdgeInsets.symmetric(
                 horizontal: AppResources.spacingL,
               ),
-              child: Text(
-                '${widget.businessName} — up to ${BusinessMediaLimits.maxGalleryImages} '
-                'extra photos (shown on your listing). Max 5 MB each.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-              ),
+              child: description,
             ),
             const SizedBox(height: 12),
             Flexible(
@@ -213,111 +369,10 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppResources.spacingL,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_savedUrls.isEmpty && _newFiles.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Center(
-                          child: Text(
-                            'No extra photos yet. Tap + to add.',
-                            style: TextStyle(color: AppColors.textTertiary),
-                          ),
-                        ),
-                      ),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        GestureDetector(
-                          onTap: _pickImage,
-                          child: Container(
-                            width: 88,
-                            height: 88,
-                            decoration: BoxDecoration(
-                              color: AppColors.backgroundLight,
-                              borderRadius:
-                                  BorderRadius.circular(AppResources.radiusM),
-                              border: Border.all(color: AppColors.backgroundGrey),
-                            ),
-                            child: Icon(Icons.add, color: AppColors.textTertiary),
-                          ),
-                        ),
-                        ...List.generate(_savedUrls.length, (i) {
-                          final url = _savedUrls[i];
-                          return _thumbShell(
-                            child: ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(AppResources.radiusM),
-                              child: Image.network(
-                                url,
-                                width: 88,
-                                height: 88,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
-                                  width: 88,
-                                  height: 88,
-                                  color: AppColors.backgroundGrey,
-                                  child: const Icon(Icons.broken_image_outlined),
-                                ),
-                              ),
-                            ),
-                            onRemove: () => _removeSaved(i),
-                          );
-                        }),
-                        ...List.generate(_newFiles.length, (i) {
-                          final file = _newFiles[i];
-                          return _thumbShell(
-                            child: ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(AppResources.radiusM),
-                              child: Image.file(
-                                file,
-                                width: 88,
-                                height: 88,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            onRemove: () => _removeNew(i),
-                          );
-                        }),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '$_totalCount / ${BusinessMediaLimits.maxGalleryImages}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
+                child: gridSection,
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(AppResources.spacingL),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () =>
-                          Navigator.of(context, rootNavigator: true).pop(),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: AppButton(
-                      text: 'Save',
-                      onPressed: _dirty ? _save : null,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            actionRow,
           ],
         ),
       ),
