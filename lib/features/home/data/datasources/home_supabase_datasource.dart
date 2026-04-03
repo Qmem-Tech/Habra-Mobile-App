@@ -1,7 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/location/user_geo_for_feed.dart';
+import '../../../../core/supabase/nearby_feed_rpc_helper.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
+import '../../domain/home_feed_location.dart';
 import '../models/business_model.dart';
 import '../models/deal_model.dart';
 import '../models/event_model.dart';
@@ -15,8 +18,31 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
 
   SupabaseClient get _client => Supabase.instance.client;
 
+  /// When [geo] is set, intersect with `habra_feed_nearby_business_ids` when possible.
+  /// If RPC fails or returns empty, keeps full approved list (fallback).
+  Future<List<String>> _approvedBusinessIdsForGeo(UserGeoForFeed? geo) async {
+    final approvedBizRes = await _client
+        .from('businesses')
+        .select('id')
+        .eq('approval_status', 'approved')
+        .eq('is_active', true);
+    final approvedBizList = approvedBizRes as List;
+    if (approvedBizList.isEmpty) return [];
+    var ids = approvedBizList
+        .map((e) => (e as Map)['id'])
+        .whereType<String>()
+        .toList();
+    if (ids.isEmpty || geo == null) return ids;
+
+    final nearby = await NearbyFeedRpcHelper(_client).nearbyBusinessIds(geo);
+    if (nearby == null || nearby.isEmpty) return ids;
+    final set = nearby.toSet();
+    final filtered = ids.where(set.contains).toList();
+    return filtered.isEmpty ? ids : filtered;
+  }
+
   @override
-  Future<List<EventModel>> getHappeningThisWeek(String location) async {
+  Future<List<EventModel>> getHappeningThisWeek(HomeFeedLocation location) async {
     return SupabaseFailureMapper.guard(() async {
       final now = DateTime.now();
       final endOfWeek = now.add(const Duration(days: 7));
@@ -26,14 +52,23 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
           .eq('is_active', true)
           .gte('start_at', now.toIso8601String())
           .lte('start_at', endOfWeek.toIso8601String());
-      // TODO: Add location filter when ready: query.or('venue_name.ilike.%$location%,venue_address.ilike.%$location%')
+
+      final geo = location.geo;
+      if (geo != null) {
+        final eventIds = await NearbyFeedRpcHelper(_client).nearbyEventIds(geo);
+        if (eventIds != null && eventIds.isNotEmpty) {
+          query = query.inFilter('id', eventIds);
+        }
+      }
+
       final res = await query.order('start_at', ascending: true).limit(10);
       final list = (res as List).cast<Map<String, dynamic>>();
       return list.map((row) {
         final id = parseStringRequired(row['id']);
         final title = parseStringRequired(row['title']);
         final description = parseString(row['description']);
-        final imageUrl = parseString(row['image_url']) ?? 'https://placehold.co/400x300?text=Event';
+        final imageUrl = parseString(row['image_url']) ??
+            'https://placehold.co/400x300?text=Event';
         final startAt = parseTimestampRequired(row['start_at']);
         final venue = parseString(row['venue_name']);
         final venueAddress = parseString(row['venue_address']);
@@ -54,17 +89,9 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
   }
 
   @override
-  Future<List<DealModel>> getHotDealsNearYou(String location) async {
+  Future<List<DealModel>> getHotDealsNearYou(HomeFeedLocation location) async {
     return SupabaseFailureMapper.guard(() async {
-      // Only deals from approved businesses
-      final approvedBizRes = await _client
-          .from('businesses')
-          .select('id')
-          .eq('approval_status', 'approved')
-          .eq('is_active', true);
-      final approvedBizList = approvedBizRes as List;
-      if (approvedBizList.isEmpty) return [];
-      final approvedIds = approvedBizList.map((e) => (e as Map)['id']).whereType<String>().toList();
+      final approvedIds = await _approvedBusinessIdsForGeo(location.geo);
       if (approvedIds.isEmpty) return [];
 
       var query = _client
@@ -73,7 +100,6 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
           .eq('status', 'active')
           .gte('valid_until', DateTime.now().toIso8601String())
           .inFilter('business_id', approvedIds);
-      // TODO: Add location filter when ready (filter businesses by address_city/address_state)
       final res = await query.order('valid_until', ascending: true).limit(10);
       final list = (res as List).cast<Map<String, dynamic>>();
       return list.map((row) {
@@ -88,7 +114,8 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
           id: parseStringRequired(row['id']),
           title: parseStringRequired(row['title']),
           description: parseStringRequired(row['description']),
-          imageUrl: parseString(row['image_url']) ?? 'https://placehold.co/400x300?text=Deal',
+          imageUrl: parseString(row['image_url']) ??
+              'https://placehold.co/400x300?text=Deal',
           businessName: businessName,
           businessId: businessId,
           discountPercent: discountPct.toDouble(),
@@ -100,23 +127,38 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
   }
 
   @override
-  Future<List<BusinessModel>> getPopularBusinesses(String location) async {
+  Future<List<BusinessModel>> getPopularBusinesses(HomeFeedLocation location) async {
     return SupabaseFailureMapper.guard(() async {
       var query = _client
           .from('businesses')
           .select('*')
           .eq('approval_status', 'approved')
           .eq('is_active', true);
-      // TODO: Add location filter when ready: query.or('address_city.ilike.%$location%,address_state.ilike.%$location%')
+
+      final geo = location.geo;
+      if (geo != null) {
+        final nearby = await NearbyFeedRpcHelper(_client).nearbyBusinessIds(geo);
+        if (nearby != null && nearby.isNotEmpty) {
+          query = query.inFilter('id', nearby);
+        }
+      }
+
       final res = await query.order('rating', ascending: false).limit(10);
       final list = (res as List).cast<Map<String, dynamic>>();
       return list.map((row) {
-        final category = parseString(row['description']) ?? parseString(row['address_city']) ?? 'Business';
+        final category = parseString(row['description']) ??
+            parseString(row['address_city']) ??
+            'Business';
         return BusinessModel(
           id: parseStringRequired(row['id']),
           name: parseStringRequired(row['name']),
-          category: category.length > 30 ? '${category.substring(0, 30)}...' : category,
-          imageUrl: parseString(row['logo_url']) ?? (parseStringList(row['image_urls']).isNotEmpty ? parseStringList(row['image_urls']).first : 'https://placehold.co/400x300?text=Business'),
+          category: category.length > 30
+              ? '${category.substring(0, 30)}...'
+              : category,
+          imageUrl: parseString(row['logo_url']) ??
+              (parseStringList(row['image_urls']).isNotEmpty
+                  ? parseStringList(row['image_urls']).first
+                  : 'https://placehold.co/400x300?text=Business'),
           rating: parseDouble(row['rating']) ?? 0.0,
           reviewCount: parseInt(row['review_count']) ?? 0,
           distance: 0,
@@ -129,19 +171,9 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
   }
 
   @override
-  Future<List<JobModel>> getLatestJobs(String location) async {
+  Future<List<JobModel>> getLatestJobs(HomeFeedLocation location) async {
     return SupabaseFailureMapper.guard(() async {
-      // Only jobs from approved businesses
-      var bizQuery = _client
-          .from('businesses')
-          .select('id')
-          .eq('approval_status', 'approved')
-          .eq('is_active', true);
-      // TODO: Add location filter when ready: bizQuery.or('address_city.ilike.%$location%,address_state.ilike.%$location%')
-      final bizRes = await bizQuery;
-      final bizList = bizRes as List;
-      if (bizList.isEmpty) return [];
-      final ids = bizList.map((e) => (e as Map)['id']).whereType<String>().toList();
+      final ids = await _approvedBusinessIdsForGeo(location.geo);
       if (ids.isEmpty) return [];
 
       var query = _client

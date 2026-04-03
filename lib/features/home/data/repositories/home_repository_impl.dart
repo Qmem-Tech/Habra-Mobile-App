@@ -5,6 +5,7 @@ import '../../domain/entities/event.dart';
 import '../../domain/entities/deal.dart';
 import '../../domain/entities/business.dart';
 import '../../domain/entities/job.dart';
+import '../../domain/home_feed_location.dart';
 import '../../domain/repositories/home_repository.dart';
 import '../datasources/home_remote_datasource.dart';
 
@@ -14,7 +15,7 @@ class HomeRepositoryImpl implements HomeRepository {
   HomeRepositoryImpl(this.remoteDataSource);
 
   @override
-  Future<Either<Failure, List<Event>>> getHappeningThisWeek(String location) async {
+  Future<Either<Failure, List<Event>>> getHappeningThisWeek(HomeFeedLocation location) async {
     try {
       final events = await remoteDataSource.getHappeningThisWeek(location);
       return Right(events);
@@ -26,7 +27,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
-  Future<Either<Failure, List<Deal>>> getHotDealsNearYou(String location) async {
+  Future<Either<Failure, List<Deal>>> getHotDealsNearYou(HomeFeedLocation location) async {
     try {
       final deals = await remoteDataSource.getHotDealsNearYou(location);
       return Right(deals);
@@ -38,7 +39,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
-  Future<Either<Failure, List<Business>>> getPopularBusinesses(String location) async {
+  Future<Either<Failure, List<Business>>> getPopularBusinesses(HomeFeedLocation location) async {
     try {
       final businesses = await remoteDataSource.getPopularBusinesses(location);
       return Right(businesses);
@@ -50,7 +51,7 @@ class HomeRepositoryImpl implements HomeRepository {
   }
 
   @override
-  Future<Either<Failure, List<Job>>> getLatestJobs(String location) async {
+  Future<Either<Failure, List<Job>>> getLatestJobs(HomeFeedLocation location) async {
     try {
       final jobs = await remoteDataSource.getLatestJobs(location);
       return Right(jobs);

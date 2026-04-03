@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/location/location_access_messages.dart';
 import '../../../../core/location/session_device_location_cubit.dart';
+import '../../../../core/location/user_geo_for_feed.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../../domain/entities/location_entity.dart';
+import '../../domain/home_feed_location.dart';
 import '../../domain/entities/event.dart';
 import '../../domain/entities/deal.dart';
 import '../../domain/entities/business.dart';
@@ -99,9 +101,26 @@ class _HomePageState extends State<HomePage> {
     return _currentLocation?.city ?? 'your location';
   }
 
+  HomeFeedLocation _homeFeedLocation(BuildContext context) {
+    final label = _locationQueryString(context);
+    LocationEntity? anchor;
+    if (widget.useSessionDeviceLocation) {
+      final s = context.read<SessionDeviceLocationCubit>().state;
+      if (s is SessionDeviceLocationReady) anchor = s.location;
+    } else {
+      anchor = _currentLocation;
+    }
+    final lat = anchor?.latitude;
+    final lng = anchor?.longitude;
+    final geo = (lat != null && lng != null)
+        ? UserGeoForFeed(latitude: lat, longitude: lng)
+        : null;
+    return HomeFeedLocation(label: label, geo: geo);
+  }
+
   void _loadHomeData() {
     if (!mounted) return;
-    context.read<HomeCubit>().loadHomeData(_locationQueryString(context));
+    context.read<HomeCubit>().loadHomeData(_homeFeedLocation(context));
   }
 
   Future<void> _onLocationChipTapped() async {

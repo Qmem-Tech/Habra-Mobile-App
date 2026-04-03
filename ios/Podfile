@@ -26,7 +26,26 @@ end
 
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
+# Sync Google Maps API key from repo-root dart_defines.json into Flutter xcconfig (same source as Gradle).
+def sync_maps_key_from_dart_defines
+  require 'json'
+  defines_path = File.expand_path('../dart_defines.json', __dir__)
+  xcconfig_path = File.expand_path('Flutter/MapsKey.generated.xcconfig', __dir__)
+  key = ''
+  if File.exist?(defines_path)
+    begin
+      data = JSON.parse(File.read(defines_path))
+      key = data['GOOGLE_MAPS_API_KEY'].to_s.strip
+      key = data['MAPS_SDK_API_KEY'].to_s.strip if key.empty?
+    rescue JSON::ParserError
+      key = ''
+    end
+  end
+  File.write(xcconfig_path, "GOOGLE_MAPS_API_KEY=#{key}\n")
+end
+
 flutter_ios_podfile_setup
+sync_maps_key_from_dart_defines
 
 target 'Runner' do
   # Firebase pods often break with "Include of non-modular header inside framework module"

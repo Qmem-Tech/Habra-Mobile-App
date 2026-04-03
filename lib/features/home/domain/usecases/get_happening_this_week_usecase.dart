@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/event.dart';
+import '../home_feed_location.dart';
 import '../repositories/home_repository.dart';
 
 class GetHappeningThisWeekUseCase {
@@ -8,7 +9,7 @@ class GetHappeningThisWeekUseCase {
 
   GetHappeningThisWeekUseCase(this.repository);
 
-  Future<Either<Failure, List<Event>>> call(String location) {
+  Future<Either<Failure, List<Event>>> call(HomeFeedLocation location) {
     return repository.getHappeningThisWeek(location);
   }
 }

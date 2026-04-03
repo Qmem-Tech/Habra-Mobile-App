@@ -7,6 +7,7 @@ import '../../domain/entities/event.dart';
 import '../../domain/entities/deal.dart';
 import '../../domain/entities/business.dart';
 import '../../domain/entities/job.dart';
+import '../../domain/home_feed_location.dart';
 import 'home_state.dart';
 
 class HomeCubit extends Cubit<HomeState> {
@@ -22,7 +23,7 @@ class HomeCubit extends Cubit<HomeState> {
     required this.getLatestJobsUseCase,
   }) : super(HomeInitial());
 
-  Future<void> loadHomeData(String location) async {
+  Future<void> loadHomeData(HomeFeedLocation location) async {
     emit(HomeLoading());
 
     try {

@@ -1,4 +1,5 @@
 # Miscellaneous
+dart_defines.json
 *.class
 *.log
 *.pyc
@@ -47,6 +48,9 @@ app.*.map.json
 # Supabase / secret dart-define values
 dart_defines.json
 .env
+
+# iOS: generated from dart_defines.json by Podfile (Google Maps)
+ios/Flutter/MapsKey.generated.xcconfig
 
 # Android release signing (never commit)
 **/android/key.properties

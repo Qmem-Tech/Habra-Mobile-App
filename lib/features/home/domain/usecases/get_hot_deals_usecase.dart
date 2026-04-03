@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/deal.dart';
+import '../home_feed_location.dart';
 import '../repositories/home_repository.dart';
 
 class GetHotDealsUseCase {
@@ -8,7 +9,7 @@ class GetHotDealsUseCase {
 
   GetHotDealsUseCase(this.repository);
 
-  Future<Either<Failure, List<Deal>>> call(String location) {
+  Future<Either<Failure, List<Deal>>> call(HomeFeedLocation location) {
     return repository.getHotDealsNearYou(location);
   }
 }

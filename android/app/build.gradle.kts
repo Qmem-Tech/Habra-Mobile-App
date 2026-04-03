@@ -1,3 +1,4 @@
+import java.io.File
 import java.io.FileInputStream
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -7,6 +8,23 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+/** Reads repo-root `dart_defines.json` so the Maps key stays centralized with Flutter defines. */
+fun loadGoogleMapsApiKeyFromDartDefines(projectRoot: File): String {
+    val f = File(projectRoot, "dart_defines.json")
+    if (!f.exists()) return ""
+    val text =
+        try {
+            f.readText()
+        } catch (_: Exception) {
+            return ""
+        }
+    fun extract(key: String): String {
+        val re = Regex(""""$key"\s*:\s*"([^"]*)"""")
+        return re.find(text)?.groupValues?.getOrNull(1).orEmpty()
+    }
+    return extract("GOOGLE_MAPS_API_KEY").ifEmpty { extract("MAPS_SDK_API_KEY") }
 }
 
 android {
@@ -25,6 +43,8 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        val mapsKey = loadGoogleMapsApiKeyFromDartDefines(rootProject.projectDir.parentFile)
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = mapsKey
     }
 
     val keystorePropertiesFile = rootProject.file("key.properties")

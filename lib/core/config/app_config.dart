@@ -9,9 +9,10 @@
 /// Copy [dart_defines.example.json] at the project root to `dart_defines.json`,
 /// fill in your keys, and add `dart_defines.json` to `.gitignore` if it is not already.
 ///
-/// **Note:** Some keys still live in native config (e.g. Google Maps
-/// `com.google.android.geo.API_KEY` in `AndroidManifest.xml`). Keep those in sync
-/// with your team’s secrets process.
+/// **Google Maps:** Set `GOOGLE_MAPS_API_KEY` in `dart_defines.json` (see
+/// [AppConfig.googleMapsApiKey]). Android reads the same file in Gradle; iOS
+/// generates `ios/Flutter/MapsKey.generated.xcconfig` on `pod install`. Legacy
+/// alias: `MAPS_SDK_API_KEY`.
 class AppConfig {
   AppConfig._();
 
@@ -39,6 +40,23 @@ class AppConfig {
     'GOOGLE_WEB_CLIENT_ID',
     defaultValue: '',
   );
+
+  /// Native Maps SDK (same key as Android manifest / iOS `GMSApiKey` in Info.plist).
+  static const String googleMapsApiKey = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+    defaultValue: '',
+  );
+
+  static const String _mapsSdkApiKeyAlias = String.fromEnvironment(
+    'MAPS_SDK_API_KEY',
+    defaultValue: '',
+  );
+
+  /// Resolves [googleMapsApiKey], or [MAPS_SDK_API_KEY] if the primary define is empty.
+  static String get effectiveGoogleMapsApiKey =>
+      googleMapsApiKey.isNotEmpty ? googleMapsApiKey : _mapsSdkApiKeyAlias;
+
+  static bool get isGoogleMapsConfigured => effectiveGoogleMapsApiKey.isNotEmpty;
 
   // --- RevenueCat ---
   static const String revenueCatAndroidApiKey = String.fromEnvironment(
