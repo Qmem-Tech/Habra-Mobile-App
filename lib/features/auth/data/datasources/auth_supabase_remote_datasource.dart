@@ -1,8 +1,15 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth_remote_datasource.dart';
 import '../models/user_model.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/error/exceptions.dart' as app_errors;
 import '../../../../core/supabase/supabase_config.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
@@ -18,12 +25,9 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
   String get _authRedirectUrl => SupabaseConfig.authRedirectUrl;
 
   /// Web OAuth client ID (same as Supabase Google provider). Optional but
-  /// recommended on Android; set via `--dart-define=GOOGLE_WEB_CLIENT_ID=...`.
+  /// recommended on Android; set via [AppConfig] / `GOOGLE_WEB_CLIENT_ID`.
   GoogleSignIn get _googleSignIn {
-    const webClientId = String.fromEnvironment(
-      'GOOGLE_WEB_CLIENT_ID',
-      defaultValue: '',
-    );
+    final webClientId = AppConfig.googleWebClientId;
     if (webClientId.isNotEmpty) {
       return GoogleSignIn(serverClientId: webClientId);
     }
@@ -117,6 +121,43 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
       await _client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
+      );
+      return _sessionToUser();
+    } catch (e) {
+      SupabaseFailureMapper.throwFromError(e);
+    }
+  }
+
+  @override
+  Future<UserModel> signInWithApple() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
+      throw app_errors.AuthException(
+        'Sign in with Apple is only available on iPhone and iPad.',
+      );
+    }
+    try {
+      final rawNonce = _generateAppleSignInNonce();
+      final nonce = _sha256OfString(rawNonce);
+
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: nonce,
+      );
+
+      final idToken = appleCredential.identityToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw app_errors.AuthException(
+          'Apple sign-in did not return an identity token',
+        );
+      }
+
+      await _client.auth.signInWithIdToken(
+        provider: OAuthProvider.apple,
+        idToken: idToken,
+        nonce: rawNonce,
       );
       return _sessionToUser();
     } catch (e) {
@@ -224,3 +265,14 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
     }
   }
 }
+
+String _generateAppleSignInNonce([int length = 32]) {
+  const charset =
+      '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+  final random = Random.secure();
+  return List.generate(length, (_) => charset[random.nextInt(charset.length)])
+      .join();
+}
+
+String _sha256OfString(String input) =>
+    sha256.convert(utf8.encode(input)).toString();

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:habra_mobile_app/features/auth/domain/usecases/sign_in_with_apple_usecase.dart';
 import 'package:habra_mobile_app/features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 import 'package:habra_mobile_app/l10n/app_localizations.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/services/revenue_cat_service.dart';
 import 'core/services/stripe_payment_service.dart';
 import 'injection/injection_container.dart' as di;
+import 'core/config/app_config.dart';
 import 'core/supabase/supabase_config.dart';
 import 'core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -49,24 +51,12 @@ void main() async {
   // Push notifications - no-op until Firebase is configured (see PUSH_NOTIFICATIONS_SETUP.md)
   await di.sl<PushNotificationService>().initialize();
   await di.sl<RevenueCatService>().initialize(
-    androidApiKey: const String.fromEnvironment(
-      'REVENUECAT_ANDROID_API_KEY',
-      defaultValue: '',
-    ),
-    iosApiKey: const String.fromEnvironment(
-      'REVENUECAT_IOS_API_KEY',
-      defaultValue: '',
-    ),
+    androidApiKey: AppConfig.revenueCatAndroidApiKey,
+    iosApiKey: AppConfig.revenueCatIosApiKey,
   );
   await di.sl<StripePaymentService>().initialize(
-    publishableKey: const String.fromEnvironment(
-      'STRIPE_PUBLISHABLE_KEY',
-      defaultValue: '',
-    ),
-    merchantIdentifier: const String.fromEnvironment(
-      'STRIPE_MERCHANT_ID',
-      defaultValue: '',
-    ),
+    publishableKey: AppConfig.stripePublishableKey,
+    merchantIdentifier: AppConfig.stripeMerchantId,
   );
   runApp(const MyApp());
 }
@@ -126,6 +116,7 @@ class MyApp extends StatelessWidget {
             registerUseCase: di.sl<RegisterUseCase>(),
             loginAsGuestUseCase: di.sl<LoginAsGuestUseCase>(),
             signInWithGoogleUseCase: di.sl<SignInWithGoogleUseCase>(),
+            signInWithAppleUseCase: di.sl<SignInWithAppleUseCase>(),
             resendVerificationEmailUseCase: di.sl<ResendVerificationEmailUseCase>(),
             resetPasswordForEmailUseCase: di.sl<ResetPasswordForEmailUseCase>(),
             updatePasswordUseCase: di.sl<UpdatePasswordUseCase>(),

@@ -7,6 +7,7 @@ abstract class AuthRemoteDataSource {
   Future<UserModel> login(String email, String password);
   Future<UserModel> loginAsGuest();
   Future<UserModel> signInWithGoogle();
+  Future<UserModel> signInWithApple();
   Future<UserModel> register(
     String email,
     String password,

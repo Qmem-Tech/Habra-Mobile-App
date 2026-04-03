@@ -4,6 +4,7 @@ import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
 import '../../domain/usecases/login_as_guest_usecase.dart';
+import '../../domain/usecases/sign_in_with_apple_usecase.dart';
 import '../../domain/usecases/sign_in_with_google_usecase.dart';
 import '../../domain/usecases/resend_verification_email_usecase.dart';
 import '../../domain/usecases/reset_password_for_email_usecase.dart';
@@ -19,6 +20,7 @@ class AuthCubit extends Cubit<AuthState> {
   final RegisterUseCase registerUseCase;
   final LoginAsGuestUseCase loginAsGuestUseCase;
   final SignInWithGoogleUseCase signInWithGoogleUseCase;
+  final SignInWithAppleUseCase signInWithAppleUseCase;
   final ResendVerificationEmailUseCase resendVerificationEmailUseCase;
   final ResetPasswordForEmailUseCase resetPasswordForEmailUseCase;
   final UpdatePasswordUseCase updatePasswordUseCase;
@@ -31,6 +33,7 @@ class AuthCubit extends Cubit<AuthState> {
     required this.registerUseCase,
     required this.loginAsGuestUseCase,
     required this.signInWithGoogleUseCase,
+    required this.signInWithAppleUseCase,
     required this.resendVerificationEmailUseCase,
     required this.resetPasswordForEmailUseCase,
     required this.updatePasswordUseCase,
@@ -107,7 +110,22 @@ class AuthCubit extends Cubit<AuthState> {
     final result = await signInWithGoogleUseCase();
     result.fold(
       (failure) => emit(AuthError(failure.message)),
-      (user) => emit(AuthAuthenticated(user)),
+      (user) async {
+        await revenueCatService.identifyUser(user.id, email: user.email);
+        emit(AuthAuthenticated(user));
+      },
+    );
+  }
+
+  Future<void> signInWithApple() async {
+    emit(AuthLoading());
+    final result = await signInWithAppleUseCase();
+    result.fold(
+      (failure) => emit(AuthError(failure.message)),
+      (user) async {
+        await revenueCatService.identifyUser(user.id, email: user.email);
+        emit(AuthAuthenticated(user));
+      },
     );
   }
 

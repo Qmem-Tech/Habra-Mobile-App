@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_config.dart';
+
 /// Stripe PaymentSheet for **event tickets** (card, Apple Pay, Google Pay when enabled).
 ///
 /// Requires:
@@ -14,20 +16,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class StripePaymentService {
   StripePaymentService();
 
-  static const String _paymentIntentFunction = String.fromEnvironment(
-    'STRIPE_PAYMENT_INTENT_FUNCTION',
-    defaultValue: 'create-event-payment-intent',
-  );
+  static String get _paymentIntentFunction =>
+      AppConfig.stripePaymentIntentFunction;
 
-  static const String _merchantCountry = String.fromEnvironment(
-    'STRIPE_MERCHANT_COUNTRY',
-    defaultValue: 'US',
-  );
+  static String get _merchantCountry => AppConfig.stripeMerchantCountry;
 
-  static const String _paymentCurrency = String.fromEnvironment(
-    'STRIPE_PAYMENT_CURRENCY',
-    defaultValue: 'USD',
-  );
+  static String get _paymentCurrency => AppConfig.stripePaymentCurrency;
 
   bool _initialized = false;
 

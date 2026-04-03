@@ -23,6 +23,7 @@ import '../features/auth/domain/usecases/login_usecase.dart';
 import '../features/auth/domain/usecases/logout_usecase.dart';
 import '../features/auth/domain/usecases/register_usecase.dart';
 import '../features/auth/domain/usecases/login_as_guest_usecase.dart';
+import '../features/auth/domain/usecases/sign_in_with_apple_usecase.dart';
 import '../features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 import '../features/auth/domain/usecases/resend_verification_email_usecase.dart';
 import '../features/auth/domain/usecases/reset_password_for_email_usecase.dart';
@@ -211,6 +212,7 @@ Future<void> init() async {
   sl.registerLazySingleton(() => RegisterUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => LoginAsGuestUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => SignInWithGoogleUseCase(sl<AuthRepository>()));
+  sl.registerLazySingleton(() => SignInWithAppleUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => ResendVerificationEmailUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => ResetPasswordForEmailUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => UpdatePasswordUseCase(sl<AuthRepository>()));

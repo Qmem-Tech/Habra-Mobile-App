@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -138,7 +140,41 @@ class _SignInPageState extends State<SignInPage> {
                       'Sign in to Habra',
                       style: AppFonts.largeTitle(color: AppColors.textPrimary),
                     ),
-                    const SizedBox(height: AppResources.spacingXXL),
+                    if (!kIsWeb &&
+                        defaultTargetPlatform == TargetPlatform.iOS) ...[
+                      const SizedBox(height: AppResources.spacingL),
+                      SignInWithAppleButton(
+                        onPressed: () {
+                          if (isLoading) return;
+                          context.read<AuthCubit>().signInWithApple();
+                        },
+                        style: SignInWithAppleButtonStyle.black,
+                        height: AppResources.buttonHeightM,
+                      ),
+                      const SizedBox(height: AppResources.spacingL),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Divider(color: AppColors.backgroundGrey),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppResources.spacingM,
+                            ),
+                            child: Text(
+                              'or',
+                              style: AppFonts.bodySmall(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(color: AppColors.backgroundGrey),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppResources.spacingL),
+                    ],
 
                     // Email field
                     Text(
