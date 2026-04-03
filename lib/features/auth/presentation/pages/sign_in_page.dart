@@ -17,6 +17,7 @@ import 'email_verification_page.dart';
 import 'forgot_password_page.dart';
 import 'wrong_path_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
+import '../widgets/social_auth_widgets.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -121,6 +122,12 @@ class _SignInPageState extends State<SignInPage> {
           },
           builder: (context, state) {
             final isLoading = state is AuthLoading;
+            final showApple =
+                !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+            final showGoogle = !kIsWeb &&
+                (defaultTargetPlatform == TargetPlatform.android ||
+                    defaultTargetPlatform == TargetPlatform.iOS);
+            final showSocial = showApple || showGoogle;
             return Stack(
               children: [
                 SingleChildScrollView(
@@ -140,8 +147,7 @@ class _SignInPageState extends State<SignInPage> {
                       'Sign in to Habra',
                       style: AppFonts.largeTitle(color: AppColors.textPrimary),
                     ),
-                    if (!kIsWeb &&
-                        defaultTargetPlatform == TargetPlatform.iOS) ...[
+                    if (showApple) ...[
                       const SizedBox(height: AppResources.spacingL),
                       SignInWithAppleButton(
                         onPressed: () {
@@ -151,28 +157,18 @@ class _SignInPageState extends State<SignInPage> {
                         style: SignInWithAppleButtonStyle.black,
                         height: AppResources.buttonHeightM,
                       ),
-                      const SizedBox(height: AppResources.spacingL),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Divider(color: AppColors.backgroundGrey),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppResources.spacingM,
-                            ),
-                            child: Text(
-                              'or',
-                              style: AppFonts.bodySmall(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Divider(color: AppColors.backgroundGrey),
-                          ),
-                        ],
+                    ],
+                    if (showGoogle) ...[
+                      if (showApple) const SizedBox(height: AppResources.spacingM),
+                      GoogleSignInButton(
+                        onPressed: isLoading
+                            ? null
+                            : () => context.read<AuthCubit>().signInWithGoogle(),
                       ),
+                    ],
+                    if (showSocial) ...[
+                      const SizedBox(height: AppResources.spacingL),
+                      const AuthOrDivider(),
                       const SizedBox(height: AppResources.spacingL),
                     ],
 

@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -14,6 +16,7 @@ import 'email_sign_up_page.dart';
 import 'email_verification_page.dart';
 import 'forgot_password_page.dart';
 import 'wrong_path_page.dart';
+import '../widgets/social_auth_widgets.dart';
 
 class BusinessSignInPage extends StatefulWidget {
   const BusinessSignInPage({super.key});
@@ -116,6 +119,12 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
             },
             builder: (context, state) {
               final isLoading = state is AuthLoading;
+              final showApple =
+                  !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+              final showGoogle = !kIsWeb &&
+                  (defaultTargetPlatform == TargetPlatform.android ||
+                      defaultTargetPlatform == TargetPlatform.iOS);
+              final showSocial = showApple || showGoogle;
               return Stack(
                 children: [
                   SingleChildScrollView(
@@ -149,7 +158,34 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
                             'Sign in with the same email you use for Habra. Your account type is determined by your profile.',
                             style: AppFonts.body(color: AppColors.textSecondary),
                           ),
-                          const SizedBox(height: AppResources.spacingXXL),
+                          if (showApple) ...[
+                            const SizedBox(height: AppResources.spacingXL),
+                            SignInWithAppleButton(
+                              onPressed: () {
+                                if (isLoading) return;
+                                context.read<AuthCubit>().signInWithApple();
+                              },
+                              text: 'Continue with Apple',
+                              style: SignInWithAppleButtonStyle.black,
+                              height: AppResources.buttonHeightM,
+                            ),
+                          ],
+                          if (showGoogle) ...[
+                            if (showApple) const SizedBox(height: AppResources.spacingM),
+                            GoogleSignInButton(
+                              onPressed: isLoading
+                                  ? null
+                                  : () => context
+                                      .read<AuthCubit>()
+                                      .signInWithGoogle(),
+                            ),
+                          ],
+                          if (showSocial) ...[
+                            const SizedBox(height: AppResources.spacingL),
+                            const AuthOrDivider(),
+                            const SizedBox(height: AppResources.spacingL),
+                          ] else
+                            const SizedBox(height: AppResources.spacingXXL),
 
                           // Email field
                           Text(

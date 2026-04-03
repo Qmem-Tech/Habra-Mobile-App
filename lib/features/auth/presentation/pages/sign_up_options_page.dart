@@ -15,6 +15,7 @@ import '../../../home/presentation/pages/guest_home_page.dart';
 import 'email_sign_up_page.dart';
 import 'sign_in_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
+import '../widgets/social_auth_widgets.dart';
 
 class SignUpOptionsPage extends StatelessWidget {
   const SignUpOptionsPage({super.key, this.selectedRole});
@@ -58,6 +59,12 @@ class SignUpOptionsPage extends StatelessWidget {
         }
       },
       builder: (context, state) {
+        final showApple =
+            !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+        final showGoogle = !kIsWeb &&
+            (defaultTargetPlatform == TargetPlatform.android ||
+                defaultTargetPlatform == TargetPlatform.iOS);
+        final isLoading = state is AuthLoading;
         return PopScope(
           canPop: false,
           onPopInvokedWithResult: (didPop, result) {
@@ -134,17 +141,24 @@ class SignUpOptionsPage extends StatelessWidget {
                   );
                 },
               ),
-              if (!kIsWeb &&
-                  defaultTargetPlatform == TargetPlatform.iOS) ...[
+              if (showApple) ...[
                 const SizedBox(height: AppResources.spacingM),
                 SignInWithAppleButton(
                   onPressed: () {
-                    if (state is AuthLoading) return;
+                    if (isLoading) return;
                     context.read<AuthCubit>().signInWithApple();
                   },
                   text: 'Continue with Apple',
                   style: SignInWithAppleButtonStyle.black,
                   height: AppResources.buttonHeightM,
+                ),
+              ],
+              if (showGoogle) ...[
+                if (showApple) const SizedBox(height: AppResources.spacingM),
+                GoogleSignInButton(
+                  onPressed: isLoading
+                      ? null
+                      : () => context.read<AuthCubit>().signInWithGoogle(),
                 ),
               ],
               const SizedBox(height: AppResources.spacingM),
