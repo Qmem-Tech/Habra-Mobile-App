@@ -48,6 +48,11 @@ app.*.map.json
 dart_defines.json
 .env
 
+# Android release signing (never commit)
+**/android/key.properties
+**/android/*.jks
+**/android/*.keystore
+
 # Platform-specific (we only support Android and iOS)
 /web/
 /linux/
