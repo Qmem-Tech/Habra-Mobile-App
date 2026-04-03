@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entities/boost_filter.dart';
@@ -9,8 +11,14 @@ class BoostsCubit extends Cubit<BoostsState> {
 
   final BoostsRepository _repository;
 
+  static const Duration _loadBoostsTimeout = Duration(seconds: 25);
+
+  /// Bumped on each [loadBoosts] so stale async completions do not emit.
+  int _boostLoadGeneration = 0;
+
   Future<void> loadBoosts(String businessId) async {
     if (businessId.isEmpty || businessId == 'all') {
+      _boostLoadGeneration++;
       emit(const BoostsLoaded(
         activeBoosts: [],
         pastBoosts: [],
@@ -18,16 +26,29 @@ class BoostsCubit extends Cubit<BoostsState> {
       ));
       return;
     }
+    final gen = ++_boostLoadGeneration;
     emit(BoostsLoading());
     try {
-      final active = await _repository.getActiveBoosts(businessId);
-      final past = await _repository.getPastBoosts(businessId);
+      final active = await _repository
+          .getActiveBoosts(businessId)
+          .timeout(_loadBoostsTimeout);
+      if (isClosed || gen != _boostLoadGeneration) return;
+      final past = await _repository
+          .getPastBoosts(businessId)
+          .timeout(_loadBoostsTimeout);
+      if (isClosed || gen != _boostLoadGeneration) return;
       emit(BoostsLoaded(
         activeBoosts: active,
         pastBoosts: past,
         filter: BoostFilter.all,
       ));
+    } on TimeoutException {
+      if (isClosed || gen != _boostLoadGeneration) return;
+      emit(const BoostsError(
+        'Boost list timed out. Check your connection and try again.',
+      ));
     } catch (e) {
+      if (isClosed || gen != _boostLoadGeneration) return;
       emit(BoostsError(e.toString()));
     }
   }

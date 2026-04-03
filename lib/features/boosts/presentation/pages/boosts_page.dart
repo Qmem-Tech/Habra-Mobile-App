@@ -44,12 +44,31 @@ class _BoostsPageState extends State<BoostsPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
+  void initState() {
+    super.initState();
+    // BlocListener does not run for the current home state on first subscribe;
+    // kick off boosts once the first frame has a [BuildContext] with providers.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final h = context.read<BusinessOwnerHomeCubit>().state;
+      if (h is BusinessOwnerHomeLoaded) {
+        context.read<BoostsCubit>().loadBoosts(_boostsBusinessId(h));
+      }
+    });
+  }
+
+  /// Same anchor as dashboard — real id even when UI shows "All businesses".
+  String _boostsBusinessId(BusinessOwnerHomeState homeState) {
+    if (homeState is! BusinessOwnerHomeLoaded) return '';
+    return homeState.focusBusinessIdForOwnerTools ?? '';
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BlocConsumer<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
       listener: (context, homeState) {
-        if (homeState is BusinessOwnerHomeLoaded &&
-            homeState.selectedPresence != null) {
-          context.read<BoostsCubit>().loadBoosts(homeState.selectedPresence!.id);
+        if (homeState is BusinessOwnerHomeLoaded) {
+          context.read<BoostsCubit>().loadBoosts(_boostsBusinessId(homeState));
         }
       },
       builder: (context, homeState) {
@@ -245,29 +264,46 @@ class _BoostsPageState extends State<BoostsPage> {
                   state is! BoostsInitial) {
                 final refreshedHomeState =
                     context.read<BusinessOwnerHomeCubit>().state;
-                if (refreshedHomeState is BusinessOwnerHomeLoaded &&
-                    refreshedHomeState.selectedPresence != null &&
-                    refreshedHomeState.selectedPresence!.id != 'all') {
-                  context
-                      .read<BoostsCubit>()
-                      .loadBoosts(refreshedHomeState.selectedPresence!.id);
+                if (refreshedHomeState is BusinessOwnerHomeLoaded) {
+                  context.read<BoostsCubit>().loadBoosts(
+                        _boostsBusinessId(refreshedHomeState),
+                      );
                 }
               }
             },
             builder: (context, state) {
+              if (homeState is BusinessOwnerHomeError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppResources.spacingL),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          homeState.message,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppColors.textSecondary),
+                        ),
+                        const SizedBox(height: 16),
+                        TextButton(
+                          onPressed: () {
+                            context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
+                                  ownerId: widget.user.id,
+                                  showSetupIncomplete: false,
+                                );
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              if (homeState is! BusinessOwnerHomeLoaded) {
+                return const HabraCircularLoader(fullScreen: true);
+              }
+
               if (state is BoostsLoading || state is BoostsInitial) {
-                if (state is BoostsInitial) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    final initialHomeState =
-                        context.read<BusinessOwnerHomeCubit>().state;
-                    if (initialHomeState is BusinessOwnerHomeLoaded &&
-                        initialHomeState.selectedPresence != null) {
-                      context
-                          .read<BoostsCubit>()
-                          .loadBoosts(initialHomeState.selectedPresence!.id);
-                    }
-                  });
-                }
                 return const HabraCircularLoader(fullScreen: true);
               }
               if (state is BoostsError) {
@@ -287,11 +323,10 @@ class _BoostsPageState extends State<BoostsPage> {
                           onPressed: () {
                             final homeState =
                                 context.read<BusinessOwnerHomeCubit>().state;
-                            if (homeState is BusinessOwnerHomeLoaded &&
-                                homeState.selectedPresence != null) {
-                              context
-                                  .read<BoostsCubit>()
-                                  .loadBoosts(homeState.selectedPresence!.id);
+                            if (homeState is BusinessOwnerHomeLoaded) {
+                              context.read<BoostsCubit>().loadBoosts(
+                                    _boostsBusinessId(homeState),
+                                  );
                             }
                           },
                           child: const Text('Retry'),
@@ -302,7 +337,7 @@ class _BoostsPageState extends State<BoostsPage> {
                 );
               }
               if (state is! BoostsLoaded) {
-                return const SizedBox.shrink();
+                return const HabraCircularLoader(fullScreen: true);
               }
 
               final filter = state.filter;
