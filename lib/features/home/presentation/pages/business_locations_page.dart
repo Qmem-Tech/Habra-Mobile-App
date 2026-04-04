@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../domain/entities/business_presence.dart';
+import '../widgets/owner_business_group_card.dart';
 import 'add_new_presence_page.dart';
 
 /// Business locations selector: list of businesses/locations + Add New Presence.
@@ -59,6 +60,8 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
     return match.isEmpty ? '' : (match.first.locationName ?? '');
   }
 
+  bool get _isMyBusinessesLayout => widget.overrideAppBarTitle != null;
+
   @override
   Widget build(BuildContext context) {
     BusinessPresence? allPresence;
@@ -80,7 +83,10 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
         backgroundColor: AppColors.backgroundWhite,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: AppColors.textPrimary),
+          icon: Icon(
+            _isMyBusinessesLayout ? Icons.arrow_back : Icons.close,
+            color: AppColors.textPrimary,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: widget.overrideAppBarTitle != null
@@ -117,39 +123,84 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
               ),
         centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-        children: [
-          if (allPresence != null) _buildListItem(allPresence, 'Portfolio Overview', Icons.business_center),
-          ...byGroup.entries.expand((e) {
-            return [
-              Padding(
-                padding: const EdgeInsets.only(top: 24, bottom: 8),
-                child: Text(
-                  e.key,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-              ...e.value.map((p) => _buildLocationTile(p)),
-            ];
-          }),
-          const SizedBox(height: 24),
-        ],
-      ),
+      body: _isMyBusinessesLayout
+          ? _buildMyBusinessesBody(byGroup)
+          : ListView(
+              padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
+              children: [
+                if (allPresence != null)
+                  _buildListItem(allPresence, 'Portfolio Overview', Icons.business_center),
+                ...byGroup.entries.expand((e) {
+                  return [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 24, bottom: 8),
+                      child: Text(
+                        e.key,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    ...e.value.map((p) => _buildLocationTile(p)),
+                  ];
+                }),
+                const SizedBox(height: 24),
+              ],
+            ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppResources.spacingM),
-          child: AppButton(
-            text: 'Add New Presence',
-            onPressed: () => _openAddNewPresence(context),
-            icon: Icons.add,
-          ),
+          child: _isMyBusinessesLayout
+              ? OwnerAddNewBusinessCtaButton(
+                  onPressed: () => _openAddNewPresence(context),
+                )
+              : AppButton(
+                  text: 'Add New Presence',
+                  onPressed: () => _openAddNewPresence(context),
+                  icon: Icons.add,
+                ),
         ),
       ),
+    );
+  }
+
+  Widget _buildMyBusinessesBody(Map<String, List<BusinessPresence>> byGroup) {
+    final entries = byGroup.entries.toList();
+    if (entries.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppResources.spacingL),
+          child: Text(
+            'No businesses yet. Add one to get started.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(
+        AppResources.spacingM,
+        AppResources.spacingM,
+        AppResources.spacingM,
+        AppResources.spacingL,
+      ),
+      itemCount: entries.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppResources.spacingM),
+      itemBuilder: (context, index) {
+        final e = entries[index];
+        return OwnerBusinessGroupCard(
+          groupKey: e.key,
+          locations: e.value,
+          currentPresenceId: widget.currentPresenceId,
+          onPresenceSelected: (id) => _selectAndPop(id),
+        );
+      },
     );
   }
 

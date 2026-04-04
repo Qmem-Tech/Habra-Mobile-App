@@ -23,6 +23,7 @@ import '../bloc/business_owner_home_cubit.dart';
 import '../bloc/business_owner_home_state.dart';
 import '../bloc/business_owner_subscription_cubit.dart';
 import '../widgets/business_owner_drawer.dart';
+import '../widgets/owner_business_group_card.dart';
 import '../../../dashboard/presentation/pages/edit_business_page.dart';
 import '../../../dashboard/presentation/pages/update_hours_page.dart';
 import '../../../dashboard/presentation/pages/create_deal_page.dart';
@@ -866,13 +867,14 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   ),
                 ),
               ),
-              _buildYourBusinessesList(state.presences),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
+                child: _buildYourBusinessesList(state),
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM, vertical: 16),
-                child: AppButton(
-                  text: 'Add New Presence',
+                child: OwnerAddNewBusinessCtaButton(
                   onPressed: () => _openAddNewPresence(context),
-                  icon: Icons.add,
                 ),
               ),
               Padding(
@@ -2171,84 +2173,32 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     );
   }
 
-  Widget _buildYourBusinessesList(List<BusinessPresence> presences) {
-    final list = presences.where((p) => p.id != 'all').take(5).toList();
+  Widget _buildYourBusinessesList(BusinessOwnerHomeLoaded state) {
+    final rest = state.presences.where((p) => p.id != 'all').toList();
+    final byGroup = <String, List<BusinessPresence>>{};
+    for (final p in rest) {
+      final g = p.businessGroupName ?? p.name;
+      byGroup.putIfAbsent(g, () => []).add(p);
+    }
+    final entries = byGroup.entries.toList();
+
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-      itemCount: list.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      padding: EdgeInsets.zero,
+      itemCount: entries.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppResources.spacingM),
       itemBuilder: (context, index) {
-        final p = list[index];
-        final viewCount = (1200 + index * 400).toString();
-        return AppCard(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.all(AppResources.spacingM),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  p.imageUrl,
-                  width: 56,
-                  height: 56,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 56,
-                    height: 56,
-                    color: AppColors.backgroundGrey,
-                    child: const Icon(Icons.store),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      p.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      p.isPendingApproval
-                          ? 'Pending for approval • ${p.locationDisplay}'
-                          : '${p.category} • ${p.locationDisplay}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.visibility_outlined, size: 16, color: AppColors.textSecondary),
-                  const SizedBox(width: 4),
-                  Text(
-                    viewCount,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              AppButton(
-                text: 'Manage',
-                onPressed: () => _manageBusiness(p),
-                width: 90,
-                height: 36,
-              ),
-            ],
-          ),
+        final e = entries[index];
+        return OwnerBusinessGroupCard(
+          groupKey: e.key,
+          locations: e.value,
+          currentPresenceId: state.selectedPresenceId,
+          onPresenceSelected: (id) {
+            final match = state.presences.where((p) => p.id == id);
+            if (match.isEmpty) return;
+            _manageBusiness(match.first);
+          },
         );
       },
     );
