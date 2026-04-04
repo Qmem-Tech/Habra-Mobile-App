@@ -6,6 +6,7 @@ import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../domain/entities/boost_option.dart';
 import '../bloc/boosts_cubit.dart';
 import '../bloc/boosts_state.dart';
+import '../widgets/boost_flow_status_body.dart';
 import '../widgets/boost_option_card.dart';
 import 'select_location_page.dart';
 import 'select_deal_to_boost_page.dart';
@@ -77,6 +78,13 @@ class _BoostOptionsPageState extends State<BoostOptionsPage> {
           });
         },
         builder: (context, state) {
+          if (state is BoostsError) {
+            return BoostFlowErrorBody(
+              message: state.message,
+              onRetry: () => context.read<BoostsCubit>().loadBoostOptions(),
+              onBack: () => Navigator.pop(context),
+            );
+          }
           if (state is! BoostOptionsLoaded) {
             return const HabraCircularLoader(fullScreen: true);
           }

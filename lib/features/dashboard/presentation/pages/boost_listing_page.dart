@@ -92,13 +92,100 @@ class _BoostListingPageState extends State<BoostListingPage> {
       ),
       body: BlocBuilder<DashboardCubit, DashboardState>(
         builder: (context, state) {
-          if (state is BoostPlansLoading) {
+          if (state is BoostPlansLoading || state is DashboardInitial) {
             return const HabraCircularLoader(fullScreen: true);
           }
+          if (state is DashboardError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppResources.spacingL),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      state.message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Go back'),
+                        ),
+                        const SizedBox(width: 16),
+                        FilledButton(
+                          onPressed: () => context
+                              .read<DashboardCubit>()
+                              .loadBoostPlans(),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
           if (state is! BoostPlansLoaded) {
-            return const Center(child: Text('No plans available'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppResources.spacingL),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'No boost plans are available right now.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Go back'),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
           final plans = state.plans;
+          if (plans.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppResources.spacingL),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'No boost plans are available right now.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Go back'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
           final selectedIndex = state.selectedIndex;
           final selected = plans[selectedIndex.clamp(0, plans.length - 1)];
 

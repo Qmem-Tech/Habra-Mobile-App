@@ -12,6 +12,8 @@ import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../../domain/entities/boost_location.dart';
 import '../bloc/boosts_cubit.dart';
 import '../bloc/boosts_state.dart';
+import '../utils/boost_flow_business_id.dart';
+import '../widgets/boost_flow_status_body.dart';
 import '../widgets/location_selection_card.dart';
 
 class SelectLocationPage extends StatefulWidget {
@@ -25,12 +27,15 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tryLoadLocations());
+  }
+
+  void _tryLoadLocations() {
+    if (!mounted) return;
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
-    if (homeState is BusinessOwnerHomeLoaded &&
-        homeState.selectedPresence != null &&
-        homeState.selectedPresence!.id != 'all') {
-      context.read<BoostsCubit>().loadLocations(homeState.selectedPresence!.id);
-    }
+    final id = focusBusinessIdForBoostFlows(homeState);
+    if (id == null) return;
+    context.read<BoostsCubit>().loadLocations(id);
   }
 
   @override
@@ -54,67 +59,126 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
         ),
         centerTitle: true,
       ),
-      body: BlocBuilder<BoostsCubit, BoostsState>(
-        builder: (context, state) {
-          if (state is! BoostLocationsLoaded) {
-            return const HabraCircularLoader(fullScreen: true);
-          }
-          final locations = state.locations;
-          final selectedId = state.selectedId;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(AppResources.spacingM),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Which locations need a boost?',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+      body: BlocListener<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
+        listenWhen: (prev, curr) =>
+            focusBusinessIdForBoostFlows(curr) !=
+            focusBusinessIdForBoostFlows(prev),
+        listener: (context, homeState) => _tryLoadLocations(),
+        child: BlocBuilder<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
+          builder: (context, homeState) {
+            if (homeState is! BusinessOwnerHomeLoaded) {
+              return const HabraCircularLoader(fullScreen: true);
+            }
+            final businessId = focusBusinessIdForBoostFlows(homeState);
+            if (businessId == null) {
+              return BoostFlowMissingBusinessBody(
+                onBack: () => Navigator.pop(context),
+              );
+            }
+            return BlocBuilder<BoostsCubit, BoostsState>(
+              builder: (context, state) {
+                if (state is BoostsError) {
+                  return BoostFlowErrorBody(
+                    message: state.message,
+                    onRetry: () =>
+                        context.read<BoostsCubit>().loadLocations(businessId),
+                    onBack: () => Navigator.pop(context),
+                  );
+                }
+                if (state is! BoostLocationsLoaded) {
+                  return const HabraCircularLoader(fullScreen: true);
+                }
+                final locations = state.locations;
+                final selectedId = state.selectedId;
+                if (locations.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppResources.spacingL),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'No locations found for your account.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Go back'),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Choose specific branches to promote or select all for a bundle discount.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                        height: 1.4,
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(AppResources.spacingM),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Which locations need a boost?',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Choose specific branches to promote or select all for a bundle discount.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppResources.spacingM,
+                        ),
+                        itemCount: locations.length,
+                        itemBuilder: (context, index) {
+                          final loc = locations[index];
+                          return LocationSelectionCard(
+                            location: loc,
+                            isSelected: selectedId == loc.id,
+                            onTap: () =>
+                                context.read<BoostsCubit>().selectLocation(loc.id),
+                          );
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(AppResources.spacingM),
+                      child: AppButton(
+                        text: 'Continue',
+                        onPressed: selectedId != null
+                            ? () => _continueWithLocation(
+                                  context,
+                                  locations,
+                                  selectedId,
+                                )
+                            : null,
                       ),
                     ),
                   ],
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-                  itemCount: locations.length,
-                  itemBuilder: (context, index) {
-                    final loc = locations[index];
-                    return LocationSelectionCard(
-                      location: loc,
-                      isSelected: selectedId == loc.id,
-                      onTap: () => context.read<BoostsCubit>().selectLocation(loc.id),
-                    );
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(AppResources.spacingM),
-                child: AppButton(
-                  text: 'Continue',
-                  onPressed: selectedId != null
-                      ? () => _continueWithLocation(context, locations, selectedId)
-                      : null,
-                ),
-              ),
-            ],
-          );
-        },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -132,6 +196,7 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
       }
     }
     if (selected == null) return;
+    final BoostLocation chosen = selected;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -139,8 +204,8 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
           create: (_) => sl<DashboardCubit>(),
           child: BoostListingPage(
             boostType: 'business_listing',
-            selectedId: selected?.id,
-            selectedTitle: selected?.name,
+            selectedId: chosen.id,
+            selectedTitle: chosen.name,
           ),
         ),
       ),
