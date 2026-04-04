@@ -48,6 +48,44 @@ class ActiveBoost extends Equatable {
 
   int get remainingDays => endDate.difference(DateTime.now()).inDays.clamp(0, 999);
 
+  ActiveBoost copyWith({
+    String? id,
+    String? typeLabel,
+    String? title,
+    String? imageUrl,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? views,
+    String? clicks,
+    String? calls,
+    int? viewsChangePercent,
+    int? clicksChangePercent,
+    int? callsChangePercent,
+    bool? autoRenew,
+    String? planLabel,
+    String? saves,
+    int? savesChangePercent,
+  }) {
+    return ActiveBoost(
+      id: id ?? this.id,
+      typeLabel: typeLabel ?? this.typeLabel,
+      title: title ?? this.title,
+      imageUrl: imageUrl ?? this.imageUrl,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      views: views ?? this.views,
+      clicks: clicks ?? this.clicks,
+      calls: calls ?? this.calls,
+      viewsChangePercent: viewsChangePercent ?? this.viewsChangePercent,
+      clicksChangePercent: clicksChangePercent ?? this.clicksChangePercent,
+      callsChangePercent: callsChangePercent ?? this.callsChangePercent,
+      autoRenew: autoRenew ?? this.autoRenew,
+      planLabel: planLabel ?? this.planLabel,
+      saves: saves ?? this.saves,
+      savesChangePercent: savesChangePercent ?? this.savesChangePercent,
+    );
+  }
+
   @override
   List<Object?> get props => [
         id,

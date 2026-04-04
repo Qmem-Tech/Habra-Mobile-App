@@ -21,7 +21,9 @@ import '../../../dashboard/presentation/pages/edit_business_page.dart';
 import '../../../dashboard/presentation/pages/update_hours_page.dart';
 import '../../../dashboard/presentation/widgets/business_gallery_photos_dialog.dart';
 import '../../../dashboard/presentation/widgets/empty_state_widget.dart';
+import '../../domain/entities/active_boost.dart';
 import '../../domain/entities/boost_filter.dart';
+import '../../domain/entities/boost_option.dart';
 import '../bloc/boosts_cubit.dart';
 import '../bloc/boosts_state.dart';
 import '../widgets/active_boost_card.dart';
@@ -257,20 +259,7 @@ class _BoostsPageState extends State<BoostsPage> {
                 },
               ),
               Expanded(
-                child: BlocConsumer<BoostsCubit, BoostsState>(
-            listener: (context, state) {
-              if (state is! BoostsLoaded &&
-                  state is! BoostsLoading &&
-                  state is! BoostsInitial) {
-                final refreshedHomeState =
-                    context.read<BusinessOwnerHomeCubit>().state;
-                if (refreshedHomeState is BusinessOwnerHomeLoaded) {
-                  context.read<BoostsCubit>().loadBoosts(
-                        _boostsBusinessId(refreshedHomeState),
-                      );
-                }
-              }
-            },
+                child: BlocBuilder<BoostsCubit, BoostsState>(
             builder: (context, state) {
               if (homeState is BusinessOwnerHomeError) {
                 return Center(
@@ -409,6 +398,8 @@ class _BoostsPageState extends State<BoostsPage> {
                                   boost: boost,
                                   onTap: () =>
                                       _openActiveBoostDetails(context, boost.id),
+                                  onAutoRenewChanged: (next) =>
+                                      _confirmAutoRenew(context, boost, next),
                                 ),
                               ),
                             ),
@@ -436,7 +427,10 @@ class _BoostsPageState extends State<BoostsPage> {
                                     bottom: AppResources.spacingS),
                                 child: PastBoostItem(
                                   boost: boost,
-                                  onReBoost: () => _openBoostOptions(context),
+                                  onReBoost: () => _openBoostOptions(
+                                    context,
+                                    reboostType: boost.type,
+                                  ),
                                 ),
                               ),
                             ),
@@ -458,6 +452,13 @@ class _BoostsPageState extends State<BoostsPage> {
     );
   }
 
+  Future<void> _refreshBoostsIfPossible(BuildContext context) async {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is BusinessOwnerHomeLoaded) {
+      await context.read<BoostsCubit>().loadBoosts(_boostsBusinessId(homeState));
+    }
+  }
+
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),
@@ -467,6 +468,7 @@ class _BoostsPageState extends State<BoostsPage> {
           return AppBar(
             backgroundColor: AppColors.backgroundWhite,
             elevation: 0,
+            centerTitle: true,
             leading: IconButton(
               icon: const Icon(Icons.menu, color: AppColors.textPrimary),
               onPressed: () => _scaffoldKey.currentState?.openDrawer(),
@@ -555,27 +557,102 @@ class _BoostsPageState extends State<BoostsPage> {
     }
   }
 
-  void _openBoostOptions(BuildContext context) {
-    Navigator.push(
+  Future<void> _openBoostOptions(
+    BuildContext context, {
+    BoostOptionType? reboostType,
+  }) async {
+    await Navigator.push<void>(
       context,
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (_) => BlocProvider.value(
           value: context.read<BoostsCubit>(),
-          child: const BoostOptionsPage(),
+          child: BoostOptionsPage(preselectFlowForType: reboostType),
         ),
       ),
     );
+    if (!context.mounted) return;
+    await _refreshBoostsIfPossible(context);
   }
 
-  void _openActiveBoostDetails(BuildContext context, String boostId) {
-    Navigator.push(
+  Future<void> _confirmAutoRenew(
+    BuildContext context,
+    ActiveBoost boost,
+    bool newValue,
+  ) async {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final endLabel = '${months[boost.endDate.month - 1]} ${boost.endDate.day}';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(newValue ? 'Turn on auto-renew?' : 'Turn off auto-renew?'),
+        content: Text(
+          newValue
+              ? 'This boost will renew automatically on $endLabel. You can change this anytime.'
+              : 'Auto-renew will stop. When this boost ends you can start a new one with Boost Now or RE-BOOST.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+    try {
+      await context
+          .read<BoostsCubit>()
+          .updateActiveBoostAutoRenew(boost.id, newValue);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            newValue ? 'Auto-renew is on.' : 'Auto-renew is off.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update auto-renew. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _openActiveBoostDetails(
+    BuildContext context,
+    String boostId,
+  ) async {
+    await Navigator.push<void>(
       context,
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (_) => BlocProvider.value(
           value: context.read<BoostsCubit>(),
           child: ActiveBoostDetailsPage(boostId: boostId),
         ),
       ),
     );
+    if (!context.mounted) return;
+    await _refreshBoostsIfPossible(context);
   }
 }

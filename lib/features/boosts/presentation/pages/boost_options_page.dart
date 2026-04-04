@@ -12,14 +12,21 @@ import 'select_deal_to_boost_page.dart';
 import 'select_job_to_boost_page.dart';
 
 /// "What would you like to boost?" – Business Listing, Deal, or Job.
+///
+/// When [preselectFlowForType] is set (e.g. from RE-BOOST), the matching option
+/// flow opens automatically after options load.
 class BoostOptionsPage extends StatefulWidget {
-  const BoostOptionsPage({super.key});
+  const BoostOptionsPage({super.key, this.preselectFlowForType});
+
+  final BoostOptionType? preselectFlowForType;
 
   @override
   State<BoostOptionsPage> createState() => _BoostOptionsPageState();
 }
 
 class _BoostOptionsPageState extends State<BoostOptionsPage> {
+  bool _didAutoOpenReboostFlow = false;
+
   @override
   void initState() {
     super.initState();
@@ -47,7 +54,28 @@ class _BoostOptionsPageState extends State<BoostOptionsPage> {
         ),
         centerTitle: true,
       ),
-      body: BlocBuilder<BoostsCubit, BoostsState>(
+      body: BlocConsumer<BoostsCubit, BoostsState>(
+        listenWhen: (prev, curr) =>
+            !_didAutoOpenReboostFlow &&
+            widget.preselectFlowForType != null &&
+            curr is BoostOptionsLoaded,
+        listener: (context, state) {
+          if (state is! BoostOptionsLoaded) return;
+          final want = widget.preselectFlowForType!;
+          BoostOption? match;
+          for (final o in state.options) {
+            if (o.type == want) {
+              match = o;
+              break;
+            }
+          }
+          _didAutoOpenReboostFlow = true;
+          if (match == null) return;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            _onOptionTap(context, match!);
+          });
+        },
         builder: (context, state) {
           if (state is! BoostOptionsLoaded) {
             return const HabraCircularLoader(fullScreen: true);

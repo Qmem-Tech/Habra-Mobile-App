@@ -49,7 +49,7 @@ class _HabraCircularLoaderState extends State<HabraCircularLoader>
 
   @override
   Widget build(BuildContext context) {
-    final size = widget.size ?? (widget.fullScreen ? 80.0 : 60.0);
+    final size = widget.size ?? (widget.fullScreen ? 100.0 : 80.0);
     final color = widget.color ?? AppColors.brandPrimary;
 
     final loader = SizedBox(
@@ -74,7 +74,7 @@ class _HabraCircularLoaderState extends State<HabraCircularLoader>
                   ),
                 ],
               ),
-              padding: EdgeInsets.all(size * 0.1),
+              padding: EdgeInsets.all(size * 0.125),
               child: Image.asset(
                 AppAssets.appLogo,
                 fit: BoxFit.contain,
@@ -104,29 +104,7 @@ class _HabraCircularLoaderState extends State<HabraCircularLoader>
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                loader,
-                if (widget.message != null) ...[
-                  const SizedBox(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 48),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        widget.message!,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ],
+                loader
               ],
             ),
           ),

@@ -16,8 +16,12 @@ class BoostsCubit extends Cubit<BoostsState> {
   /// Bumped on each [loadBoosts] so stale async completions do not emit.
   int _boostLoadGeneration = 0;
 
+  /// Last non-empty business id used with [loadBoosts] (for reverting failed auto-renew).
+  String? _lastLoadedBusinessId;
+
   Future<void> loadBoosts(String businessId) async {
     if (businessId.isEmpty || businessId == 'all') {
+      _lastLoadedBusinessId = null;
       _boostLoadGeneration++;
       emit(const BoostsLoaded(
         activeBoosts: [],
@@ -26,6 +30,7 @@ class BoostsCubit extends Cubit<BoostsState> {
       ));
       return;
     }
+    _lastLoadedBusinessId = businessId;
     final gen = ++_boostLoadGeneration;
     emit(BoostsLoading());
     try {
@@ -154,5 +159,25 @@ class BoostsCubit extends Cubit<BoostsState> {
 
   Future<void> setAutoRenew(String boostId, bool autoRenew) async {
     await _repository.setAutoRenew(boostId, autoRenew);
+  }
+
+  /// Updates [autoRenew] in [BoostsLoaded] for immediate UI feedback, then persists.
+  Future<void> updateActiveBoostAutoRenew(String boostId, bool autoRenew) async {
+    final loaded = state;
+    if (loaded is BoostsLoaded) {
+      final nextActive = loaded.activeBoosts
+          .map((b) => b.id == boostId ? b.copyWith(autoRenew: autoRenew) : b)
+          .toList();
+      emit(loaded.copyWith(activeBoosts: nextActive));
+    }
+    try {
+      await _repository.setAutoRenew(boostId, autoRenew);
+    } catch (e) {
+      final homeId = _lastLoadedBusinessId;
+      if (homeId != null && homeId.isNotEmpty) {
+        await loadBoosts(homeId);
+      }
+      rethrow;
+    }
   }
 }

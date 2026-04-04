@@ -71,7 +71,7 @@ class BoostsSupabaseDataSource implements BoostsRemoteDataSource {
       final now = DateTime.now().toIso8601String();
       final res = await _client
           .from(SupabaseTables.boosts)
-          .select('*, ${SupabaseTables.boostPlans}!boosts_boost_plan_id_fkey(name), ${SupabaseTables.deals}(title), ${SupabaseTables.jobs}(title)')
+          .select('*, ${SupabaseTables.boostPlans}!boosts_boost_plan_id_fkey(title), ${SupabaseTables.deals}(title), ${SupabaseTables.jobs}(title)')
           .eq('business_id', businessId)
           .gte('ends_at', now)
           .neq('status', 'cancelled')
@@ -87,7 +87,7 @@ class BoostsSupabaseDataSource implements BoostsRemoteDataSource {
       final now = DateTime.now().toIso8601String();
       final res = await _client
           .from(SupabaseTables.boosts)
-          .select('*, ${SupabaseTables.boostPlans}!boosts_boost_plan_id_fkey(name), ${SupabaseTables.deals}(title), ${SupabaseTables.jobs}(title)')
+          .select('*, ${SupabaseTables.boostPlans}!boosts_boost_plan_id_fkey(title), ${SupabaseTables.deals}(title), ${SupabaseTables.jobs}(title)')
           .eq('business_id', businessId)
           .lt('ends_at', now)
           .order('ends_at', ascending: false)
@@ -110,7 +110,7 @@ class BoostsSupabaseDataSource implements BoostsRemoteDataSource {
           id: parseStringRequired(row['id']),
           type: type,
           title: title,
-          dateRange: '${starts.month}/${starts.day} - ${ends.month}/${ends.day}',
+          dateRange: _formatPastBoostDateRange(starts, ends),
           views: '0',
         );
       }).toList();
@@ -122,12 +122,38 @@ class BoostsSupabaseDataSource implements BoostsRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from(SupabaseTables.boosts)
-          .select('*, ${SupabaseTables.boostPlans}!boosts_boost_plan_id_fkey(name), ${SupabaseTables.deals}(title, image_url), ${SupabaseTables.jobs}(title)')
+          .select('*, ${SupabaseTables.boostPlans}!boosts_boost_plan_id_fkey(title), ${SupabaseTables.deals}(title, image_url), ${SupabaseTables.jobs}(title)')
           .eq('id', boostId)
           .maybeSingle();
       if (res == null) return null;
       return _rowToActiveBoost(Map<String, dynamic>.from(res as Map));
     });
+  }
+
+  static String _formatPastBoostDateRange(DateTime starts, DateTime ends) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    String md(DateTime d) {
+      final day = d.day.toString().padLeft(2, '0');
+      return '${months[d.month - 1]} $day';
+    }
+
+    if (starts.year == ends.year) {
+      return '${md(starts)} - ${md(ends)}, ${ends.year}';
+    }
+    return '${md(starts)}, ${starts.year} - ${md(ends)}, ${ends.year}';
   }
 
   ActiveBoost _rowToActiveBoost(Map<String, dynamic> row) {
@@ -157,7 +183,9 @@ class BoostsSupabaseDataSource implements BoostsRemoteDataSource {
       clicksChangePercent: 0,
       callsChangePercent: 0,
       autoRenew: parseBool(row['auto_renew']),
-      planLabel: planData is Map ? parseString(planData['name']) : null,
+      planLabel: planData is Map
+          ? (parseString(planData['title']) ?? parseString(planData['name']))
+          : null,
     );
   }
 
