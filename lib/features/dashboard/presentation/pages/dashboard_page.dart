@@ -8,7 +8,7 @@ import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
-import '../../../home/presentation/pages/business_locations_page.dart';
+import '../../../home/presentation/pages/my_businesses_page.dart';
 import '../../../home/presentation/widgets/business_owner_drawer.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import '../bloc/dashboard_cubit.dart';
@@ -131,7 +131,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   final selectedId = await Navigator.push<String?>(
                     navContext,
                     MaterialPageRoute(
-                      builder: (_) => BusinessLocationsPage(
+                      builder: (_) => MyBusinessesPage(
                         presences: presences,
                         currentPresenceId: loadedState.selectedPresenceId,
                       ),
@@ -176,7 +176,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   final selectedId = await Navigator.push<String?>(
                     navContext,
                     MaterialPageRoute(
-                      builder: (_) => BusinessLocationsPage(
+                      builder: (_) => MyBusinessesPage(
                         presences: presences,
                         currentPresenceId: loadedState.selectedPresenceId,
                       ),
@@ -420,7 +420,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final result = await Navigator.push<String?>(
       context,
       MaterialPageRoute(
-        builder: (_) => BusinessLocationsPage(
+        builder: (_) => MyBusinessesPage(
           presences: loaded?.presences ?? const <BusinessPresence>[],
           currentPresenceId: loaded?.selectedPresenceId,
         ),

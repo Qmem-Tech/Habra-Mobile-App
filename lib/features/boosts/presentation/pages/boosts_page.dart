@@ -12,7 +12,7 @@ import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../../../home/presentation/bloc/business_owner_subscription_cubit.dart';
-import '../../../home/presentation/pages/business_locations_page.dart';
+import '../../../home/presentation/pages/my_businesses_page.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
 import '../../../home/presentation/widgets/business_owner_drawer.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
@@ -107,7 +107,7 @@ class _BoostsPageState extends State<BoostsPage> {
                     final selectedId = await Navigator.push<String?>(
                       navContext,
                       MaterialPageRoute(
-                        builder: (_) => BusinessLocationsPage(
+                        builder: (_) => MyBusinessesPage(
                           presences: presences,
                           currentPresenceId: loadedState.selectedPresenceId,
                         ),
@@ -152,7 +152,7 @@ class _BoostsPageState extends State<BoostsPage> {
                     final selectedId = await Navigator.push<String?>(
                       navContext,
                       MaterialPageRoute(
-                        builder: (_) => BusinessLocationsPage(
+                        builder: (_) => MyBusinessesPage(
                           presences: presences,
                           currentPresenceId: loadedState.selectedPresenceId,
                         ),
@@ -543,7 +543,7 @@ class _BoostsPageState extends State<BoostsPage> {
     final result = await Navigator.push<String?>(
       context,
       MaterialPageRoute(
-        builder: (_) => BusinessLocationsPage(
+        builder: (_) => MyBusinessesPage(
           presences: loaded?.presences ?? const <BusinessPresence>[],
           currentPresenceId: loaded?.selectedPresenceId,
         ),

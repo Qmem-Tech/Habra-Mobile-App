@@ -421,8 +421,11 @@ class _ProfilePageState extends State<ProfilePage> {
                                     Navigator.push<dynamic>(
                                       context,
                                       MaterialPageRoute<dynamic>(
-                                        builder: (_) => ManageBusinessPhotosPage(
-                                          business: focus,
+                                        builder: (_) => BlocProvider.value(
+                                          value: context.read<DashboardCubit>(),
+                                          child: ManageBusinessPhotosPage(
+                                            business: focus,
+                                          ),
                                         ),
                                       ),
                                     ),

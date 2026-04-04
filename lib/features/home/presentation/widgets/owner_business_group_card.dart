@@ -11,6 +11,30 @@ const Color kOwnerBusinessPendingBadgeFg = Color(0xFFB85C1A);
 /// Card border for owner business list cards.
 const Color kOwnerBusinessCardBorder = Color(0xFFE8E8E8);
 
+/// Monthly views for display (null/negative → 0). Uses k-style compacting from 1000+.
+String formatOwnerMonthlyViewsDisplay(int? views) {
+  final v = views ?? 0;
+  if (v <= 0) return '0';
+  if (v < 1000) return '$v';
+  if (v < 1000000) {
+    final x = v / 1000.0;
+    final whole = x == x.roundToDouble();
+    final s = x >= 10
+        ? x.toStringAsFixed(0)
+        : (whole ? x.toStringAsFixed(0) : x.toStringAsFixed(1));
+    return '${s}k';
+  }
+  final x = v / 1000000.0;
+  final s = x >= 10 ? x.toStringAsFixed(0) : x.toStringAsFixed(1);
+  return '${s}M';
+}
+
+/// One decimal; no usable average → `0.0`.
+String formatOwnerAvgRatingDisplay(double? average) {
+  if (average == null || average <= 0) return '0.0';
+  return average.toStringAsFixed(1);
+}
+
 /// Bottom sheet to pick a location within a business group.
 Future<void> showOwnerBusinessLocationsSheet({
   required BuildContext context,
@@ -132,7 +156,7 @@ class OwnerBusinessGroupCard extends StatelessWidget {
     required this.locations,
     this.currentPresenceId,
     required this.onPresenceSelected,
-    this.monthlyViewsLabel = '—',
+    this.monthlyViews,
   });
 
   final String groupKey;
@@ -140,8 +164,8 @@ class OwnerBusinessGroupCard extends StatelessWidget {
   final String? currentPresenceId;
   final void Function(String presenceId) onPresenceSelected;
 
-  /// Shown in the Monthly Views stat (no per-listing API yet — default em dash).
-  final String monthlyViewsLabel;
+  /// Last-30-day profile views for this card (e.g. one business or summed locations). Null → show `0`.
+  final int? monthlyViews;
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +175,8 @@ class OwnerBusinessGroupCard extends StatelessWidget {
     final categoryLabel = primary.category;
     final locationSubtitle = locationSummaryLine(list);
     final avgRating = averageRating(list);
-    final ratingLabel = avgRating != null ? avgRating.toStringAsFixed(1) : '—';
+    final ratingLabel = formatOwnerAvgRatingDisplay(avgRating);
+    final viewsLabel = formatOwnerMonthlyViewsDisplay(monthlyViews);
     final showPending = list.any((p) => p.isPendingApproval);
     final showVerified = list.any((p) => p.isVerified) && !showPending;
 
@@ -219,7 +244,7 @@ class OwnerBusinessGroupCard extends StatelessWidget {
                 child: _StatBox(
                   icon: Icons.visibility_outlined,
                   label: 'Monthly Views',
-                  value: monthlyViewsLabel,
+                  value: viewsLabel,
                 ),
               ),
               const SizedBox(width: AppResources.spacingM),
@@ -236,8 +261,9 @@ class OwnerBusinessGroupCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
+                flex: 11,
                 child: SizedBox(
-                  height: AppResources.buttonHeightS + 4,
+                  height: AppResources.buttonHeightM,
                   child: OutlinedButton(
                     onPressed: () => showOwnerBusinessLocationsSheet(
                       context: context,
@@ -246,40 +272,55 @@ class OwnerBusinessGroupCard extends StatelessWidget {
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.textPrimary,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       side: const BorderSide(color: kOwnerBusinessCardBorder),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppResources.radiusM),
                       ),
                     ),
-                    child: const Text(
-                      'View Locations',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'View Locations',
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: AppResources.spacingM),
+              const SizedBox(width: AppResources.spacingS),
               Expanded(
+                flex: 9,
                 child: SizedBox(
-                  height: AppResources.buttonHeightS + 4,
+                  height: AppResources.buttonHeightM,
                   child: ElevatedButton(
                     onPressed: () => onPresenceSelected(primary.id),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.brandPrimary,
                       foregroundColor: AppColors.textOnPrimary,
                       elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppResources.radiusM),
                       ),
                     ),
-                    child: const Text(
-                      'Manage',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Manage',
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),

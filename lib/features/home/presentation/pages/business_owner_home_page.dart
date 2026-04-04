@@ -41,8 +41,8 @@ import '../../../dashboard/presentation/widgets/choose_business_for_legal_docs_d
 import '../../../dashboard/presentation/widgets/legal_documents_upload_dialog.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import 'business_owner_notification_page.dart';
-import 'business_locations_page.dart';
 import 'add_new_presence_page.dart';
+import 'my_businesses_page.dart';
 
 class BusinessOwnerHomePage extends StatefulWidget {
   final User user;
@@ -427,7 +427,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 final selectedId = await Navigator.push<String?>(
                   navContext,
                   MaterialPageRoute(
-                    builder: (_) => BusinessLocationsPage(
+                    builder: (_) => MyBusinessesPage(
                       presences: presences,
                       currentPresenceId: loadedState.selectedPresenceId,
                     ),
@@ -472,7 +472,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 final selectedId = await Navigator.push<String?>(
                   navContext,
                   MaterialPageRoute(
-                    builder: (_) => BusinessLocationsPage(
+                    builder: (_) => MyBusinessesPage(
                       presences: presences,
                       currentPresenceId: loadedState.selectedPresenceId,
                     ),
@@ -1075,7 +1075,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 final selectedId = await Navigator.push<String?>(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => BusinessLocationsPage(
+                    builder: (_) => MyBusinessesPage(
                       presences: presences,
                       currentPresenceId: state.selectedPresenceId,
                     ),
@@ -2251,7 +2251,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     final result = await Navigator.push<String?>(
       context,
       MaterialPageRoute(
-        builder: (_) => BusinessLocationsPage(
+        builder: (_) => MyBusinessesPage(
           presences: loaded?.presences ?? const <BusinessPresence>[],
           currentPresenceId: loaded?.selectedPresenceId,
         ),

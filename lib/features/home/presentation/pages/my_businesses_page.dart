@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import '../../domain/entities/business_presence.dart';
 import 'business_locations_page.dart';
 
-/// Lists every listing the owner can switch between (same flow as Home’s location picker).
+/// Full My Businesses card UI: used from profile, home/dashboard/boosts app bar selector,
+/// drawer flows (edit / photos), and setup when choosing a listing.
 class MyBusinessesPage extends StatelessWidget {
   const MyBusinessesPage({
     super.key,
