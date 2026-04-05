@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/deal.dart';
+import 'deal_network_image.dart';
 
 class DealCard extends StatelessWidget {
   final Deal deal;
@@ -40,19 +41,11 @@ class DealCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               child: Stack(
                 children: [
-                  Image.asset(
-                    deal.imageUrl,
+                  DealNetworkImage(
+                    imageUrl: deal.imageUrl,
                     width: double.infinity,
                     height: 90,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: double.infinity,
-                        height: 120,
-                        color: AppColors.backgroundGrey,
-                        child: const Icon(Icons.local_offer, size: 48, color: AppColors.textSecondary),
-                      );
-                    },
                   ),
                   if (isExpiringSoon)
                     Positioned(

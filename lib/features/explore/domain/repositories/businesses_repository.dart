@@ -4,6 +4,7 @@ import '../entities/business_list_item.dart';
 import '../entities/business_detail.dart';
 import '../entities/business_filters.dart';
 import '../entities/deal.dart';
+import '../entities/deal_redemption.dart';
 import '../entities/my_review.dart';
 import '../entities/review.dart';
 
@@ -34,7 +35,7 @@ abstract class BusinessesRepository {
     List<String>? photoUrls,
   });
 
-  Future<Either<Failure, String>> redeemDeal(String dealId);
+  Future<Either<Failure, DealRedemption>> redeemDeal(String dealId);
 
   Future<Either<Failure, List<MyReview>>> getMyReviews();
   Future<Either<Failure, MyReview>> updateReview(String reviewId, {int? rating, String? comment});

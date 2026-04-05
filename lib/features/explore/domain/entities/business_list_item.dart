@@ -20,6 +20,8 @@ class BusinessListItem extends Equatable {
   final String? closingTime;
   final String? openingTime;
   final bool isFeatured;
+  /// E.164 or raw digits; optional (e.g. for call / redeem flows).
+  final String? phone;
 
   const BusinessListItem({
     required this.id,
@@ -39,6 +41,7 @@ class BusinessListItem extends Equatable {
     this.closingTime,
     this.openingTime,
     this.isFeatured = false,
+    this.phone,
   });
 
   String get fullAddress => '$address, $city, $state';
@@ -70,5 +73,6 @@ class BusinessListItem extends Equatable {
         closingTime,
         openingTime,
         isFeatured,
+        phone,
       ];
 }

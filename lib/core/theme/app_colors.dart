@@ -15,6 +15,12 @@ class AppColors {
   /// Business owner home / marketing dashboard (matches owner-home mock).
   static const Color ownerHomePrimary = Color(0xFF1B4332);
   static const Color ownerHomeMintPill = Color(0xFFE8F5E9);
+
+  /// Customer home (matches consumer home mock): location chip, key accents.
+  static const Color customerHomePrimary = ownerHomePrimary;
+  static const Color customerLocationPillBg = ownerHomeMintPill;
+  /// Hot deal badge background (warm beige from mock).
+  static const Color customerDealBadgeBg = Color(0xFFF5E6D3);
   static const Color ownerHomeSectionBg = Color(0xFFF8F9FA);
   static const Color ownerHomeQuickActionSecondary = Color(0xFFE8EAED);
   static const Color ownerOpenNowBadge = Color(0xFFD6C4A4);

@@ -4,6 +4,7 @@ import '../../domain/entities/business_list_item.dart';
 import '../../domain/entities/business_detail.dart';
 import '../../domain/entities/business_filters.dart';
 import '../../domain/entities/deal.dart';
+import '../../domain/entities/deal_redemption.dart';
 import '../../domain/entities/my_review.dart';
 import '../../domain/entities/review.dart';
 import '../../domain/repositories/businesses_repository.dart';
@@ -105,10 +106,10 @@ class BusinessesRepositoryImpl implements BusinessesRepository {
   }
 
   @override
-  Future<Either<Failure, String>> redeemDeal(String dealId) async {
+  Future<Either<Failure, DealRedemption>> redeemDeal(String dealId) async {
     try {
-      final code = await remoteDataSource.redeemDeal(dealId);
-      return Right(code);
+      final redemption = await remoteDataSource.redeemDeal(dealId);
+      return Right(redemption);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

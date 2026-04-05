@@ -27,36 +27,44 @@ class HomeCubit extends Cubit<HomeState> {
     emit(HomeLoading());
 
     try {
-      // Load all data in parallel
-      final results = await Future.wait([
-        getHappeningThisWeekUseCase(location),
-        getHotDealsUseCase(location),
-        getPopularBusinessesUseCase(location),
-        getLatestJobsUseCase(location),
-      ]);
+      String? eventsError;
+      String? dealsError;
+      String? businessesError;
+      String? jobsError;
 
-      final events = results[0].fold<List<Event>>(
-        (l) => <Event>[],
-        (r) => r as List<Event>,
-      );
-      final deals = results[1].fold<List<Deal>>(
-        (l) => <Deal>[],
-        (r) => r as List<Deal>,
-      );
-      final businesses = results[2].fold<List<Business>>(
-        (l) => <Business>[],
-        (r) => r as List<Business>,
-      );
-      final jobs = results[3].fold<List<Job>>(
-        (l) => <Job>[],
-        (r) => r as List<Job>,
-      );
+      final eventsRes = await getHappeningThisWeekUseCase(location);
+      final events = eventsRes.fold<List<Event>>((l) {
+        eventsError = l.message;
+        return <Event>[];
+      }, (r) => r);
+
+      final dealsRes = await getHotDealsUseCase(location);
+      final deals = dealsRes.fold<List<Deal>>((l) {
+        dealsError = l.message;
+        return <Deal>[];
+      }, (r) => r);
+
+      final businessesRes = await getPopularBusinessesUseCase(location);
+      final businesses = businessesRes.fold<List<Business>>((l) {
+        businessesError = l.message;
+        return <Business>[];
+      }, (r) => r);
+
+      final jobsRes = await getLatestJobsUseCase(location);
+      final jobs = jobsRes.fold<List<Job>>((l) {
+        jobsError = l.message;
+        return <Job>[];
+      }, (r) => r);
 
       emit(HomeLoaded(
         events: events,
         deals: deals,
         businesses: businesses,
         jobs: jobs,
+        eventsError: eventsError,
+        dealsError: dealsError,
+        businessesError: businessesError,
+        jobsError: jobsError,
       ));
     } catch (e) {
       emit(HomeError(e.toString()));

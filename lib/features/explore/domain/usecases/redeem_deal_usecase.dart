@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
+import '../entities/deal_redemption.dart';
 import '../repositories/businesses_repository.dart';
 
 class RedeemDealUseCase {
@@ -7,7 +8,7 @@ class RedeemDealUseCase {
 
   RedeemDealUseCase(this.repository);
 
-  Future<Either<Failure, String>> call(String dealId) async {
-    return await repository.redeemDeal(dealId);
+  Future<Either<Failure, DealRedemption>> call(String dealId) async {
+    return repository.redeemDeal(dealId);
   }
 }

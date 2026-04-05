@@ -14,15 +14,25 @@ class AuthOrDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Divider(color: AppColors.backgroundGrey)),
+        Expanded(
+          child: Divider(
+            color: AppColors.backgroundGrey.withValues(alpha: 0.85),
+            thickness: 1,
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
           child: Text(
             'or',
-            style: AppFonts.bodySmall(color: AppColors.textSecondary),
+            style: AppFonts.bodySmall(color: AppColors.textTertiary),
           ),
         ),
-        Expanded(child: Divider(color: AppColors.backgroundGrey)),
+        Expanded(
+          child: Divider(
+            color: AppColors.backgroundGrey.withValues(alpha: 0.85),
+            thickness: 1,
+          ),
+        ),
       ],
     );
   }
@@ -36,23 +46,30 @@ class GoogleSignInButton extends StatelessWidget {
     this.label = 'Continue with Google',
     this.height = AppResources.buttonHeightM,
     this.borderRadius = AppResources.radiusM,
+    this.foregroundColor,
+    this.borderColor,
   });
 
   final VoidCallback? onPressed;
   final String label;
   final double height;
   final double borderRadius;
+  final Color? foregroundColor;
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
+    final fg = foregroundColor ?? AppColors.textPrimary;
+    final border = borderColor ?? AppColors.backgroundGrey;
     return SizedBox(
       width: double.infinity,
       height: height,
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
-          side: BorderSide(color: AppColors.backgroundGrey),
+          foregroundColor: fg,
+          backgroundColor: AppColors.backgroundWhite,
+          side: BorderSide(color: border),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(borderRadius),
           ),
@@ -69,8 +86,9 @@ class GoogleSignInButton extends StatelessWidget {
             const SizedBox(width: AppResources.spacingM),
             Text(
               label,
-              style: AppFonts.button(color: AppColors.textPrimary).copyWith(
+              style: AppFonts.button(color: fg).copyWith(
                 height: 1.0,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

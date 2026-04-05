@@ -14,50 +14,34 @@ class BusinessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final categoryLine = _categoryDistanceLine();
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.backgroundGrey.withValues(alpha:0.3)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.backgroundGrey.withValues(alpha: 0.35),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha:0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-              spreadRadius: 0,
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha:0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-              spreadRadius: 0,
+              color: Colors.black.withValues(alpha: 0.07),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                business.imageUrl,
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 80,
-                    height: 80,
-                    color: AppColors.backgroundGrey,
-                    child: const Icon(Icons.business, size: 32, color: AppColors.textSecondary),
-                  );
-                },
-              ),
+              borderRadius: BorderRadius.circular(12),
+              child: _buildThumb(),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,40 +50,52 @@ class BusinessCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          business.name,
+                          business.name.trim().isEmpty
+                              ? 'Business'
+                              : business.name,
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w800,
                             color: AppColors.textPrimary,
+                            letterSpacing: -0.2,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (business.isVerified)
-                        const Icon(
-                          Icons.verified,
-                          size: 16,
-                          color: AppColors.brandPrimary,
+                        const Padding(
+                          padding: EdgeInsets.only(left: 4),
+                          child: Icon(
+                            Icons.verified,
+                            size: 18,
+                            color: AppColors.customerHomePrimary,
+                          ),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
-                    '${business.category} • ${_formatDistance(business.distance)}',
-                    style: const TextStyle(
+                    categoryLine,
+                    style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textSecondary,
+                      color: AppColors.textSecondary.withValues(alpha: 0.95),
+                      fontWeight: FontWeight.w500,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  if (business.status != null) ...[
+                  if (business.status != null && business.status!.trim().isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
                       business.status!,
                       style: const TextStyle(
                         fontSize: 12,
-                        color: AppColors.brandPrimary,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.customerHomePrimary,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ],
@@ -110,29 +106,33 @@ class BusinessCard extends StatelessWidget {
                 Row(
                   children: [
                     const Icon(
-                      Icons.star,
-                      size: 18,
-                      color: Colors.amber,
+                      Icons.star_rounded,
+                      size: 22,
+                      color: Color(0xFFFFC107),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     Text(
-                      business.rating.toStringAsFixed(1),
+                      business.rating.isFinite
+                          ? business.rating.toStringAsFixed(1)
+                          : '—',
                       style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '(${business.reviewCount})',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
+                if (business.reviewCount > 0) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '(${business.reviewCount})',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ],
@@ -141,10 +141,60 @@ class BusinessCard extends StatelessWidget {
     );
   }
 
+  String _categoryDistanceLine() {
+    final cat = business.category.trim();
+    final dist = _formatDistance(business.distance);
+    if (cat.isEmpty) return dist;
+    return '$cat • $dist';
+  }
+
   String _formatDistance(double distance) {
-    if (distance < 1.0) {
-      return '${(distance * 10).round() / 10} mi';
+    if (!distance.isFinite || distance < 0) return '—';
+    if (distance < 10) {
+      final rounded = (distance * 10).round() / 10;
+      return '${rounded == rounded.roundToDouble() ? rounded.toStringAsFixed(0) : rounded.toStringAsFixed(1)} mi';
     }
     return '${distance.toStringAsFixed(1)} mi';
+  }
+
+  Widget _buildThumb() {
+    final url = business.imageUrl.trim();
+    if (url.isEmpty) {
+      return Container(
+        width: 80,
+        height: 80,
+        color: AppColors.backgroundLight,
+        child: const Icon(Icons.storefront, size: 36, color: AppColors.textSecondary),
+      );
+    }
+    return Image.network(
+      url,
+      width: 80,
+      height: 80,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return Container(
+          width: 80,
+          height: 80,
+          color: AppColors.backgroundLight,
+          child: const Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          width: 80,
+          height: 80,
+          color: AppColors.backgroundGrey,
+          child: const Icon(Icons.business, size: 32, color: AppColors.textSecondary),
+        );
+      },
+    );
   }
 }

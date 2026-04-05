@@ -4,8 +4,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../domain/entities/deal.dart';
 import '../bloc/deals_cubit.dart';
 import '../bloc/deals_state.dart';
+import '../widgets/deal_network_image.dart';
 import 'redeem_deal_page.dart';
 import 'business_detail_page.dart';
 
@@ -40,7 +42,7 @@ class DealDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, dynamic deal) {
+  Widget _buildContent(BuildContext context, Deal deal) {
     return CustomScrollView(
       slivers: [
         _buildAppBar(context, deal),
@@ -63,21 +65,38 @@ class DealDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildAppBar(BuildContext context, dynamic deal) {
+  Widget _buildAppBar(BuildContext context, Deal deal) {
     return SliverAppBar(
       expandedHeight: 250,
       pinned: true,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Image.asset(
-          deal.imageUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: AppColors.backgroundGrey,
-              child: const Icon(Icons.local_offer, size: 64, color: AppColors.textSecondary),
-            );
-          },
-        ),
+      flexibleSpace: LayoutBuilder(
+        builder: (context, constraints) {
+          return FlexibleSpaceBar(
+            background: Stack(
+              fit: StackFit.expand,
+              children: [
+                DealNetworkImage(
+                  imageUrl: deal.imageUrl,
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                  fit: BoxFit.cover,
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.5),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
       leading: IconButton(
         icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -92,7 +111,7 @@ class DealDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(dynamic deal) {
+  Widget _buildHeader(Deal deal) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -151,7 +170,7 @@ class DealDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildBusinessInfo(BuildContext context, dynamic deal) {
+  Widget _buildBusinessInfo(BuildContext context, Deal deal) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -172,19 +191,11 @@ class DealDetailPage extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                deal.business.imageUrl,
+              child: DealNetworkImage(
+                imageUrl: deal.business.imageUrl,
                 width: 60,
                 height: 60,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 60,
-                    height: 60,
-                    color: AppColors.backgroundGrey,
-                    child: const Icon(Icons.store, size: 24, color: AppColors.textSecondary),
-                  );
-                },
               ),
             ),
             const SizedBox(width: 12),
@@ -202,7 +213,9 @@ class DealDetailPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    deal.business.categories.first.displayName,
+                    deal.business.categories.isNotEmpty
+                        ? deal.business.categories.first.displayName
+                        : 'Business',
                     style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.textSecondary,
@@ -232,7 +245,7 @@ class DealDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildExpiryTimer(dynamic deal) {
+  Widget _buildExpiryTimer(Deal deal) {
     if (deal.expiresAt == null) return const SizedBox.shrink();
 
     final now = DateTime.now();
@@ -308,7 +321,7 @@ class DealDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDealDetails(dynamic deal) {
+  Widget _buildDealDetails(Deal deal) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -360,7 +373,7 @@ class DealDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTermsAndConditions(dynamic deal) {
+  Widget _buildTermsAndConditions(Deal deal) {
     if (deal.termsAndConditions == null) return const SizedBox.shrink();
 
     return Padding(
@@ -390,7 +403,7 @@ class DealDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildLocation(BuildContext context, dynamic deal) {
+  Widget _buildLocation(BuildContext context, Deal deal) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -460,7 +473,7 @@ class DealDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildRedeemButton(BuildContext context, dynamic deal) {
+  Widget _buildRedeemButton(BuildContext context, Deal deal) {
     if (!deal.isRedeemable) return const SizedBox.shrink();
 
     return Padding(

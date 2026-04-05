@@ -1,12 +1,20 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../domain/entities/deal.dart';
 import '../bloc/deals_cubit.dart';
 import '../bloc/deals_state.dart';
+import '../widgets/deal_network_image.dart';
 
 class RedeemDealPage extends StatelessWidget {
   final String dealId;
@@ -38,7 +46,12 @@ class RedeemDealPage extends StatelessWidget {
             }
 
             if (state is RedeemDealLoaded) {
-              return _buildContent(context, state.deal, state.redemptionCode);
+              return _buildContent(
+                context,
+                state.deal,
+                state.redemptionCode,
+                state.redemptionId,
+              );
             }
 
             return const SizedBox.shrink();
@@ -48,17 +61,30 @@ class RedeemDealPage extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, dynamic deal, String redemptionCode) {
+  Widget _buildContent(
+    BuildContext context,
+    Deal deal,
+    String redemptionCode,
+    String redemptionId,
+  ) {
+    final qrPayload = jsonEncode({
+      'id': redemptionId,
+      'code': redemptionCode,
+      'dealId': deal.id,
+    });
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           _buildDealInfo(deal),
           const SizedBox(height: 24),
-          _buildQRCode(redemptionCode),
-          const SizedBox(height: 24),
-          _buildRedemptionCode(redemptionCode),
+          _buildQRCode(qrPayload),
           const SizedBox(height: 16),
+          _buildRedemptionCode(redemptionCode),
+          const SizedBox(height: 8),
+          _buildRedemptionIdRow(context, redemptionId),
+          const SizedBox(height: 24),
           _buildInstructions(),
           const SizedBox(height: 32),
           _buildActionButtons(context, deal),
@@ -67,7 +93,11 @@ class RedeemDealPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDealInfo(dynamic deal) {
+  Widget _buildDealInfo(Deal deal) {
+    final expiresLine = deal.expiresAt != null
+        ? DateFormat('EEE, MMM d • h:mm a').format(deal.expiresAt!.toLocal())
+        : 'See deal for validity';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -78,19 +108,11 @@ class RedeemDealPage extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              deal.business.imageUrl,
+            child: DealNetworkImage(
+              imageUrl: deal.business.imageUrl,
               width: 60,
               height: 60,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 60,
-                  height: 60,
-                  color: AppColors.backgroundGrey,
-                  child: const Icon(Icons.store, size: 24, color: AppColors.textSecondary),
-                );
-              },
             ),
           ),
           const SizedBox(width: 12),
@@ -109,13 +131,16 @@ class RedeemDealPage extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today, size: 14, color: AppColors.textSecondary),
+                    const Icon(Icons.calendar_today,
+                        size: 14, color: AppColors.textSecondary),
                     const SizedBox(width: 4),
-                    Text(
-                      'Sat, Dec 12 • 8:00 PM',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                    Expanded(
+                      child: Text(
+                        expiresLine,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -123,16 +148,19 @@ class RedeemDealPage extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.location_on, size: 14, color: AppColors.textSecondary),
+                    const Icon(Icons.location_on,
+                        size: 14, color: AppColors.textSecondary),
                     const SizedBox(width: 4),
-                    Text(
-                      deal.business.fullAddress,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                    Expanded(
+                      child: Text(
+                        deal.business.fullAddress,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -144,7 +172,7 @@ class RedeemDealPage extends StatelessWidget {
     );
   }
 
-  Widget _buildQRCode(String code) {
+  Widget _buildQRCode(String data) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -152,14 +180,14 @@ class RedeemDealPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: QrImageView(
-        data: code,
+        data: data,
         version: QrVersions.auto,
         size: 250,
         backgroundColor: Colors.white,
@@ -171,7 +199,7 @@ class RedeemDealPage extends StatelessWidget {
     return Column(
       children: [
         const Text(
-          'Redemption Code',
+          'Redemption code',
           style: TextStyle(
             fontSize: 12,
             color: AppColors.textSecondary,
@@ -181,11 +209,46 @@ class RedeemDealPage extends StatelessWidget {
         Text(
           code,
           style: const TextStyle(
-            fontSize: 24,
+            fontSize: 22,
             fontWeight: FontWeight.bold,
             color: AppColors.brandPrimary,
-            letterSpacing: 2,
+            letterSpacing: 1.5,
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRedemptionIdRow(BuildContext context, String redemptionId) {
+    return Column(
+      children: [
+        const Text(
+          'Proof ID (for staff / support)',
+          style: TextStyle(
+            fontSize: 11,
+            color: AppColors.textTertiary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        SelectableText(
+          redemptionId,
+          style: const TextStyle(
+            fontSize: 12,
+            fontFamily: 'monospace',
+            color: AppColors.textSecondary,
+          ),
+        ),
+        TextButton.icon(
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: redemptionId));
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Proof ID copied')),
+              );
+            }
+          },
+          icon: const Icon(Icons.copy, size: 18),
+          label: const Text('Copy proof ID'),
         ),
       ],
     );
@@ -199,7 +262,9 @@ class RedeemDealPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Text(
-        'Present this code to the cashier at checkout to claim your discount.',
+        'Show the QR code or say the redemption code at checkout. '
+        'Staff can confirm the redemption in their dashboard or by looking up the proof ID in Supabase (deal_redemptions). '
+        'Each account can redeem this deal once.',
         style: TextStyle(
           fontSize: 14,
           color: AppColors.textSecondary,
@@ -210,25 +275,45 @@ class RedeemDealPage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, dynamic deal) {
+  Future<void> _openMaps(Deal deal) async {
+    final q = deal.business.fullAddress.trim();
+    if (q.isEmpty) return;
+    final encoded = Uri.encodeComponent(q);
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$encoded',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _callBusiness(Deal deal) async {
+    final raw = deal.business.phone?.replaceAll(RegExp(r'[^\d+]'), '') ?? '';
+    if (raw.isEmpty) return;
+    final uri = Uri.parse('tel:$raw');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  Widget _buildActionButtons(BuildContext context, Deal deal) {
+    final hasPhone =
+        deal.business.phone != null && deal.business.phone!.trim().isNotEmpty;
+
     return Row(
       children: [
         Expanded(
           child: AppOutlinedButton(
             text: 'Directions',
-            onPressed: () {
-              // Handle directions
-            },
+            onPressed: () => _openMaps(deal),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: AppButton(
-            text: 'Call Business',
+            text: 'Call',
             icon: Icons.phone,
-            onPressed: () {
-              // Handle call
-            },
+            onPressed: hasPhone ? () => _callBusiness(deal) : null,
           ),
         ),
       ],
@@ -237,22 +322,25 @@ class RedeemDealPage extends StatelessWidget {
 
   Widget _buildErrorView(BuildContext context, String message) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: const TextStyle(color: AppColors.textSecondary),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Go Back'),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: const TextStyle(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Go Back'),
+            ),
+          ],
+        ),
       ),
     );
   }

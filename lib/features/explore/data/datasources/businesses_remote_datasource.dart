@@ -2,6 +2,7 @@ import '../../domain/entities/business_list_item.dart';
 import '../../domain/entities/business_detail.dart';
 import '../../domain/entities/business_filters.dart';
 import '../../domain/entities/deal.dart';
+import '../../domain/entities/deal_redemption.dart';
 import '../../domain/entities/my_review.dart';
 import '../../domain/entities/review.dart';
 
@@ -32,7 +33,7 @@ abstract class BusinessesRemoteDataSource {
     List<String>? photoUrls,
   });
 
-  Future<String> redeemDeal(String dealId);
+  Future<DealRedemption> redeemDeal(String dealId);
 
   Future<List<MyReview>> getMyReviews();
   Future<MyReview> updateReview(String reviewId, {int? rating, String? comment});
@@ -94,7 +95,7 @@ class BusinessesRemoteDataSourceImpl implements BusinessesRemoteDataSource {
   }
 
   @override
-  Future<String> redeemDeal(String dealId) async {
+  Future<DealRedemption> redeemDeal(String dealId) async {
     throw UnimplementedError(
       'Use BusinessesSupabaseDataSource; backend must handle redeemDeal.',
     );

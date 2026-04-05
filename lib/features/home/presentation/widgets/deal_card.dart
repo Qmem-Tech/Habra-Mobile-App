@@ -14,89 +14,81 @@ class DealCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final discountLabel = deal.discountPercent <= 0
+        ? 'DEAL'
+        : '${deal.discountPercent.toStringAsFixed(0)}% OFF';
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 280,
-        margin: const EdgeInsets.only(right: 16),
+        width: 288,
+        margin: const EdgeInsets.only(right: 14),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.backgroundGrey.withValues(alpha:0.3)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.backgroundGrey.withValues(alpha: 0.35),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha:0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-              spreadRadius: 0,
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha:0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-              spreadRadius: 0,
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                deal.imageUrl,
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 80,
-                    height: 80,
-                    color: AppColors.backgroundGrey,
-                    child: const Icon(Icons.local_offer, size: 32, color: AppColors.textSecondary),
-                  );
-                },
-              ),
+              borderRadius: BorderRadius.circular(12),
+              child: _buildThumb(),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: AppColors.brandSecondary,
-                      borderRadius: BorderRadius.circular(12),
+                      color: AppColors.customerDealBadgeBg,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      '${deal.discountPercent.toStringAsFixed(0)}% OFF',
+                      discountLabel,
                       style: const TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.customerHomePrimary,
+                        letterSpacing: 0.2,
                       ),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    deal.title,
+                    deal.title.trim().isEmpty ? 'Special offer' : deal.title,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,
+                      letterSpacing: -0.2,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    deal.description,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
+                    deal.description.trim().isEmpty
+                        ? 'Tap to view details'
+                        : deal.description,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary.withValues(alpha: 0.95),
+                      fontWeight: FontWeight.w500,
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -105,6 +97,47 @@ class DealCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildThumb() {
+    final url = deal.imageUrl.trim();
+    if (url.isEmpty) {
+      return Container(
+        width: 84,
+        height: 84,
+        color: AppColors.customerDealBadgeBg,
+        child: const Icon(Icons.local_offer, size: 36, color: AppColors.customerHomePrimary),
+      );
+    }
+    return Image.network(
+      url,
+      width: 84,
+      height: 84,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return Container(
+          width: 84,
+          height: 84,
+          color: AppColors.backgroundLight,
+          child: const Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          width: 84,
+          height: 84,
+          color: AppColors.backgroundGrey,
+          child: const Icon(Icons.local_offer, size: 32, color: AppColors.textSecondary),
+        );
+      },
     );
   }
 }

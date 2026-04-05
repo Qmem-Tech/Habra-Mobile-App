@@ -50,11 +50,8 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-enum _RecommendationFilter { all, businesses, events, deals }
-
 class _HomePageState extends State<HomePage> {
   LocationEntity? _currentLocation;
-  _RecommendationFilter _recommendationFilter = _RecommendationFilter.all;
 
   static const LocationEntity _fallbackMetro = LocationEntity(
     id: 'default',
@@ -70,6 +67,13 @@ class _HomePageState extends State<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _loadHomeData();
     });
+  }
+
+  String _displayFirstName() {
+    final raw = widget.userName.trim();
+    if (raw.isEmpty) return 'there';
+    final first = raw.split(RegExp(r'\s+')).first;
+    return first.isEmpty ? 'there' : first;
   }
 
   String _locationQueryString(BuildContext context) {
@@ -144,9 +148,17 @@ class _HomePageState extends State<HomePage> {
     await _navigateToLocationSelection();
   }
 
+  bool _hasSectionIssues(HomeLoaded s) {
+    return s.eventsError != null ||
+        s.dealsError != null ||
+        s.businessesError != null ||
+        s.jobsError != null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scaffold = Scaffold(
+      backgroundColor: AppColors.backgroundWhite,
       body: SafeArea(
         child: BlocBuilder<HomeCubit, HomeState>(
           builder: (context, state) {
@@ -154,17 +166,15 @@ class _HomePageState extends State<HomePage> {
               return _buildErrorView(state.message);
             }
 
-            if (state is HomeLoading) {
+            if (state is HomeInitial || state is HomeLoading) {
               return const HabraCircularLoader(fullScreen: true);
             }
 
-            if (state is HomeLoaded && state.events.isEmpty &&
-                state.deals.isEmpty && state.businesses.isEmpty &&
-                state.jobs.isEmpty) {
-              return _buildEmptyState();
+            if (state is HomeLoaded) {
+              return _buildLoadedScrollView(state);
             }
 
-            return _buildContent(state);
+            return const HabraCircularLoader(fullScreen: true);
           },
         ),
       ),
@@ -192,26 +202,134 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildContent(HomeState state) {
-    final events = state is HomeLoaded ? state.events : <Event>[];
-    final deals = state is HomeLoaded ? state.deals : <Deal>[];
-    final businesses = state is HomeLoaded ? state.businesses : <Business>[];
-    final jobs = state is HomeLoaded ? state.jobs : <Job>[];
+  Widget _buildLoadedScrollView(HomeLoaded state) {
+    final allEmpty = state.events.isEmpty &&
+        state.deals.isEmpty &&
+        state.businesses.isEmpty &&
+        state.jobs.isEmpty;
+    final fullyQuiet = allEmpty && !_hasSectionIssues(state);
 
-    final hasRecommendations = events.isNotEmpty || deals.isNotEmpty || businesses.isNotEmpty;
+    return RefreshIndicator(
+      color: AppColors.customerHomePrimary,
+      onRefresh: () =>
+          context.read<HomeCubit>().loadHomeData(_homeFeedLocation(context)),
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          _buildHeader(),
+          _buildGreetingSection(),
+          _buildSearchSection(),
+          if (_hasSectionIssues(state)) _buildIssuesBanner(state),
+          if (fullyQuiet)
+            SliverToBoxAdapter(child: _buildRegionalEmptyCard())
+          else ...[
+            _buildEventsSection(state.events, state.eventsError),
+            _buildDealsSection(state.deals, state.dealsError),
+            _buildBusinessesSection(state.businesses, state.businessesError),
+            _buildJobsSection(state.jobs, state.jobsError),
+          ],
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+        ],
+      ),
+    );
+  }
 
-    return CustomScrollView(
-      slivers: [
-        _buildHeader(),
-        _buildGreetingSection(),
-        _buildSearchSection(),
-        if (hasRecommendations) _buildRecommendationsSection(events, deals, businesses),
-        if (events.isNotEmpty) _buildEventsSection(events),
-        if (deals.isNotEmpty) _buildDealsSection(deals),
-        if (businesses.isNotEmpty) _buildBusinessesSection(businesses),
-        if (jobs.isNotEmpty) _buildJobsSection(jobs),
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
-      ],
+  Widget _buildIssuesBanner(HomeLoaded state) {
+    final lines = <String>[];
+    if (state.eventsError != null) {
+      lines.add('Events: ${state.eventsError!}');
+    }
+    if (state.dealsError != null) {
+      lines.add('Deals: ${state.dealsError!}');
+    }
+    if (state.businessesError != null) {
+      lines.add('Businesses: ${state.businessesError!}');
+    }
+    if (state.jobsError != null) {
+      lines.add('Jobs: ${state.jobsError!}');
+    }
+    if (lines.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Material(
+          color: AppColors.warning.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, color: AppColors.warning, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    lines.join('\n'),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _loadHomeData,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegionalEmptyCard() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+      child: Column(
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 64,
+            color: AppColors.textSecondary.withValues(alpha: 0.7),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "It's quiet in ${_emptyStateCityLabel(context)}",
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "We haven't found any Habesha businesses or events here yet. The community is growing, but this spot is still untouched.",
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: _loadHomeData,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.customerHomePrimary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Refresh'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -219,56 +337,75 @@ class _HomePageState extends State<HomePage> {
     return SliverAppBar(
       floating: true,
       pinned: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.backgroundWhite,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
       leading: IconButton(
-        icon: const Icon(Icons.menu, color: AppColors.textPrimary),
+        icon: const Icon(Icons.menu, color: AppColors.textPrimary, size: 26),
         onPressed: () {
           MainNavScope.maybeOf(context)?.scaffoldKey.currentState?.openDrawer();
         },
       ),
-      centerTitle: false,
+      centerTitle: true,
       title: GestureDetector(
         onTap: _onLocationChipTapped,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          constraints: const BoxConstraints(maxWidth: 220),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: AppColors.brandPrimary,
-            borderRadius: BorderRadius.circular(20),
+            color: AppColors.customerLocationPillBg,
+            borderRadius: BorderRadius.circular(24),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.location_on, size: 16, color: Colors.white),
-              const SizedBox(width: 4),
+              const Icon(
+                Icons.location_on,
+                size: 18,
+                color: AppColors.customerHomePrimary,
+              ),
+              const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   _locationChipLabel(context),
                   style: const TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.customerHomePrimary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(Icons.arrow_drop_down, size: 16, color: Colors.white),
+              const Icon(
+                Icons.keyboard_arrow_down,
+                size: 20,
+                color: AppColors.customerHomePrimary,
+              ),
             ],
           ),
         ),
       ),
       actions: [
-        NotificationIconWithBadge(
-          userId: MainNavScope.maybeOf(context)?.userId,
-          onOpenNotifications: () async {
-            final scope = MainNavScope.maybeOf(context);
-            await Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => NotificationPage(userId: scope?.userId),
-              ),
-            );
-          },
+        Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Material(
+            color: AppColors.backgroundLight,
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: NotificationIconWithBadge(
+              userId: MainNavScope.maybeOf(context)?.userId,
+              iconColor: AppColors.textPrimary,
+              onOpenNotifications: () async {
+                final scope = MainNavScope.maybeOf(context);
+                await Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => NotificationPage(userId: scope?.userId),
+                  ),
+                );
+              },
+            ),
+          ),
         ),
       ],
     );
@@ -277,131 +414,17 @@ class _HomePageState extends State<HomePage> {
   Widget _buildGreetingSection() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Selam, ${widget.userName}! 👋',
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ),
-          ],
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+        child: Text(
+          'Selam, ${_displayFirstName()}! 👋',
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.8,
+            height: 1.15,
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildRecommendationsSection(
-    List<Event> events,
-    List<Deal> deals,
-    List<Business> businesses,
-  ) {
-    final filteredEvents = _recommendationFilter == _RecommendationFilter.all ||
-            _recommendationFilter == _RecommendationFilter.events
-        ? events
-        : <Event>[];
-    final filteredDeals = _recommendationFilter == _RecommendationFilter.all ||
-            _recommendationFilter == _RecommendationFilter.deals
-        ? deals
-        : <Deal>[];
-    final filteredBusinesses = _recommendationFilter == _RecommendationFilter.all ||
-            _recommendationFilter == _RecommendationFilter.businesses
-        ? businesses
-        : <Business>[];
-
-    final totalCount =
-        filteredEvents.length + filteredDeals.length + filteredBusinesses.length;
-    if (totalCount == 0) return const SliverToBoxAdapter(child: SizedBox.shrink());
-
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
-            child: Row(
-              children: [
-                // const Icon(Icons.auto_awesome, color: AppColors.brandSecondary, size: 22),
-                const SizedBox(width: 8),
-                const Text(
-                  'Recommended for you',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _RecommendationChip(
-                    label: 'All',
-                    selected: _recommendationFilter == _RecommendationFilter.all,
-                    onTap: () =>
-                        setState(() => _recommendationFilter = _RecommendationFilter.all),
-                  ),
-                  const SizedBox(width: 8),
-                  _RecommendationChip(
-                    label: 'Businesses',
-                    selected: _recommendationFilter == _RecommendationFilter.businesses,
-                    onTap: () => setState(
-                        () => _recommendationFilter = _RecommendationFilter.businesses),
-                  ),
-                  const SizedBox(width: 8),
-                  _RecommendationChip(
-                    label: 'Events',
-                    selected: _recommendationFilter == _RecommendationFilter.events,
-                    onTap: () =>
-                        setState(() => _recommendationFilter = _RecommendationFilter.events),
-                  ),
-                  const SizedBox(width: 8),
-                  _RecommendationChip(
-                    label: 'Deals',
-                    selected: _recommendationFilter == _RecommendationFilter.deals,
-                    onTap: () =>
-                        setState(() => _recommendationFilter = _RecommendationFilter.deals),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 280,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                ...filteredBusinesses.take(5).map(
-                      (b) => Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: _RecommendationBusinessCard(business: b),
-                      ),
-                    ),
-                ...filteredEvents.take(5).map(
-                      (e) => EventCard(event: e),
-                    ),
-                ...filteredDeals.take(5).map(
-                      (d) => DealCard(deal: d),
-                    ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
       ),
     );
   }
@@ -409,35 +432,36 @@ class _HomePageState extends State<HomePage> {
   Widget _buildSearchSection() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
         child: GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SearchPage()),
-          ),
+          onTap: () async {
+            await Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const SearchPage()),
+            );
+          },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.backgroundGrey.withValues(alpha:0.5)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha:0.03),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+              color: AppColors.backgroundLight,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.backgroundGrey.withValues(alpha: 0.35),
+              ),
             ),
             child: Row(
               children: [
-                Icon(Icons.search, color: AppColors.textSecondary.withValues(alpha:0.7), size: 20),
+                Icon(
+                  Icons.search,
+                  color: AppColors.textTertiary,
+                  size: 22,
+                ),
                 const SizedBox(width: 12),
                 Text(
                   'Find business, event...',
                   style: TextStyle(
-                    fontSize: 15,
-                    color: AppColors.textSecondary,
+                    fontSize: 16,
+                    color: AppColors.textSecondary.withValues(alpha: 0.85),
                     fontWeight: FontWeight.w400,
                   ),
                 ),
@@ -449,334 +473,372 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildEventsSection(List<Event> events) {
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _sectionTitleRow({
+    required String title,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 28, 16, 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Happening This Week',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    // Navigate to Events tab in the main navigation
-                    MainNavigationWrapper.navigateToTab(context, 1);
-                  },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text(
-                    'View All >',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.brandPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 280,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: events.length,
-              itemBuilder: (context, index) {
-                final event = events[index];
-                return EventCard(
-                  event: event,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EventDetailPage(eventId: event.id),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDealsSection(List<Deal> deals) {
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 28, 16, 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Hot Deals Near You',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DealsPage()),
-                    );
-                  },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text(
-                    'View All >',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.brandPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 120,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: deals.length,
-              itemBuilder: (context, index) {
-                final deal = deals[index];
-                return DealCard(
-                  deal: deal,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => DealDetailPage(dealId: deal.id),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBusinessesSection(List<Business> businesses) {
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 28, 16, 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Popular Businesses',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DirectoryPage()),
-                    );
-                  },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text(
-                    'View All',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.brandPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: businesses.length,
-              itemBuilder: (context, index) {
-                final b = businesses[index];
-                return BusinessCard(
-                  business: b,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BusinessDetailPage(businessId: b.id),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildJobsSection(List<Job> jobs) {
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 28, 16, 16),
-            child: const Text(
-              'Latest Jobs',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-                letterSpacing: -0.3,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: jobs.length,
-              itemBuilder: (context, index) {
-                final job = jobs[index];
-                return JobCard(
-                  job: job,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => JobDetailPage(jobId: job.id),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.search_off,
-            size: 80,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            "It's quiet in ${_emptyStateCityLabel(context)}",
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
+          Expanded(
             child: Text(
-              "We haven't found any Habesha businesses or events here yet. The community is growing, but this spot is still untouched.",
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: _loadHomeData,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.brandPrimary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.4,
               ),
             ),
-            child: const Text('Refresh'),
           ),
+          if (actionLabel != null && onAction != null)
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: AppColors.customerHomePrimary,
+              ),
+              child: Text(
+                actionLabel,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionMessage({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundLight,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: AppColors.backgroundGrey.withValues(alpha: 0.4),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.textSecondary, size: 28),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  if (subtitle != null && subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventsSection(List<Event> events, String? error) {
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitleRow(
+            title: 'Happening This Week',
+            actionLabel: 'View All >',
+            onAction: () {
+              MainNavigationWrapper.navigateToTab(context, 1);
+            },
+          ),
+          if (error != null)
+            _sectionMessage(
+              icon: Icons.wifi_off_outlined,
+              title: "Couldn't load events",
+              subtitle: error,
+            )
+          else if (events.isEmpty)
+            _sectionMessage(
+              icon: Icons.event_outlined,
+              title: 'No events this week',
+              subtitle: 'Check back soon for concerts, gatherings, and more near you.',
+            )
+          else
+            SizedBox(
+              height: 320,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: events.length,
+                itemBuilder: (context, index) {
+                  final event = events[index];
+                  return EventCard(
+                    event: event,
+                    onTap: () async {
+                      await Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => EventDetailPage(eventId: event.id),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDealsSection(List<Deal> deals, String? error) {
+    final topDeals = deals.take(4).toList();
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitleRow(
+            title: 'Hot Deals Near You',
+            actionLabel: 'View All >',
+            onAction: () async {
+              await Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(builder: (_) => const DealsPage()),
+              );
+            },
+          ),
+          if (error != null)
+            _sectionMessage(
+              icon: Icons.wifi_off_outlined,
+              title: "Couldn't load deals",
+              subtitle: error,
+            )
+          else if (topDeals.isEmpty)
+            _sectionMessage(
+              icon: Icons.local_offer_outlined,
+              title: 'No deals right now',
+              subtitle: 'Nearby specials will show up here when businesses post them.',
+            )
+          else
+            SizedBox(
+              height: 124,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: topDeals.length,
+                itemBuilder: (context, index) {
+                  final deal = topDeals[index];
+                  return DealCard(
+                    deal: deal,
+                    onTap: () async {
+                      await Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => DealDetailPage(dealId: deal.id),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBusinessesSection(List<Business> businesses, String? error) {
+    final topBusinesses = businesses.take(4).toList();
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitleRow(
+            title: 'Popular Businesses',
+            actionLabel: 'View All >',
+            onAction: () async {
+              await Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(builder: (_) => const DirectoryPage()),
+              );
+            },
+          ),
+          if (error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _sectionMessage(
+                icon: Icons.wifi_off_outlined,
+                title: "Couldn't load businesses",
+                subtitle: error,
+              ),
+            )
+          else if (topBusinesses.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _sectionMessage(
+                icon: Icons.storefront_outlined,
+                title: 'No businesses to show',
+                subtitle: 'Try another area or check back as more places join Habra.',
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: topBusinesses.length,
+                itemBuilder: (context, index) {
+                  final b = topBusinesses[index];
+                  return BusinessCard(
+                    business: b,
+                    onTap: () async {
+                      await Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => BusinessDetailPage(businessId: b.id),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJobsSection(List<Job> jobs, String? error) {
+    final topJobs = jobs.take(4).toList();
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitleRow(
+            title: 'Latest Jobs',
+            actionLabel: 'View All >',
+            onAction: () {
+              MainNavigationWrapper.navigateToTab(context, 3);
+            },
+          ),
+          if (error != null)
+            _sectionMessage(
+              icon: Icons.wifi_off_outlined,
+              title: "Couldn't load jobs",
+              subtitle: error,
+            )
+          else if (topJobs.isEmpty)
+            _sectionMessage(
+              icon: Icons.work_outline,
+              title: 'No jobs available at the moment',
+              subtitle: 'New roles from local businesses will appear here.',
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: topJobs.length,
+                itemBuilder: (context, index) {
+                  final job = topJobs[index];
+                  return JobCard(
+                    job: job,
+                    onTap: () async {
+                      await Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => JobDetailPage(jobId: job.id),
+                        ),
+                      );
+                    },
+                    onApply: () async {
+                      await Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => JobDetailPage(jobId: job.id),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildErrorView(String message) {
+    final safeMessage = message.trim().isEmpty
+        ? 'Something went wrong. Please try again.'
+        : message;
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-          const SizedBox(height: 16),
-          Text(
-            'Error loading data',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            style: TextStyle(color: AppColors.textSecondary),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _loadHomeData,
-            child: const Text('Retry'),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            const SizedBox(height: 16),
+            const Text(
+              'Could not load your feed',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              safeMessage,
+              style: const TextStyle(color: AppColors.textSecondary, height: 1.35),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: _loadHomeData,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.customerHomePrimary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
       ),
     );
   }
-
 
   Future<void> _navigateToLocationSelection() async {
     final result = await Navigator.push<LocationEntity>(
@@ -793,130 +855,5 @@ class _HomePageState extends State<HomePage> {
       });
     }
     _loadHomeData();
-  }
-}
-
-class _RecommendationChip extends StatelessWidget {
-  const _RecommendationChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.brandPrimary : AppColors.backgroundLight,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: selected ? AppColors.brandPrimary : AppColors.backgroundGrey,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : AppColors.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RecommendationBusinessCard extends StatelessWidget {
-  const _RecommendationBusinessCard({required this.business});
-
-  final Business business;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => BusinessDetailPage(businessId: business.id),
-          ),
-        );
-      },
-      child: Container(
-        width: 200,
-        height:150,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: Image.network(
-                business.imageUrl,
-                height: 120,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  height: 120,
-                  color: AppColors.backgroundGrey,
-                  child: const Icon(Icons.store, size: 40, color: AppColors.textSecondary),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    business.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.star, size: 16, color: Colors.amber),
-                      const SizedBox(width: 4),
-                      Text(
-                        business.rating.toStringAsFixed(1),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

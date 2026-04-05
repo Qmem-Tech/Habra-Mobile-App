@@ -21,15 +21,34 @@ class HomeLoaded extends HomeState {
   final List<Business> businesses;
   final List<Job> jobs;
 
+  /// Set when the corresponding feed failed; UI can show a section-level message.
+  final String? eventsError;
+  final String? dealsError;
+  final String? businessesError;
+  final String? jobsError;
+
   const HomeLoaded({
     required this.events,
     required this.deals,
     required this.businesses,
     required this.jobs,
+    this.eventsError,
+    this.dealsError,
+    this.businessesError,
+    this.jobsError,
   });
 
   @override
-  List<Object?> get props => [events, deals, businesses, jobs];
+  List<Object?> get props => [
+        events,
+        deals,
+        businesses,
+        jobs,
+        eventsError,
+        dealsError,
+        businessesError,
+        jobsError,
+      ];
 }
 
 class HomeError extends HomeState {

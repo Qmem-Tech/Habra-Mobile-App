@@ -49,20 +49,26 @@ class DealsCubit extends Cubit<DealsState> {
   Future<void> redeemDeal(String dealId) async {
     emit(RedeemDealLoading());
 
-    // First get the deal detail
     final dealResult = await getDealDetailUseCase(dealId);
-
-    dealResult.fold(
-      (failure) => emit(RedeemDealError(failure.message)),
-      (deal) async {
-        // Then redeem it
-        final redeemResult = await redeemDealUseCase(dealId);
-
-        redeemResult.fold(
-          (failure) => emit(RedeemDealError(failure.message)),
-          (code) => emit(RedeemDealLoaded(redemptionCode: code, deal: deal)),
-        );
+    final deal = dealResult.fold<Deal?>(
+      (failure) {
+        emit(RedeemDealError(failure.message));
+        return null;
       },
+      (d) => d,
+    );
+    if (deal == null) return;
+
+    final redeemResult = await redeemDealUseCase(dealId);
+    redeemResult.fold(
+      (failure) => emit(RedeemDealError(failure.message)),
+      (redemption) => emit(
+        RedeemDealLoaded(
+          redemptionCode: redemption.code,
+          redemptionId: redemption.id,
+          deal: deal,
+        ),
+      ),
     );
   }
 }

@@ -60,15 +60,17 @@ class RedeemDealLoading extends DealsState {}
 
 class RedeemDealLoaded extends DealsState {
   final String redemptionCode;
+  final String redemptionId;
   final Deal deal;
 
   const RedeemDealLoaded({
     required this.redemptionCode,
+    required this.redemptionId,
     required this.deal,
   });
 
   @override
-  List<Object?> get props => [redemptionCode, deal];
+  List<Object?> get props => [redemptionCode, redemptionId, deal];
 }
 
 class RedeemDealError extends DealsState {

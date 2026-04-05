@@ -13,9 +13,25 @@ import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
 import 'email_sign_up_page.dart';
+import 'phone_sign_up_page.dart';
 import 'sign_in_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import '../widgets/social_auth_widgets.dart';
+
+bool _isUserCancelledOAuthMessage(String message) {
+  final m = message.toLowerCase().trim();
+  if (m.isEmpty) return false;
+  if (m.contains('12501')) return true;
+  if (m.contains('sign_in_canceled') || m.contains('sign_in_cancelled')) {
+    return true;
+  }
+  if (m.contains('user canceled') || m.contains('user cancelled')) return true;
+  if (m.contains('canceled') || m.contains('cancelled')) return true;
+  if (m.contains('cancel')) return true;
+  if (m.contains('user denied')) return true;
+  if (m.contains('authorizationerrorcode.canceled')) return true;
+  return false;
+}
 
 class SignUpOptionsPage extends StatelessWidget {
   const SignUpOptionsPage({super.key, this.selectedRole});
@@ -46,18 +62,27 @@ class SignUpOptionsPage extends StatelessWidget {
     );
   }
 
+  void _onAuthListen(BuildContext context, AuthState state) {
+    if (state is AuthError) {
+      if (_isUserCancelledOAuthMessage(state.message)) {
+        context.read<AuthCubit>().resetToInitial();
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(state.message)),
+      );
+      context.read<AuthCubit>().resetToInitial();
+    } else if (state is AuthAuthenticated) {
+      _handleNavigationForUser(context, state.user);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<AuthCubit, AuthState>(
-      listener: (context, state) {
-        if (state is AuthError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
-          );
-        } else if (state is AuthAuthenticated) {
-          _handleNavigationForUser(context, state.user);
-        }
-      },
+      listenWhen: (prev, curr) =>
+          curr is AuthError || curr is AuthAuthenticated,
+      listener: _onAuthListen,
       builder: (context, state) {
         final showApple =
             !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
@@ -65,6 +90,8 @@ class SignUpOptionsPage extends StatelessWidget {
             (defaultTargetPlatform == TargetPlatform.android ||
                 defaultTargetPlatform == TargetPlatform.iOS);
         final isLoading = state is AuthLoading;
+        final hasSocial = showGoogle || showApple;
+
         return PopScope(
           canPop: false,
           onPopInvokedWithResult: (didPop, result) {
@@ -78,6 +105,7 @@ class SignUpOptionsPage extends StatelessWidget {
             backgroundColor: AppColors.backgroundWhite,
             appBar: AppBar(
               backgroundColor: AppColors.backgroundWhite,
+              surfaceTintColor: Colors.transparent,
               elevation: 0,
               leading: IconButton(
                 icon: const Icon(
@@ -92,151 +120,253 @@ class SignUpOptionsPage extends StatelessWidget {
               ),
             ),
             body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppResources.spacingL,
-            vertical: AppResources.spacingM,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: AppResources.spacingXL),
-
-              // Title aligned with business sign-in pattern (Figma: Community + sign up)
-              RichText(
-                text: TextSpan(
-                  style: AppFonts.largeTitle(color: AppColors.textPrimary),
-                  children: [
-                    TextSpan(
-                      text: 'Community ',
-                      style: AppFonts.largeTitle(color: AppColors.brandSecondary),
-                    ),
-                    const TextSpan(text: 'sign up'),
-                  ],
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppResources.spacingL,
+                  vertical: AppResources.spacingS,
                 ),
-              ),
-              const SizedBox(height: AppResources.spacingM),
-
-              // Subtitle
-              Text(
-                'Discover local businesses & connect with your people.',
-                style: AppFonts.body(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: AppResources.spacingXXL),
-
-              // Continue with Email button
-              _buildSignUpButton(
-                icon: Icons.email,
-                label: 'Continue with Email',
-                backgroundColor: AppColors.brandPrimary,
-                textColor: AppColors.textOnPrimary,
-                iconColor: AppColors.textOnPrimary,
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => EmailSignUpPage(
-                        selectedRole: selectedRole ?? UserRole.customer,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: AppResources.spacingM),
+                    RichText(
+                      text: TextSpan(
+                        style: AppFonts.largeTitle(color: AppColors.textPrimary)
+                            .copyWith(
+                          fontWeight: FontWeight.bold,
+                          height: 1.15,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: 'User',
+                            style: AppFonts.largeTitle(
+                              color: AppColors.brandSecondary,
+                            ).copyWith(
+                              fontWeight: FontWeight.bold,
+                              height: 1.15,
+                            ),
+                          ),
+                          const TextSpan(text: ' account sign up'),
+                        ],
                       ),
                     ),
-                  );
-                },
-              ),
-              if (showApple) ...[
-                const SizedBox(height: AppResources.spacingM),
-                SignInWithAppleButton(
-                  onPressed: () {
-                    if (isLoading) return;
-                    context.read<AuthCubit>().signInWithApple();
-                  },
-                  text: 'Continue with Apple',
-                  style: SignInWithAppleButtonStyle.black,
-                  height: AppResources.buttonHeightM,
-                ),
-              ],
-              if (showGoogle) ...[
-                if (showApple) const SizedBox(height: AppResources.spacingM),
-                GoogleSignInButton(
-                  onPressed: isLoading
-                      ? null
-                      : () => context.read<AuthCubit>().signInWithGoogle(),
-                ),
-              ],
-              const SizedBox(height: AppResources.spacingM),
-              const SizedBox(height: AppResources.spacingXXL),
+                    const SizedBox(height: AppResources.spacingM),
+                    Text(
+                      'Discover local businesses & connect with your people.',
+                      style: AppFonts.body(color: AppColors.textSecondary)
+                          .copyWith(height: 1.4, fontSize: 16),
+                    ),
+                    const SizedBox(height: AppResources.spacingXXL),
 
-              // Login prompt
-              Center(
-                child: RichText(
-                  text: TextSpan(
-                    style: AppFonts.body(color: AppColors.textSecondary),
-                    children: [
-                      const TextSpan(text: 'Already have an account? '),
-                      WidgetSpan(
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => const SignInPage(),
-                              ),
-                            );
+                    _PrimarySignUpButton(
+                      icon: Icons.mail_outline_rounded,
+                      label: 'Continue with Email',
+                      onPressed: isLoading
+                          ? null
+                          : () {
+                              Navigator.of(context).push<void>(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => EmailSignUpPage(
+                                    selectedRole:
+                                        selectedRole ?? UserRole.customer,
+                                  ),
+                                ),
+                              );
+                            },
+                    ),
+                    const SizedBox(height: AppResources.spacingM),
+                    _OutlinedSignUpButton(
+                      icon: Icons.phone_android_rounded,
+                      label: 'Continue with Phone',
+                      onPressed: isLoading
+                          ? null
+                          : () {
+                              Navigator.of(context).push<void>(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const PhoneSignUpPage(),
+                                ),
+                              );
+                            },
+                    ),
+
+                    if (hasSocial) ...[
+                      const SizedBox(height: AppResources.spacingL),
+                      const AuthOrDivider(),
+                      const SizedBox(height: AppResources.spacingL),
+                    ],
+
+                    if (showGoogle) ...[
+                      GoogleSignInButton(
+                        height: AppResources.buttonHeightL,
+                        borderRadius: AppResources.radiusL,
+                        foregroundColor: AppColors.textSecondary,
+                        borderColor:
+                            AppColors.backgroundGrey.withValues(alpha: 0.9),
+                        onPressed: isLoading
+                            ? null
+                            : () => context
+                                .read<AuthCubit>()
+                                .signInWithGoogle(),
+                      ),
+                      if (showApple) const SizedBox(height: AppResources.spacingM),
+                    ],
+
+                    if (showApple)
+                      SizedBox(
+                        width: double.infinity,
+                        height: AppResources.buttonHeightL,
+                        child: SignInWithAppleButton(
+                          onPressed: () {
+                            if (isLoading) return;
+                            context.read<AuthCubit>().signInWithApple();
                           },
-                          child: Text(
-                            'Log in',
-                            style: AppFonts.body(color: AppColors.brandSecondary),
+                          text: 'Continue with Apple',
+                          style: SignInWithAppleButtonStyle.black,
+                          height: AppResources.buttonHeightL,
+                          borderRadius: BorderRadius.circular(
+                            AppResources.radiusL,
                           ),
                         ),
                       ),
-                    ],
-                  ),
+
+                    SizedBox(
+                      height: AppResources.spacingXXL +
+                          MediaQuery.paddingOf(context).bottom,
+                    ),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Already have an account? ',
+                          style: AppFonts.body(color: AppColors.textSecondary),
+                        ),
+                        TextButton(
+                          onPressed: isLoading
+                              ? null
+                              : () {
+                                  Navigator.of(context).pushReplacement(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => const SignInPage(),
+                                    ),
+                                  );
+                                },
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            foregroundColor: AppColors.brandSecondary,
+                          ),
+                          child: Text(
+                            'Log in',
+                            style: AppFonts.body(color: AppColors.brandSecondary)
+                                .copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppResources.spacingL),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
             ),
           ),
         );
       },
     );
   }
+}
 
-  Widget _buildSignUpButton({
-    required IconData icon,
-    required String label,
-    required Color backgroundColor,
-    required Color textColor,
-    required Color iconColor,
-    Color? borderColor,
-    required VoidCallback onPressed,
-  }) {
+class _PrimarySignUpButton extends StatelessWidget {
+  const _PrimarySignUpButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: AppResources.buttonHeightM,
-      child: ElevatedButton(
+      height: AppResources.buttonHeightL,
+      child: FilledButton(
         onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
-          foregroundColor: textColor,
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.customerHomePrimary,
+          foregroundColor: AppColors.textOnPrimary,
+          disabledBackgroundColor:
+              AppColors.customerHomePrimary.withValues(alpha: 0.45),
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-          side: borderColor != null
-              ? BorderSide(color: borderColor, width: 1)
-              : null,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppResources.radiusM),
+            borderRadius: BorderRadius.circular(AppResources.radiusL),
           ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: iconColor, size: AppResources.iconSizeM),
+            Icon(icon, size: 22, color: AppColors.textOnPrimary),
             const SizedBox(width: AppResources.spacingM),
             Text(
               label,
-              style: AppFonts.button(color: textColor).copyWith(
+              style: AppFonts.button(color: AppColors.textOnPrimary).copyWith(
+                fontWeight: FontWeight.w600,
                 height: 1.0,
               ),
-              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OutlinedSignUpButton extends StatelessWidget {
+  const _OutlinedSignUpButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: AppResources.buttonHeightL,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.customerHomePrimary,
+          backgroundColor: AppColors.customerLocationPillBg.withValues(
+            alpha: 0.45,
+          ),
+          side: const BorderSide(
+            color: AppColors.customerHomePrimary,
+            width: 1.2,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppResources.radiusL),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 22, color: AppColors.customerHomePrimary),
+            const SizedBox(width: AppResources.spacingM),
+            Text(
+              label,
+              style:
+                  AppFonts.button(color: AppColors.customerHomePrimary).copyWith(
+                fontWeight: FontWeight.w600,
+                height: 1.0,
+              ),
             ),
           ],
         ),

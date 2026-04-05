@@ -12,85 +12,52 @@ class EventCard extends StatelessWidget {
     this.onTap,
   });
 
+  static const double _cardWidth = 300;
+  static const double _imageHeight = 232;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 280,
+        width: _cardWidth,
         margin: const EdgeInsets.only(right: 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha:0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
               spreadRadius: 0,
             ),
             BoxShadow(
-              color: Colors.black.withValues(alpha:0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-              spreadRadius: 0,
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: Stack(
-                children: [
-                  Image.network(
-                    event.imageUrl,
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 180,
-                        color: AppColors.backgroundGrey,
-                        child: const Icon(Icons.event, size: 48, color: AppColors.textSecondary),
-                      );
-                    },
-                  ),
-                  // Gradient overlay for better text readability
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 60,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha:0.3),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildImage(),
             Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     event.title,
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,
-                      height: 1.3,
+                      height: 1.25,
+                      letterSpacing: -0.3,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -98,25 +65,22 @@ class EventCard extends StatelessWidget {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: AppColors.backgroundLight,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Icon(
-                          Icons.access_time,
-                          size: 14,
-                          color: AppColors.textSecondary,
-                        ),
+                      Icon(
+                        Icons.access_time,
+                        size: 17,
+                        color: AppColors.textSecondary.withValues(alpha: 0.9),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        _formatDateTime(event.dateTime),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w500,
+                      Expanded(
+                        child: Text(
+                          _formatDateTime(event.dateTime),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary.withValues(alpha: 0.95),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -130,6 +94,52 @@ class EventCard extends StatelessWidget {
     );
   }
 
+  Widget _buildImage() {
+    final url = event.imageUrl.trim();
+    if (url.isEmpty) {
+      return _imagePlaceholder();
+    }
+    return Image.network(
+      url,
+      height: _imageHeight,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return Container(
+          height: _imageHeight,
+          color: AppColors.backgroundLight,
+          child: const Center(
+            child: SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) => _imagePlaceholder(),
+    );
+  }
+
+  Widget _imagePlaceholder() {
+    return Container(
+      height: _imageHeight,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.customerHomePrimary.withValues(alpha: 0.85),
+            AppColors.brandPrimaryLight.withValues(alpha: 0.75),
+          ],
+        ),
+      ),
+      child: const Icon(Icons.event, size: 56, color: Colors.white70),
+    );
+  }
+
   String _formatDateTime(DateTime dateTime) {
     final weekday = _getWeekday(dateTime.weekday);
     final time = _formatTime(dateTime);
@@ -137,8 +147,10 @@ class EventCard extends StatelessWidget {
   }
 
   String _getWeekday(int weekday) {
-    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    return weekdays[weekday % 7];
+    // DateTime.weekday: Monday = 1 … Sunday = 7
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    if (weekday < 1 || weekday > 7) return '';
+    return weekdays[weekday - 1];
   }
 
   String _formatTime(DateTime dateTime) {

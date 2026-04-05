@@ -1,4 +1,4 @@
-import 'dart:math' show Random;
+import 'dart:math';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,6 +10,7 @@ import '../../domain/entities/business_detail.dart';
 import '../../domain/entities/business_filters.dart';
 import '../../domain/entities/business_list_item.dart';
 import '../../domain/entities/deal.dart';
+import '../../domain/entities/deal_redemption.dart';
 import '../../domain/entities/my_review.dart';
 import '../../domain/entities/review.dart';
 import '../models/review_model.dart';
@@ -381,7 +382,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
       var query = _client
           .from('deals')
           .select(
-            '*, businesses!deals_business_id_fkey(id, name, address_city, address_state, logo_url, image_urls, business_categories(categories(id, name, slug)))',
+            '*, businesses!deals_business_id_fkey(id, name, address_street, address_city, address_state, logo_url, image_urls, phone, rating, review_count, business_categories(categories(id, name, slug)))',
           )
           .eq('status', 'active')
           .gte('valid_until', DateTime.now().toIso8601String())
@@ -400,19 +401,23 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
         if (biz is Map<String, dynamic>) {
           final bid = parseString(biz['id']);
           final bname = parseStringRequired(biz['name']);
+          final logoUrl = parseString(biz['logo_url']);
+          final imageUrls = parseStringList(biz['image_urls']);
+          final bImage = logoUrl ?? (imageUrls.isNotEmpty ? imageUrls.first : '') ?? '';
           b = BusinessListItem(
             id: bid ?? '',
             name: bname,
-            imageUrl: parseString(biz['logo_url']) ?? '',
+            imageUrl: bImage,
             categories: _categoriesFromRow(biz),
             listingCategoryIds: _listingCategoryIdsFromRow(biz),
-            address: '',
+            address: parseStringRequired(biz['address_street']),
             city: parseStringRequired(biz['address_city']),
             state: parseStringRequired(biz['address_state']),
-            rating: 0,
-            reviewCount: 0,
+            rating: parseDouble(biz['rating']) ?? 0.0,
+            reviewCount: parseInt(biz['review_count']) ?? 0,
             isOpen: true,
             isFeatured: false,
+            phone: parseString(biz['phone']),
           );
         }
         return _rowToDeal(row, b);
@@ -426,7 +431,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
       final res = await _client
           .from('deals')
           .select(
-            '*, businesses!deals_business_id_fkey(id, name, address_city, address_state, logo_url, image_urls, business_categories(categories(id, name, slug)))',
+            '*, businesses!deals_business_id_fkey(id, name, address_street, address_city, address_state, logo_url, image_urls, phone, rating, review_count, business_categories(categories(id, name, slug)))',
           )
           .eq('id', dealId)
           .maybeSingle();
@@ -444,23 +449,37 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
       final biz = row['businesses'];
       if (biz is Map<String, dynamic>) {
         final bid = parseString(biz['id']);
+        final logoUrl = parseString(biz['logo_url']);
+        final imageUrls = parseStringList(biz['image_urls']);
+        final bImage = logoUrl ?? (imageUrls.isNotEmpty ? imageUrls.first : '') ?? '';
         b = BusinessListItem(
           id: bid ?? '',
           name: parseStringRequired(biz['name']),
-          imageUrl: parseString(biz['logo_url']) ?? '',
+          imageUrl: bImage,
           categories: _categoriesFromRow(biz),
           listingCategoryIds: _listingCategoryIdsFromRow(biz),
-          address: '',
+          address: parseStringRequired(biz['address_street']),
           city: parseStringRequired(biz['address_city']),
           state: parseStringRequired(biz['address_state']),
-          rating: 0,
-          reviewCount: 0,
+          rating: parseDouble(biz['rating']) ?? 0.0,
+          reviewCount: parseInt(biz['review_count']) ?? 0,
           isOpen: true,
           isFeatured: false,
+          phone: parseString(biz['phone']),
         );
       }
       return _rowToDeal(row, b);
     });
+  }
+
+  String _generateRedemptionCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final r = Random.secure();
+    final buf = StringBuffer('HAB-');
+    for (var i = 0; i < 8; i++) {
+      buf.write(chars[r.nextInt(chars.length)]);
+    }
+    return buf.toString();
   }
 
   Review _rowToReview(Map<String, dynamic> row) {
@@ -548,23 +567,45 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
   }
 
   @override
-  Future<String> redeemDeal(String dealId) async {
+  Future<DealRedemption> redeemDeal(String dealId) async {
     return SupabaseFailureMapper.guard(() async {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('Not authenticated');
 
-      await _client.from('deal_redemptions').insert({
-        'deal_id': dealId,
-        'user_id': userId,
-      });
-
-      final deal = await _client.from('deals').select('redemption_count').eq('id', dealId).maybeSingle();
-      if (deal is Map<String, dynamic>) {
-        final count = (deal['redemption_count'] as num?)?.toInt() ?? 0;
-        await _client.from('deals').update({'redemption_count': count + 1}).eq('id', dealId);
+      for (var attempt = 0; attempt < 6; attempt++) {
+        final code = _generateRedemptionCode();
+        try {
+          final res = await _client
+              .from('deal_redemptions')
+              .insert({
+                'deal_id': dealId,
+                'user_id': userId,
+                'redemption_code': code,
+              })
+              .select('id, redemption_code')
+              .single();
+          final id = parseStringRequired(res['id']);
+          final stored = parseStringRequired(res['redemption_code'], code);
+          return DealRedemption(id: id, code: stored);
+        } catch (e) {
+          final msg = e.toString().toLowerCase();
+          if (msg.contains('deal_redemptions_one_per_user') ||
+              (msg.contains('duplicate key') && msg.contains('deal_id'))) {
+            throw Exception('You already redeemed this deal.');
+          }
+          if (msg.contains('redemption_code') && msg.contains('duplicate')) {
+            continue;
+          }
+          if (msg.contains('redemption_code') &&
+              (msg.contains('null') || msg.contains('column'))) {
+            throw Exception(
+              'Redemption is not fully set up yet. Ask your admin to run the latest deal_redemptions migration in Supabase.',
+            );
+          }
+          rethrow;
+        }
       }
-
-      return 'HAB-${DateTime.now().millisecondsSinceEpoch}';
+      throw Exception('Could not assign a redemption code. Please try again.');
     });
   }
 

@@ -7,8 +7,8 @@ import '../../features/auth/domain/entities/user.dart';
 import '../../features/events/presentation/pages/events_page.dart';
 import '../../features/explore/presentation/pages/explore_page.dart';
 import '../../features/home/presentation/pages/navigation_drawer.dart' as app_drawer;
-import '../../features/home/presentation/pages/profile_tab_page.dart';
 import '../../features/jobs/presentation/pages/jobs_page.dart';
+import '../../features/home/presentation/pages/profile_tab_page.dart';
 
 // Global key to access navigation from anywhere
 final GlobalKey<NavigatorState> mainNavigatorKey = GlobalKey<NavigatorState>();
@@ -125,7 +125,7 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
           padding: const EdgeInsets.only(top: 8, bottom: 4),
           child: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
-            selectedItemColor: AppColors.brandPrimary,
+            selectedItemColor: AppColors.customerHomePrimary,
             unselectedItemColor: AppColors.textSecondary,
             currentIndex: _currentIndex,
             onTap: _onTabTapped,
