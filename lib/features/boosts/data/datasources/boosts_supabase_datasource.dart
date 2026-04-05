@@ -28,7 +28,7 @@ class BoostsSupabaseDataSource implements BoostsRemoteDataSource {
       final w = (parseInt(row['duration_weeks']) ?? 1).clamp(1, 520);
       if (p == null || p <= 0) continue;
       final isLower = bestPrice == null ||
-          p < bestPrice! ||
+          p < bestPrice ||
           (p == bestPrice && w < bestWeeks);
       if (isLower) {
         bestPrice = p;

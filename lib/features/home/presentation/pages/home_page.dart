@@ -783,16 +783,16 @@ class _HomePageState extends State<HomePage> {
       context,
       MaterialPageRoute(builder: (_) => const LocationSelectionPage()),
     );
-    if (result != null) {
-      if (widget.useSessionDeviceLocation) {
-        context.read<SessionDeviceLocationCubit>().setSessionLocation(result);
-      } else {
-        setState(() {
-          _currentLocation = result;
-        });
-      }
-      _loadHomeData();
+    if (result == null) return;
+    if (!mounted) return;
+    if (widget.useSessionDeviceLocation) {
+      context.read<SessionDeviceLocationCubit>().setSessionLocation(result);
+    } else {
+      setState(() {
+        _currentLocation = result;
+      });
     }
+    _loadHomeData();
   }
 }
 
