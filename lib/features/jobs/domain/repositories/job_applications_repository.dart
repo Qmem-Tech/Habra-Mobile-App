@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
+import '../entities/application_experience_entry.dart';
 import '../entities/job_application.dart';
 
 abstract class JobApplicationsRepository {
@@ -18,6 +19,7 @@ abstract class JobApplicationsRepository {
     String? coverLetter,
     String? photoUrl,
     Map<String, String>? screeningAnswers,
+    List<ApplicationExperienceEntry>? workExperience,
   });
 
   /// Get user's applications

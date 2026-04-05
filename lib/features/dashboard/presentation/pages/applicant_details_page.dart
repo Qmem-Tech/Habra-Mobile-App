@@ -74,10 +74,14 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
         .loadApplicantDetail(widget.applicantId, widget.jobId);
   }
 
+  /// Restores [ApplicantsLoading] / [ApplicantsLoaded] before popping so the list
+  /// route never observes [DashboardInitial] (which would show "No data").
   void _popAndRestoreApplicantsList(BuildContext context) {
-    final cubit = context.read<DashboardCubit>();
-    cubit.clearApplicantDetail();
-    cubit.loadApplicants(widget.jobId, widget.jobTitle, widget.jobSubtitle);
+    context.read<DashboardCubit>().loadApplicants(
+          widget.jobId,
+          widget.jobTitle,
+          widget.jobSubtitle,
+        );
     Navigator.pop(context);
   }
 
@@ -167,222 +171,292 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundWhite,
-      appBar: AppBar(
-        backgroundColor: AppColors.backgroundWhite,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => _popAndRestoreApplicantsList(context),
-        ),
-        title: const Text(
-          'Applicant Details',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+  Widget _buildBottomBar(ApplicantDetail d) {
+    return Material(
+      elevation: 12,
+      color: AppColors.backgroundWhite,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppButton(
+                text: 'Message',
+                onPressed: () => _onMessage(d),
+                icon: Icons.chat_bubble_outline,
+                height: 48,
+              ),
+              if (!d.isTerminalStatus) ...[
+                const SizedBox(height: 10),
+                if (_actionBusy)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Center(
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.brandPrimary,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () =>
+                            _confirmAndUpdateStatus(context, 'rejected'),
+                        icon: const Icon(Icons.close, size: 20, color: AppColors.error),
+                        label: const Text(
+                          'Reject',
+                          style: TextStyle(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      TextButton.icon(
+                        onPressed: () =>
+                            _confirmAndUpdateStatus(context, 'hired'),
+                        icon: const Icon(Icons.check, size: 20, color: AppColors.success),
+                        label: const Text(
+                          'Mark as Hired',
+                          style: TextStyle(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ],
           ),
         ),
-        centerTitle: true,
       ),
-      body: BlocBuilder<DashboardCubit, DashboardState>(
-        builder: (context, state) {
-          if (state is ApplicantDetailLoading) {
-            return const HabraCircularLoader(fullScreen: true);
-          }
-          if (state is ApplicantDetailError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                    const SizedBox(height: 16),
-                    Text(state.message, textAlign: TextAlign.center),
-                    const SizedBox(height: 24),
-                    AppButton(
-                      text: 'Back',
-                      onPressed: () => _popAndRestoreApplicantsList(context),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-          if (state is! ApplicantDetailLoaded) {
-            return const Center(child: Text('No data'));
-          }
-          final d = state.detail;
-          return Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        _popAndRestoreApplicantsList(context);
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundWhite,
+        appBar: AppBar(
+          backgroundColor: AppColors.backgroundWhite,
+          foregroundColor: AppColors.textPrimary,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => _popAndRestoreApplicantsList(context),
+          ),
+          title: const Text(
+            'Applicant Details',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          centerTitle: true,
+        ),
+        body: BlocBuilder<DashboardCubit, DashboardState>(
+          builder: (context, state) {
+            if (state is ApplicantDetailLoading) {
+              return const HabraCircularLoader(fullScreen: true);
+            }
+            if (state is ApplicantDetailError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _ProfileHeaderCard(detail: d),
-                      const SizedBox(height: 20),
-                      const Text(
-                        'Cover Letter',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
+                      const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                      const SizedBox(height: 16),
+                      Text(state.message, textAlign: TextAlign.center),
+                      const SizedBox(height: 24),
+                      AppButton(
+                        text: 'Back',
+                        onPressed: () => _popAndRestoreApplicantsList(context),
                       ),
-                      const SizedBox(height: 8),
-                      _GreyContentCard(
-                        child: Text(
-                          d.coverLetter.trim().isEmpty
-                              ? 'No cover letter submitted.'
-                              : d.coverLetter,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            height: 1.5,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Text(
-                        'Experience',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (d.experience.isEmpty)
-                        _GreyContentCard(
-                          child: Text(
-                            'No experience details were provided with this application.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              height: 1.45,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        )
-                      else
-                        ...d.experience.asMap().entries.map((e) {
-                          final i = e.key;
-                          final x = e.value;
-                          final green = i.isEven;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _GreyContentCard(
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(
-                                      color: green
-                                          ? AppColors.brandPrimary
-                                              .withValues(alpha: 0.12)
-                                          : AppColors.warning
-                                              .withValues(alpha: 0.18),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Icon(
-                                      green
-                                          ? Icons.local_cafe_outlined
-                                          : Icons.storefront_outlined,
-                                      color: green
-                                          ? AppColors.brandPrimary
-                                          : AppColors.warning,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          x.title,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${x.company} • ${x.employmentType}',
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            color: AppColors.textSecondary,
-                                          ),
-                                        ),
-                                        Text(
-                                          '${x.period} • ${x.duration}',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: AppColors.textSecondary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        }),
-                      const SizedBox(height: 20),
-                      const Text(
-                        'Resume',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _ResumeCard(
-                        detail: d,
-                        onView: () {
-                          final url = d.resumeFileUrl;
-                          if (url != null && url.isNotEmpty) {
-                            _openExternalUri(url);
-                          }
-                        },
-                        onDownload: () {
-                          final url = d.resumeFileUrl;
-                          if (url != null && url.isNotEmpty) {
-                            _openExternalUri(url);
-                          }
-                        },
-                      ),
-                      if (d.isTerminalStatus) ...[
-                        const SizedBox(height: 16),
-                        _StatusBanner(detail: d),
-                      ],
                     ],
                   ),
                 ),
-              ),
-              _BottomActionsBar(
-                statusBusy: _actionBusy,
-                onMessage: () => _onMessage(d),
-                onReject: d.isTerminalStatus
-                    ? null
-                    : () => _confirmAndUpdateStatus(context, 'rejected'),
-                onHired: d.isTerminalStatus
-                    ? null
-                    : () => _confirmAndUpdateStatus(context, 'hired'),
-              ),
-            ],
-          );
-        },
+              );
+            }
+            if (state is! ApplicantDetailLoaded) {
+              return const Center(child: Text('No data'));
+            }
+            final d = state.detail;
+            return Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _ProfileHeaderCard(detail: d),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Cover Letter',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _GreyContentCard(
+                          child: Text(
+                            d.coverLetter.trim().isEmpty
+                                ? 'No cover letter submitted.'
+                                : d.coverLetter,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              height: 1.5,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Experience',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (d.experience.isEmpty)
+                          _GreyContentCard(
+                            child: Text(
+                              'No experience details were provided with this application.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                height: 1.45,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          )
+                        else
+                          ...d.experience.asMap().entries.map((e) {
+                            final i = e.key;
+                            final x = e.value;
+                            final green = i.isEven;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _GreyContentCard(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: green
+                                            ? AppColors.brandPrimary
+                                                .withValues(alpha: 0.12)
+                                            : AppColors.warning
+                                                .withValues(alpha: 0.18),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(
+                                        green
+                                            ? Icons.local_cafe_outlined
+                                            : Icons.storefront_outlined,
+                                        color: green
+                                            ? AppColors.brandPrimary
+                                            : AppColors.warning,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            x.title,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${x.company} • ${x.employmentType}',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${x.period} • ${x.duration}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Resume',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _ResumeCard(
+                          detail: d,
+                          onView: () {
+                            final url = d.resumeFileUrl;
+                            if (url != null && url.isNotEmpty) {
+                              _openExternalUri(url);
+                            }
+                          },
+                          onDownload: () {
+                            final url = d.resumeFileUrl;
+                            if (url != null && url.isNotEmpty) {
+                              _openExternalUri(url);
+                            }
+                          },
+                        ),
+                        if (d.isTerminalStatus) ...[
+                          const SizedBox(height: 16),
+                          _StatusBanner(detail: d),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                _buildBottomBar(d),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -754,94 +828,6 @@ class _StatusBanner extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _BottomActionsBar extends StatelessWidget {
-  const _BottomActionsBar({
-    required this.statusBusy,
-    required this.onMessage,
-    required this.onReject,
-    required this.onHired,
-  });
-
-  final bool statusBusy;
-  final VoidCallback onMessage;
-  final VoidCallback? onReject;
-  final VoidCallback? onHired;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 12,
-      color: AppColors.backgroundWhite,
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppButton(
-                text: 'Message',
-                onPressed: onMessage,
-                icon: Icons.chat_bubble_outline,
-                height: 48,
-              ),
-              if (onReject != null || onHired != null) ...[
-                const SizedBox(height: 10),
-                if (statusBusy)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Center(
-                      child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.brandPrimary,
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (onReject != null)
-                        TextButton.icon(
-                          onPressed: onReject,
-                          icon: const Icon(Icons.close, size: 20, color: AppColors.error),
-                          label: const Text(
-                            'Reject',
-                            style: TextStyle(
-                              color: AppColors.error,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      if (onReject != null && onHired != null)
-                        const SizedBox(width: 20),
-                      if (onHired != null)
-                        TextButton.icon(
-                          onPressed: onHired,
-                          icon: const Icon(Icons.check, size: 20, color: AppColors.success),
-                          label: const Text(
-                            'Mark as Hired',
-                            style: TextStyle(
-                              color: AppColors.success,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-              ],
-            ],
-          ),
-        ),
       ),
     );
   }

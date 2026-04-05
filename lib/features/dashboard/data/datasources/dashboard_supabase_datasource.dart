@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/utils/job_type_format.dart';
 import '../../../../core/models/legal_document_upload_result.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
@@ -25,6 +26,88 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
 
   static String _formatReceivedOnLabel(DateTime dt) {
     return DateFormat.yMMMd().format(dt.toLocal());
+  }
+
+  static String _applicantExperiencePeriod(
+    int startYear,
+    int startMonth,
+    int? endYear,
+    int? endMonth,
+    bool isCurrent,
+  ) {
+    final sm = startMonth.clamp(1, 12);
+    final start = DateFormat('MMM yyyy').format(DateTime(startYear, sm));
+    if (isCurrent) {
+      return '$start – Present';
+    }
+    final ey = endYear ?? startYear;
+    final em = (endMonth ?? 12).clamp(1, 12);
+    final end = DateFormat('MMM yyyy').format(DateTime(ey, em));
+    return '$start – $end';
+  }
+
+  static String _applicantExperienceDuration(
+    int startYear,
+    int startMonth,
+    int? endYear,
+    int? endMonth,
+    bool isCurrent,
+  ) {
+    final now = DateTime.now();
+    final sm = startMonth.clamp(1, 12);
+    final em = isCurrent
+        ? now.month
+        : (endMonth ?? 12).clamp(1, 12);
+    final ey = isCurrent ? now.year : (endYear ?? startYear);
+    final startOrd = startYear * 12 + sm;
+    final endOrd = ey * 12 + em;
+    if (endOrd < startOrd) return '';
+    final totalMonths = endOrd - startOrd + 1;
+    final years = totalMonths ~/ 12;
+    final months = totalMonths % 12;
+    if (years == 0) {
+      return months == 1 ? '1 mo' : '$months mos';
+    }
+    if (months == 0) {
+      return years == 1 ? '1 yr' : '$years yrs';
+    }
+    final yPart = years == 1 ? '1 yr' : '$years yrs';
+    final mPart = months == 1 ? '1 mo' : '$months mos';
+    return '$yPart $mPart';
+  }
+
+  static List<ApplicantExperience> _applicantExperiencesFromRow(dynamic raw) {
+    if (raw == null) return [];
+    if (raw is! List) return [];
+    final out = <ApplicantExperience>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final m = Map<String, dynamic>.from(item);
+      final title = parseString(m['title'])?.trim() ?? '';
+      final company = parseString(m['company'])?.trim() ?? '';
+      if (title.isEmpty && company.isEmpty) continue;
+      final sy = parseInt(m['start_year']);
+      final sm = parseInt(m['start_month']);
+      if (sy == null || sm == null) continue;
+      final isCurrent = m['is_current'] == true;
+      final ey = parseInt(m['end_year']);
+      final em = parseInt(m['end_month']);
+      final typeSlug = parseString(m['employment_type']);
+      final employmentType = jobTypeFormatLabel(typeSlug);
+      final period = _applicantExperiencePeriod(sy, sm, ey, em, isCurrent);
+      final duration =
+          _applicantExperienceDuration(sy, sm, ey, em, isCurrent);
+      out.add(
+        ApplicantExperience(
+          title: title.isEmpty ? 'Role' : title,
+          company: company.isEmpty ? 'Company' : company,
+          employmentType: employmentType,
+          period: period,
+          duration: duration.isEmpty ? '—' : duration,
+        ),
+      );
+    }
+    return out;
   }
 
   static String? _resumeFileNameFromUrl(String? url) {
@@ -639,9 +722,10 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           text: parseStringRequired(row['comment']),
           timeAgo: _timeAgo(createdAt),
           responseText: parseString(row['reply_text']),
-          responseTimeAgo: row['replied_at'] != null
-              ? _timeAgo(parseTimestampRequired(row['replied_at']))
-              : null,
+          responseTimeAgo: () {
+            final replied = parseTimestamp(row['replied_at']);
+            return replied != null ? _timeAgo(replied) : null;
+          }(),
         );
       }).toList();
     });
@@ -774,7 +858,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           row['cover_message'],
           row['screening_answers'],
         ),
-        experience: const [],
+        experience: _applicantExperiencesFromRow(row['experience']),
         resumeFileName: _resumeFileNameFromUrl(resumeUrl),
         resumeFileUrl: resumeUrl,
       );
@@ -1040,10 +1124,32 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   @override
   Future<void> replyToReview(String reviewId, String replyText) async {
     return SupabaseFailureMapper.guard(() async {
-      await _client.from(SupabaseTables.reviews).update({
+      final timestamp = DateTime.now().toUtc().toIso8601String();
+      var payload = <String, dynamic>{
         'reply_text': replyText,
-        'replied_at': DateTime.now().toIso8601String(),
-      }).eq('id', reviewId);
+        'replied_at': timestamp,
+      };
+      try {
+        await _client
+            .from(SupabaseTables.reviews)
+            .update(payload)
+            .eq('id', reviewId);
+      } on PostgrestException catch (e) {
+        final lower = e.message.toLowerCase();
+        final mentionsRepliedAt = lower.contains('replied_at') &&
+            (lower.contains('column') ||
+                lower.contains('schema') ||
+                lower.contains('could not find'));
+        if (payload.containsKey('replied_at') && mentionsRepliedAt) {
+          payload = Map<String, dynamic>.from(payload)..remove('replied_at');
+          await _client
+              .from(SupabaseTables.reviews)
+              .update(payload)
+              .eq('id', reviewId);
+        } else {
+          rethrow;
+        }
+      }
     });
   }
 

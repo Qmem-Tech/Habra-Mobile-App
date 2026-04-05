@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../domain/entities/application_experience_entry.dart';
 import '../../domain/usecases/submit_application_usecase.dart';
 import '../../domain/usecases/get_applications_usecase.dart';
 import '../../domain/usecases/upload_resume_usecase.dart';
@@ -63,6 +64,7 @@ class JobApplicationsCubit extends Cubit<JobApplicationsState> {
     String? coverLetter,
     String? photoUrl,
     Map<String, String>? screeningAnswers,
+    List<ApplicationExperienceEntry>? workExperience,
   }) async {
     emit(SubmitApplicationLoading());
 
@@ -75,6 +77,7 @@ class JobApplicationsCubit extends Cubit<JobApplicationsState> {
       coverLetter: coverLetter,
       photoUrl: photoUrl,
       screeningAnswers: screeningAnswers,
+      workExperience: workExperience,
     );
 
     result.fold(

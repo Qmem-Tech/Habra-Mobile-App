@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -11,6 +12,7 @@ import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/presentation/bloc/auth_cubit.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../profile/domain/repositories/profile_repository.dart';
+import '../../domain/entities/application_experience_entry.dart';
 import '../bloc/job_applications_cubit.dart';
 import '../bloc/job_applications_state.dart';
 import 'application_submitted_page.dart';
@@ -57,6 +59,75 @@ String? _validateEmailField(String? value) {
   return null;
 }
 
+const _kExperienceJobTypeLabels = <String, String>{
+  'full-time': 'Full-time',
+  'part-time': 'Part-time',
+  'contract': 'Contract',
+  'internship': 'Internship',
+};
+
+/// One optional work-history row on the apply form (controllers owned by page state).
+class _ExperienceFormRow {
+  _ExperienceFormRow() {
+    final n = DateTime.now();
+    startYear = n.year;
+    startMonth = n.month;
+    endYear = startYear;
+    endMonth = startMonth;
+  }
+
+  final TextEditingController title = TextEditingController();
+  final TextEditingController company = TextEditingController();
+  String employmentTypeSlug = 'full-time';
+  late int startYear;
+  late int startMonth;
+  int? endYear;
+  int? endMonth;
+  bool isCurrent = false;
+
+  void dispose() {
+    title.dispose();
+    company.dispose();
+  }
+
+  /// `null` if the row is empty or valid; otherwise an error message.
+  String? validationError() {
+    final t = title.text.trim();
+    final c = company.text.trim();
+    if (t.isEmpty && c.isEmpty) return null;
+    if (t.isEmpty || c.isEmpty) {
+      return 'Complete job title and company for each experience entry, or remove the row.';
+    }
+    if (!isCurrent) {
+      if (endYear == null || endMonth == null) {
+        return 'Select end date for past roles, or mark the role as current.';
+      }
+      final startOrd = startYear * 12 + startMonth;
+      final endOrd = endYear! * 12 + endMonth!;
+      if (endOrd < startOrd) {
+        return 'End date must be on or after start date.';
+      }
+    }
+    return null;
+  }
+
+  ApplicationExperienceEntry? toEntryIfFilled() {
+    final t = title.text.trim();
+    final c = company.text.trim();
+    if (t.isEmpty && c.isEmpty) return null;
+    return ApplicationExperienceEntry(
+      title: t,
+      company: c,
+      employmentTypeSlug: employmentTypeSlug,
+      startYear: startYear,
+      startMonth: startMonth,
+      endYear: isCurrent ? null : endYear,
+      endMonth: isCurrent ? null : endMonth,
+      isCurrent: isCurrent,
+    );
+  }
+}
+
 class ApplyForJobPage extends StatefulWidget {
   final String jobId;
   final String jobTitle;
@@ -82,6 +153,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
   String _phoneNumber = '';
   File? _resumeFile;
   String? _selectedScreeningAnswer;
+  final List<_ExperienceFormRow> _experienceRows = [];
 
   @override
   void initState() {
@@ -112,10 +184,28 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
 
   @override
   void dispose() {
+    for (final row in _experienceRows) {
+      row.dispose();
+    }
     _fullNameController.dispose();
     _emailController.dispose();
     _coverLetterController.dispose();
     super.dispose();
+  }
+
+  void _addExperienceRow() {
+    setState(() => _experienceRows.add(_ExperienceFormRow()));
+  }
+
+  void _removeExperienceRow(int index) {
+    final row = _experienceRows.removeAt(index);
+    row.dispose();
+    setState(() {});
+  }
+
+  List<int> get _yearChoices {
+    final y = DateTime.now().year;
+    return List<int>.generate(y - 1969, (i) => y - i);
   }
 
   Future<void> _pickResume() async {
@@ -176,6 +266,23 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
       return;
     }
 
+    for (final row in _experienceRows) {
+      final err = row.validationError();
+      if (err != null) {
+        ErrorDisplayHelper.show(
+          context,
+          message: err,
+          title: 'Work experience',
+        );
+        return;
+      }
+    }
+    final workExperience = <ApplicationExperienceEntry>[];
+    for (final row in _experienceRows) {
+      final e = row.toEntryIfFilled();
+      if (e != null) workExperience.add(e);
+    }
+
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) {
       ErrorDisplayHelper.show(context, message: 'Please sign in to apply', title: 'Sign in required');
@@ -213,6 +320,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
                       _selectedScreeningAnswer!,
                 }
               : null,
+          workExperience: workExperience.isEmpty ? null : workExperience,
         );
   }
 
@@ -253,6 +361,8 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
                   _buildResumeSection(),
                   const SizedBox(height: 24),
                   _buildCoverLetterSection(),
+                  const SizedBox(height: 24),
+                  _buildWorkExperienceSection(),
                   const SizedBox(height: 24),
                   _buildScreeningQuestions(),
                   const SizedBox(height: 32),
@@ -563,6 +673,256 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildWorkExperienceSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'Work experience',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Optional',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Highlight relevant roles. Business owners see this on your application.',
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ..._experienceRows.asMap().entries.map((e) {
+          final i = e.key;
+          final row = e.value;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildExperienceRowCard(i, row),
+          );
+        }),
+        OutlinedButton.icon(
+          onPressed: _addExperienceRow,
+          icon: const Icon(Icons.add, size: 20),
+          label: const Text('Add work experience'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExperienceRowCard(int index, _ExperienceFormRow row) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Experience ${index + 1}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                  onPressed: () => _removeExperienceRow(index),
+                  tooltip: 'Remove',
+                ),
+              ],
+            ),
+            TextField(
+              controller: row.title,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Job title',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: row.company,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Company',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _kExperienceJobTypeLabels.containsKey(row.employmentTypeSlug)
+                  ? row.employmentTypeSlug
+                  : 'full-time',
+              decoration: const InputDecoration(
+                labelText: 'Employment type',
+                border: OutlineInputBorder(),
+              ),
+              items: _kExperienceJobTypeLabels.entries
+                  .map(
+                    (e) => DropdownMenuItem<String>(
+                      value: e.key,
+                      child: Text(e.value),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => row.employmentTypeSlug = v);
+              },
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Start',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: row.startMonth.clamp(1, 12),
+                    decoration: const InputDecoration(
+                      labelText: 'Month',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: List.generate(12, (i) {
+                      final m = i + 1;
+                      return DropdownMenuItem<int>(
+                        value: m,
+                        child: Text(DateFormat.MMM().format(DateTime(2000, m))),
+                      );
+                    }),
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => row.startMonth = v);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: row.startYear,
+                    decoration: const InputDecoration(
+                      labelText: 'Year',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: _yearChoices
+                        .map(
+                          (y) => DropdownMenuItem<int>(
+                            value: y,
+                            child: Text('$y'),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => row.startYear = v);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('I currently work here'),
+              value: row.isCurrent,
+              onChanged: (v) {
+                setState(() {
+                  row.isCurrent = v ?? false;
+                  if (row.isCurrent) {
+                    row.endYear = null;
+                    row.endMonth = null;
+                  } else {
+                    row.endYear ??= row.startYear;
+                    row.endMonth ??= row.startMonth;
+                  }
+                });
+              },
+            ),
+            if (!row.isCurrent) ...[
+              const Text(
+                'End',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      value: row.endMonth?.clamp(1, 12),
+                      decoration: const InputDecoration(
+                        labelText: 'Month',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: List.generate(12, (i) {
+                        final m = i + 1;
+                        return DropdownMenuItem<int>(
+                          value: m,
+                          child:
+                              Text(DateFormat.MMM().format(DateTime(2000, m))),
+                        );
+                      }),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() => row.endMonth = v);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      value: row.endYear,
+                      decoration: const InputDecoration(
+                        labelText: 'Year',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: _yearChoices
+                          .map(
+                            (y) => DropdownMenuItem<int>(
+                              value: y,
+                              child: Text('$y'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() => row.endYear = v);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 

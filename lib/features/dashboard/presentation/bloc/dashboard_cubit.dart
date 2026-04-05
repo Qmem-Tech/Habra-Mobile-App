@@ -217,8 +217,9 @@ class DashboardCubit extends Cubit<DashboardState> {
     try {
       await _repository.replyToReview(reviewId, replyText);
       return true;
-    } catch (e) {
-      emit(DashboardError(e.toString()));
+    } catch (_) {
+      // Do not emit [DashboardError]: that replaces the whole dashboard tab state
+      // and surfaces the raw PostgREST message (e.g. missing column) after pop.
       return false;
     }
   }

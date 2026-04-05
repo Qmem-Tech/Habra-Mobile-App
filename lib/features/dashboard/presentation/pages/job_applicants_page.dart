@@ -100,8 +100,11 @@ class _JobApplicantsViewState extends State<_JobApplicantsView> {
     );
   }
 
-  void _openApplicantDetail(BuildContext context, JobApplicant applicant) {
-    Navigator.push(
+  Future<void> _openApplicantDetail(
+    BuildContext context,
+    JobApplicant applicant,
+  ) async {
+    await Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
         builder: (_) => BlocProvider.value(
@@ -116,6 +119,16 @@ class _JobApplicantsViewState extends State<_JobApplicantsView> {
         ),
       ),
     );
+    if (!context.mounted) return;
+    final cubit = context.read<DashboardCubit>();
+    final s = cubit.state;
+    if (s is! ApplicantsLoaded || s.jobId != widget.jobId) {
+      cubit.loadApplicants(
+        widget.jobId,
+        widget.jobTitle,
+        widget.jobSubtitle,
+      );
+    }
   }
 
   @override

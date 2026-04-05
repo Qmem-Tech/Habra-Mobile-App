@@ -505,7 +505,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _navigateToReplyToReview(BusinessReview review) {
     final dashboardCubit = context.read<DashboardCubit>();
-    Navigator.push(
+    Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => BlocProvider<DashboardCubit>.value(
@@ -513,6 +513,10 @@ class _DashboardPageState extends State<DashboardPage> {
           child: ReplyToReviewPage(review: review),
         ),
       ),
-    );
+    ).then((posted) {
+      if (posted == true && mounted) {
+        _loadDashboard();
+      }
+    });
   }
 }

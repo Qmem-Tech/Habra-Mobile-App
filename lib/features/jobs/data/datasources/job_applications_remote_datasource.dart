@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../domain/entities/application_experience_entry.dart';
 import '../../domain/entities/job_application.dart';
 
 abstract class JobApplicationsRemoteDataSource {
@@ -15,6 +16,7 @@ abstract class JobApplicationsRemoteDataSource {
     String? coverLetter,
     String? photoUrl,
     Map<String, String>? screeningAnswers,
+    List<ApplicationExperienceEntry>? workExperience,
   });
 
   Future<List<JobApplication>> getApplications({
@@ -41,6 +43,7 @@ class JobApplicationsRemoteDataSourceImpl
     String? coverLetter,
     String? photoUrl,
     Map<String, String>? screeningAnswers,
+    List<ApplicationExperienceEntry>? workExperience,
   }) async {
     throw UnimplementedError(
       'Use JobApplicationsSupabaseDataSource; backend must handle submit.',

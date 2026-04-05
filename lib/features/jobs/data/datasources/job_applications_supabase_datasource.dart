@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
+import '../../domain/entities/application_experience_entry.dart';
 import '../../domain/entities/job_application.dart';
 import '../models/job_application_model.dart';
 import 'job_applications_remote_datasource.dart';
@@ -77,6 +78,7 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
     String? coverLetter,
     String? photoUrl,
     Map<String, String>? screeningAnswers,
+    List<ApplicationExperienceEntry>? workExperience,
   }) async {
     return SupabaseFailureMapper.guard(() async {
       final userId = _client.auth.currentUser?.id;
@@ -89,7 +91,7 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
       final companyRes = bizId != null ? await _client.from('businesses').select('name').eq('id', bizId).maybeSingle() : null;
       final companyName = companyRes is Map<String, dynamic> ? parseStringRequired(companyRes['name']) : '';
 
-      await _client.from('job_applications').insert({
+      var insertPayload = <String, dynamic>{
         'job_id': jobId,
         'user_id': userId,
         'full_name': fullName,
@@ -100,7 +102,24 @@ class JobApplicationsSupabaseDataSource implements JobApplicationsRemoteDataSour
         'photo_url': photoUrl,
         'screening_answers': screeningAnswers ?? <String, String>{},
         'status': 'pending',
-      });
+      };
+      if (workExperience != null && workExperience.isNotEmpty) {
+        insertPayload['experience'] =
+            workExperience.map((e) => e.toJson()).toList();
+      }
+      try {
+        await _client.from('job_applications').insert(insertPayload);
+      } on PostgrestException catch (e) {
+        final msg = e.message.toLowerCase();
+        if (insertPayload.containsKey('experience') &&
+            msg.contains('experience')) {
+          insertPayload = Map<String, dynamic>.from(insertPayload)
+            ..remove('experience');
+          await _client.from('job_applications').insert(insertPayload);
+        } else {
+          rethrow;
+        }
+      }
 
       final appRes = await _client
           .from('job_applications')

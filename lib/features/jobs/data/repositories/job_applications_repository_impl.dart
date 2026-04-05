@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
+import '../../domain/entities/application_experience_entry.dart';
 import '../../domain/entities/job_application.dart';
 import '../../domain/repositories/job_applications_repository.dart';
 import '../datasources/job_applications_remote_datasource.dart';
@@ -31,6 +32,7 @@ class JobApplicationsRepositoryImpl implements JobApplicationsRepository {
     String? coverLetter,
     String? photoUrl,
     Map<String, String>? screeningAnswers,
+    List<ApplicationExperienceEntry>? workExperience,
   }) async {
     try {
       final application = await remoteDataSource.submitApplication(
@@ -42,6 +44,7 @@ class JobApplicationsRepositoryImpl implements JobApplicationsRepository {
         coverLetter: coverLetter,
         photoUrl: photoUrl,
         screeningAnswers: screeningAnswers,
+        workExperience: workExperience,
       );
       return Right(application);
     } catch (e) {
