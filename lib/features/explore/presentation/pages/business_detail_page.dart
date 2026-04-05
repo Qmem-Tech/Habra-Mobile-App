@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/resources/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_share.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
@@ -91,7 +92,7 @@ class BusinessDetailPage extends StatelessWidget {
       pinned: true,
       flexibleSpace: FlexibleSpaceBar(
         background: Image.asset(
-          business.imageUrls.isNotEmpty ? business.imageUrls.first : 'assets/images/businesses/default.png',
+          business.imageUrls.isNotEmpty ? business.imageUrls.first : AppAssets.businessPlaceholder,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return Container(

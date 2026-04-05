@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
-import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../domain/entities/dashboard_job.dart';
 import '../widgets/empty_state_widget.dart';
 import '../../../../core/resources/app_assets.dart';
+
+/// Mint-tint surfaces (dashboard jobs mock).
+const Color _mintSurface = Color(0xFFE8F3EE);
+const Color _statGraySurface = Color(0xFFF0F2F4);
 
 class DashboardJobsTab extends StatelessWidget {
   const DashboardJobsTab({
@@ -15,6 +18,7 @@ class DashboardJobsTab extends StatelessWidget {
     required this.onFilterChanged,
     required this.onCreateJob,
     required this.onViewApplicants,
+    this.onEditJob,
   });
 
   final List<DashboardJob> jobs;
@@ -22,10 +26,12 @@ class DashboardJobsTab extends StatelessWidget {
   final ValueChanged<DashboardJobStatus?> onFilterChanged;
   final VoidCallback onCreateJob;
   final void Function(DashboardJob job) onViewApplicants;
+  final void Function(DashboardJob job)? onEditJob;
 
   @override
   Widget build(BuildContext context) {
     final activeCount = jobs.where((j) => j.status == DashboardJobStatus.open).length;
+    final closedCount = jobs.where((j) => j.status == DashboardJobStatus.closed).length;
     final draftCount = jobs.where((j) => j.status == DashboardJobStatus.draft).length;
     final effectiveFilter = filter ?? DashboardJobStatus.open;
     final filteredJobs = jobs.where((j) => j.status == effectiveFilter).toList();
@@ -35,20 +41,29 @@ class DashboardJobsTab extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-          child: Row(
-            children: [
-              _FilterChip(
-                label: 'Active ($activeCount)',
-                selected: effectiveFilter == DashboardJobStatus.open,
-                onTap: () => onFilterChanged(DashboardJobStatus.open),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Drafts ($draftCount)',
-                selected: filter == DashboardJobStatus.draft,
-                onTap: () => onFilterChanged(DashboardJobStatus.draft),
-              ),
-            ],
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _FilterChip(
+                  label: 'Active ($activeCount)',
+                  selected: effectiveFilter == DashboardJobStatus.open,
+                  onTap: () => onFilterChanged(DashboardJobStatus.open),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Closed ($closedCount)',
+                  selected: effectiveFilter == DashboardJobStatus.closed,
+                  onTap: () => onFilterChanged(DashboardJobStatus.closed),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Drafts ($draftCount)',
+                  selected: effectiveFilter == DashboardJobStatus.draft,
+                  onTap: () => onFilterChanged(DashboardJobStatus.draft),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -56,12 +71,8 @@ class DashboardJobsTab extends StatelessWidget {
           child: filteredJobs.isEmpty
               ? EmptyStateWidget(
                   illustrationPath: AppAssets.dashboardNoJobs,
-                  title: filter == DashboardJobStatus.draft
-                      ? 'No draft jobs'
-                      : 'No job posts yet',
-                  description: filter == DashboardJobStatus.draft
-                      ? 'Save a job as draft to continue editing later.'
-                      : 'Create a job post today to start finding your next great hire within the community.',
+                  title: _emptyTitle(effectiveFilter),
+                  description: _emptyDescription(effectiveFilter),
                   actionLabel: 'Post A Job',
                   onAction: onCreateJob,
                 )
@@ -73,13 +84,35 @@ class DashboardJobsTab extends StatelessWidget {
                     return _JobCard(
                       job: job,
                       onViewApplicants: () => onViewApplicants(job),
-                      onEdit: () {},
+                      onEdit: onEditJob != null ? () => onEditJob!(job) : null,
                     );
                   },
                 ),
         ),
       ],
     );
+  }
+
+  static String _emptyTitle(DashboardJobStatus f) {
+    switch (f) {
+      case DashboardJobStatus.draft:
+        return 'No draft jobs';
+      case DashboardJobStatus.closed:
+        return 'No closed jobs';
+      case DashboardJobStatus.open:
+        return 'No job posts yet';
+    }
+  }
+
+  static String _emptyDescription(DashboardJobStatus f) {
+    switch (f) {
+      case DashboardJobStatus.draft:
+        return 'Save a job as draft to continue editing later.';
+      case DashboardJobStatus.closed:
+        return 'Closed listings appear here for your records.';
+      case DashboardJobStatus.open:
+        return 'Create a job post today to start finding your next great hire within the community.';
+    }
   }
 }
 
@@ -98,17 +131,27 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: selected ? AppColors.brandPrimary : AppColors.backgroundLight,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.brandPrimary.withValues(alpha: 0.22),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 13,
-            fontWeight: FontWeight.w500,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             color: selected ? AppColors.textOnPrimary : AppColors.textSecondary,
           ),
         ),
@@ -121,146 +164,113 @@ class _JobCard extends StatelessWidget {
   const _JobCard({
     required this.job,
     required this.onViewApplicants,
-    required this.onEdit,
+    this.onEdit,
   });
 
   final DashboardJob job;
   final VoidCallback onViewApplicants;
-  final VoidCallback onEdit;
+  final VoidCallback? onEdit;
 
-  Widget _buildLogoPlaceholder() {
-    return Container(
-      width: 56,
-      height: 56,
-      color: AppColors.backgroundGrey,
-      child: const Icon(Icons.business, color: AppColors.textTertiary),
-    );
+  String get _postedBadgeText {
+    final t = job.postedTimeAgo.trim();
+    if (t.toLowerCase().startsWith('posted')) return t;
+    return 'Posted $t';
+  }
+
+  String get _salaryLine {
+    final s = job.salaryDisplay.trim();
+    if (s.isEmpty) return '—';
+    return s;
   }
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      backgroundColor: AppColors.backgroundWhite,
+      elevation: 3,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipOval(
-                child: job.employerLogoUrl != null &&
-                        job.employerLogoUrl!.isNotEmpty
-                    ? Image.network(
-                        job.employerLogoUrl!,
-                        width: 56,
-                        height: 56,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildLogoPlaceholder(),
-                      )
-                    : _buildLogoPlaceholder(),
-              ),
-              const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      job.title,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.schedule, size: 16, color: AppColors.textSecondary),
-                            const SizedBox(width: 4),
-                            Text(
-                              job.jobType,
-                              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.location_on_outlined, size: 16, color: AppColors.textSecondary),
-                            const SizedBox(width: 4),
-                            Text(
-                              job.location,
-                              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.attach_money, size: 16, color: AppColors.textSecondary),
-                            const SizedBox(width: 4),
-                            Text(
-                              job.salaryDisplay,
-                              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
+                child: Text(
+                  job.title,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Flexible(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (job.isDraft)
-                      Container(
-                        margin: const EdgeInsets.only(right: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.textSecondary.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Draft',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (job.isDraft)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: AppColors.brandPrimary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
+                        color: AppColors.textTertiary.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        job.postedTimeAgo,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.brandPrimary,
+                      child: const Text(
+                        'Draft',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textSecondary,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
                       ),
                     ),
-                  ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _mintSurface,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      _postedBadgeText,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.brandPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _MetaPill(
+                  icon: Icons.schedule_rounded,
+                  label: job.jobType,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetaPill(
+                  icon: Icons.location_on_outlined,
+                  label: job.location,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetaPill(
+                  icon: Icons.payments_outlined,
+                  label: _salaryLine,
                 ),
               ),
             ],
@@ -269,42 +279,65 @@ class _JobCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _MetricChip(
-                  icon: Icons.visibility_outlined,
-                  value: '${job.viewsCount} Views',
-                ),
+                child: _ViewsStatBlock(count: job.viewsCount),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _MetricChip(
-                  icon: Icons.people_outline,
-                  value: '${job.applicantsCount} Applicants',
-                ),
+                child: _ApplicantsStatBlock(count: job.applicantsCount),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                flex: 3,
-                child: AppButton(
-                  text: 'View Applicants',
-                  onPressed: onViewApplicants,
-                  icon: Icons.arrow_forward,
+                child: SizedBox(
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: onViewApplicants,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.brandPrimary,
+                      foregroundColor: AppColors.textOnPrimary,
+                      elevation: 0,
+                      shadowColor: AppColors.brandPrimary.withValues(alpha: 0.35),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'View Applicants',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward_rounded, size: 22),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: AppResources.buttonHeightM,
-                child: OutlinedButton(
-                  onPressed: onEdit,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    side: const BorderSide(color: AppColors.textSecondary),
-                    foregroundColor: AppColors.textSecondary,
+              const SizedBox(width: 10),
+              Material(
+                color: _statGraySurface,
+                borderRadius: BorderRadius.circular(14),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onEdit,
+                  child: SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: Icon(
+                      Icons.edit_outlined,
+                      color: onEdit != null ? AppColors.brandPrimary : AppColors.textTertiary,
+                      size: 24,
+                    ),
                   ),
-                  child: const Icon(Icons.edit_outlined, size: 22),
                 ),
               ),
             ],
@@ -315,27 +348,159 @@ class _JobCard extends StatelessWidget {
   }
 }
 
-class _MetricChip extends StatelessWidget {
-  const _MetricChip({required this.icon, required this.value});
+class _MetaPill extends StatelessWidget {
+  const _MetaPill({required this.icon, required this.label});
 
   final IconData icon;
-  final String value;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.backgroundLight,
-        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: AppColors.textSecondary),
-          const SizedBox(width: 8),
-          Text(
-            value,
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          Icon(icon, size: 17, color: AppColors.brandPrimary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ViewsStatBlock extends StatelessWidget {
+  const _ViewsStatBlock({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: _statGraySurface,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AppColors.backgroundWhite,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.visibility_rounded,
+              color: AppColors.brandPrimary,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Views',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ApplicantsStatBlock extends StatelessWidget {
+  const _ApplicantsStatBlock({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: _mintSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.brandPrimary.withValues(alpha: 0.28),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AppColors.brandPrimary,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.people_rounded,
+              color: AppColors.textOnPrimary,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Applicants',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.brandPrimary.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

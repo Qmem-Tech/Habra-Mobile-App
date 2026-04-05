@@ -160,6 +160,65 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return res.cast<Map<String, dynamic>>();
   }
 
+  DashboardJob _mapRowToDashboardJob(
+    Map<String, dynamic> row, {
+    required int applicantsCount,
+    int viewsCount = 0,
+  }) {
+    final jobId = parseStringRequired(row['id']);
+    final biz = row[SupabaseTables.businesses];
+    final employerName =
+        biz is Map<String, dynamic> ? parseString(biz['name']) : null;
+    final employerLogoUrl =
+        biz is Map<String, dynamic> ? parseString(biz['logo_url']) : null;
+    final postedAt = parseTimestamp(row['posted_at']) ??
+        parseTimestamp(row['created_at']) ??
+        DateTime.now();
+    final createdAt = parseTimestamp(row['created_at']);
+    final updatedAt = parseTimestamp(row['updated_at']);
+    final salaryMin = parseInt(row['salary_min']);
+    final salaryMax = parseInt(row['salary_max']);
+    final salaryDisplay =
+        DashboardJob.salaryLineFromMinMax(salaryMin, salaryMax);
+    final slug = DashboardJob.normalizeJobTypeSlug(parseString(row['job_type']));
+    final statusStr = parseString(row['status']) ?? 'open';
+    final jobStatus = statusStr == 'draft'
+        ? DashboardJobStatus.draft
+        : statusStr == 'closed'
+            ? DashboardJobStatus.closed
+            : DashboardJobStatus.open;
+    final locRaw = parseString(row['location']);
+    final bool isRemote;
+    if (row.containsKey('is_remote') && row['is_remote'] != null) {
+      isRemote = parseBool(row['is_remote']);
+    } else {
+      isRemote = locRaw != null && locRaw.toLowerCase().trim() == 'remote';
+    }
+    return DashboardJob(
+      id: jobId,
+      businessId: parseStringRequired(row['business_id']),
+      title: parseStringRequired(row['title']),
+      jobType: DashboardJob.formatJobTypeLabel(slug),
+      jobTypeSlug: slug,
+      location: parseStringRequired(row['location'], 'Remote'),
+      salaryDisplay: salaryDisplay,
+      salaryMin: salaryMin,
+      salaryMax: salaryMax,
+      description: parseString(row['description']),
+      requirements: parseString(row['requirements']),
+      isRemote: isRemote,
+      salaryType: parseString(row['salary_type']),
+      viewsCount: viewsCount,
+      applicantsCount: applicantsCount,
+      postedTimeAgo: _timeAgo(postedAt),
+      createdAt: createdAt,
+      updatedAt: updatedAt ?? createdAt,
+      employerName: employerName,
+      employerLogoUrl: employerLogoUrl,
+      status: jobStatus,
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Analytics
   // ---------------------------------------------------------------------------
@@ -275,7 +334,11 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
                 '*, ${SupabaseTables.businesses}!deals_business_id_fkey(name)')
             .eq('business_id', businessId);
         if (status != null) {
-          query = query.eq('status', _dealStatusToString(status));
+          if (status == DashboardDealStatus.active) {
+            query = query.inFilter('status', ['active', 'inactive']);
+          } else {
+            query = query.eq('status', _dealStatusToString(status));
+          }
         }
         res = await query.order('created_at', ascending: false) as List;
       } on PostgrestException catch (e) {
@@ -287,7 +350,11 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
               .select()
               .eq('business_id', businessId);
           if (status != null) {
-            query = query.eq('status', _dealStatusToString(status));
+            if (status == DashboardDealStatus.active) {
+              query = query.inFilter('status', ['active', 'inactive']);
+            } else {
+              query = query.eq('status', _dealStatusToString(status));
+            }
           }
           res = await query.order('created_at', ascending: false) as List;
         } else {
@@ -332,7 +399,10 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     final merchantName =
         biz is Map<String, dynamic> ? parseString(biz['name']) : null;
     final discountPct = parseInt(row['discount_percentage']) ?? 0;
-    final discountedPrice = parseInt(row['discounted_price']);
+    final discountedPriceDouble = parseDouble(row['discounted_price']);
+    final discountedPrice = discountedPriceDouble != null
+        ? discountedPriceDouble.round()
+        : parseInt(row['discounted_price']);
     final dealCategory = parseString(row['category']);
     final validUntil = parseTimestamp(row['valid_until']);
     final validFrom = parseTimestamp(row['valid_from']);
@@ -364,6 +434,10 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       expiryDate: validUntil,
       status: _dealStatusFromString(parseString(row['status'])),
       merchantName: merchantName,
+      category: dealCategory,
+      discountPercentage: parseInt(row['discount_percentage']),
+      discountedPrice: discountedPrice,
+      validFrom: validFrom,
     );
   }
 
@@ -402,42 +476,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
             .select('id')
             .eq('job_id', jobId);
         final applicants = (appCount as List).length;
-        final biz = row[SupabaseTables.businesses];
-        final employerName =
-            biz is Map<String, dynamic> ? parseString(biz['name']) : null;
-        final employerLogoUrl =
-            biz is Map<String, dynamic> ? parseString(biz['logo_url']) : null;
-        final postedAt = parseTimestamp(row['posted_at']) ??
-            parseTimestamp(row['created_at']) ??
-            DateTime.now();
-        final salaryMin = parseInt(row['salary_min']);
-        final salaryMax = parseInt(row['salary_max']);
-        String salaryDisplay = '';
-        if (salaryMin != null && salaryMax != null) {
-          salaryDisplay = '\$$salaryMin - \$$salaryMax';
-        } else if (salaryMin != null) {
-          salaryDisplay = 'From \$$salaryMin';
-        }
-        final statusStr = parseString(row['status']) ?? 'open';
-        final jobStatus = statusStr == 'draft'
-            ? DashboardJobStatus.draft
-            : statusStr == 'closed'
-                ? DashboardJobStatus.closed
-                : DashboardJobStatus.open;
-        result.add(DashboardJob(
-          id: jobId,
-          businessId: parseStringRequired(row['business_id']),
-          title: parseStringRequired(row['title']),
-          jobType: parseStringRequired(row['job_type'], 'Full-time'),
-          location: parseStringRequired(row['location'], 'Remote'),
-          salaryDisplay: salaryDisplay,
-          viewsCount: 0,
-          applicantsCount: applicants,
-          postedTimeAgo: _timeAgo(postedAt),
-          employerName: employerName,
-          employerLogoUrl: employerLogoUrl,
-          status: jobStatus,
-        ));
+        result.add(_mapRowToDashboardJob(row, applicantsCount: applicants));
       }
       return result;
     });
@@ -504,42 +543,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
             .select('id')
             .eq('job_id', jobId);
         final applicants = (appCount as List).length;
-        final biz = row[SupabaseTables.businesses];
-        final employerName =
-            biz is Map<String, dynamic> ? parseString(biz['name']) : null;
-        final employerLogoUrl =
-            biz is Map<String, dynamic> ? parseString(biz['logo_url']) : null;
-        final postedAt = parseTimestamp(row['posted_at']) ??
-            parseTimestamp(row['created_at']) ??
-            DateTime.now();
-        final salaryMin = parseInt(row['salary_min']);
-        final salaryMax = parseInt(row['salary_max']);
-        String salaryDisplay = '';
-        if (salaryMin != null && salaryMax != null) {
-          salaryDisplay = '\$$salaryMin - \$$salaryMax';
-        } else if (salaryMin != null) {
-          salaryDisplay = 'From \$$salaryMin';
-        }
-        final statusStr = parseString(row['status']) ?? 'open';
-        final jobStatus = statusStr == 'draft'
-            ? DashboardJobStatus.draft
-            : statusStr == 'closed'
-                ? DashboardJobStatus.closed
-                : DashboardJobStatus.open;
-        result.add(DashboardJob(
-          id: jobId,
-          businessId: parseStringRequired(row['business_id']),
-          title: parseStringRequired(row['title']),
-          jobType: parseStringRequired(row['job_type'], 'Full-time'),
-          location: parseStringRequired(row['location'], 'Remote'),
-          salaryDisplay: salaryDisplay,
-          viewsCount: 0,
-          applicantsCount: applicants,
-          postedTimeAgo: _timeAgo(postedAt),
-          employerName: employerName,
-          employerLogoUrl: employerLogoUrl,
-          status: jobStatus,
-        ));
+        result.add(_mapRowToDashboardJob(row, applicantsCount: applicants));
       }
       return result;
     });
@@ -781,6 +785,33 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     });
   }
 
+  @override
+  Future<DashboardDeal> updateDeal(
+      String dealId, Map<String, dynamic> data) async {
+    return SupabaseFailureMapper.guard(() async {
+      final payload = Map<String, dynamic>.from(data);
+      payload.remove('business_id');
+      payload.removeWhere((_, v) => v == null);
+      final res = await _client
+          .from(SupabaseTables.deals)
+          .update(payload)
+          .eq('id', dealId)
+          .select('*, ${SupabaseTables.businesses}!deals_business_id_fkey(name)')
+          .single();
+      return _rowToDashboardDeal(Map<String, dynamic>.from(res));
+    });
+  }
+
+  @override
+  Future<void> updateDealStatus(
+      String dealId, DashboardDealStatus status) async {
+    return SupabaseFailureMapper.guard(() async {
+      await _client.from(SupabaseTables.deals).update({
+        'status': _dealStatusToString(status),
+      }).eq('id', dealId);
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Create Job
   // ---------------------------------------------------------------------------
@@ -802,6 +833,9 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         'job_type': data['job_type'] ?? 'full-time',
         'salary_min': data['salary_min'],
         'salary_max': data['salary_max'],
+        'requirements': data['requirements'],
+        'is_remote': data['is_remote'],
+        'salary_type': data['salary_type'],
         'is_active': !isDraft,
       };
       if (!_missingJobColumns.contains('status')) {
@@ -810,40 +844,74 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       payload.removeWhere((_, v) => v == null);
 
       Map<String, dynamic> row;
-      try {
-        row = Map<String, dynamic>.from(await _insertJob(payload));
-      } on PostgrestException catch (e) {
-        if (_stripMissingJobColumn(payload, e.message)) {
+      while (true) {
+        try {
           row = Map<String, dynamic>.from(await _insertJob(payload));
-        } else {
-          rethrow;
+          break;
+        } on PostgrestException catch (e) {
+          if (!_stripMissingJobColumn(payload, e.message)) rethrow;
         }
       }
 
-      final biz = row[SupabaseTables.businesses];
-      final statusStr = parseString(row['status']) ?? (isDraft ? 'draft' : 'open');
-      final jobStatus = statusStr == 'draft'
-          ? DashboardJobStatus.draft
-          : statusStr == 'closed'
-              ? DashboardJobStatus.closed
-              : DashboardJobStatus.open;
-      return DashboardJob(
-        id: parseStringRequired(row['id']),
-        businessId: parseStringRequired(row['business_id']),
-        title: parseStringRequired(row['title']),
-        jobType: parseStringRequired(row['job_type'], 'Full-time'),
-        location: parseStringRequired(row['location'], 'Remote'),
-        salaryDisplay: '',
-        viewsCount: 0,
-        applicantsCount: 0,
-        postedTimeAgo: 'Just now',
-        employerName:
-            biz is Map<String, dynamic> ? parseString(biz['name']) : null,
-        employerLogoUrl:
-            biz is Map<String, dynamic> ? parseString(biz['logo_url']) : null,
-        status: jobStatus,
-      );
+      return _mapRowToDashboardJob(row, applicantsCount: 0);
     });
+  }
+
+  @override
+  Future<DashboardJob> updateJob(
+      String jobId, Map<String, dynamic> data) async {
+    return SupabaseFailureMapper.guard(() async {
+      final payload = Map<String, dynamic>.from(data);
+      payload.remove('business_id');
+      final status = payload['status'] as String?;
+      if (status != null) {
+        payload['is_active'] = status != 'draft';
+      }
+      payload.removeWhere((_, v) => v == null);
+
+      Map<String, dynamic> row;
+      while (true) {
+        try {
+          row =
+              Map<String, dynamic>.from(await _updateJobSelect(jobId, payload));
+          break;
+        } on PostgrestException catch (e) {
+          if (!_stripMissingJobColumn(payload, e.message)) rethrow;
+        }
+      }
+
+      final appRes = await _client
+          .from(SupabaseTables.jobApplications)
+          .select('id')
+          .eq('job_id', jobId);
+      final applicants = (appRes as List).length;
+      return _mapRowToDashboardJob(row, applicantsCount: applicants);
+    });
+  }
+
+  Future<dynamic> _updateJobSelect(
+      String jobId, Map<String, dynamic> payload) async {
+    try {
+      return await _client
+          .from(SupabaseTables.jobs)
+          .update(payload)
+          .eq('id', jobId)
+          .select(
+              '*, ${SupabaseTables.businesses}!jobs_business_id_fkey(name, logo_url)')
+          .single();
+    } on PostgrestException catch (e) {
+      if (e.message.contains('could not find') ||
+          e.message.contains('relationship') ||
+          e.code == 'PGRST200') {
+        return await _client
+            .from(SupabaseTables.jobs)
+            .update(payload)
+            .eq('id', jobId)
+            .select()
+            .single();
+      }
+      rethrow;
+    }
   }
 
   Future<dynamic> _insertJob(Map<String, dynamic> payload) async {
@@ -870,14 +938,25 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
 
   bool _stripMissingJobColumn(Map<String, dynamic> payload, String message) {
     final lower = message.toLowerCase();
-    for (final col in ['status']) {
-      if (lower.contains(col) && payload.containsKey(col)) {
-        payload.remove(col);
-        _missingJobColumns.add(col);
-        return true;
-      }
+    const cols = ['status', 'requirements', 'is_remote', 'salary_type'];
+    for (final col in cols) {
+      if (!payload.containsKey(col)) continue;
+      if (!_jobPayloadErrorMentionsColumn(lower, col)) continue;
+      payload.remove(col);
+      _missingJobColumns.add(col);
+      return true;
     }
     return false;
+  }
+
+  bool _jobPayloadErrorMentionsColumn(String lower, String col) {
+    if (!lower.contains(col) && !lower.contains(col.replaceAll('_', ' '))) {
+      return false;
+    }
+    return lower.contains('does not exist') ||
+        lower.contains('schema cache') ||
+        lower.contains('could not find') ||
+        (lower.contains('column') && lower.contains('jobs'));
   }
 
   // ---------------------------------------------------------------------------

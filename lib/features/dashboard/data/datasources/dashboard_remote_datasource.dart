@@ -26,7 +26,10 @@ abstract class DashboardRemoteDataSource {
   Future<ApplicantDetail?> getApplicantDetail(String applicantId, String jobId);
   Future<List<BoostPlan>> getBoostPlans(String targetType);
   Future<DashboardDeal> createDeal(String businessId, Map<String, dynamic> data);
+  Future<DashboardDeal> updateDeal(String dealId, Map<String, dynamic> data);
+  Future<void> updateDealStatus(String dealId, DashboardDealStatus status);
   Future<DashboardJob> createJob(String businessId, Map<String, dynamic> data);
+  Future<DashboardJob> updateJob(String jobId, Map<String, dynamic> data);
   Future<void> replyToReview(String reviewId, String replyText);
   Future<void> updateBusiness(String businessId, Map<String, dynamic> data);
   Future<void> updateBusinessHours(String businessId, Map<String, dynamic> hours);

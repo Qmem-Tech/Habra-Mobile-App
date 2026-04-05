@@ -27,7 +27,10 @@ class DashboardCubit extends Cubit<DashboardState> {
     emit(DashboardLoading());
     try {
       final analytics = await _repository.getAnalytics(businessId);
-      final deals = await _repository.getDeals(businessId);
+      final deals = await _repository.getDeals(
+        businessId,
+        status: DashboardDealStatus.active,
+      );
       final jobs = await _repository.getJobs(businessId);
       final reviewsOverview = await _repository.getReviewsOverview(businessId);
       final reviews = await _repository.getReviews(businessId);
@@ -118,10 +121,52 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
+  Future<DashboardDeal?> updateDeal(
+      String dealId, Map<String, dynamic> data) async {
+    try {
+      return await _repository.updateDeal(dealId, data);
+    } catch (e) {
+      emit(DashboardError(e.toString()));
+      return null;
+    }
+  }
+
+  /// Pause ([inactive]) or resume ([active]) without replacing the whole dashboard state on failure.
+  Future<bool> setDealPaused(String businessId, String dealId, bool paused) async {
+    final current = state;
+    if (current is! DashboardTabState) return false;
+    try {
+      await _repository.updateDealStatus(
+        dealId,
+        paused ? DashboardDealStatus.inactive : DashboardDealStatus.active,
+      );
+      final deals = await _repository.getDeals(
+        businessId,
+        status: current.dealsFilter,
+      );
+      if (state is DashboardTabState) {
+        emit((state as DashboardTabState).copyWith(deals: deals));
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<DashboardJob?> createJob(
       String businessId, Map<String, dynamic> data) async {
     try {
       return await _repository.createJob(businessId, data);
+    } catch (e) {
+      emit(DashboardError(e.toString()));
+      return null;
+    }
+  }
+
+  Future<DashboardJob?> updateJob(
+      String jobId, Map<String, dynamic> data) async {
+    try {
+      return await _repository.updateJob(jobId, data);
     } catch (e) {
       emit(DashboardError(e.toString()));
       return null;

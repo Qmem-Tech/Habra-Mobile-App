@@ -361,6 +361,14 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
           .maybeSingle();
       if (res == null) throw Exception('Deal not found');
       final row = Map<String, dynamic>.from(res as Map);
+      final dealStatus = parseString(row['status']);
+      final validUntil = parseTimestamp(row['valid_until']);
+      if (dealStatus != 'active') {
+        throw Exception('Deal not available');
+      }
+      if (validUntil != null && validUntil.isBefore(DateTime.now())) {
+        throw Exception('Deal not available');
+      }
       BusinessListItem? b;
       final biz = row['businesses'];
       if (biz is Map<String, dynamic>) {

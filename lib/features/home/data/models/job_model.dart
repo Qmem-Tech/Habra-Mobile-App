@@ -11,6 +11,8 @@ class JobModel extends Job {
     super.location,
     super.salary,
     super.postedDate,
+    super.createdAt,
+    super.updatedAt,
   });
 
   factory JobModel.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,12 @@ class JobModel extends Job {
       postedDate: json['postedDate'] != null
           ? DateTime.parse(json['postedDate'] as String)
           : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : null,
     );
   }
 
@@ -40,6 +48,8 @@ class JobModel extends Job {
       'location': location,
       'salary': salary,
       'postedDate': postedDate?.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 }

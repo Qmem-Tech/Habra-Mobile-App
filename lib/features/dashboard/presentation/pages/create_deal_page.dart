@@ -16,11 +16,15 @@ import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../bloc/dashboard_cubit.dart';
+import '../../domain/entities/dashboard_deal.dart';
 
 enum OfferType { percentOff, fixedAmount, freeItem }
 
 class CreateDealPage extends StatefulWidget {
-  const CreateDealPage({super.key});
+  const CreateDealPage({super.key, this.dealToEdit});
+
+  /// When set, the page updates this deal instead of creating a new one.
+  final DashboardDeal? dealToEdit;
 
   @override
   State<CreateDealPage> createState() => _CreateDealPageState();
@@ -40,6 +44,17 @@ class _CreateDealPageState extends State<CreateDealPage> {
   final Set<int> _selectedDays = {1, 2, 5, 6, 7};
   bool _showValidation = false;
   String? _pickedBusinessId;
+  String? _existingImageUrl;
+
+  bool get _isEditing => widget.dealToEdit != null;
+
+  bool get _canPublishFromEdit {
+    if (!_isEditing) return false;
+    final s = widget.dealToEdit!.status;
+    return s == DashboardDealStatus.inactive ||
+        s == DashboardDealStatus.draft ||
+        s == DashboardDealStatus.expired;
+  }
 
   static const List<int> _dayKeys = [1, 2, 3, 4, 5, 6, 7];
   static const List<String> _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -51,6 +66,67 @@ class _CreateDealPageState extends State<CreateDealPage> {
     final h = t.hour == 0 ? 12 : (t.hour > 12 ? t.hour - 12 : t.hour);
     final amPm = t.hour < 12 ? 'AM' : 'PM';
     return '$h:${t.minute.toString().padLeft(2, '0')} $amPm';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final d = widget.dealToEdit;
+    if (d != null) {
+      _prefillFromDeal(d);
+    }
+  }
+
+  void _prefillFromDeal(DashboardDeal d) {
+    _titleController.text = d.title;
+    _descriptionController.text = d.description;
+    final url = d.imageUrl;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      _existingImageUrl = url;
+    }
+    final cat = d.category ?? 'percent_off';
+    if (cat == 'fixed_amount') {
+      _offerType = OfferType.fixedAmount;
+      if (d.discountedPrice != null) {
+        _discountController.text = '${d.discountedPrice}';
+      }
+    } else if (cat == 'free_item') {
+      _offerType = OfferType.freeItem;
+      _discountController.clear();
+    } else {
+      _offerType = OfferType.percentOff;
+      final pct = d.discountPercentage;
+      if (pct != null && pct > 0) {
+        _discountController.text = '$pct';
+      }
+    }
+    if (d.validFrom != null) {
+      final vf = d.validFrom!;
+      _startDate = DateTime(vf.year, vf.month, vf.day);
+      _startTime = TimeOfDay(hour: vf.hour, minute: vf.minute);
+    }
+    if (d.expiryDate != null) {
+      final vu = d.expiryDate!;
+      _endDate = DateTime(vu.year, vu.month, vu.day);
+      _endTime = TimeOfDay(hour: vu.hour, minute: vu.minute);
+    }
+    _selectedDays
+      ..clear()
+      ..addAll(_dayKeys);
+    _pickedBusinessId = d.businessId;
+  }
+
+  String _persistedStatusForEdit() {
+    switch (widget.dealToEdit!.status) {
+      case DashboardDealStatus.inactive:
+        return 'inactive';
+      case DashboardDealStatus.draft:
+        return 'draft';
+      case DashboardDealStatus.expired:
+        return 'expired';
+      case DashboardDealStatus.active:
+        return 'active';
+    }
   }
 
   @override
@@ -82,6 +158,7 @@ class _CreateDealPageState extends State<CreateDealPage> {
   }
 
   bool get _needsBusinessPicker {
+    if (_isEditing) return false;
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
     if (homeState is BusinessOwnerHomeLoaded) {
       return homeState.isAllBusinessesView || homeState.presences.length > 1;
@@ -120,6 +197,8 @@ class _CreateDealPageState extends State<CreateDealPage> {
         userId,
         _imageFile!,
       );
+    } else if (_existingImageUrl != null) {
+      imageUrl = _existingImageUrl;
     }
     final now = DateTime.now();
     final validFrom = _composedValidFrom ?? now;
@@ -213,7 +292,51 @@ class _CreateDealPageState extends State<CreateDealPage> {
             !_composedValidUntil!.isAfter(_composedValidFrom!));
   }
 
+  Future<void> _submitEdit({required bool publish, bool asDraft = false}) async {
+    final forDraft = asDraft;
+    final errors = _collectErrors(forDraft: forDraft);
+    if (errors.isNotEmpty) {
+      setState(() => _showValidation = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errors.first)),
+      );
+      return;
+    }
+    final deal = widget.dealToEdit!;
+    final ctx = context;
+    LoaderHelper.show(ctx, message: 'Saving...');
+    try {
+      final status = publish
+          ? 'active'
+          : (asDraft ? 'draft' : _persistedStatusForEdit());
+      final payload = await _buildPayload(status);
+      if (!ctx.mounted) return;
+      final result = await ctx.read<DashboardCubit>().updateDeal(deal.id, payload);
+      if (!ctx.mounted) return;
+      await LoaderHelper.hide(ctx);
+      if (!ctx.mounted) return;
+      if (result != null) {
+        Navigator.pop(ctx, true);
+      }
+    } catch (e) {
+      if (ctx.mounted) {
+        await LoaderHelper.hide(ctx);
+        if (ctx.mounted) {
+          ErrorDisplayHelper.show(ctx, error: e, title: 'Could not save deal');
+        }
+      }
+    }
+  }
+
+  Future<void> _saveEditedChanges() async {
+    await _submitEdit(publish: false, asDraft: false);
+  }
+
   Future<void> _publishDeal() async {
+    if (_isEditing) {
+      await _submitEdit(publish: true);
+      return;
+    }
     final errors = _collectErrors(forDraft: false);
     if (errors.isNotEmpty) {
       setState(() => _showValidation = true);
@@ -246,6 +369,12 @@ class _CreateDealPageState extends State<CreateDealPage> {
   }
 
   Future<void> _saveDraft() async {
+    if (_isEditing) {
+      if (widget.dealToEdit!.status == DashboardDealStatus.draft) {
+        await _submitEdit(publish: false, asDraft: true);
+      }
+      return;
+    }
     final errors = _collectErrors(forDraft: true);
     if (errors.isNotEmpty) {
       setState(() => _showValidation = true);
@@ -280,7 +409,10 @@ class _CreateDealPageState extends State<CreateDealPage> {
   Future<void> _pickImage() async {
     final file = await di.sl<ImagePickerService>().pickImage(context);
     if (file != null && mounted) {
-      setState(() => _imageFile = file);
+      setState(() {
+        _imageFile = file;
+        _existingImageUrl = null;
+      });
     }
   }
 
@@ -295,9 +427,9 @@ class _CreateDealPageState extends State<CreateDealPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Create Deal',
-          style: TextStyle(
+        title: Text(
+          _isEditing ? 'Edit Deal' : 'Create Deal',
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
@@ -431,17 +563,38 @@ class _CreateDealPageState extends State<CreateDealPage> {
                         borderRadius: BorderRadius.circular(AppResources.radiusM),
                         child: Image.file(_imageFile!, fit: BoxFit.cover),
                       )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_photo_alternate, size: 40, color: AppColors.brandPrimary),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Tap to add deal image',
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                    : _existingImageUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(AppResources.radiusM),
+                            child: Image.network(
+                              _existingImageUrl!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              errorBuilder: (_, __, ___) => Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_photo_alternate, size: 40, color: AppColors.brandPrimary),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Tap to replace image',
+                                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_photo_alternate, size: 40, color: AppColors.brandPrimary),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Tap to add deal image',
+                                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
               ),
             ),
             const SizedBox(height: 24),
@@ -555,17 +708,42 @@ class _CreateDealPageState extends State<CreateDealPage> {
                 ),
               ),
             const SizedBox(height: 32),
-            AppButton(
-              text: 'Publish Deal',
-              onPressed: _publishDeal,
-            ),
-            const SizedBox(height: 12),
-            AppOutlinedButton(
-              text: 'Save As Draft',
-              onPressed: _saveDraft,
-              textColor: AppColors.brandPrimary,
-              borderColor: AppColors.brandPrimary,
-            ),
+            if (_isEditing) ...[
+              AppButton(
+                text: 'Save changes',
+                onPressed: _saveEditedChanges,
+              ),
+              if (_canPublishFromEdit) ...[
+                const SizedBox(height: 12),
+                AppOutlinedButton(
+                  text: 'Publish',
+                  onPressed: _publishDeal,
+                  textColor: AppColors.brandPrimary,
+                  borderColor: AppColors.brandPrimary,
+                ),
+              ],
+              if (widget.dealToEdit!.status == DashboardDealStatus.draft) ...[
+                const SizedBox(height: 12),
+                AppOutlinedButton(
+                  text: 'Save As Draft',
+                  onPressed: _saveDraft,
+                  textColor: AppColors.brandPrimary,
+                  borderColor: AppColors.brandPrimary,
+                ),
+              ],
+            ] else ...[
+              AppButton(
+                text: 'Publish Deal',
+                onPressed: _publishDeal,
+              ),
+              const SizedBox(height: 12),
+              AppOutlinedButton(
+                text: 'Save As Draft',
+                onPressed: _saveDraft,
+                textColor: AppColors.brandPrimary,
+                borderColor: AppColors.brandPrimary,
+              ),
+            ],
             const SizedBox(height: 12),
             AppOutlinedButton(
               text: 'Cancel',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../domain/entities/job.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/relative_time_short.dart';
 
 class JobCard extends StatelessWidget {
   final Job job;
@@ -66,6 +67,17 @@ class JobCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (job.showAsRecentlyUpdated && job.updatedAt != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Updated · ${formatShortTimeAgo(job.updatedAt!)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.brandPrimary,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

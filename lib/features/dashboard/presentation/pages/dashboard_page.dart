@@ -20,6 +20,7 @@ import 'dashboard_deals_tab.dart';
 import 'dashboard_jobs_tab.dart';
 import 'dashboard_reviews_tab.dart';
 import 'create_deal_page.dart';
+import '../../domain/entities/dashboard_deal.dart';
 import 'create_job_post_page.dart';
 import 'edit_business_page.dart';
 import 'update_hours_page.dart';
@@ -340,12 +341,8 @@ class _DashboardPageState extends State<DashboardPage> {
                           }
                         },
                         onCreateDeal: () => _navigateToCreateDeal(),
-                        onEdit: (_) => _navigateToCreateDeal(),
-                        onPause: (deal) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Pause is not available yet for "${deal.title}".')),
-                          );
-                        },
+                        onEdit: (deal) => _navigateToCreateDeal(dealToEdit: deal),
+                        onPause: (deal) => _onDealPauseResume(context, deal),
                         onStats: (_) => setState(() => _tabIndex = 0),
                       );
                     case 2:
@@ -356,6 +353,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             context.read<DashboardCubit>().setJobsFilter(f),
                         onCreateJob: () => _navigateToCreateJob(),
                         onViewApplicants: (job) => _navigateToApplicants(job),
+                        onEditJob: (job) => _navigateToCreateJob(jobToEdit: job),
                       );
                     case 3:
                       return DashboardReviewsTab(
@@ -377,7 +375,7 @@ class _DashboardPageState extends State<DashboardPage> {
             if (state is! DashboardTabState) return const SizedBox.shrink();
             if (_tabIndex == 1) {
               return FloatingActionButton(
-                onPressed: _navigateToCreateDeal,
+                onPressed: () => _navigateToCreateDeal(),
                 backgroundColor: AppColors.brandSecondary,
                 child: const Icon(Icons.add, color: AppColors.textOnPrimary),
               );
@@ -424,7 +422,7 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  void _navigateToCreateDeal() async {
+  Future<void> _navigateToCreateDeal({DashboardDeal? dealToEdit}) async {
     final dashboardCubit = context.read<DashboardCubit>();
     final homeCubit = context.read<BusinessOwnerHomeCubit>();
     final result = await Navigator.push<bool>(
@@ -435,7 +433,7 @@ class _DashboardPageState extends State<DashboardPage> {
             BlocProvider<DashboardCubit>.value(value: dashboardCubit),
             BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
           ],
-          child: const CreateDealPage(),
+          child: CreateDealPage(dealToEdit: dealToEdit),
         ),
       ),
     );
@@ -444,7 +442,27 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  void _navigateToCreateJob() async {
+  Future<void> _onDealPauseResume(BuildContext context, DashboardDeal deal) async {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is! BusinessOwnerHomeLoaded) return;
+    final bid = homeState.focusBusinessIdForOwnerTools;
+    if (bid == null) return;
+
+    final pause = deal.status == DashboardDealStatus.active;
+    final ok = await context.read<DashboardCubit>().setDealPaused(bid, deal.id, pause);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (pause ? 'Deal paused — hidden from public lists.' : 'Deal is live again.')
+              : 'Could not update deal. Try again.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _navigateToCreateJob({DashboardJob? jobToEdit}) async {
     final dashboardCubit = context.read<DashboardCubit>();
     final homeCubit = context.read<BusinessOwnerHomeCubit>();
     final result = await Navigator.push<bool>(
@@ -455,7 +473,7 @@ class _DashboardPageState extends State<DashboardPage> {
             BlocProvider<DashboardCubit>.value(value: dashboardCubit),
             BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
           ],
-          child: const CreateJobPostPage(),
+          child: CreateJobPostPage(jobToEdit: jobToEdit),
         ),
       ),
     );

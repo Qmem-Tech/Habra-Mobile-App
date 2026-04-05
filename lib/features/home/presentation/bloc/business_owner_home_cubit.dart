@@ -207,7 +207,9 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
                 companyId: businessId,
                 jobType: j.jobType,
                 location: j.location,
-                salary: j.salaryDisplay,
+                salary: j.salaryDisplay.isEmpty ? null : j.salaryDisplay,
+                createdAt: j.createdAt,
+                updatedAt: j.updatedAt,
               ))
           .toList();
     } catch (_) {

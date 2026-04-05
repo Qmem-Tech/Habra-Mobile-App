@@ -18,6 +18,12 @@ class DashboardDeal extends Equatable {
   /// Owning business (required for `boosts.business_id` when boosting this deal).
   final String businessId;
 
+  /// Raw DB `category` (`percent_off` \| `fixed_amount` \| `free_item`) for edit form.
+  final String? category;
+  final int? discountPercentage;
+  final int? discountedPrice;
+  final DateTime? validFrom;
+
   const DashboardDeal({
     required this.id,
     required this.businessId,
@@ -30,6 +36,10 @@ class DashboardDeal extends Equatable {
     this.expiryDate,
     this.status = DashboardDealStatus.active,
     this.merchantName,
+    this.category,
+    this.discountPercentage,
+    this.discountedPrice,
+    this.validFrom,
   });
 
   /// "Expires in X days" for display.
@@ -53,6 +63,10 @@ class DashboardDeal extends Equatable {
         expiryDate,
         status,
         merchantName,
+        category,
+        discountPercentage,
+        discountedPrice,
+        validFrom,
       ];
 
   String get expiryDateShort {

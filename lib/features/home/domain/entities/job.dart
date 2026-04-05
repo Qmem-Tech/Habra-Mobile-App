@@ -10,6 +10,8 @@ class Job extends Equatable {
   final String? location;
   final String? salary;
   final DateTime? postedDate;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const Job({
     required this.id,
@@ -21,7 +23,18 @@ class Job extends Equatable {
     this.location,
     this.salary,
     this.postedDate,
+    this.createdAt,
+    this.updatedAt,
   });
+
+  /// True when the row was meaningfully edited after creation (for "Updated" badge).
+  bool get showAsRecentlyUpdated {
+    final c = createdAt;
+    final u = updatedAt;
+    if (c == null || u == null) return false;
+    if (!u.isAfter(c)) return false;
+    return u.difference(c) > const Duration(seconds: 90);
+  }
 
   @override
   List<Object?> get props => [
@@ -34,5 +47,7 @@ class Job extends Equatable {
         location,
         salary,
         postedDate,
+        createdAt,
+        updatedAt,
       ];
 }

@@ -9,10 +9,20 @@ import '../../../../core/widgets/location_picker_bottom_sheet.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
+import '../../domain/entities/dashboard_job.dart';
 import '../bloc/dashboard_cubit.dart';
 
+const _kJobTypeLabels = <String, String>{
+  'full-time': 'Full-time',
+  'part-time': 'Part-time',
+  'contract': 'Contract',
+  'internship': 'Internship',
+};
+
 class CreateJobPostPage extends StatefulWidget {
-  const CreateJobPostPage({super.key});
+  const CreateJobPostPage({super.key, this.jobToEdit});
+
+  final DashboardJob? jobToEdit;
 
   @override
   State<CreateJobPostPage> createState() => _CreateJobPostPageState();
@@ -21,21 +31,56 @@ class CreateJobPostPage extends StatefulWidget {
 class _CreateJobPostPageState extends State<CreateJobPostPage> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
-  final _jobTypeController = TextEditingController();
   final _locationController = TextEditingController();
   final _minSalaryController = TextEditingController();
   final _maxSalaryController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _requirementsController = TextEditingController();
+  String _jobTypeSlug = 'full-time';
   bool _isHourly = false;
   bool _remotePosition = true;
   bool _showValidation = false;
+  /// When true, description/location use publish rules (min length, on-site location).
+  bool _publishAttempted = false;
   String? _pickedBusinessId;
+
+  bool get _editingPublished =>
+      widget.jobToEdit != null && !widget.jobToEdit!.isDraft;
+
+  @override
+  void initState() {
+    super.initState();
+    final j = widget.jobToEdit;
+    if (j != null) {
+      _pickedBusinessId = j.businessId;
+      _titleController.text = j.title;
+      _jobTypeSlug = _coerceJobTypeSlug(j.jobTypeSlug);
+      _remotePosition = j.isRemote;
+      if (j.isRemote) {
+        _locationController.text = '';
+      } else {
+        _locationController.text = j.location;
+      }
+      if (j.salaryMin != null) {
+        _minSalaryController.text = '${j.salaryMin}';
+      }
+      if (j.salaryMax != null) {
+        _maxSalaryController.text = '${j.salaryMax}';
+      }
+      _descriptionController.text = j.description ?? '';
+      _requirementsController.text = j.requirements ?? '';
+      _isHourly = j.salaryType == 'hourly';
+    }
+  }
+
+  String _coerceJobTypeSlug(String slug) {
+    final n = DashboardJob.normalizeJobTypeSlug(slug);
+    return _kJobTypeLabels.containsKey(n) ? n : 'full-time';
+  }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _jobTypeController.dispose();
     _locationController.dispose();
     _minSalaryController.dispose();
     _maxSalaryController.dispose();
@@ -45,6 +90,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
   }
 
   String? _getSelectedBusinessId() {
+    if (widget.jobToEdit != null) return widget.jobToEdit!.businessId;
     if (_pickedBusinessId != null) return _pickedBusinessId;
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
     if (homeState is BusinessOwnerHomeLoaded &&
@@ -64,6 +110,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
   }
 
   bool get _needsBusinessPicker {
+    if (widget.jobToEdit != null) return false;
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
     if (homeState is BusinessOwnerHomeLoaded) {
       return homeState.isAllBusinessesView || homeState.presences.length > 1;
@@ -81,7 +128,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     }
   }
 
-  Map<String, dynamic> _buildPayload({String status = 'open'}) {
+  Map<String, dynamic> _buildPayload({required String status}) {
     final requirements = _requirementsController.text.trim();
     return {
       'title': _titleController.text.trim(),
@@ -89,9 +136,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
       'location': _locationController.text.trim().isNotEmpty
           ? _locationController.text.trim()
           : (_remotePosition ? 'Remote' : null),
-      'job_type': _jobTypeController.text.trim().isNotEmpty
-          ? _jobTypeController.text.trim().toLowerCase()
-          : 'full-time',
+      'job_type': _jobTypeSlug,
       'salary_min': int.tryParse(_minSalaryController.text.trim()),
       'salary_max': int.tryParse(_maxSalaryController.text.trim()),
       'salary_type': _isHourly ? 'hourly' : 'yearly',
@@ -101,17 +146,20 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     };
   }
 
-  List<String> _collectErrors({bool isDraft = false}) {
+  String _statusPayloadForExistingJob() {
+    final j = widget.jobToEdit!;
+    switch (j.status) {
+      case DashboardJobStatus.draft:
+        return 'draft';
+      case DashboardJobStatus.closed:
+        return 'closed';
+      case DashboardJobStatus.open:
+        return 'open';
+    }
+  }
+
+  List<String> _salaryFieldErrors() {
     final errors = <String>[];
-    if (_getSelectedBusinessId() == null) {
-      errors.add('Please select a business');
-    }
-    if (_titleController.text.trim().isEmpty) {
-      errors.add('Please enter a job title');
-    }
-    if (!isDraft && _descriptionController.text.trim().isEmpty) {
-      errors.add('Please enter a job description');
-    }
     final minText = _minSalaryController.text.trim();
     final maxText = _maxSalaryController.text.trim();
     final minSalary = int.tryParse(minText);
@@ -128,16 +176,72 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     return errors;
   }
 
+  List<String> _collectPublishErrors() {
+    final errors = <String>[];
+    if (_getSelectedBusinessId() == null) {
+      errors.add('Please select a business');
+    }
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
+      errors.add('Please enter a job title');
+    } else if (title.length > 120) {
+      errors.add('Job title must be 120 characters or less');
+    }
+    final desc = _descriptionController.text.trim();
+    if (desc.isEmpty) {
+      errors.add('Please enter a job description');
+    } else if (desc.length < 30) {
+      errors.add('Description should be at least 30 characters to publish');
+    }
+    if (!_remotePosition && _locationController.text.trim().isEmpty) {
+      errors.add('Enter a location or enable remote');
+    }
+    errors.addAll(_salaryFieldErrors());
+    return errors;
+  }
+
+  List<String> _collectDraftErrors() {
+    final errors = <String>[];
+    if (_getSelectedBusinessId() == null) {
+      errors.add('Please select a business');
+    }
+    if (_titleController.text.trim().isEmpty) {
+      errors.add('Please enter a job title');
+    }
+    final title = _titleController.text.trim();
+    if (title.length > 120) {
+      errors.add('Job title must be 120 characters or less');
+    }
+    errors.addAll(_salaryFieldErrors());
+    return errors;
+  }
+
   bool get _isSalaryRangeInvalid {
     final min = int.tryParse(_minSalaryController.text.trim());
     final max = int.tryParse(_maxSalaryController.text.trim());
     return min != null && max != null && min > max;
   }
 
+  bool get _titleInvalid {
+    final t = _titleController.text.trim();
+    return t.isEmpty || t.length > 120;
+  }
+
+  bool get _descriptionPublishInvalid {
+    final t = _descriptionController.text.trim();
+    return t.isEmpty || t.length < 30;
+  }
+
+  bool get _locationPublishInvalid =>
+      !_remotePosition && _locationController.text.trim().isEmpty;
+
   Future<void> _postJob() async {
-    final errors = _collectErrors();
+    final errors = _collectPublishErrors();
     if (errors.isNotEmpty) {
-      setState(() => _showValidation = true);
+      setState(() {
+        _showValidation = true;
+        _publishAttempted = true;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errors.first)),
       );
@@ -145,12 +249,23 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     }
     final bizId = _getSelectedBusinessId()!;
     final ctx = context;
-    LoaderHelper.show(ctx, message: 'Posting job...');
+    final editing = widget.jobToEdit;
+    LoaderHelper.show(
+      ctx,
+      message: editing != null ? 'Publishing…' : 'Posting job…',
+    );
     String? errorMessage;
-    bool success = false;
+    DashboardJob? result;
     try {
-      final result = await ctx.read<DashboardCubit>().createJob(bizId, _buildPayload(status: 'open'));
-      success = result != null;
+      if (editing != null) {
+        result = await ctx
+            .read<DashboardCubit>()
+            .updateJob(editing.id, _buildPayload(status: 'open'));
+      } else {
+        result = await ctx
+            .read<DashboardCubit>()
+            .createJob(bizId, _buildPayload(status: 'open'));
+      }
     } catch (e) {
       errorMessage = e.toString();
     } finally {
@@ -159,21 +274,25 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
       }
     }
     if (!ctx.mounted) return;
-    if (success) {
+    if (result != null) {
       Navigator.pop(ctx, true);
     } else {
       ErrorDisplayHelper.show(
         ctx,
-        message: errorMessage ?? 'We couldn\'t post your job. Please try again.',
-        title: 'Post failed',
+        message: errorMessage ??
+            'We couldn\'t publish this job. Please try again.',
+        title: 'Publish failed',
       );
     }
   }
 
   Future<void> _saveDraft() async {
-    final errors = _collectErrors(isDraft: true);
+    final errors = _collectDraftErrors();
     if (errors.isNotEmpty) {
-      setState(() => _showValidation = true);
+      setState(() {
+        _showValidation = true;
+        _publishAttempted = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errors.first)),
       );
@@ -181,12 +300,20 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     }
     final bizId = _getSelectedBusinessId()!;
     final ctx = context;
-    LoaderHelper.show(ctx, message: 'Saving draft...');
+    final editing = widget.jobToEdit;
+    LoaderHelper.show(ctx, message: 'Saving draft…');
     String? errorMessage;
-    bool success = false;
+    DashboardJob? result;
     try {
-      final result = await ctx.read<DashboardCubit>().createJob(bizId, _buildPayload(status: 'draft'));
-      success = result != null;
+      if (editing != null) {
+        result = await ctx
+            .read<DashboardCubit>()
+            .updateJob(editing.id, _buildPayload(status: 'draft'));
+      } else {
+        result = await ctx
+            .read<DashboardCubit>()
+            .createJob(bizId, _buildPayload(status: 'draft'));
+      }
     } catch (e) {
       errorMessage = e.toString();
     } finally {
@@ -195,15 +322,63 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
       }
     }
     if (!ctx.mounted) return;
-    if (success) {
+    if (result != null) {
       Navigator.pop(ctx, true);
     } else {
       ErrorDisplayHelper.show(
         ctx,
-        message: errorMessage ?? 'We couldn\'t save your draft. Please try again.',
+        message: errorMessage ??
+            'We couldn\'t save your draft. Please try again.',
         title: 'Save failed',
       );
     }
+  }
+
+  Future<void> _savePublishedChanges() async {
+    final errors = _collectPublishErrors();
+    if (errors.isNotEmpty) {
+      setState(() {
+        _showValidation = true;
+        _publishAttempted = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errors.first)),
+      );
+      return;
+    }
+    final ctx = context;
+    final job = widget.jobToEdit!;
+    LoaderHelper.show(ctx, message: 'Saving changes…');
+    String? errorMessage;
+    DashboardJob? result;
+    try {
+      result = await ctx.read<DashboardCubit>().updateJob(
+            job.id,
+            _buildPayload(status: _statusPayloadForExistingJob()),
+          );
+    } catch (e) {
+      errorMessage = e.toString();
+    } finally {
+      if (ctx.mounted) {
+        await LoaderHelper.hide(ctx);
+      }
+    }
+    if (!ctx.mounted) return;
+    if (result != null) {
+      Navigator.pop(ctx, true);
+    } else {
+      ErrorDisplayHelper.show(
+        ctx,
+        message: errorMessage ??
+            'We couldn\'t save your changes. Please try again.',
+        title: 'Update failed',
+      );
+    }
+  }
+
+  String _appBarTitle() {
+    if (widget.jobToEdit == null) return 'Create Job Post';
+    return widget.jobToEdit!.isDraft ? 'Edit Job Post' : 'Edit Job';
   }
 
   @override
@@ -217,9 +392,9 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Create Job Post',
-          style: TextStyle(
+        title: Text(
+          _appBarTitle(),
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
@@ -234,160 +409,238 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            if (_needsBusinessPicker) ...[
-              _buildBusinessPicker(),
-              const SizedBox(height: 20),
-            ],
-            _sectionTitle('Job Details'),
-            const SizedBox(height: 12),
-            _buildTextField(
-              'Job Title',
-              controller: _titleController,
-              isRequired: true,
-              showError: _showValidation && _titleController.text.trim().isEmpty,
-            ),
-            const SizedBox(height: 12),
-            _buildTextField('Job Type', controller: _jobTypeController),
-            const SizedBox(height: 12),
-            _buildLocationField(),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.backgroundLight,
-                borderRadius: BorderRadius.circular(AppResources.radiusM),
+              if (_needsBusinessPicker) ...[
+                _buildBusinessPicker(),
+                const SizedBox(height: 20),
+              ],
+              _sectionTitle('Job Details'),
+              const SizedBox(height: 12),
+              _buildTextField(
+                'Job Title',
+                controller: _titleController,
+                isRequired: true,
+                showError: _showValidation && _titleInvalid,
+                errorMessage: _titleController.text.trim().isEmpty
+                    ? null
+                    : (_titleController.text.trim().length > 120
+                        ? 'Max 120 characters'
+                        : null),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Remote Position',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Is this job fully remote?',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Switch(
-                    value: _remotePosition,
-                    onChanged: (v) => setState(() => _remotePosition = v),
-                    activeThumbColor: AppColors.brandPrimary,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _sectionTitle('Salary Range'),
-                Row(
+              const SizedBox(height: 12),
+              _buildJobTypeDropdown(),
+              const SizedBox(height: 12),
+              _buildLocationField(),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundLight,
+                  borderRadius: BorderRadius.circular(AppResources.radiusM),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _SalaryTypeChip(
-                      label: 'Hourly',
-                      selected: _isHourly,
-                      onTap: () => setState(() => _isHourly = true),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Remote Position',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Is this job fully remote?',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    _SalaryTypeChip(
-                      label: 'Yearly',
-                      selected: !_isHourly,
-                      onTap: () => setState(() => _isHourly = false),
+                    Switch(
+                      value: _remotePosition,
+                      onChanged: (v) => setState(() => _remotePosition = v),
+                      activeThumbColor: AppColors.brandPrimary,
                     ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTextField(
-                    'Minimum',
-                    controller: _minSalaryController,
-                    keyboardType: TextInputType.number,
-                    showError: _showValidation &&
-                        ((_minSalaryController.text.trim().isNotEmpty &&
-                                int.tryParse(_minSalaryController.text.trim()) == null) ||
-                            _isSalaryRangeInvalid),
-                    errorMessage: _minSalaryController.text.trim().isNotEmpty &&
-                            int.tryParse(_minSalaryController.text.trim()) == null
-                        ? 'Must be a number'
-                        : (_isSalaryRangeInvalid ? 'Min exceeds max' : null),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _sectionTitle('Salary Range'),
+                  Row(
+                    children: [
+                      _SalaryTypeChip(
+                        label: 'Hourly',
+                        selected: _isHourly,
+                        onTap: () => setState(() => _isHourly = true),
+                      ),
+                      const SizedBox(width: 8),
+                      _SalaryTypeChip(
+                        label: 'Yearly',
+                        selected: !_isHourly,
+                        onTap: () => setState(() => _isHourly = false),
+                      ),
+                    ],
                   ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('to', style: TextStyle(color: AppColors.brandPrimary, fontWeight: FontWeight.w600)),
-                ),
-                Expanded(
-                  child: _buildTextField(
-                    'Maximum',
-                    controller: _maxSalaryController,
-                    keyboardType: TextInputType.number,
-                    showError: _showValidation &&
-                        ((_maxSalaryController.text.trim().isNotEmpty &&
-                                int.tryParse(_maxSalaryController.text.trim()) == null) ||
-                            _isSalaryRangeInvalid),
-                    errorMessage: _maxSalaryController.text.trim().isNotEmpty &&
-                            int.tryParse(_maxSalaryController.text.trim()) == null
-                        ? 'Must be a number'
-                        : null,
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTextField(
+                      'Minimum',
+                      controller: _minSalaryController,
+                      keyboardType: TextInputType.number,
+                      showError: _showValidation &&
+                          ((_minSalaryController.text.trim().isNotEmpty &&
+                                  int.tryParse(
+                                          _minSalaryController.text.trim()) ==
+                                      null) ||
+                              _isSalaryRangeInvalid),
+                      errorMessage: _minSalaryController.text.trim().isNotEmpty &&
+                              int.tryParse(_minSalaryController.text.trim()) ==
+                                  null
+                          ? 'Must be a number'
+                          : (_isSalaryRangeInvalid ? 'Min exceeds max' : null),
+                    ),
                   ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'to',
+                      style: TextStyle(
+                        color: AppColors.brandPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildTextField(
+                      'Maximum',
+                      controller: _maxSalaryController,
+                      keyboardType: TextInputType.number,
+                      showError: _showValidation &&
+                          ((_maxSalaryController.text.trim().isNotEmpty &&
+                                  int.tryParse(
+                                          _maxSalaryController.text.trim()) ==
+                                      null) ||
+                              _isSalaryRangeInvalid),
+                      errorMessage: _maxSalaryController.text.trim().isNotEmpty &&
+                              int.tryParse(_maxSalaryController.text.trim()) ==
+                                  null
+                          ? 'Must be a number'
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _sectionTitle('Job Description'),
+              const SizedBox(height: 8),
+              _buildTextField(
+                'Description',
+                controller: _descriptionController,
+                maxLines: 5,
+                isRequired: true,
+                showError: _showValidation &&
+                    _publishAttempted &&
+                    _descriptionPublishInvalid,
+                errorMessage: _descriptionController.text.trim().isEmpty
+                    ? null
+                    : (_descriptionController.text.trim().length < 30
+                        ? 'At least 30 characters to publish'
+                        : null),
+              ),
+              const SizedBox(height: 24),
+              _sectionTitle('Requirements'),
+              const SizedBox(height: 8),
+              _buildTextField(
+                'Requirements (Optional)',
+                controller: _requirementsController,
+                maxLines: 4,
+              ),
+              const SizedBox(height: 32),
+              if (_editingPublished) ...[
+                AppButton(
+                  text: 'Save changes',
+                  onPressed: _savePublishedChanges,
+                ),
+              ] else ...[
+                AppButton(
+                  text: widget.jobToEdit != null ? 'Publish' : 'Post Job',
+                  onPressed: _postJob,
+                ),
+                const SizedBox(height: 12),
+                AppOutlinedButton(
+                  text: 'Save As Draft',
+                  onPressed: _saveDraft,
+                  textColor: AppColors.brandPrimary,
+                  borderColor: AppColors.brandPrimary,
                 ),
               ],
-            ),
-            const SizedBox(height: 24),
-            _sectionTitle('Job Description'),
-            const SizedBox(height: 8),
-            _buildTextField(
-              'Description',
-              controller: _descriptionController,
-              maxLines: 5,
-              isRequired: true,
-              showError: _showValidation && _descriptionController.text.trim().isEmpty,
-            ),
-            const SizedBox(height: 24),
-            _sectionTitle('Requirements'),
-            const SizedBox(height: 8),
-            _buildTextField(
-              'Requirements (Optional)',
-              controller: _requirementsController,
-              maxLines: 4,
-            ),
-            const SizedBox(height: 32),
-            AppButton(text: 'Post Job', onPressed: _postJob),
-            const SizedBox(height: 12),
-            AppOutlinedButton(
-              text: 'Save As Draft',
-              onPressed: _saveDraft,
-              textColor: AppColors.brandPrimary,
-              borderColor: AppColors.brandPrimary,
-            ),
-            const SizedBox(height: 12),
-            AppOutlinedButton(
-              text: 'Cancel',
-              onPressed: () => Navigator.pop(context),
-              textColor: AppColors.textSecondary,
-              borderColor: AppColors.backgroundGrey,
-            ),
-          ],
+              const SizedBox(height: 12),
+              AppOutlinedButton(
+                text: 'Cancel',
+                onPressed: () => Navigator.pop(context),
+                textColor: AppColors.textSecondary,
+                borderColor: AppColors.backgroundGrey,
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildJobTypeDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Job Type',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          initialValue: _jobTypeSlug,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.backgroundWhite,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: const BorderSide(color: AppColors.backgroundGrey),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: const BorderSide(color: AppColors.backgroundGrey),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+          isExpanded: true,
+          items: _kJobTypeLabels.entries
+              .map(
+                (e) => DropdownMenuItem<String>(
+                  value: e.key,
+                  child: Text(e.value),
+                ),
+              )
+              .toList(),
+          onChanged: (v) => setState(() => _jobTypeSlug = v ?? 'full-time'),
+        ),
+      ],
     );
   }
 
@@ -399,11 +652,18 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
       children: [
         const Text(
           'Business *',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          initialValue: effectiveId != null && businesses.any((b) => b.id == effectiveId) ? effectiveId : null,
+          initialValue: effectiveId != null &&
+                  businesses.any((b) => b.id == effectiveId)
+              ? effectiveId
+              : null,
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.backgroundWhite,
@@ -423,13 +683,21 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
                     : AppColors.backgroundGrey,
               ),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            errorText: _showValidation && _getSelectedBusinessId() == null ? 'Please select a business' : null,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            errorText: _showValidation && _getSelectedBusinessId() == null
+                ? 'Please select a business'
+                : null,
           ),
           hint: const Text('Select a business'),
           isExpanded: true,
           items: businesses
-              .map((b) => DropdownMenuItem<String>(value: b.id, child: Text(b.name, overflow: TextOverflow.ellipsis)))
+              .map(
+                (b) => DropdownMenuItem<String>(
+                  value: b.id,
+                  child: Text(b.name, overflow: TextOverflow.ellipsis),
+                ),
+              )
               .toList(),
           onChanged: (v) => setState(() => _pickedBusinessId = v),
         ),
@@ -438,12 +706,17 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
   }
 
   Widget _buildLocationField() {
+    final borderColor = _showValidation &&
+            _publishAttempted &&
+            _locationPublishInvalid
+        ? AppColors.error
+        : AppColors.backgroundGrey;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Location',
-          style: TextStyle(
+        Text(
+          _remotePosition ? 'Location' : 'Location *',
+          style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: AppColors.textPrimary,
@@ -460,19 +733,25 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
                 hintText: 'Select city or address...',
                 filled: true,
                 fillColor: AppColors.backgroundWhite,
+                errorText: _showValidation &&
+                        _publishAttempted &&
+                        _locationPublishInvalid
+                    ? 'Required when not remote'
+                    : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppResources.radiusM),
-                  borderSide: const BorderSide(color: AppColors.backgroundGrey),
+                  borderSide: BorderSide(color: borderColor),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppResources.radiusM),
-                  borderSide: const BorderSide(color: AppColors.backgroundGrey),
+                  borderSide: BorderSide(color: borderColor),
                 ),
-                suffixIcon: Icon(
+                suffixIcon: const Icon(
                   Icons.arrow_drop_down,
                   color: AppColors.textSecondary,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
             ),
           ),
@@ -541,8 +820,10 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
                 color: showError ? AppColors.error : AppColors.brandPrimary,
               ),
             ),
-            errorText: showError ? (errorMessage ?? 'This field is required') : null,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            errorText:
+                showError ? (errorMessage ?? 'This field is required') : null,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),
       ],

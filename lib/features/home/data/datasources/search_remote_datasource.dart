@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
+import '../../../../core/utils/job_type_format.dart';
 import '../../domain/entities/business.dart';
 import '../../domain/entities/event.dart';
 import '../../domain/entities/job.dart';
@@ -131,16 +132,23 @@ class SearchRemoteDataSourceImpl implements SearchRemoteDataSource {
           if (biz is Map<String, dynamic>) {
             companyName = parseStringRequired(biz['name']);
           }
+          final sal = parseString(row['salary_display']);
+          final fromMinMax = jobSalaryLineFromMinMax(
+            parseInt(row['salary_min']),
+            parseInt(row['salary_max']),
+          );
           jobs.add(Job(
             id: parseStringRequired(row['id']),
             title: parseStringRequired(row['title']),
             companyName: companyName,
             companyId: companyId,
-            jobType: parseStringRequired(row['job_type']),
+            jobType: jobTypeFormatLabel(parseString(row['job_type'])),
             description: parseString(row['description']),
             location: parseString(row['location']),
-            salary: parseString(row['salary_display']),
+            salary: (sal != null && sal.isNotEmpty) ? sal : (fromMinMax.isEmpty ? null : fromMinMax),
             postedDate: parseTimestamp(row['posted_at']),
+            createdAt: parseTimestamp(row['created_at']),
+            updatedAt: parseTimestamp(row['updated_at']),
           ));
         }
       }

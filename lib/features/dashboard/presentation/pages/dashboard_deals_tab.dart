@@ -38,7 +38,11 @@ class DashboardDealsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeCount = deals.where((d) => d.status == DashboardDealStatus.active).length;
+    final activeCount = deals
+        .where((d) =>
+            d.status == DashboardDealStatus.active ||
+            d.status == DashboardDealStatus.inactive)
+        .length;
     final expiredCount = deals.where((d) => d.status == DashboardDealStatus.expired).length;
     final draftCount = deals.where((d) => d.status == DashboardDealStatus.draft).length;
 
@@ -183,20 +187,42 @@ class _DealCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: typeColor,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          deal.dealTypeLabel,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: typeColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              deal.dealTypeLabel,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (deal.status == DashboardDealStatus.inactive)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.textTertiary.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'Paused',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -260,9 +286,19 @@ class _DealCard extends StatelessWidget {
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: onPause,
-                  icon: const Icon(Icons.pause_circle_outline, size: 18),
-                  label: const Text('Pause'),
+                  onPressed: (deal.status == DashboardDealStatus.active ||
+                          deal.status == DashboardDealStatus.inactive)
+                      ? onPause
+                      : null,
+                  icon: Icon(
+                    deal.status == DashboardDealStatus.inactive
+                        ? Icons.play_circle_outline
+                        : Icons.pause_circle_outline,
+                    size: 18,
+                  ),
+                  label: Text(
+                    deal.status == DashboardDealStatus.inactive ? 'Resume' : 'Pause',
+                  ),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.textSecondary,
                   ),

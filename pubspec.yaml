@@ -88,10 +88,6 @@ flutter:
     - assets/images/
     - assets/images/onboarding/
     - assets/images/home/
-    - assets/images/events/
-    - assets/images/deals/
-    - assets/images/businesses/
-    - assets/images/jobs/
     - assets/icons/
     - assets/logos/
     - assets/illustration/
@@ -100,6 +96,6 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icons/habra_app_lcon.png"
+  image_path: "assets/icons/habra_app_icon.png"
   min_sdk_android: 21
   remove_alpha_ios: true

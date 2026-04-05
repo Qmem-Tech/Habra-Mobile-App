@@ -4,6 +4,7 @@ import '../../../../core/location/user_geo_for_feed.dart';
 import '../../../../core/supabase/nearby_feed_rpc_helper.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
+import '../../../../core/utils/job_type_format.dart';
 import '../../domain/home_feed_location.dart';
 import '../models/business_model.dart';
 import '../models/deal_model.dart';
@@ -190,16 +191,23 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
         if (biz is Map<String, dynamic>) {
           companyName = parseStringRequired(biz['name']);
         }
+        final sal = parseString(row['salary_display']);
+        final fromMinMax = jobSalaryLineFromMinMax(
+          parseInt(row['salary_min']),
+          parseInt(row['salary_max']),
+        );
         return JobModel(
           id: parseStringRequired(row['id']),
           title: parseStringRequired(row['title']),
           companyName: companyName,
           companyId: companyId,
-          jobType: parseStringRequired(row['job_type']),
+          jobType: jobTypeFormatLabel(parseString(row['job_type'])),
           description: parseString(row['description']),
           location: parseString(row['location']),
-          salary: parseString(row['salary_display']),
+          salary: (sal != null && sal.isNotEmpty) ? sal : (fromMinMax.isEmpty ? null : fromMinMax),
           postedDate: parseTimestamp(row['posted_at']),
+          createdAt: parseTimestamp(row['created_at']),
+          updatedAt: parseTimestamp(row['updated_at']),
         );
       }).toList();
     });
