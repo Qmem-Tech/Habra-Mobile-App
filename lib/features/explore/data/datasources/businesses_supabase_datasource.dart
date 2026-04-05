@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../domain/entities/business_category.dart';
@@ -576,5 +577,18 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
           .eq('id', reviewId)
           .eq('user_id', userId);
     });
+  }
+
+  @override
+  Future<void> recordBusinessListingView(String businessId) async {
+    try {
+      final uid = _client.auth.currentUser?.id;
+      await _client.from(SupabaseTables.businessListingViews).insert({
+        'business_id': businessId,
+        if (uid != null) 'viewer_user_id': uid,
+      });
+    } catch (_) {
+      // Missing migration, RLS, or offline — do not block the detail screen.
+    }
   }
 }

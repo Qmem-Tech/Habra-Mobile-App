@@ -28,6 +28,7 @@ DROP TABLE IF EXISTS public.job_applications CASCADE;
 DROP TABLE IF EXISTS public.tickets CASCADE;
 DROP TABLE IF EXISTS public.orders CASCADE;
 DROP TABLE IF EXISTS public.deal_redemptions CASCADE;
+DROP TABLE IF EXISTS public.business_listing_views CASCADE;
 DROP TABLE IF EXISTS public.review_replies CASCADE;
 DROP TABLE IF EXISTS public.reviews CASCADE;
 DROP TABLE IF EXISTS public.jobs CASCADE;

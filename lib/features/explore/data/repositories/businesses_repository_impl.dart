@@ -148,4 +148,11 @@ class BusinessesRepositoryImpl implements BusinessesRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+
+  @override
+  Future<void> recordBusinessListingView(String businessId) async {
+    try {
+      await remoteDataSource.recordBusinessListingView(businessId);
+    } catch (_) {}
+  }
 }

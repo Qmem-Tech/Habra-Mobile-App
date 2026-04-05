@@ -39,4 +39,7 @@ abstract class BusinessesRepository {
   Future<Either<Failure, List<MyReview>>> getMyReviews();
   Future<Either<Failure, MyReview>> updateReview(String reviewId, {int? rating, String? comment});
   Future<Either<Failure, void>> deleteReview(String reviewId);
+
+  /// Best-effort analytics ping when a listing is opened; never surfaces [Failure] to callers.
+  Future<void> recordBusinessListingView(String businessId);
 }

@@ -211,14 +211,46 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
               : null)
           : null;
 
+      List<Map<String, dynamic>> viewRows = [];
+      try {
+        final cutoffUtc =
+            DateTime.now().toUtc().subtract(const Duration(days: 16));
+        final vr = await _client
+            .from(SupabaseTables.businessListingViews)
+            .select('created_at')
+            .eq('business_id', businessId)
+            .gte('created_at', cutoffUtc.toIso8601String());
+        viewRows = (vr as List).cast<Map<String, dynamic>>();
+      } catch (_) {
+        viewRows = [];
+      }
+
+      final viewTimes = <DateTime>[];
+      for (final row in viewRows) {
+        final raw = row['created_at'];
+        if (raw == null) continue;
+        final parsed = DateTime.tryParse(raw.toString());
+        if (parsed != null) {
+          viewTimes.add(parsed.toLocal());
+        }
+      }
+
+      final viewsSeries = _listingViewsLastSevenDays(viewTimes);
+      final currentViews7 =
+          viewsSeries.fold<int>(0, (sum, p) => sum + p.views);
+      final previousViews7 = _sumPreviousSevenDays(viewTimes);
+      final viewsTrend = _percentChange(currentViews7, previousViews7)
+          .clamp(-999.0, 999.0)
+          .toDouble();
+
       return DashboardAnalytics(
-        totalViewsFormatted: '0',
-        viewsChangePercent: 0,
+        totalViewsFormatted: _formatCompactMetric(currentViews7),
+        viewsChangePercent: viewsTrend,
         clicksFormatted: '0',
         clicksChangePercent: 0,
         messagesFormatted: '0',
         messagesChangePercent: 0,
-        viewsOverTime: const [],
+        viewsOverTime: viewsSeries,
         rating: avgRating > 0 ? avgRating : null,
         reviewCount: reviewsList.length,
         activeDealsCount: dealsList.length,
@@ -1273,6 +1305,74 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  static DateTime _dateOnlyLocal(DateTime dt) =>
+      DateTime(dt.year, dt.month, dt.day);
+
+  static String _weekdayShort(DateTime d) {
+    const abbrev = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return abbrev[d.weekday - 1];
+  }
+
+  static List<DailyViewsPoint> _listingViewsLastSevenDays(
+    List<DateTime> viewTimes,
+  ) {
+    final now = DateTime.now();
+    final today = _dateOnlyLocal(now);
+    final bucketStarts = List.generate(
+      7,
+      (i) => today.subtract(Duration(days: 6 - i)),
+    );
+    final counts = List<int>.filled(7, 0);
+    for (final t in viewTimes) {
+      final d = _dateOnlyLocal(t);
+      for (var i = 0; i < 7; i++) {
+        if (d == bucketStarts[i]) {
+          counts[i]++;
+          break;
+        }
+      }
+    }
+    return List.generate(
+      7,
+      (i) => DailyViewsPoint(
+        dayLabel: _weekdayShort(bucketStarts[i]),
+        views: counts[i],
+      ),
+    );
+  }
+
+  static int _sumPreviousSevenDays(List<DateTime> viewTimes) {
+    final today = _dateOnlyLocal(DateTime.now());
+    final prevEnd = today.subtract(const Duration(days: 7));
+    final prevStart = today.subtract(const Duration(days: 13));
+    var sum = 0;
+    for (final t in viewTimes) {
+      final d = _dateOnlyLocal(t);
+      if (!d.isBefore(prevStart) && !d.isAfter(prevEnd)) {
+        sum++;
+      }
+    }
+    return sum;
+  }
+
+  static double _percentChange(int current, int previous) {
+    if (previous <= 0) {
+      return current > 0 ? 100 : 0;
+    }
+    return ((current - previous) / previous) * 100.0;
+  }
+
+  static String _formatCompactMetric(int n) {
+    if (n >= 1000000) {
+      return '${(n / 1000000).toStringAsFixed(1)}M';
+    }
+    if (n >= 1000) {
+      return '${(n / 1000).toStringAsFixed(1)}k';
+    }
+    return '$n';
+  }
+
   static String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';

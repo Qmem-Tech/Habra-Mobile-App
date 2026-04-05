@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -6,6 +8,7 @@ import '../../../../core/utils/app_share.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../domain/repositories/businesses_repository.dart';
 import '../bloc/businesses_cubit.dart';
 import '../bloc/businesses_state.dart';
 import '../bloc/reviews_cubit.dart';
@@ -27,23 +30,32 @@ class BusinessDetailPage extends StatelessWidget {
         BlocProvider(create: (_) => di.sl<BusinessesCubit>()..loadBusinessDetail(businessId)),
         BlocProvider(create: (_) => di.sl<ReviewsCubit>()..loadReviews(businessId)),
       ],
-      child: Scaffold(
-        body: BlocBuilder<BusinessesCubit, BusinessesState>(
-          builder: (context, state) {
-            if (state is BusinessDetailLoading) {
-              return const HabraCircularLoader(fullScreen: true);
-            }
+      child: BlocListener<BusinessesCubit, BusinessesState>(
+        listenWhen: (prev, curr) =>
+            curr is BusinessDetailLoaded && prev is! BusinessDetailLoaded,
+        listener: (context, state) {
+          unawaited(
+            di.sl<BusinessesRepository>().recordBusinessListingView(businessId),
+          );
+        },
+        child: Scaffold(
+          body: BlocBuilder<BusinessesCubit, BusinessesState>(
+            builder: (context, state) {
+              if (state is BusinessDetailLoading) {
+                return const HabraCircularLoader(fullScreen: true);
+              }
 
-            if (state is BusinessDetailError) {
-              return _buildErrorView(context, state.message);
-            }
+              if (state is BusinessDetailError) {
+                return _buildErrorView(context, state.message);
+              }
 
-            if (state is BusinessDetailLoaded) {
-              return _buildContent(context, state.business);
-            }
+              if (state is BusinessDetailLoaded) {
+                return _buildContent(context, state.business);
+              }
 
-            return const SizedBox.shrink();
-          },
+              return const SizedBox.shrink();
+            },
+          ),
         ),
       ),
     );

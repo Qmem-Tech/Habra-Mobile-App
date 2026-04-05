@@ -37,6 +37,9 @@ abstract class BusinessesRemoteDataSource {
   Future<List<MyReview>> getMyReviews();
   Future<MyReview> updateReview(String reviewId, {int? rating, String? comment});
   Future<void> deleteReview(String reviewId);
+
+  /// Fire-and-forget: logs a business detail view for owner analytics (non-throwing in impl).
+  Future<void> recordBusinessListingView(String businessId);
 }
 
 class BusinessesRemoteDataSourceImpl implements BusinessesRemoteDataSource {
@@ -109,4 +112,7 @@ class BusinessesRemoteDataSourceImpl implements BusinessesRemoteDataSource {
   Future<void> deleteReview(String reviewId) async {
     throw UnimplementedError('Use BusinessesSupabaseDataSource');
   }
+
+  @override
+  Future<void> recordBusinessListingView(String businessId) async {}
 }
