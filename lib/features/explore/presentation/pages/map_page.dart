@@ -37,6 +37,7 @@ class _MapPageState extends State<MapPage> {
   GoogleMapController? _mapController;
   final LocationService _locationService = di.sl<LocationService>();
   bool _isLoadingUserLocation = false;
+  MapType _mapType = MapType.normal;
 
   LatLng get _businessPosition => LatLng(widget.latitude, widget.longitude);
 
@@ -97,6 +98,22 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  Future<void> _zoomIn() async {
+    await _mapController?.animateCamera(CameraUpdate.zoomIn());
+  }
+
+  Future<void> _zoomOut() async {
+    await _mapController?.animateCamera(CameraUpdate.zoomOut());
+  }
+
+  Future<void> _recenterOnBusiness() async {
+    await _mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: _businessPosition, zoom: 15),
+      ),
+    );
+  }
+
   Future<void> _openDirections() async {
     final lat = widget.latitude;
     final lng = widget.longitude;
@@ -121,6 +138,29 @@ class _MapPageState extends State<MapPage> {
       appBar: AppBar(
         title: const Text('Map'),
         actions: [
+          PopupMenuButton<MapType>(
+            icon: const Icon(Icons.layers),
+            tooltip: 'Map type',
+            onSelected: (type) => setState(() => _mapType = type),
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: MapType.normal,
+                child: Text('Standard'),
+              ),
+              PopupMenuItem(
+                value: MapType.satellite,
+                child: Text('Satellite'),
+              ),
+              PopupMenuItem(
+                value: MapType.hybrid,
+                child: Text('Hybrid (satellite + labels)'),
+              ),
+              PopupMenuItem(
+                value: MapType.terrain,
+                child: Text('Terrain'),
+              ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.open_in_new),
             onPressed: _openInExternalMaps,
@@ -134,6 +174,7 @@ class _MapPageState extends State<MapPage> {
               target: _businessPosition,
               zoom: 15,
             ),
+            mapType: _mapType,
             markers: {
               Marker(
                 markerId: MarkerId(widget.businessId),
@@ -146,33 +187,61 @@ class _MapPageState extends State<MapPage> {
             },
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
+            zoomControlsEnabled: true,
+            compassEnabled: true,
+            mapToolbarEnabled: false,
             onMapCreated: (controller) {
               _mapController = controller;
             },
           ),
           Positioned(
-            bottom: 16,
+            top: 12,
+            right: 12,
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.white,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Zoom in',
+                    onPressed: _zoomIn,
+                    icon: const Icon(Icons.add, color: AppColors.textPrimary),
+                  ),
+                  const Divider(height: 1),
+                  IconButton(
+                    tooltip: 'Zoom out',
+                    onPressed: _zoomOut,
+                    icon: const Icon(Icons.remove, color: AppColors.textPrimary),
+                  ),
+                  const Divider(height: 1),
+                  IconButton(
+                    tooltip: 'Center on business',
+                    onPressed: _recenterOnBusiness,
+                    icon: const Icon(Icons.place, color: AppColors.brandPrimary),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 200,
             right: 16,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                FloatingActionButton.small(
-                  heroTag: 'my_location',
-                  onPressed: _isLoadingUserLocation ? null : _onMyLocationPressed,
-                  backgroundColor: AppColors.brandPrimary,
-                  child: _isLoadingUserLocation
-                      ? SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.my_location, color: Colors.white),
-                ),
-              ],
+            child: FloatingActionButton.small(
+              heroTag: 'my_location',
+              onPressed: _isLoadingUserLocation ? null : _onMyLocationPressed,
+              backgroundColor: AppColors.brandPrimary,
+              child: _isLoadingUserLocation
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.my_location, color: Colors.white),
             ),
           ),
           Positioned(
