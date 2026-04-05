@@ -111,6 +111,12 @@ class AppConfig {
     defaultValue: '',
   );
 
+  /// RevenueCat offering that contains boost IAP packages (optional; if empty, all offerings are searched).
+  static const String revenueCatBoostOfferingId = String.fromEnvironment(
+    'REVENUECAT_BOOST_OFFERING_ID',
+    defaultValue: '',
+  );
+
   // --- Misc ---
   static const String supportEmail = String.fromEnvironment(
     'SUPPORT_EMAIL',

@@ -8,11 +8,8 @@ import '../../../../injection/injection_container.dart';
 import '../../../dashboard/domain/entities/dashboard_job.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../dashboard/presentation/pages/boost_listing_page.dart';
-import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
-import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../bloc/boosts_cubit.dart';
 import '../bloc/boosts_state.dart';
-import '../utils/boost_flow_business_id.dart';
 import '../widgets/boost_flow_status_body.dart';
 import '../widgets/job_selection_card.dart';
 
@@ -32,10 +29,7 @@ class _SelectJobToBoostPageState extends State<SelectJobToBoostPage> {
 
   void _tryLoadJobs() {
     if (!mounted) return;
-    final homeState = context.read<BusinessOwnerHomeCubit>().state;
-    final id = focusBusinessIdForBoostFlows(homeState);
-    if (id == null) return;
-    context.read<BoostsCubit>().loadJobs(id);
+    context.read<BoostsCubit>().loadJobs();
   }
 
   @override
@@ -59,115 +53,104 @@ class _SelectJobToBoostPageState extends State<SelectJobToBoostPage> {
         ),
         centerTitle: true,
       ),
-      body: BlocListener<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
-        listenWhen: (prev, curr) =>
-            focusBusinessIdForBoostFlows(curr) !=
-            focusBusinessIdForBoostFlows(prev),
-        listener: (context, homeState) => _tryLoadJobs(),
-        child: BlocBuilder<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
-          builder: (context, homeState) {
-            if (homeState is! BusinessOwnerHomeLoaded) {
-              return const HabraCircularLoader(fullScreen: true);
-            }
-            final businessId = focusBusinessIdForBoostFlows(homeState);
-            if (businessId == null) {
-              return BoostFlowMissingBusinessBody(
-                onBack: () => Navigator.pop(context),
-              );
-            }
-            return BlocBuilder<BoostsCubit, BoostsState>(
-              builder: (context, state) {
-                if (state is BoostsError) {
-                  return BoostFlowErrorBody(
-                    message: state.message,
-                    onRetry: () =>
-                        context.read<BoostsCubit>().loadJobs(businessId),
-                    onBack: () => Navigator.pop(context),
-                  );
-                }
-                if (state is! BoostJobsLoaded) {
-                  return const HabraCircularLoader(fullScreen: true);
-                }
-                final jobs = state.jobs;
-                final selectedId = state.selectedId;
-                if (jobs.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppResources.spacingL),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'No job posts to boost. Create a job in the Dashboard first.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: AppColors.textSecondary,
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Go back'),
-                          ),
-                        ],
+      body: BlocBuilder<BoostsCubit, BoostsState>(
+        builder: (context, state) {
+          if (state is BoostsError) {
+            return BoostFlowErrorBody(
+              message: state.message,
+              onRetry: () => context.read<BoostsCubit>().loadJobs(),
+              onBack: () => Navigator.pop(context),
+            );
+          }
+          if (state is! BoostJobsLoaded) {
+            return const HabraCircularLoader(fullScreen: true);
+          }
+          final jobs = state.jobs;
+          final selectedId = state.selectedId;
+          if (jobs.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppResources.spacingL),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'No job posts to boost. Create a job in the Dashboard first.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
                       ),
                     ),
-                  );
-                }
-                return Column(
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Go back'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(AppResources.spacingM),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.all(AppResources.spacingM),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Which job do you want to boost?',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      'Which job do you want to boost?',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppResources.spacingM,
-                        ),
-                        itemCount: jobs.length,
-                        itemBuilder: (context, index) {
-                          final job = jobs[index];
-                          return JobSelectionCard(
-                            job: job,
-                            isSelected: selectedId == job.id,
-                            onTap: () =>
-                                context.read<BoostsCubit>().selectJob(job.id),
-                          );
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(AppResources.spacingM),
-                      child: AppButton(
-                        text: 'Continue',
-                        onPressed: selectedId != null
-                            ? () =>
-                                _continueWithJob(context, jobs, selectedId)
-                            : null,
+                    SizedBox(height: 8),
+                    Text(
+                      'Select an open job from any of your locations to promote it to more applicants.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
                       ),
                     ),
                   ],
-                );
-              },
-            );
-          },
-        ),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppResources.spacingM,
+                  ),
+                  itemCount: jobs.length,
+                  itemBuilder: (context, index) {
+                    final job = jobs[index];
+                    return JobSelectionCard(
+                      job: job,
+                      isSelected: selectedId == job.id,
+                      onTap: () =>
+                          context.read<BoostsCubit>().selectJob(job.id),
+                    );
+                  },
+                ),
+              ),
+              SafeArea(
+                top: false,
+                minimum: const EdgeInsets.all(AppResources.spacingM),
+                child: AppButton(
+                  text: 'Continue',
+                  onPressed: selectedId != null
+                      ? () => _continueWithJob(context, jobs, selectedId)
+                      : null,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -185,7 +168,7 @@ class _SelectJobToBoostPageState extends State<SelectJobToBoostPage> {
       }
     }
     if (selected == null) return;
-    final DashboardJob chosen = selected;
+    final chosen = selected;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -193,6 +176,7 @@ class _SelectJobToBoostPageState extends State<SelectJobToBoostPage> {
           create: (_) => sl<DashboardCubit>(),
           child: BoostListingPage(
             boostType: 'job',
+            boostBusinessId: chosen.businessId,
             selectedId: chosen.id,
             selectedTitle: chosen.title,
             jobEmployerName: chosen.employerName,

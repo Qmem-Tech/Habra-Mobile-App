@@ -1,5 +1,19 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+
+/// Outcome of a one-time boost purchase (consumable / non-entitlement IAP).
+class BoostIapResult {
+  const BoostIapResult({
+    this.completed = false,
+    this.userCancelled = false,
+    this.errorMessage,
+  });
+
+  final bool completed;
+  final bool userCancelled;
+  final String? errorMessage;
+}
 
 /// RevenueCat service for in-app purchases (boosts, tickets).
 ///
@@ -79,6 +93,79 @@ class RevenueCatService {
     } catch (e) {
       debugPrint('RevenueCat hasEntitlement error: $e');
       return false;
+    }
+  }
+
+  /// Finds a RevenueCat [Package] whose store product id matches [storeProductId].
+  ///
+  /// Searches [offeringIdentifier] first (if non-empty), then [Offerings.current],
+  /// then every offering. Used with [boost_plans.billing_product_id].
+  Future<Package?> findPackageByStoreProductId(
+    String storeProductId, {
+    String? offeringIdentifier,
+  }) async {
+    if (!_initialized || storeProductId.trim().isEmpty) return null;
+    try {
+      final offerings = await Purchases.getOfferings();
+      final targetId = storeProductId.trim();
+      Package? match(Iterable<Package> packages) {
+        for (final p in packages) {
+          if (p.storeProduct.identifier == targetId) return p;
+        }
+        return null;
+      }
+
+      final id = offeringIdentifier?.trim() ?? '';
+      if (id.isNotEmpty) {
+        final o = offerings.all[id];
+        if (o != null) {
+          final m = match(o.availablePackages);
+          if (m != null) return m;
+        }
+      }
+
+      final current = offerings.current;
+      if (current != null) {
+        final m = match(current.availablePackages);
+        if (m != null) return m;
+      }
+
+      for (final o in offerings.all.values) {
+        final m = match(o.availablePackages);
+        if (m != null) return m;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('RevenueCat findPackageByStoreProductId error: $e');
+      return null;
+    }
+  }
+
+  /// Completes a boost IAP without requiring an active entitlement (unlike subscriptions).
+  Future<BoostIapResult> purchaseBoostPackage(Package package) async {
+    if (!_initialized) {
+      return const BoostIapResult(
+        errorMessage: 'In-app purchases are not configured for this build.',
+      );
+    }
+    try {
+      await Purchases.purchasePackage(package);
+      return const BoostIapResult(completed: true);
+    } on PlatformException catch (e) {
+      try {
+        final code = PurchasesErrorHelper.getErrorCode(e);
+        if (code == PurchasesErrorCode.purchaseCancelledError) {
+          return const BoostIapResult(userCancelled: true);
+        }
+      } catch (_) {
+        // Fall through — malformed code from platform
+      }
+      return BoostIapResult(
+        errorMessage: e.message?.isNotEmpty == true ? e.message! : e.toString(),
+      );
+    } catch (e) {
+      debugPrint('RevenueCat purchaseBoostPackage error: $e');
+      return BoostIapResult(errorMessage: e.toString());
     }
   }
 

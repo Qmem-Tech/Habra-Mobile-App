@@ -15,31 +15,66 @@ class BoostsSupabaseDataSource implements BoostsRemoteDataSource {
 
   SupabaseClient get _client => Supabase.instance.client;
 
+  /// Cheapest active plan per [targetType]: label uses its total price and weekly rate.
+  static String boostOptionPriceLabelFromRows(
+    List<Map<String, dynamic>> rows,
+    String targetType,
+  ) {
+    double? bestPrice;
+    var bestWeeks = 1;
+    for (final row in rows) {
+      if (parseString(row['target_type']) != targetType) continue;
+      final p = parseDouble(row['price_usd']);
+      final w = (parseInt(row['duration_weeks']) ?? 1).clamp(1, 520);
+      if (p == null || p <= 0) continue;
+      final isLower = bestPrice == null ||
+          p < bestPrice! ||
+          (p == bestPrice && w < bestWeeks);
+      if (isLower) {
+        bestPrice = p;
+        bestWeeks = w;
+      }
+    }
+    if (bestPrice == null) return 'From —';
+    final perWeek = bestPrice / bestWeeks;
+    return 'From \$${perWeek.toStringAsFixed(2)}/week';
+  }
+
   @override
   Future<List<BoostOption>> getBoostOptions() async {
-    return const [
-      BoostOption(
-        id: 'business_listing',
-        type: BoostOptionType.businessListing,
-        priceLabel: 'From \$29/week',
-        title: 'Boost Business Listing',
-        description: 'Get more visibility for your business profile',
-      ),
-      BoostOption(
-        id: 'deal',
-        type: BoostOptionType.deal,
-        priceLabel: 'From \$19/week',
-        title: 'Boost a Deal',
-        description: 'Promote your deal to more customers',
-      ),
-      BoostOption(
-        id: 'job',
-        type: BoostOptionType.job,
-        priceLabel: 'From \$24/week',
-        title: 'Boost a Job Post',
-        description: 'Reach more applicants for your open positions',
-      ),
-    ];
+    return SupabaseFailureMapper.guard(() async {
+      final res = await _client
+          .from(SupabaseTables.boostPlans)
+          .select('target_type, price_usd, duration_weeks')
+          .eq('is_active', true);
+      final rows = (res as List).cast<Map<String, dynamic>>();
+      return [
+        BoostOption(
+          id: 'business_listing',
+          type: BoostOptionType.businessListing,
+          priceLabel: boostOptionPriceLabelFromRows(
+            rows,
+            BoostPlanTarget.businessListing,
+          ),
+          title: 'Boost Business Listing',
+          description: 'Get more visibility for your business profile',
+        ),
+        BoostOption(
+          id: 'deal',
+          type: BoostOptionType.deal,
+          priceLabel: boostOptionPriceLabelFromRows(rows, BoostPlanTarget.deal),
+          title: 'Boost a Deal',
+          description: 'Promote your deal to more customers',
+        ),
+        BoostOption(
+          id: 'job',
+          type: BoostOptionType.job,
+          priceLabel: boostOptionPriceLabelFromRows(rows, BoostPlanTarget.job),
+          title: 'Boost a Job Post',
+          description: 'Reach more applicants for your open positions',
+        ),
+      ];
+    });
   }
 
   @override

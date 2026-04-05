@@ -18,9 +18,12 @@ class DashboardJob extends Equatable {
   /// Business logo/avatar URL for display in job cards.
   final String? employerLogoUrl;
   final DashboardJobStatus status;
+  /// Owning business (required for `boosts.business_id` when boosting this job).
+  final String businessId;
 
   const DashboardJob({
     required this.id,
+    required this.businessId,
     required this.title,
     required this.jobType,
     required this.location,
@@ -42,6 +45,7 @@ class DashboardJob extends Equatable {
   @override
   List<Object?> get props => [
         id,
+        businessId,
         title,
         jobType,
         location,

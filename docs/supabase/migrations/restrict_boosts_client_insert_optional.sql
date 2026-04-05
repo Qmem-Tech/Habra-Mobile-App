@@ -1,0 +1,19 @@
+-- =============================================================================
+-- OPTIONAL hardening — apply ONLY after server-side boost creation exists
+-- =============================================================================
+-- Direct INSERT into public.boosts from the mobile app (anon key + JWT) is
+-- spoofable: anyone can craft a request. Production pattern:
+--
+-- 1. Client completes IAP (RevenueCat / StoreKit / Play Billing).
+-- 2. RevenueCat webhook (or your backend) verifies the transaction.
+-- 3. Edge Function or backend uses the service role to INSERT into boosts.
+--
+-- When step 2–3 is live, uncomment the statement below so authenticated
+-- clients can no longer INSERT rows into boosts. The service role bypasses
+-- RLS and can still insert from Edge Functions.
+--
+-- DROP POLICY IF EXISTS "boosts_insert" ON public.boosts;
+--
+-- After dropping boosts_insert, ensure no other policy grants INSERT to
+-- `authenticated` on public.boosts. Admin policies may remain.
+-- =============================================================================

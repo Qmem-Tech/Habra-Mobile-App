@@ -267,6 +267,7 @@ CREATE TABLE public.boost_plans (
   duration_weeks INT NOT NULL,
   is_active BOOLEAN DEFAULT true,
   target_type boost_plan_target NOT NULL DEFAULT 'business_listing',
+  billing_product_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

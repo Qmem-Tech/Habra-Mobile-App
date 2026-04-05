@@ -10,8 +10,10 @@ abstract class BoostsRepository {
   Future<List<BoostOption>> getBoostOptions();
   /// All businesses (locations) for the signed-in owner.
   Future<List<BoostLocation>> getLocations();
-  Future<List<DashboardDeal>> getDealsForBoost(String businessId);
-  Future<List<DashboardJob>> getJobsForBoost(String businessId);
+  /// Active deals across all of the signed-in owner's businesses.
+  Future<List<DashboardDeal>> getDealsForBoost();
+  /// Open/draft jobs across all of the signed-in owner's businesses.
+  Future<List<DashboardJob>> getJobsForBoost();
   Future<List<ActiveBoost>> getActiveBoosts(String businessId);
   Future<List<PastBoost>> getPastBoosts(String businessId);
   Future<ActiveBoost?> getActiveBoostDetail(String boostId);

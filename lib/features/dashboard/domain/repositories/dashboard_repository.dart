@@ -15,7 +15,9 @@ abstract class DashboardRepository {
   Future<List<BusinessPresence>> getOwnerBusinesses(String ownerId);
   Future<DashboardAnalytics?> getAnalytics(String businessId);
   Future<List<DashboardDeal>> getDeals(String businessId, {DashboardDealStatus? status});
+  Future<List<DashboardDeal>> getActiveDealsForCurrentOwner();
   Future<List<DashboardJob>> getJobs(String businessId);
+  Future<List<DashboardJob>> getOpenJobsForCurrentOwner();
   Future<RatingOverview?> getReviewsOverview(String businessId);
   Future<List<BusinessReview>> getReviews(String businessId);
   Future<List<JobApplicant>> getApplicants(String jobId, {ApplicantStatus? status});

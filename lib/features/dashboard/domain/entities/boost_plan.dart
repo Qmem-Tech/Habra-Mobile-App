@@ -8,6 +8,8 @@ class BoostPlan extends Equatable {
   final String priceFormatted;
   final String? originalPriceFormatted;
   final int durationWeeks;
+  /// App Store / Play product id; must match RevenueCat package store product.
+  final String? billingProductId;
 
   const BoostPlan({
     required this.id,
@@ -16,6 +18,7 @@ class BoostPlan extends Equatable {
     required this.priceFormatted,
     this.originalPriceFormatted,
     required this.durationWeeks,
+    this.billingProductId,
   });
 
   @override
@@ -26,5 +29,6 @@ class BoostPlan extends Equatable {
         priceFormatted,
         originalPriceFormatted,
         durationWeeks,
+        billingProductId,
       ];
 }

@@ -31,8 +31,16 @@ class DashboardRepositoryImpl implements DashboardRepository {
       _remote.getDeals(businessId, status: status);
 
   @override
+  Future<List<DashboardDeal>> getActiveDealsForCurrentOwner() =>
+      _remote.getActiveDealsForCurrentOwner();
+
+  @override
   Future<List<DashboardJob>> getJobs(String businessId) =>
       _remote.getJobs(businessId);
+
+  @override
+  Future<List<DashboardJob>> getOpenJobsForCurrentOwner() =>
+      _remote.getOpenJobsForCurrentOwner();
 
   @override
   Future<RatingOverview?> getReviewsOverview(String businessId) =>

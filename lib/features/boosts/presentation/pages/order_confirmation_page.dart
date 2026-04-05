@@ -4,7 +4,8 @@ import '../../../../core/resources/app_resources.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/widgets/app_button.dart';
 
-/// Shown after successful boost payment. Summary card + "Go To Home".
+/// Shown after a successful in-app purchase **and** Supabase boost row create.
+/// Summary card + "Go To Home".
 class OrderConfirmationPage extends StatelessWidget {
   const OrderConfirmationPage({
     super.key,
@@ -40,7 +41,7 @@ class OrderConfirmationPage extends StatelessWidget {
           onPressed: () => _goHome(context),
         ),
         title: const Text(
-          'Order Confirmation',
+          'Boost complete',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -69,16 +70,17 @@ class OrderConfirmationPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Payment Successful!',
+              'Payment & boost active',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: AppColors.brandPrimary,
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Get ready for the gathering! Your tickets have been sent to your email.',
+              'Your purchase completed and your boost is live. You should see more visibility in the Habesha community.',
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,

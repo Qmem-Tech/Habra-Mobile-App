@@ -108,9 +108,9 @@ class BoostsCubit extends Cubit<BoostsState> {
     emit(BoostLocationsLoaded(current.locations, <String>{}));
   }
 
-  Future<void> loadDeals(String businessId) async {
+  Future<void> loadDeals() async {
     try {
-      final deals = await _repository.getDealsForBoost(businessId);
+      final deals = await _repository.getDealsForBoost();
       emit(BoostDealsLoaded(deals, null));
     } catch (e) {
       emit(BoostsError(e.toString()));
@@ -124,9 +124,9 @@ class BoostsCubit extends Cubit<BoostsState> {
     }
   }
 
-  Future<void> loadJobs(String businessId) async {
+  Future<void> loadJobs() async {
     try {
-      final jobs = await _repository.getJobsForBoost(businessId);
+      final jobs = await _repository.getJobsForBoost();
       emit(BoostJobsLoaded(jobs, null));
     } catch (e) {
       emit(BoostsError(e.toString()));

@@ -15,9 +15,12 @@ class DashboardDeal extends Equatable {
   final DashboardDealStatus status;
   /// Business/merchant name for display (e.g. in Select Deal to Boost, Order Confirmation).
   final String? merchantName;
+  /// Owning business (required for `boosts.business_id` when boosting this deal).
+  final String businessId;
 
   const DashboardDeal({
     required this.id,
+    required this.businessId,
     required this.title,
     required this.description,
     required this.imageUrl,
@@ -40,6 +43,7 @@ class DashboardDeal extends Equatable {
   @override
   List<Object?> get props => [
         id,
+        businessId,
         title,
         description,
         imageUrl,

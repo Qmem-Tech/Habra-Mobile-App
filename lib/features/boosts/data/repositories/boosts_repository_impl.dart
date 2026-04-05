@@ -25,12 +25,12 @@ class BoostsRepositoryImpl implements BoostsRepository {
   Future<List<BoostLocation>> getLocations() => _remote.getLocations();
 
   @override
-  Future<List<DashboardDeal>> getDealsForBoost(String businessId) =>
-      _dashboard.getDeals(businessId, status: DashboardDealStatus.active);
+  Future<List<DashboardDeal>> getDealsForBoost() =>
+      _dashboard.getActiveDealsForCurrentOwner();
 
   @override
-  Future<List<DashboardJob>> getJobsForBoost(String businessId) =>
-      _dashboard.getJobs(businessId);
+  Future<List<DashboardJob>> getJobsForBoost() =>
+      _dashboard.getOpenJobsForCurrentOwner();
 
   @override
   Future<List<ActiveBoost>> getActiveBoosts(String businessId) =>
