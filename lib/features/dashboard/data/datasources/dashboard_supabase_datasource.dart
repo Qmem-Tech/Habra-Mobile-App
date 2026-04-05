@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/utils/job_type_format.dart';
+import '../../../../core/utils/relative_time_short.dart';
 import '../../../../core/models/legal_document_upload_result.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
@@ -715,7 +716,8 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         final authorImg = profile is Map<String, dynamic>
             ? parseString(profile['avatar_url'])
             : null;
-        final createdAt = parseTimestampRequired(row['created_at']);
+        final createdAt = parseTimestamp(row['created_at']) ??
+            DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
         final reviewId = parseStringRequired(row['id']);
         final replyRow = replyByReviewId[reviewId];
         final replyFromTable = parseString(replyRow?['body']);
@@ -741,6 +743,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           authorImageUrl: authorImg,
           rating: parseInt(row['rating']) ?? 5,
           text: parseStringRequired(row['comment']),
+          createdAt: createdAt,
           timeAgo: _timeAgo(createdAt),
           responseText: responseText,
           responseTimeAgo:
@@ -1673,11 +1676,12 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from(SupabaseTables.events)
-          .select('id,title,start_at,business_id')
+          .select(
+            'id,title,start_at,end_at,business_id,image_url,is_active',
+          )
           .eq('organizer_id', ownerId)
-          .eq('is_active', true)
           .order('start_at', ascending: false)
-          .limit(30);
+          .limit(120);
       var rows = (res as List).cast<Map<String, dynamic>>();
       if (businessId != null) {
         rows = rows
@@ -1686,16 +1690,18 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
                 parseString(row['business_id']) == businessId)
             .toList();
       }
-      return rows
-          .map(
-            (row) => OwnerUpcomingEvent(
-              id: parseStringRequired(row['id']),
-              title: parseStringRequired(row['title']),
-              startAt: parseTimestampRequired(row['start_at']),
-            ),
-          )
-          .take(10)
-          .toList();
+      return rows.map((row) {
+        final startAt = parseTimestampRequired(row['start_at']);
+        final endAt = parseTimestamp(row['end_at']) ?? startAt;
+        return OwnerUpcomingEvent(
+          id: parseStringRequired(row['id']),
+          title: parseStringRequired(row['title']),
+          startAt: startAt,
+          endAt: endAt,
+          imageUrl: parseString(row['image_url']),
+          isPublished: parseBool(row['is_active']),
+        );
+      }).toList();
     });
   }
 
@@ -1770,11 +1776,5 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return '$n';
   }
 
-  static String _timeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${dt.month}/${dt.day}';
-  }
+  static String _timeAgo(DateTime dt) => formatShortTimeAgo(dt);
 }

@@ -7,6 +7,9 @@ class BusinessReview extends Equatable {
   final String? authorImageUrl;
   final int rating;
   final String text;
+  /// When the customer submitted the review (from `reviews.created_at`).
+  final DateTime createdAt;
+  /// Relative label at fetch time; UI may also use `formatShortTimeAgo(createdAt)`.
   final String timeAgo;
   final String? responseText;
   final String? responseTimeAgo;
@@ -17,6 +20,7 @@ class BusinessReview extends Equatable {
     this.authorImageUrl,
     required this.rating,
     required this.text,
+    required this.createdAt,
     required this.timeAgo,
     this.responseText,
     this.responseTimeAgo,
@@ -31,6 +35,7 @@ class BusinessReview extends Equatable {
         authorImageUrl,
         rating,
         text,
+        createdAt,
         timeAgo,
         responseText,
         responseTimeAgo,

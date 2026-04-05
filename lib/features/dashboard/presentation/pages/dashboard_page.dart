@@ -17,6 +17,7 @@ import '../widgets/dashboard_app_bar.dart';
 import '../widgets/dashboard_tab_bar.dart';
 import 'dashboard_analytics_tab.dart';
 import 'dashboard_deals_tab.dart';
+import 'dashboard_events_tab.dart';
 import 'dashboard_jobs_tab.dart';
 import 'dashboard_reviews_tab.dart';
 import 'create_deal_page.dart';
@@ -29,13 +30,16 @@ import 'job_applicants_page.dart';
 import 'reply_to_review_page.dart';
 import '../../domain/entities/dashboard_job.dart';
 import '../../domain/entities/business_review.dart';
+import '../../../events/presentation/bloc/create_event_cubit.dart';
+import '../../../events/presentation/pages/create_event_page.dart';
+import '../../../../injection/injection_container.dart' as di;
 
-/// Main dashboard page: Analytics, Deals, Jobs, Reviews tabs.
+/// Main dashboard page: Analytics, Deals, Jobs, Events, Reviews tabs.
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key, required this.user, this.initialTabIndex});
 
   final User user;
-  /// When set, dashboard opens on this tab (0=Analytics, 1=Deals, 2=Jobs, 3=Reviews).
+  /// When set, dashboard opens on this tab (0=Analytics, 1=Deals, 2=Jobs, 3=Events, 4=Reviews).
   final int? initialTabIndex;
 
   @override
@@ -75,7 +79,10 @@ class _DashboardPageState extends State<DashboardPage> {
       );
       return;
     }
-    await cubit.loadDashboard(businessId);
+    await cubit.loadDashboard(
+      businessId,
+      ownerId: widget.user.id,
+    );
   }
 
   Future<void> _loadDashboard() async {
@@ -312,7 +319,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         onQuickStatTap: (type) {
                           switch (type) {
                             case 'reviews':
-                              setState(() => _tabIndex = 3);
+                              setState(() => _tabIndex = 4);
                               break;
                             case 'deals':
                               setState(() => _tabIndex = 1);
@@ -356,6 +363,12 @@ class _DashboardPageState extends State<DashboardPage> {
                         onEditJob: (job) => _navigateToCreateJob(jobToEdit: job),
                       );
                     case 3:
+                      return DashboardEventsTab(
+                        events: state.upcomingEvents,
+                        onCreateEvent: _navigateToCreateEvent,
+                        onRefresh: _loadDashboard,
+                      );
+                    case 4:
                       return DashboardReviewsTab(
                         overview: state.reviewsOverview,
                         reviews: state.reviews,
@@ -384,6 +397,13 @@ class _DashboardPageState extends State<DashboardPage> {
             if (_tabIndex == 2) {
               return FloatingActionButton(
                 onPressed: _navigateToCreateJob,
+                backgroundColor: AppColors.brandSecondary,
+                child: const Icon(Icons.add, color: AppColors.textOnPrimary),
+              );
+            }
+            if (_tabIndex == 3) {
+              return FloatingActionButton(
+                onPressed: _navigateToCreateEvent,
                 backgroundColor: AppColors.brandSecondary,
                 child: const Icon(Icons.add, color: AppColors.textOnPrimary),
               );
@@ -421,6 +441,28 @@ class _DashboardPageState extends State<DashboardPage> {
         builder: (_) => BusinessOwnerNotificationPage(userId: widget.user.id),
       ),
     );
+  }
+
+  Future<void> _navigateToCreateEvent() async {
+    final dashboardCubit = context.read<DashboardCubit>();
+    final homeCubit = context.read<BusinessOwnerHomeCubit>();
+    final createEventCubit = di.sl<CreateEventCubit>();
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+            BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+            BlocProvider<CreateEventCubit>.value(value: createEventCubit),
+          ],
+          child: const CreateEventPage(),
+        ),
+      ),
+    );
+    if (result == true && mounted) {
+      _loadDashboard();
+    }
   }
 
   Future<void> _navigateToCreateDeal({DashboardDeal? dealToEdit}) async {

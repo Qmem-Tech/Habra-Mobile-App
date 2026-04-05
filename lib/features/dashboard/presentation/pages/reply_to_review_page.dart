@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/relative_time_short.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -146,7 +147,10 @@ class _ReplyToReviewPageState extends State<ReplyToReviewPage> {
                       );
                     }),
                     const SizedBox(width: 8),
-                    Text(r.timeAgo, style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                    Text(
+                      formatShortTimeAgo(r.createdAt),
+                      style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                    ),
                   ]),
                 ])),
               ]),

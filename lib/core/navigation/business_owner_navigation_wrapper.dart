@@ -57,7 +57,7 @@ class BusinessOwnerNavigationWrapper extends StatefulWidget {
     this.initialIndex = 0,
   });
 
-  /// Navigate to tab. [dashboardTab] when [index] is 1: 0=Analytics, 1=Deals, 2=Jobs, 3=Reviews.
+  /// Navigate to tab. [dashboardTab] when [index] is 1: 0=Analytics, 1=Deals, 2=Jobs, 3=Events, 4=Reviews.
   static void navigateToTab(BuildContext context, int index, {int? dashboardTab}) {
     final state =
         context.findAncestorStateOfType<_BusinessOwnerNavigationWrapperState>();

@@ -11,6 +11,9 @@ import 'business_owner_home_state.dart';
 
 const String _storageKeyPrefix = 'business_owner_selected_presence';
 
+/// Max items shown in the home "Recent activity" section.
+const int _recentActivityHomeLimit = 4;
+
 /// Cubit for business owner home: loads real presences from Supabase,
 /// plus deals, jobs, reviews as activity and lists for each selected business.
 class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
@@ -167,7 +170,7 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
     return _AggregatedData(
       deals: allDeals,
       jobs: allJobs,
-      activity: allActivity.take(10).toList(),
+      activity: allActivity.take(_recentActivityHomeLimit).toList(),
       snapshot: OwnerSnapshotMetrics(
         views: totalViews,
         clicks: totalClicks,
@@ -227,13 +230,21 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
         ownerId,
         businessId: businessId,
       );
-      final reviewItems = reviews.take(5).map((r) => OwnerActivityItem(
+      final now = DateTime.now();
+      final reviewRecencyCutoff = now.subtract(const Duration(days: 180));
+      final sortedRecentReviews = reviews
+          .where((r) =>
+              r.createdAt.year > 1970 &&
+              !r.createdAt.isBefore(reviewRecencyCutoff))
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final reviewItems = sortedRecentReviews.take(5).map((r) => OwnerActivityItem(
             id: r.id,
             type: OwnerActivityType.review,
             title: '${r.authorName} left a ${r.rating}-star review',
             body: r.text,
             authorName: r.authorName,
-            createdAt: DateTime.now(),
+            createdAt: r.createdAt,
             actionLabel: r.hasResponse ? null : 'Reply',
             actionId: r.id,
           ));
@@ -250,7 +261,7 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
       );
       final merged = [...eventItems, ...reviewItems].toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return merged.take(10).toList();
+      return merged.take(_recentActivityHomeLimit).toList();
     } catch (_) {
       return [];
     }

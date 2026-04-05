@@ -15,6 +15,8 @@ import '../../../../core/widgets/error_display_helper.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/permissions/app_permission.dart';
 import '../../../../core/services/permission_service.dart';
+import '../../../../core/domain/business_address_data.dart';
+import '../../../../core/widgets/street_address_field.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
@@ -95,6 +97,17 @@ class _CreateEventPageState extends State<CreateEventPage> {
     if (_ticketTypes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Add at least one ticket type')),
+      );
+      return;
+    }
+    if (_venueLat == null || _venueLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Choose an address from search suggestions or use current location '
+            'so the venue has map coordinates.',
+          ),
+        ),
       );
       return;
     }
@@ -223,11 +236,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
                   ),
                   const SizedBox(height: 12),
-                  _buildTextField(
-                    'Venue Address',
-                    controller: _venueAddressController,
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-                  ),
+                  _buildVenueAddressField(),
                   const SizedBox(height: 12),
                   _buildLocationSection(),
                   const SizedBox(height: 16),
@@ -361,13 +370,78 @@ class _CreateEventPageState extends State<CreateEventPage> {
       );
   }
 
+  static String _formatVenueAddressLine(BusinessAddressData d) {
+    final parts = <String>[
+      if (d.street != null && d.street!.isNotEmpty) d.street!,
+      if (d.suite != null && d.suite!.isNotEmpty) d.suite!,
+      if (d.city != null && d.city!.isNotEmpty) d.city!,
+      if (d.state != null && d.state!.isNotEmpty) d.state!,
+      if (d.zipCode != null && d.zipCode!.isNotEmpty) d.zipCode!,
+    ];
+    return parts.isEmpty ? 'Selected location' : parts.join(', ');
+  }
+
+  void _applyVenueAddress(BusinessAddressData data) {
+    setState(() {
+      _venueAddressController.text = _formatVenueAddressLine(data);
+      if (data.hasCoordinates) {
+        _venueLat = data.latitude;
+        _venueLng = data.longitude;
+      }
+    });
+  }
+
+  Widget _buildVenueAddressField() {
+    final decoration = InputDecoration(
+      filled: true,
+      fillColor: AppColors.backgroundWhite,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        borderSide: BorderSide(color: AppColors.backgroundGrey),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        borderSide: BorderSide(color: AppColors.backgroundGrey),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Venue Address',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        StreetAddressField(
+          controller: _venueAddressController,
+          hintText: 'Street, city, state — pick a suggestion or use search',
+          decoration: decoration,
+          onAddressPicked: _applyVenueAddress,
+          validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            'Pick a result from suggestions or address search to save latitude and longitude.',
+            style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildLocationSection() {
     final hasLocation = _venueLat != null && _venueLng != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Event Location (for map)',
+          'Or use device location',
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -375,77 +449,34 @@ class _CreateEventPageState extends State<CreateEventPage> {
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  final granted = await di.sl<PermissionService>().requestWithDialog(
-                    context,
-                    AppPermission.location,
-                  );
-                  if (!granted || !mounted) return;
-                  final result = await di.sl<LocationService>().getCurrentLocation();
-                  if (!mounted) return;
-                  result.fold(
-                    (f) => ErrorDisplayHelper.show(context, message: f.message, title: 'Location'),
-                    (loc) {
-                      setState(() {
-                        _venueLat = loc.latitude;
-                        _venueLng = loc.longitude;
-                        if (_venueAddressController.text.trim().isEmpty) {
-                          _venueAddressController.text = loc.fullDisplayName;
-                        }
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Location set from current position')),
-                      );
-                    },
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () async {
+              final granted = await di.sl<PermissionService>().requestWithDialog(
+                context,
+                AppPermission.location,
+              );
+              if (!granted || !mounted) return;
+              final result = await di.sl<LocationService>().getCurrentLocationAsAddress();
+              if (!mounted) return;
+              result.fold(
+                (f) => ErrorDisplayHelper.show(context, message: f.message, title: 'Location'),
+                (data) {
+                  _applyVenueAddress(data);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Address set from current location')),
                   );
                 },
-                icon: const Icon(Icons.my_location, size: 18),
-                label: const Text('Use current location'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.brandPrimary,
-                  side: BorderSide(color: AppColors.brandPrimary),
-                ),
-              ),
+              );
+            },
+            icon: const Icon(Icons.my_location, size: 18),
+            label: const Text('Use current location'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.brandPrimary,
+              side: BorderSide(color: AppColors.brandPrimary),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  final address = _venueAddressController.text.trim();
-                  if (address.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Enter venue address first')),
-                    );
-                    return;
-                  }
-                  final result = await di.sl<LocationService>().geocodeAddress(address);
-                  if (!mounted) return;
-                  result.fold(
-                    (f) => ErrorDisplayHelper.show(context, message: f.message, title: 'Location'),
-                    (coords) {
-                      setState(() {
-                        _venueLat = coords.lat;
-                        _venueLng = coords.lng;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Location set from address')),
-                      );
-                    },
-                  );
-                },
-                icon: const Icon(Icons.map, size: 18),
-                label: const Text('Set from address'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.brandPrimary,
-                  side: BorderSide(color: AppColors.brandPrimary),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
         if (hasLocation)
           Padding(
@@ -454,9 +485,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
               children: [
                 Icon(Icons.check_circle, size: 18, color: AppColors.success),
                 const SizedBox(width: 6),
-                Text(
-                  'Location set — users will see this on the map',
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                Expanded(
+                  child: Text(
+                    'Map coordinates saved — users will see this on the map and for nearby discovery.',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    maxLines: 3,
+                  ),
                 ),
               ],
             ),
@@ -560,12 +594,16 @@ class _CreateEventPageState extends State<CreateEventPage> {
               children: [
                 Icon(Icons.calendar_today, size: 20, color: AppColors.textSecondary),
                 const SizedBox(width: 8),
-                Text(
-                  value != null
-                      ? DateFormat('MMM d, y • HH:mm').format(value)
-                      : 'Select',
-                  style: TextStyle(
-                    color: value != null ? AppColors.textPrimary : AppColors.textSecondary,
+                Expanded(
+                  child: Text(
+                    value != null
+                        ? DateFormat('MMM d, y • HH:mm').format(value)
+                        : 'Select',
+                    style: TextStyle(
+                      color: value != null ? AppColors.textPrimary : AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

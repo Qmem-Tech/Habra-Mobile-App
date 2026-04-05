@@ -7,6 +7,7 @@ import '../../domain/entities/business_review.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../widgets/empty_state_widget.dart';
 import '../../../../core/resources/app_assets.dart';
+import '../../../../core/utils/relative_time_short.dart';
 
 /// Up to two letters (e.g. "Yared Kassa" → "YK").
 String _reviewAvatarInitials(String name) {
@@ -232,7 +233,7 @@ class _ReviewCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      review.timeAgo,
+                      formatShortTimeAgo(review.createdAt),
                       style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
                     ),
                   ],

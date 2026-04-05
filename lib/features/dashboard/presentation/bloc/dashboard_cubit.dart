@@ -1,12 +1,16 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../../core/error/exceptions.dart';
 import '../../../../../core/models/legal_document_upload_result.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../domain/entities/business_legal_document.dart';
+import '../../domain/entities/business_review.dart';
+import '../../domain/entities/dashboard_analytics.dart';
 import '../../domain/entities/dashboard_deal.dart';
 import '../../domain/entities/dashboard_job.dart';
 import '../../domain/entities/job_applicant.dart';
+import '../../domain/entities/owner_upcoming_event.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import 'dashboard_state.dart';
 
@@ -24,25 +28,51 @@ class DashboardCubit extends Cubit<DashboardState> {
     emit(DashboardError(message));
   }
 
-  Future<void> loadDashboard(String businessId) async {
+  Future<void> loadDashboard(String businessId, {String? ownerId}) async {
     emit(DashboardLoading());
+    final resolvedOwnerId =
+        ownerId ?? Supabase.instance.client.auth.currentUser?.id;
     try {
-      final analytics = await _repository.getAnalytics(businessId);
-      final deals = await _repository.getDeals(
+      final analyticsFuture = _repository.getAnalytics(businessId);
+      final dealsFuture = _repository.getDeals(
         businessId,
         status: DashboardDealStatus.active,
       );
-      final jobs = await _repository.getJobs(businessId);
-      final reviewsOverview = await _repository.getReviewsOverview(businessId);
-      final reviews = await _repository.getReviews(businessId);
+      final jobsFuture = _repository.getJobs(businessId);
+      final reviewsOverviewFuture =
+          _repository.getReviewsOverview(businessId);
+      final reviewsFuture = _repository.getReviews(businessId);
+      final eventsFuture = resolvedOwnerId != null
+          ? _repository.getOwnerUpcomingEvents(
+              resolvedOwnerId,
+              businessId: businessId,
+            )
+          : Future<List<OwnerUpcomingEvent>>.value([]);
+
+      final results = await Future.wait<Object?>([
+        analyticsFuture,
+        dealsFuture,
+        jobsFuture,
+        reviewsOverviewFuture,
+        reviewsFuture,
+        eventsFuture,
+      ]);
+
+      final rawEvents = results.length > 5 ? results[5] : null;
+      final upcomingEvents = rawEvents is List<OwnerUpcomingEvent>
+          ? (List<OwnerUpcomingEvent>.from(rawEvents)
+            ..sort((a, b) => a.startAt.compareTo(b.startAt)))
+          : <OwnerUpcomingEvent>[];
+
       emit(DashboardTabState(
-        analytics: analytics,
-        deals: deals,
+        analytics: results[0] as DashboardAnalytics?,
+        deals: results[1]! as List<DashboardDeal>,
         dealsFilter: DashboardDealStatus.active,
-        jobs: jobs,
+        jobs: results[2]! as List<DashboardJob>,
         jobsFilter: DashboardJobStatus.open,
-        reviewsOverview: reviewsOverview,
-        reviews: reviews,
+        reviewsOverview: results[3] as RatingOverview?,
+        reviews: results[4]! as List<BusinessReview>,
+        upcomingEvents: upcomingEvents,
       ));
     } catch (e) {
       emit(DashboardError(e.toString()));

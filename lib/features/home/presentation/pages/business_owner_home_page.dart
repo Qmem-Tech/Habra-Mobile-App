@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/support_contact.dart';
+import '../../../../core/utils/relative_time_short.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -830,7 +831,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
                     context,
                     1,
-                    dashboardTab: 3,
+                    dashboardTab: 4,
                   ),
                 ),
               ),
@@ -849,7 +850,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                       BusinessOwnerNavigationWrapper.navigateToTab(
                     context,
                     1,
-                    dashboardTab: 3,
+                    dashboardTab: 4,
                   ),
                 ),
               ),
@@ -1024,7 +1025,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
                     context,
                     1,
-                    dashboardTab: 3,
+                    dashboardTab: 4,
                   ),
                 ),
               ),
@@ -1043,7 +1044,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                       BusinessOwnerNavigationWrapper.navigateToTab(
                     context,
                     1,
-                    dashboardTab: 3,
+                    dashboardTab: 4,
                   ),
                 ),
               ),
@@ -2371,7 +2372,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         iconColor = AppColors.textPrimary;
     }
 
-    final timeAgo = _formatTimeAgo(item.createdAt);
+    final timeAgo = formatShortTimeAgo(item.createdAt);
     final showTrailingAction =
         item.actionLabel != null && onReplyToReview != null;
 
@@ -2688,14 +2689,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         );
       },
     );
-  }
-
-  String _formatTimeAgo(DateTime dateTime) {
-    final diff = DateTime.now().difference(dateTime);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${dateTime.month}/${dateTime.day}';
   }
 
   Widget _buildErrorView(String message) {

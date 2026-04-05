@@ -6,6 +6,7 @@ import '../../domain/entities/dashboard_analytics.dart';
 import '../../domain/entities/dashboard_deal.dart';
 import '../../domain/entities/dashboard_job.dart';
 import '../../domain/entities/job_applicant.dart';
+import '../../domain/entities/owner_upcoming_event.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 
 abstract class DashboardState extends Equatable {
@@ -27,7 +28,13 @@ class DashboardTabState extends DashboardState {
   final DashboardJobStatus? jobsFilter;
   final RatingOverview? reviewsOverview;
   final List<BusinessReview> reviews;
+  /// Backing field; use [upcomingEvents] so UI never sees null (hot reload / copyWith safe).
+  final List<OwnerUpcomingEvent>? _upcomingEvents;
   final String? errorMessage;
+
+  /// Organizer events for the dashboard; empty when none loaded.
+  List<OwnerUpcomingEvent> get upcomingEvents =>
+      _upcomingEvents ?? const [];
 
   const DashboardTabState({
     this.analytics,
@@ -37,8 +44,9 @@ class DashboardTabState extends DashboardState {
     this.jobsFilter,
     this.reviewsOverview,
     this.reviews = const [],
+    List<OwnerUpcomingEvent>? upcomingEvents,
     this.errorMessage,
-  });
+  }) : _upcomingEvents = upcomingEvents;
 
   int get activeDealsCount =>
       deals.where((d) => d.status == DashboardDealStatus.active).length;
@@ -61,6 +69,7 @@ class DashboardTabState extends DashboardState {
         jobsFilter,
         reviewsOverview,
         reviews,
+        _upcomingEvents,
         errorMessage,
       ];
 
@@ -72,6 +81,7 @@ class DashboardTabState extends DashboardState {
     DashboardJobStatus? jobsFilter,
     RatingOverview? reviewsOverview,
     List<BusinessReview>? reviews,
+    List<OwnerUpcomingEvent>? upcomingEvents,
     String? errorMessage,
   }) {
     return DashboardTabState(
@@ -82,6 +92,7 @@ class DashboardTabState extends DashboardState {
       jobsFilter: jobsFilter ?? this.jobsFilter,
       reviewsOverview: reviewsOverview ?? this.reviewsOverview,
       reviews: reviews ?? this.reviews,
+      upcomingEvents: upcomingEvents ?? _upcomingEvents ?? const [],
       errorMessage: errorMessage,
     );
   }
