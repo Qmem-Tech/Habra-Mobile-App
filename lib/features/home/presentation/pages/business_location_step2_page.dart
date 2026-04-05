@@ -11,9 +11,11 @@ class BusinessLocationStep2Page extends StatefulWidget {
   const BusinessLocationStep2Page({
     super.key,
     this.step1Data = const {},
+    this.isFirstListingSetup = false,
   });
 
   final Map<String, String> step1Data;
+  final bool isFirstListingSetup;
 
   @override
   State<BusinessLocationStep2Page> createState() =>
@@ -141,7 +143,10 @@ class _BusinessLocationStep2PageState extends State<BusinessLocationStep2Page> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ContactDetailsStep3Page(step2Data: step2Data),
+        builder: (_) => ContactDetailsStep3Page(
+          step2Data: step2Data,
+          isFirstListingSetup: widget.isFirstListingSetup,
+        ),
       ),
     );
   }

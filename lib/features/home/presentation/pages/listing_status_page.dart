@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
@@ -6,7 +7,24 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../auth/presentation/bloc/auth_cubit.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../domain/entities/listing_status_entity.dart';
+import 'business_owner_wrapper_page.dart';
+
+void _restartBusinessOwnerShell(BuildContext context) {
+  final authState = context.read<AuthCubit>().state;
+  if (authState is AuthAuthenticated) {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => BusinessOwnerWrapperPage(user: authState.user),
+      ),
+      (route) => false,
+    );
+    return;
+  }
+  Navigator.of(context).popUntil((route) => route.isFirst);
+}
 
 /// Listing Status: pending (review) or live + verified with business card.
 class ListingStatusPage extends StatelessWidget {
@@ -18,6 +36,7 @@ class ListingStatusPage extends StatelessWidget {
     this.cityName,
     this.imageUrl = '',
     this.locationText,
+    this.refreshOwnerShellOnContinue = false,
   });
 
   final bool isVerified;
@@ -28,6 +47,8 @@ class ListingStatusPage extends StatelessWidget {
   final String imageUrl;
   /// Full address line when available (e.g. street + city).
   final String? locationText;
+  /// After first listing from the empty-owner shell, restart wrapper so Home loads the new business.
+  final bool refreshOwnerShellOnContinue;
 
   ListingStatusEntity _listingEntity(BuildContext context) {
     return ListingStatusEntity(
@@ -81,7 +102,13 @@ class ListingStatusPage extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (refreshOwnerShellOnContinue) {
+              _restartBusinessOwnerShell(context);
+            } else {
+              Navigator.of(context).pop();
+            }
+          },
         ),
         title: const Text(
           'Listing Status',
@@ -109,10 +136,15 @@ class ListingStatusPage extends StatelessWidget {
               ),
               child: AppButton(
                 text: 'Go To Homepage',
-                onPressed: () =>
+                onPressed: () {
+                  if (refreshOwnerShellOnContinue) {
+                    _restartBusinessOwnerShell(context);
+                  } else {
                     BusinessOwnerNavigationWrapper.popCurrentRouteAndOpenHome(
-                  context,
-                ),
+                      context,
+                    );
+                  }
+                },
               ),
             ),
     );
@@ -206,7 +238,13 @@ class ListingStatusPage extends StatelessWidget {
           const SizedBox(height: 32),
           AppButton(
             text: 'Preview Listing',
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              if (refreshOwnerShellOnContinue) {
+                _restartBusinessOwnerShell(context);
+              } else {
+                Navigator.of(context).pop();
+              }
+            },
           ),
           const SizedBox(height: 48),
         ],

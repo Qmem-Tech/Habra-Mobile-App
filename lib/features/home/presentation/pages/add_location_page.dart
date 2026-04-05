@@ -20,10 +20,12 @@ class AddLocationPage extends StatefulWidget {
     super.key,
     required this.selectedBrand,
     this.parentPresence,
+    this.isFirstListingSetup = false,
   });
 
   final BusinessBrandEntity selectedBrand;
   final BusinessPresence? parentPresence;
+  final bool isFirstListingSetup;
 
   @override
   State<AddLocationPage> createState() => _AddLocationPageState();
@@ -353,6 +355,7 @@ class _AddLocationPageState extends State<AddLocationPage> {
             cityName: cityForStatus,
             imageUrl: parent?.logoUrl ?? widget.selectedBrand.logoUrl ?? '',
             locationText: locationLine,
+            refreshOwnerShellOnContinue: widget.isFirstListingSetup,
           ),
         ),
         (route) => route.isFirst,

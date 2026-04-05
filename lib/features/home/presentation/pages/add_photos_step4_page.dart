@@ -25,9 +25,14 @@ import 'listing_status_page.dart';
 
 /// Registration step 4: Cover, logo, optional gallery, Business License (required), EIN Proof (optional).
 class AddPhotosStep4Page extends StatefulWidget {
-  const AddPhotosStep4Page({super.key, this.step3Data = const {}});
+  const AddPhotosStep4Page({
+    super.key,
+    this.step3Data = const {},
+    this.isFirstListingSetup = false,
+  });
 
   final Map<String, String> step3Data;
+  final bool isFirstListingSetup;
 
   @override
   State<AddPhotosStep4Page> createState() => _AddPhotosStep4PageState();
@@ -725,6 +730,7 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
             cityName: cityForStatus,
             imageUrl: logoUrl ?? backgroundUrl ?? '',
             locationText: locationLine,
+            refreshOwnerShellOnContinue: widget.isFirstListingSetup,
           ),
         ),
         (route) => route.isFirst,

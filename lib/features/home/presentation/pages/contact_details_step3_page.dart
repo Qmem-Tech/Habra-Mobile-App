@@ -10,9 +10,14 @@ import 'add_photos_step4_page.dart';
 
 /// Contact Details step 3: Phone, Email, Website (optional), Business hours, Next.
 class ContactDetailsStep3Page extends StatefulWidget {
-  const ContactDetailsStep3Page({super.key, this.step2Data = const {}});
+  const ContactDetailsStep3Page({
+    super.key,
+    this.step2Data = const {},
+    this.isFirstListingSetup = false,
+  });
 
   final Map<String, String> step2Data;
+  final bool isFirstListingSetup;
 
   @override
   State<ContactDetailsStep3Page> createState() =>
@@ -316,7 +321,10 @@ class _ContactDetailsStep3PageState extends State<ContactDetailsStep3Page> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AddPhotosStep4Page(step3Data: step3Data),
+        builder: (_) => AddPhotosStep4Page(
+          step3Data: step3Data,
+          isFirstListingSetup: widget.isFirstListingSetup,
+        ),
       ),
     );
   }

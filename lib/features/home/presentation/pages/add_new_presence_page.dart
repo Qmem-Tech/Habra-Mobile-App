@@ -8,9 +8,15 @@ import 'choose_business_brand_page.dart';
 
 /// Add New Presence: choose New Business or New Location, then Continue.
 class AddNewPresencePage extends StatefulWidget {
-  const AddNewPresencePage({super.key, this.presences = const []});
+  const AddNewPresencePage({
+    super.key,
+    this.presences = const [],
+    this.isFirstListingSetup = false,
+  });
 
   final List<BusinessPresence> presences;
+  /// When true (empty owner shell), completing registration restarts the owner app shell.
+  final bool isFirstListingSetup;
 
   @override
   State<AddNewPresencePage> createState() => _AddNewPresencePageState();
@@ -176,14 +182,19 @@ class _AddNewPresencePageState extends State<AddNewPresencePage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const BusinessDetailsStep1Page(),
+          builder: (_) => BusinessDetailsStep1Page(
+            isFirstListingSetup: widget.isFirstListingSetup,
+          ),
         ),
       );
     } else {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ChooseBusinessBrandPage(presences: widget.presences),
+          builder: (_) => ChooseBusinessBrandPage(
+            presences: widget.presences,
+            isFirstListingSetup: widget.isFirstListingSetup,
+          ),
         ),
       );
     }

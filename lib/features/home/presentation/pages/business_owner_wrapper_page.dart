@@ -5,13 +5,16 @@ import '../../../../core/storage/local_storage.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../auth/domain/entities/user.dart';
+import '../../../dashboard/domain/repositories/dashboard_repository.dart';
 import '../bloc/business_owner_home_cubit.dart';
 import '../bloc/business_owner_subscription_cubit.dart';
 import '../bloc/notification_cubit.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
+import 'business_owner_first_listing_page.dart';
 import 'business_owner_onboarding_page.dart';
 
-/// Wraps business owner flow with cubits and bottom nav (Home, Dash, Boosts, Messages, Profile).
+/// Wraps business owner flow: intro onboarding, then either the empty-listing shell
+/// or cubits + bottom nav (Home, Dash, Boosts, Profile).
 class BusinessOwnerWrapperPage extends StatefulWidget {
   final User user;
 
@@ -25,6 +28,8 @@ class _BusinessOwnerWrapperPageState extends State<BusinessOwnerWrapperPage> {
   late final LocalStorage _localStorage;
   bool _isCheckingOnboarding = true;
   bool _hasCompletedOnboarding = false;
+  bool _isCheckingBusinesses = false;
+  bool? _hasAtLeastOneBusiness;
 
   String get _storageKey =>
       '${StorageKeys.hasCompletedBusinessOwnerOnboarding}_${widget.user.id}';
@@ -42,7 +47,33 @@ class _BusinessOwnerWrapperPageState extends State<BusinessOwnerWrapperPage> {
     setState(() {
       _hasCompletedOnboarding = completed;
       _isCheckingOnboarding = false;
+      if (completed) {
+        _isCheckingBusinesses = true;
+        _hasAtLeastOneBusiness = null;
+      }
     });
+    if (completed) {
+      await _loadBusinessPresence();
+    }
+  }
+
+  Future<void> _loadBusinessPresence() async {
+    try {
+      final repo = di.sl<DashboardRepository>();
+      final list = await repo.getOwnerBusinesses(widget.user.id);
+      if (!mounted) return;
+      setState(() {
+        _hasAtLeastOneBusiness = list.isNotEmpty;
+        _isCheckingBusinesses = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      // Fail open: full shell so the user is not stuck if the network fails.
+      setState(() {
+        _hasAtLeastOneBusiness = true;
+        _isCheckingBusinesses = false;
+      });
+    }
   }
 
   Future<void> _completeOnboarding() async {
@@ -50,22 +81,13 @@ class _BusinessOwnerWrapperPageState extends State<BusinessOwnerWrapperPage> {
     if (!mounted) return;
     setState(() {
       _hasCompletedOnboarding = true;
+      _isCheckingBusinesses = true;
+      _hasAtLeastOneBusiness = null;
     });
+    await _loadBusinessPresence();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_isCheckingOnboarding) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-    if (!_hasCompletedOnboarding) {
-      return BusinessOwnerOnboardingPage(
-        onContinue: _completeOnboarding,
-      );
-    }
-
+  Widget _buildOwnerMainShell() {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
@@ -90,5 +112,29 @@ class _BusinessOwnerWrapperPageState extends State<BusinessOwnerWrapperPage> {
         initialIndex: 0,
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isCheckingOnboarding) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (!_hasCompletedOnboarding) {
+      return BusinessOwnerOnboardingPage(
+        onContinue: _completeOnboarding,
+      );
+    }
+    if (_isCheckingBusinesses || _hasAtLeastOneBusiness == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_hasAtLeastOneBusiness == false) {
+      return BusinessOwnerFirstListingPage(user: widget.user);
+    }
+
+    return _buildOwnerMainShell();
   }
 }

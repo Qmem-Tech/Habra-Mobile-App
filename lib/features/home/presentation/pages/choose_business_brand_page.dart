@@ -10,9 +10,14 @@ import 'add_location_page.dart';
 /// Choose the business brand for a new location (Add New Presence → New Location flow).
 /// Step 1 of 2: search + list with Select, then Next.
 class ChooseBusinessBrandPage extends StatefulWidget {
-  const ChooseBusinessBrandPage({super.key, this.presences = const []});
+  const ChooseBusinessBrandPage({
+    super.key,
+    this.presences = const [],
+    this.isFirstListingSetup = false,
+  });
 
   final List<BusinessPresence> presences;
+  final bool isFirstListingSetup;
 
   @override
   State<ChooseBusinessBrandPage> createState() =>
@@ -257,6 +262,7 @@ class _ChooseBusinessBrandPageState extends State<ChooseBusinessBrandPage> {
         builder: (_) => AddLocationPage(
           selectedBrand: brand,
           parentPresence: parentPresence,
+          isFirstListingSetup: widget.isFirstListingSetup,
         ),
       ),
     );

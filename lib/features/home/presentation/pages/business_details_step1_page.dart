@@ -10,7 +10,12 @@ import 'business_location_step2_page.dart';
 
 /// Business Details step 1: Business Name, listing category from Supabase, Next.
 class BusinessDetailsStep1Page extends StatefulWidget {
-  const BusinessDetailsStep1Page({super.key});
+  const BusinessDetailsStep1Page({
+    super.key,
+    this.isFirstListingSetup = false,
+  });
+
+  final bool isFirstListingSetup;
 
   @override
   State<BusinessDetailsStep1Page> createState() =>
@@ -300,6 +305,7 @@ class _BusinessDetailsStep1PageState extends State<BusinessDetailsStep1Page> {
             'name': trimmedName,
             'category_id': categoryId,
           },
+          isFirstListingSetup: widget.isFirstListingSetup,
         ),
       ),
     );
