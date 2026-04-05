@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../core/error/exceptions.dart';
 import '../../../../../core/models/legal_document_upload_result.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../domain/entities/business_legal_document.dart';
@@ -213,15 +214,44 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
-  Future<bool> replyToReview(String reviewId, String replyText) async {
+  /// Posts an owner reply. Returns `null` on success, or a short message to show
+  /// in a SnackBar (never emits [DashboardError], so the dashboard tab stays intact).
+  Future<String?> replyToReview(String reviewId, String replyText) async {
     try {
       await _repository.replyToReview(reviewId, replyText);
-      return true;
-    } catch (_) {
-      // Do not emit [DashboardError]: that replaces the whole dashboard tab state
-      // and surfaces the raw PostgREST message (e.g. missing column) after pop.
-      return false;
+      return null;
+    } catch (e) {
+      return _replyToReviewUserMessage(e);
     }
+  }
+
+  static String _replyToReviewUserMessage(Object e) {
+    if (e is ForbiddenException) {
+      return e.message;
+    }
+    if (e is NetworkException) {
+      return e.message;
+    }
+    final raw = e is Exception ? e.toString() : e.toString();
+    final lower = raw.toLowerCase();
+    if (lower.contains('reply_text') &&
+        (lower.contains('column') ||
+            lower.contains('schema') ||
+            lower.contains('could not find'))) {
+      return 'Review replies need a reply_text column on reviews in Supabase. '
+          'Run the migration to add reply_text (and optionally replied_at), then try again.';
+    }
+    if (lower.contains('replied_at') &&
+        (lower.contains('column') ||
+            lower.contains('schema') ||
+            lower.contains('could not find'))) {
+      return 'Update the app or add the replied_at column on reviews; '
+          'the reply may still work if reply_text exists.';
+    }
+    if (raw.length <= 220) {
+      return raw;
+    }
+    return '${raw.substring(0, 217)}...';
   }
 
   Future<bool> updateBusiness(

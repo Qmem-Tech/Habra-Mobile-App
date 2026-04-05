@@ -36,9 +36,9 @@ class _ReplyToReviewPageState extends State<ReplyToReviewPage> {
     }
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Posting response...');
-    bool success = false;
+    String? postError;
     try {
-      success = await ctx.read<DashboardCubit>().replyToReview(
+      postError = await ctx.read<DashboardCubit>().replyToReview(
             widget.review.id,
             _responseController.text.trim(),
           );
@@ -48,11 +48,11 @@ class _ReplyToReviewPageState extends State<ReplyToReviewPage> {
       }
     }
     if (!ctx.mounted) return;
-    if (success) {
+    if (postError == null) {
       Navigator.pop(ctx, true);
     } else {
       ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Failed to post response. Try again.')),
+        SnackBar(content: Text(postError)),
       );
     }
   }

@@ -1136,11 +1136,8 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
             .eq('id', reviewId);
       } on PostgrestException catch (e) {
         final lower = e.message.toLowerCase();
-        final mentionsRepliedAt = lower.contains('replied_at') &&
-            (lower.contains('column') ||
-                lower.contains('schema') ||
-                lower.contains('could not find'));
-        if (payload.containsKey('replied_at') && mentionsRepliedAt) {
+        // PostgREST: "Could not find the 'replied_at' column ... in the schema cache"
+        if (payload.containsKey('replied_at') && lower.contains('replied_at')) {
           payload = Map<String, dynamic>.from(payload)..remove('replied_at');
           await _client
               .from(SupabaseTables.reviews)
