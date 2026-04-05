@@ -20,6 +20,7 @@ class AppAssets {
   // ==================== Logos ====================
   static const String appLogo = '$_logosPath/habra_app_logo.png';
   static const String splashLogo = '$_logosPath/habra_app_logo.png';
+  static const String googleLogoSvg = '$_logosPath/google_logo.svg';
 
   // ==================== Onboarding ====================
   static const String onboardingMusicFestival = '$_imagesPath/onboarding/onboarding_screen_1.png';

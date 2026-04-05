@@ -116,11 +116,18 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
       if (idToken == null || idToken.isEmpty) {
-        throw app_errors.AuthException('Google sign-in did not return an ID token');
+        throw app_errors.AuthException(
+          'Google sign-in did not return an ID token. '
+          'On Android, set GOOGLE_WEB_CLIENT_ID (web client ID from Google Cloud) '
+          'so the plugin can return a token for Supabase.',
+        );
       }
+      final accessToken = googleAuth.accessToken;
       await _client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
+        accessToken:
+            accessToken != null && accessToken.isNotEmpty ? accessToken : null,
       );
       return _sessionToUser();
     } catch (e) {

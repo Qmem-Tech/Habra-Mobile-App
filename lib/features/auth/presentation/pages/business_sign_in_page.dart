@@ -2,22 +2,24 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../domain/entities/user.dart';
 import '../bloc/auth_cubit.dart';
 import '../bloc/auth_state.dart';
-import '../../domain/entities/user.dart';
-import '../../../home/presentation/pages/customer_home_page.dart';
-import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
-import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
+import '../../../home/presentation/pages/admin_home_page.dart';
+import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
+import '../../../home/presentation/pages/customer_home_page.dart';
+import '../widgets/social_auth_widgets.dart';
+import 'business_email_sign_in_page.dart';
 import 'email_sign_up_page.dart';
 import 'email_verification_page.dart';
-import 'forgot_password_page.dart';
 import 'wrong_path_page.dart';
-import '../widgets/social_auth_widgets.dart';
 
+/// Business owner entry: choose Email, Google, or Apple, then complete sign-in.
 class BusinessSignInPage extends StatefulWidget {
   const BusinessSignInPage({super.key});
 
@@ -26,20 +28,7 @@ class BusinessSignInPage extends StatefulWidget {
 }
 
 class _BusinessSignInPageState extends State<BusinessSignInPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
   void _handleNavigationForUser(BuildContext context, User user) {
-    // Community member signed in via business path — show helpful message and go back.
     if (user.role == UserRole.customer || user.role == UserRole.guest) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -49,7 +38,7 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
       return;
     }
 
-    Widget destination;
+    final Widget destination;
     switch (user.role) {
       case UserRole.businessOwner:
         destination = BusinessOwnerWrapperPage(user: user);
@@ -65,6 +54,24 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => destination),
+    );
+  }
+
+  void _openEmailSignIn() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const BusinessEmailSignInPage(),
+      ),
+    );
+  }
+
+  void _openBusinessSignUp() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const EmailSignUpPage(
+          selectedRole: UserRole.businessOwner,
+        ),
+      ),
     );
   }
 
@@ -85,10 +92,7 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
           backgroundColor: AppColors.backgroundWhite,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(
-              Icons.arrow_back,
-              color: AppColors.textPrimary,
-            ),
+            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
             onPressed: () {
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(builder: (_) => const ChoosePathPage()),
@@ -124,283 +128,152 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
               final showGoogle = !kIsWeb &&
                   (defaultTargetPlatform == TargetPlatform.android ||
                       defaultTargetPlatform == TargetPlatform.iOS);
-              final showSocial = showApple || showGoogle;
+
+              final bottomInset = MediaQuery.paddingOf(context).bottom;
+
               return Stack(
+                fit: StackFit.expand,
                 children: [
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppResources.spacingL,
-                      vertical: AppResources.spacingM,
-                    ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: AppResources.spacingXL),
-
-                          // Title with highlighted "Business"
-                          RichText(
-                            text: TextSpan(
-                              style: AppFonts.largeTitle(color: AppColors.textPrimary),
-                              children: [
-                                TextSpan(
-                                  text: 'Business ',
-                                  style: AppFonts.largeTitle(color: AppColors.brandSecondary),
-                                ),
-                                const TextSpan(text: 'sign in'),
-                              ],
-                            ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppResources.spacingL,
+                            vertical: AppResources.spacingM,
                           ),
-                          const SizedBox(height: AppResources.spacingM),
-
-                          Text(
-                            'Sign in with the same email you use for Habra. Your account type is determined by your profile.',
-                            style: AppFonts.body(color: AppColors.textSecondary),
-                          ),
-                          if (showApple) ...[
-                            const SizedBox(height: AppResources.spacingXL),
-                            SignInWithAppleButton(
-                              onPressed: () {
-                                if (isLoading) return;
-                                context.read<AuthCubit>().signInWithApple();
-                              },
-                              text: 'Continue with Apple',
-                              style: SignInWithAppleButtonStyle.black,
-                              height: AppResources.buttonHeightM,
-                            ),
-                          ],
-                          if (showGoogle) ...[
-                            if (showApple) const SizedBox(height: AppResources.spacingM),
-                            GoogleSignInButton(
-                              onPressed: isLoading
-                                  ? null
-                                  : () => context
-                                      .read<AuthCubit>()
-                                      .signInWithGoogle(),
-                            ),
-                          ],
-                          if (showSocial) ...[
-                            const SizedBox(height: AppResources.spacingL),
-                            const AuthOrDivider(),
-                            const SizedBox(height: AppResources.spacingL),
-                          ] else
-                            const SizedBox(height: AppResources.spacingXXL),
-
-                          // Email field
-                          Text(
-                            'Email',
-                            style: AppFonts.body(color: AppColors.textPrimary),
-                          ),
-                          const SizedBox(height: AppResources.spacingS),
-                          TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            enabled: !isLoading,
-                            decoration: InputDecoration(
-                              hintText: 'email@example.com',
-                              hintStyle: AppFonts.body(color: AppColors.textTertiary),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                borderSide: BorderSide(color: AppColors.backgroundGrey),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                borderSide: BorderSide(color: AppColors.backgroundGrey),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                borderSide: const BorderSide(color: AppColors.brandPrimary),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your email';
-                              }
-                              if (!value.contains('@')) {
-                                return 'Please enter a valid email';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: AppResources.spacingL),
-
-                          // Password field
-                          Text(
-                            'Password',
-                            style: AppFonts.body(color: AppColors.brandPrimary),
-                          ),
-                          const SizedBox(height: AppResources.spacingS),
-                          TextFormField(
-                            controller: _passwordController,
-                            enabled: !isLoading,
-                            obscureText: _obscurePassword,
-                            decoration: InputDecoration(
-                              hintText: 'Enter your password',
-                              hintStyle: AppFonts.body(color: AppColors.textTertiary),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                borderSide: const BorderSide(color: AppColors.brandPrimary),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                borderSide: const BorderSide(color: AppColors.brandPrimary),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                borderSide: const BorderSide(color: AppColors.brandPrimary),
-                              ),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                                  color: AppColors.textSecondary,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your password';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: AppResources.spacingM),
-
-                          // Forgot password
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const ForgotPasswordPage(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              RichText(
+                                text: TextSpan(
+                                  style: AppFonts.largeTitle(
+                                    color: AppColors.textPrimary,
                                   ),
-                                );
-                              },
-                              child: Text(
-                                'Forgot password',
-                                style: AppFonts.bodySmall(color: AppColors.brandPrimary),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: AppResources.spacingL),
-
-                          // Sign In button
-                          SizedBox(
-                            width: double.infinity,
-                            height: AppResources.buttonHeightM,
-                            child: ElevatedButton(
-                              onPressed: isLoading
-                                  ? null
-                                  : () {
-                                      if (_formKey.currentState!.validate()) {
-                                        context.read<AuthCubit>().login(
-                                              _emailController.text.trim(),
-                                              _passwordController.text,
-                                            );
-                                      }
-                                    },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.brandSecondary,
-                                foregroundColor: AppColors.textPrimary,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AppResources.radiusM),
-                                ),
-                              ),
-                              child: isLoading
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.textPrimary),
-                                      ),
-                                    )
-                                  : Text(
-                                      'Sign In',
-                                      style: AppFonts.button(color: AppColors.textPrimary).copyWith(
-                                        height: 1.0,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                            ),
-                          ),
-                          const SizedBox(height: AppResources.spacingM),
-
-                          // New business sign up - stay in business owner journey
-                          Center(
-                            child: InkWell(
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => EmailSignUpPage(
-                                      selectedRole: UserRole.businessOwner,
-                                    ),
-                                  ),
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(4),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppResources.spacingS,
-                                  vertical: AppResources.spacingXS,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(
-                                      'New business? ',
-                                      style: AppFonts.body(color: AppColors.textSecondary),
+                                    TextSpan(
+                                      text: 'Business',
+                                      style: AppFonts.largeTitle(
+                                        color: AppColors.brandSecondary,
+                                      ),
                                     ),
-                                    Text(
-                                      'Sign up',
-                                      style: AppFonts.body(color: AppColors.brandPrimary),
-                                    ),
+                                    const TextSpan(text: ' account sign in'),
                                   ],
                                 ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: AppResources.spacingM),
-
-                          // Different path - go back to choose path (community vs business)
-                          Center(
-                            child: InkWell(
-                              onTap: () {
-                                Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(builder: (_) => const ChoosePathPage()),
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(4),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppResources.spacingS,
-                                  vertical: AppResources.spacingXS,
-                                ),
-                                child: Text(
-                                  'Not a business owner? Choose a different path',
-                                  style: AppFonts.bodySmall(color: AppColors.textSecondary),
+                              const SizedBox(height: AppResources.spacingM),
+                              Text(
+                                'Discover local businesses & connect with your people.',
+                                style: AppFonts.body(
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
+                              const SizedBox(height: AppResources.spacingXXL),
+                              SizedBox(
+                                height: AppResources.buttonHeightL,
+                                child: ElevatedButton.icon(
+                                        onPressed:
+                                            isLoading ? null : _openEmailSignIn,
+                                        icon: const Icon(
+                                          Icons.mail_outline_rounded,
+                                          color: AppColors.textOnPrimary,
+                                          size: 22,
+                                        ),
+                                        label: Text(
+                                          'Continue with Email',
+                                          style: AppFonts.button(
+                                            color: AppColors.textOnPrimary,
+                                          ),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.brandPrimary,
+                                          foregroundColor: AppColors.textOnPrimary,
+                                          elevation: 0,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              AppResources.radiusL,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                              if (showGoogle || showApple) ...[
+                                const SizedBox(height: AppResources.spacingL),
+                                const AuthOrDivider(),
+                                const SizedBox(height: AppResources.spacingL),
+                              ],
+                              if (showGoogle) ...[
+                                GoogleSignInButton(
+                                  height: AppResources.buttonHeightL,
+                                  borderRadius: AppResources.radiusL,
+                                  onPressed: isLoading
+                                      ? null
+                                      : () => context
+                                          .read<AuthCubit>()
+                                          .signInWithGoogle(),
+                                ),
+                                if (showApple)
+                                  const SizedBox(height: AppResources.spacingM),
+                              ],
+                              if (showApple)
+                                SizedBox(
+                                  height: AppResources.buttonHeightL,
+                                  width: double.infinity,
+                                  child: SignInWithAppleButton(
+                                    onPressed: () {
+                                      if (isLoading) return;
+                                      context.read<AuthCubit>().signInWithApple();
+                                    },
+                                    text: 'Continue with Apple',
+                                    style: SignInWithAppleButtonStyle.black,
+                                    height: AppResources.buttonHeightL,
+                                  ),
+                                ),
+                              const SizedBox(height: AppResources.spacingXL),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          AppResources.spacingL,
+                          AppResources.spacingM,
+                          AppResources.spacingL,
+                          bottomInset + AppResources.spacingM,
+                        ),
+                        child: Center(
+                          child: TextButton(
+                            onPressed: isLoading ? null : _openBusinessSignUp,
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.textSecondary,
+                            ),
+                            child: Text.rich(
+                              TextSpan(
+                                style: AppFonts.body(
+                                  color: AppColors.textSecondary,
+                                ),
+                                children: [
+                                  const TextSpan(text: 'New to Habra? '),
+                                  TextSpan(
+                                    text: 'Sign up',
+                                    style: AppFonts.body(
+                                      color: AppColors.brandSecondary,
+                                    ).copyWith(fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                   if (isLoading)
-                    Container(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
+                    ColoredBox(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      child: const Center(child: CircularProgressIndicator()),
                     ),
                 ],
               );

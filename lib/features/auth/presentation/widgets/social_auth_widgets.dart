@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../../core/resources/app_assets.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -32,37 +34,37 @@ class GoogleSignInButton extends StatelessWidget {
     super.key,
     required this.onPressed,
     this.label = 'Continue with Google',
+    this.height = AppResources.buttonHeightM,
+    this.borderRadius = AppResources.radiusM,
   });
 
   final VoidCallback? onPressed;
   final String label;
-
-  static const Color _gBlue = Color(0xFF4285F4);
+  final double height;
+  final double borderRadius;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: AppResources.buttonHeightM,
+      height: height,
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textPrimary,
           side: BorderSide(color: AppColors.backgroundGrey),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppResources.radiusM),
+            borderRadius: BorderRadius.circular(borderRadius),
           ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'G',
-              style: AppFonts.button(color: _gBlue).copyWith(
-                fontWeight: FontWeight.w800,
-                fontSize: 18,
-                height: 1,
-              ),
+            SvgPicture.asset(
+              AppAssets.googleLogoSvg,
+              width: 22,
+              height: 22,
+              fit: BoxFit.contain,
             ),
             const SizedBox(width: AppResources.spacingM),
             Text(
