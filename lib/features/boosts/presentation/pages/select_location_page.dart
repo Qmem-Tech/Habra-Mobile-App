@@ -7,12 +7,9 @@ import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../dashboard/presentation/pages/boost_listing_page.dart';
-import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
-import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../../domain/entities/boost_location.dart';
 import '../bloc/boosts_cubit.dart';
 import '../bloc/boosts_state.dart';
-import '../utils/boost_flow_business_id.dart';
 import '../widgets/boost_flow_status_body.dart';
 import '../widgets/location_selection_card.dart';
 
@@ -32,10 +29,7 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
 
   void _tryLoadLocations() {
     if (!mounted) return;
-    final homeState = context.read<BusinessOwnerHomeCubit>().state;
-    final id = focusBusinessIdForBoostFlows(homeState);
-    if (id == null) return;
-    context.read<BoostsCubit>().loadLocations(id);
+    context.read<BoostsCubit>().loadLocations();
   }
 
   @override
@@ -59,80 +53,73 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
         ),
         centerTitle: true,
       ),
-      body: BlocListener<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
-        listenWhen: (prev, curr) =>
-            focusBusinessIdForBoostFlows(curr) !=
-            focusBusinessIdForBoostFlows(prev),
-        listener: (context, homeState) => _tryLoadLocations(),
-        child: BlocBuilder<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
-          builder: (context, homeState) {
-            if (homeState is! BusinessOwnerHomeLoaded) {
-              return const HabraCircularLoader(fullScreen: true);
-            }
-            final businessId = focusBusinessIdForBoostFlows(homeState);
-            if (businessId == null) {
-              return BoostFlowMissingBusinessBody(
-                onBack: () => Navigator.pop(context),
-              );
-            }
-            return BlocBuilder<BoostsCubit, BoostsState>(
-              builder: (context, state) {
-                if (state is BoostsError) {
-                  return BoostFlowErrorBody(
-                    message: state.message,
-                    onRetry: () =>
-                        context.read<BoostsCubit>().loadLocations(businessId),
-                    onBack: () => Navigator.pop(context),
-                  );
-                }
-                if (state is! BoostLocationsLoaded) {
-                  return const HabraCircularLoader(fullScreen: true);
-                }
-                final locations = state.locations;
-                final selectedId = state.selectedId;
-                if (locations.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppResources.spacingL),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'No locations found for your account.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Go back'),
-                          ),
-                        ],
+      body: BlocBuilder<BoostsCubit, BoostsState>(
+        builder: (context, state) {
+          if (state is BoostsError) {
+            return BoostFlowErrorBody(
+              message: state.message,
+              onRetry: () => context.read<BoostsCubit>().loadLocations(),
+              onBack: () => Navigator.pop(context),
+            );
+          }
+          if (state is! BoostLocationsLoaded) {
+            return const HabraCircularLoader(fullScreen: true);
+          }
+          final locations = state.locations;
+          final selectedIds = state.selectedIds;
+          if (locations.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppResources.spacingL),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'No locations found for your account.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: AppColors.textSecondary,
                       ),
                     ),
-                  );
-                }
-                return Column(
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Go back'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          final allSelected = selectedIds.length == locations.length;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  AppResources.spacingM,
+                  AppResources.spacingM,
+                  0,
+                ),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(AppResources.spacingM),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Which locations need a boost?',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
+                    const Text(
+                      'Which locations need a boost?',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
                             'Choose specific branches to promote or select all for a bundle discount.',
                             style: TextStyle(
                               fontSize: 14,
@@ -140,45 +127,71 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
                               height: 1.4,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppResources.spacingM,
                         ),
-                        itemCount: locations.length,
-                        itemBuilder: (context, index) {
-                          final loc = locations[index];
-                          return LocationSelectionCard(
-                            location: loc,
-                            isSelected: selectedId == loc.id,
-                            onTap: () =>
-                                context.read<BoostsCubit>().selectLocation(loc.id),
-                          );
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(AppResources.spacingM),
-                      child: AppButton(
-                        text: 'Continue',
-                        onPressed: selectedId != null
-                            ? () => _continueWithLocation(
-                                  context,
-                                  locations,
-                                  selectedId,
-                                )
-                            : null,
-                      ),
+                        TextButton(
+                          onPressed: () {
+                            final cubit = context.read<BoostsCubit>();
+                            if (allSelected) {
+                              cubit.clearLocationSelection();
+                            } else {
+                              cubit.selectAllLocations();
+                            }
+                          },
+                          child: Text(
+                            allSelected ? 'Clear all' : 'Select all',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                );
-              },
-            );
-          },
-        ),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    8,
+                    AppResources.spacingM,
+                    AppResources.spacingM,
+                  ),
+                  itemCount: locations.length,
+                  itemBuilder: (context, index) {
+                    final loc = locations[index];
+                    return LocationSelectionCard(
+                      location: loc,
+                      isSelected: selectedIds.contains(loc.id),
+                      onTap: () => context
+                          .read<BoostsCubit>()
+                          .toggleLocationSelection(loc.id),
+                    );
+                  },
+                ),
+              ),
+              SafeArea(
+                top: false,
+                minimum: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  0,
+                  AppResources.spacingM,
+                  AppResources.spacingM,
+                ),
+                child: AppButton(
+                  text: 'Continue',
+                  onPressed: selectedIds.isNotEmpty
+                      ? () => _continueWithLocation(
+                            context,
+                            locations,
+                            selectedIds,
+                          )
+                      : null,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -186,17 +199,22 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
   void _continueWithLocation(
     BuildContext context,
     List<BoostLocation> locations,
-    String selectedId,
+    Set<String> selectedIds,
   ) {
-    BoostLocation? selected;
+    if (selectedIds.isEmpty) return;
+    BoostLocation? primary;
     for (final l in locations) {
-      if (l.id == selectedId) {
-        selected = l;
+      if (selectedIds.contains(l.id)) {
+        primary = l;
         break;
       }
     }
-    if (selected == null) return;
-    final BoostLocation chosen = selected;
+    if (primary == null) return;
+    final chosen = primary;
+    final count = selectedIds.length;
+    final title = count > 1
+        ? '${chosen.name} + ${count - 1} more'
+        : chosen.name;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -205,7 +223,7 @@ class _SelectLocationPageState extends State<SelectLocationPage> {
           child: BoostListingPage(
             boostType: 'business_listing',
             selectedId: chosen.id,
-            selectedTitle: chosen.name,
+            selectedTitle: title,
           ),
         ),
       ),

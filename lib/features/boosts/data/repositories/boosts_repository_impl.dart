@@ -22,8 +22,7 @@ class BoostsRepositoryImpl implements BoostsRepository {
   Future<List<BoostOption>> getBoostOptions() => _remote.getBoostOptions();
 
   @override
-  Future<List<BoostLocation>> getLocations(String businessId) =>
-      _remote.getLocations(businessId);
+  Future<List<BoostLocation>> getLocations() => _remote.getLocations();
 
   @override
   Future<List<DashboardDeal>> getDealsForBoost(String businessId) =>

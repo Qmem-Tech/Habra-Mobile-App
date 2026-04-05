@@ -63,13 +63,17 @@ class BoostOptionsLoaded extends BoostsState {
 }
 
 class BoostLocationsLoaded extends BoostsState {
-  const BoostLocationsLoaded(this.locations, this.selectedId);
+  const BoostLocationsLoaded(this.locations, this.selectedIds);
 
   final List<BoostLocation> locations;
-  final String? selectedId;
+  final Set<String> selectedIds;
 
   @override
-  List<Object?> get props => [locations, selectedId];
+  List<Object?> get props => [
+        locations,
+        selectedIds.length,
+        ...(selectedIds.toList()..sort()),
+      ];
 }
 
 class BoostDealsLoaded extends BoostsState {

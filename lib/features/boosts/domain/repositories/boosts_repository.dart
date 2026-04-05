@@ -8,7 +8,8 @@ import '../entities/past_boost.dart';
 /// Repository for boosts feature: options, locations, active/past boosts, actions.
 abstract class BoostsRepository {
   Future<List<BoostOption>> getBoostOptions();
-  Future<List<BoostLocation>> getLocations(String businessId);
+  /// All businesses (locations) for the signed-in owner.
+  Future<List<BoostLocation>> getLocations();
   Future<List<DashboardDeal>> getDealsForBoost(String businessId);
   Future<List<DashboardJob>> getJobsForBoost(String businessId);
   Future<List<ActiveBoost>> getActiveBoosts(String businessId);

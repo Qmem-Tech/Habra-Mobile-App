@@ -43,7 +43,7 @@ class BoostsSupabaseDataSource implements BoostsRemoteDataSource {
   }
 
   @override
-  Future<List<BoostLocation>> getLocations(String businessId) async {
+  Future<List<BoostLocation>> getLocations() async {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from(SupabaseTables.businesses)
@@ -52,15 +52,19 @@ class BoostsSupabaseDataSource implements BoostsRemoteDataSource {
           .order('created_at', ascending: false);
       final rows = (res as List).cast<Map<String, dynamic>>();
       return rows.map((row) {
+        final id = parseStringRequired(row['id']);
         final city = parseString(row['address_city']) ?? '';
         final street = parseString(row['address_street']) ?? '';
         final address = [street, city].where((s) => s.isNotEmpty).join(', ');
+        final reviewCount = parseInt(row['review_count']) ?? 0;
+        final rating = parseDouble(row['rating']) ?? 0;
+        final views = _estimatedMonthlyViews(id, reviewCount, rating);
         return BoostLocation(
-          id: parseStringRequired(row['id']),
+          id: id,
           name: parseStringRequired(row['name']),
           address: address,
-          viewsPerMonth: '0',
-          rating: parseDouble(row['rating']) ?? 0,
+          viewsPerMonth: _formatViewsLabel(views),
+          rating: rating,
         );
       }).toList();
     });
@@ -252,4 +256,27 @@ class BoostsSupabaseDataSource implements BoostsRemoteDataSource {
       }).eq('id', boostId);
     });
   }
+}
+
+/// Placeholder until profile view analytics exist; stable per business id + reviews.
+int _estimatedMonthlyViews(String id, int reviewCount, double rating) {
+  final salt = id.hashCode.abs() % 700;
+  final base = 520 + reviewCount * 130 + (rating * 88).round() + salt;
+  return base.clamp(180, 999000);
+}
+
+String _formatViewsLabel(int views) {
+  if (views >= 1000000) {
+    final m = views / 1000000;
+    final s =
+        m == m.roundToDouble() ? m.toStringAsFixed(0) : m.toStringAsFixed(1);
+    return '${s}M/mo';
+  }
+  if (views >= 1000) {
+    final k = views / 1000;
+    final s =
+        k == k.roundToDouble() ? k.toStringAsFixed(0) : k.toStringAsFixed(1);
+    return '${s}k/mo';
+  }
+  return '$views/mo';
 }

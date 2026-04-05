@@ -5,7 +5,7 @@ import '../../domain/entities/past_boost.dart';
 
 abstract class BoostsRemoteDataSource {
   Future<List<BoostOption>> getBoostOptions();
-  Future<List<BoostLocation>> getLocations(String businessId);
+  Future<List<BoostLocation>> getLocations();
   Future<List<ActiveBoost>> getActiveBoosts(String businessId);
   Future<List<PastBoost>> getPastBoosts(String businessId);
   Future<ActiveBoost?> getActiveBoostDetail(String boostId);
@@ -28,7 +28,7 @@ class BoostsRemoteDataSourceImpl implements BoostsRemoteDataSource {
   }
 
   @override
-  Future<List<BoostLocation>> getLocations(String businessId) async {
+  Future<List<BoostLocation>> getLocations() async {
     return [];
   }
 

@@ -74,20 +74,38 @@ class BoostsCubit extends Cubit<BoostsState> {
     }
   }
 
-  Future<void> loadLocations(String businessId) async {
+  Future<void> loadLocations() async {
     try {
-      final locations = await _repository.getLocations(businessId);
-      emit(BoostLocationsLoaded(locations, null));
+      final locations = await _repository.getLocations();
+      emit(BoostLocationsLoaded(locations, <String>{}));
     } catch (e) {
       emit(BoostsError(e.toString()));
     }
   }
 
-  void selectLocation(String? id) {
+  void toggleLocationSelection(String id) {
     final current = state;
-    if (current is BoostLocationsLoaded) {
-      emit(BoostLocationsLoaded(current.locations, id));
+    if (current is! BoostLocationsLoaded) return;
+    final next = Set<String>.from(current.selectedIds);
+    if (next.contains(id)) {
+      next.remove(id);
+    } else {
+      next.add(id);
     }
+    emit(BoostLocationsLoaded(current.locations, next));
+  }
+
+  void selectAllLocations() {
+    final current = state;
+    if (current is! BoostLocationsLoaded) return;
+    final all = current.locations.map((l) => l.id).toSet();
+    emit(BoostLocationsLoaded(current.locations, all));
+  }
+
+  void clearLocationSelection() {
+    final current = state;
+    if (current is! BoostLocationsLoaded) return;
+    emit(BoostLocationsLoaded(current.locations, <String>{}));
   }
 
   Future<void> loadDeals(String businessId) async {
