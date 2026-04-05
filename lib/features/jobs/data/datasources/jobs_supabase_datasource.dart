@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
+import '../../../../core/utils/job_type_format.dart';
 import '../../domain/entities/job_detail.dart';
 import '../../domain/entities/job_filters.dart';
 import '../../domain/entities/job_listing.dart';
@@ -72,13 +73,22 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
           companyLogoUrl = parseString(biz['logo_url']);
         }
         final id = parseStringRequired(row['id']);
+        final sal = parseString(row['salary_display']);
+        final fromMinMax = jobSalaryLineFromMinMax(
+          parseInt(row['salary_min']),
+          parseInt(row['salary_max']),
+          salaryType: parseString(row['salary_type']),
+        );
+        final salaryLine = (sal != null && sal.isNotEmpty)
+            ? sal
+            : (fromMinMax.isEmpty ? null : fromMinMax);
         return JobListingModel(
           id: id,
           title: parseStringRequired(row['title']),
           companyName: companyName,
           companyLogoUrl: companyLogoUrl,
           jobType: parseStringRequired(row['job_type']),
-          salary: parseString(row['salary_display']),
+          salary: salaryLine,
           location: parseString(row['location']),
           postedDate: parseTimestamp(row['posted_at']),
           category: parseString(row['category']),
@@ -125,6 +135,15 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
             .maybeSingle();
         bookmarked = bm != null;
       }
+      final sal = parseString(row['salary_display']);
+      final fromMinMax = jobSalaryLineFromMinMax(
+        parseInt(row['salary_min']),
+        parseInt(row['salary_max']),
+        salaryType: parseString(row['salary_type']),
+      );
+      final salaryLine = (sal != null && sal.isNotEmpty)
+          ? sal
+          : (fromMinMax.isEmpty ? null : fromMinMax);
       return JobDetail(
         id: parseStringRequired(row['id']),
         title: parseStringRequired(row['title']),
@@ -133,7 +152,7 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
         companyLogoUrl: companyLogoUrl,
         companyRating: companyRating,
         jobType: parseStringRequired(row['job_type']),
-        salary: parseString(row['salary_display']),
+        salary: salaryLine,
         location: parseString(row['location']),
         postedDate: parseTimestamp(row['posted_at']),
         description: desc,

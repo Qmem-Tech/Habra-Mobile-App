@@ -14,6 +14,9 @@ class DashboardJob extends Equatable {
   /// Stored slug (e.g. `full-time`) for edit forms and API.
   final String jobTypeSlug;
   final String location;
+  /// When present in `jobs.location_lat` / `location_lng`.
+  final double? latitude;
+  final double? longitude;
   final String salaryDisplay;
   final int? salaryMin;
   final int? salaryMax;
@@ -42,6 +45,8 @@ class DashboardJob extends Equatable {
     required this.jobType,
     this.jobTypeSlug = 'full-time',
     required this.location,
+    this.latitude,
+    this.longitude,
     required this.salaryDisplay,
     this.salaryMin,
     this.salaryMax,
@@ -69,8 +74,12 @@ class DashboardJob extends Equatable {
 
   static String formatJobTypeLabel(String? raw) => jobTypeFormatLabel(raw);
 
-  static String salaryLineFromMinMax(int? min, int? max) =>
-      jobSalaryLineFromMinMax(min, max);
+  static String salaryLineFromMinMax(
+    int? min,
+    int? max, {
+    String? salaryType,
+  }) =>
+      jobSalaryLineFromMinMax(min, max, salaryType: salaryType);
 
   @override
   List<Object?> get props => [
@@ -80,6 +89,8 @@ class DashboardJob extends Equatable {
         jobType,
         jobTypeSlug,
         location,
+        latitude,
+        longitude,
         salaryDisplay,
         salaryMin,
         salaryMax,

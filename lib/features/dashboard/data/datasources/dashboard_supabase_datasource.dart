@@ -280,8 +280,12 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     final updatedAt = parseTimestamp(row['updated_at']);
     final salaryMin = parseInt(row['salary_min']);
     final salaryMax = parseInt(row['salary_max']);
-    final salaryDisplay =
-        DashboardJob.salaryLineFromMinMax(salaryMin, salaryMax);
+    final salaryType = parseString(row['salary_type']);
+    final salaryDisplay = DashboardJob.salaryLineFromMinMax(
+      salaryMin,
+      salaryMax,
+      salaryType: salaryType,
+    );
     final slug = DashboardJob.normalizeJobTypeSlug(parseString(row['job_type']));
     final statusStr = parseString(row['status']) ?? 'open';
     final jobStatus = statusStr == 'draft'
@@ -303,13 +307,15 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       jobType: DashboardJob.formatJobTypeLabel(slug),
       jobTypeSlug: slug,
       location: parseStringRequired(row['location'], 'Remote'),
+      latitude: parseDouble(row['location_lat']),
+      longitude: parseDouble(row['location_lng']),
       salaryDisplay: salaryDisplay,
       salaryMin: salaryMin,
       salaryMax: salaryMax,
       description: parseString(row['description']),
       requirements: parseString(row['requirements']),
       isRemote: isRemote,
-      salaryType: parseString(row['salary_type']),
+      salaryType: salaryType,
       viewsCount: viewsCount,
       applicantsCount: applicantsCount,
       postedTimeAgo: _timeAgo(postedAt),
@@ -1055,6 +1061,8 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         'is_remote': data['is_remote'],
         'salary_type': data['salary_type'],
         'is_active': !isDraft,
+        if (data['location_lat'] != null) 'location_lat': data['location_lat'],
+        if (data['location_lng'] != null) 'location_lng': data['location_lng'],
       };
       if (!_missingJobColumns.contains('status')) {
         payload['status'] = status;
@@ -1085,7 +1093,16 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       if (status != null) {
         payload['is_active'] = status != 'draft';
       }
-      payload.removeWhere((_, v) => v == null);
+      if (payload['is_remote'] == true) {
+        payload['location_lat'] = null;
+        payload['location_lng'] = null;
+      }
+      payload.removeWhere((k, v) {
+        if (v == null && (k == 'location_lat' || k == 'location_lng')) {
+          return false;
+        }
+        return v == null;
+      });
 
       Map<String, dynamic> row;
       while (true) {
@@ -1156,7 +1173,14 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
 
   bool _stripMissingJobColumn(Map<String, dynamic> payload, String message) {
     final lower = message.toLowerCase();
-    const cols = ['status', 'requirements', 'is_remote', 'salary_type'];
+    const cols = [
+      'status',
+      'requirements',
+      'is_remote',
+      'salary_type',
+      'location_lat',
+      'location_lng',
+    ];
     for (final col in cols) {
       if (!payload.containsKey(col)) continue;
       if (!_jobPayloadErrorMentionsColumn(lower, col)) continue;

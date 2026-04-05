@@ -195,6 +195,7 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
         final fromMinMax = jobSalaryLineFromMinMax(
           parseInt(row['salary_min']),
           parseInt(row['salary_max']),
+          salaryType: parseString(row['salary_type']),
         );
         return JobModel(
           id: parseStringRequired(row['id']),

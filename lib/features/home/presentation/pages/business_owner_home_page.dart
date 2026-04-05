@@ -2279,7 +2279,10 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     List<OwnerActivityItem> items, {
     VoidCallback? onReplyToReview,
   }) {
-    if (items.isEmpty) {
+    final displayItems = items
+        .take(BusinessOwnerHomeCubit.recentActivityHomeLimit)
+        .toList(growable: false);
+    if (displayItems.isEmpty) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(
@@ -2326,14 +2329,14 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(vertical: 4),
-        itemCount: items.length,
+        itemCount: displayItems.length,
         separatorBuilder: (_, __) => Divider(
           height: 1,
           thickness: 1,
           color: AppColors.ownerHomeSectionBg,
         ),
         itemBuilder: (context, index) {
-          final item = items[index];
+          final item = displayItems[index];
           return _buildActivityCard(
             item,
             onReplyToReview: onReplyToReview,

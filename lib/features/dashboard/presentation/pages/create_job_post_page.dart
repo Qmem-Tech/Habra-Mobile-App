@@ -5,7 +5,12 @@ import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
 import '../../../../core/widgets/error_display_helper.dart';
-import '../../../../core/widgets/location_picker_bottom_sheet.dart';
+import '../../../../core/domain/business_address_data.dart';
+import '../../../../core/widgets/street_address_field.dart';
+import '../../../../core/services/location_service.dart';
+import '../../../../core/permissions/app_permission.dart';
+import '../../../../core/services/permission_service.dart';
+import '../../../../injection/injection_container.dart' as di;
 import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
@@ -39,6 +44,8 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
   String _jobTypeSlug = 'full-time';
   bool _isHourly = false;
   bool _remotePosition = true;
+  double? _jobLat;
+  double? _jobLng;
   bool _showValidation = false;
   /// When true, description/location use publish rules (min length, on-site location).
   bool _publishAttempted = false;
@@ -58,8 +65,12 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
       _remotePosition = j.isRemote;
       if (j.isRemote) {
         _locationController.text = '';
+        _jobLat = null;
+        _jobLng = null;
       } else {
         _locationController.text = j.location;
+        _jobLat = j.latitude;
+        _jobLng = j.longitude;
       }
       if (j.salaryMin != null) {
         _minSalaryController.text = '${j.salaryMin}';
@@ -118,29 +129,44 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     return false;
   }
 
-  Future<void> _openLocationPicker() async {
-    final result = await LocationPickerBottomSheet.show(
-      context,
-      currentValue: _locationController.text.trim(),
-    );
-    if (result != null && mounted) {
-      setState(() => _locationController.text = result);
-    }
+  static String _formatWorkAddressLine(BusinessAddressData d) {
+    final parts = <String>[
+      if (d.street != null && d.street!.isNotEmpty) d.street!,
+      if (d.suite != null && d.suite!.isNotEmpty) d.suite!,
+      if (d.city != null && d.city!.isNotEmpty) d.city!,
+      if (d.state != null && d.state!.isNotEmpty) d.state!,
+      if (d.zipCode != null && d.zipCode!.isNotEmpty) d.zipCode!,
+    ];
+    return parts.isEmpty ? 'Selected location' : parts.join(', ');
+  }
+
+  void _applyWorkAddress(BusinessAddressData data) {
+    setState(() {
+      _locationController.text = _formatWorkAddressLine(data);
+      if (data.hasCoordinates) {
+        _jobLat = data.latitude;
+        _jobLng = data.longitude;
+      }
+    });
   }
 
   Map<String, dynamic> _buildPayload({required String status}) {
     final requirements = _requirementsController.text.trim();
+    final remote = _remotePosition;
+    final locText = _locationController.text.trim();
     return {
       'title': _titleController.text.trim(),
       'description': _descriptionController.text.trim(),
-      'location': _locationController.text.trim().isNotEmpty
-          ? _locationController.text.trim()
-          : (_remotePosition ? 'Remote' : null),
+      'location': remote
+          ? 'Remote'
+          : (locText.isNotEmpty ? locText : null),
       'job_type': _jobTypeSlug,
       'salary_min': int.tryParse(_minSalaryController.text.trim()),
       'salary_max': int.tryParse(_maxSalaryController.text.trim()),
       'salary_type': _isHourly ? 'hourly' : 'yearly',
-      'is_remote': _remotePosition,
+      'is_remote': remote,
+      if (!remote && _jobLat != null && _jobLng != null) 'location_lat': _jobLat,
+      if (!remote && _jobLat != null && _jobLng != null) 'location_lng': _jobLng,
       if (requirements.isNotEmpty) 'requirements': requirements,
       'status': status,
     };
@@ -193,8 +219,15 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     } else if (desc.length < 30) {
       errors.add('Description should be at least 30 characters to publish');
     }
-    if (!_remotePosition && _locationController.text.trim().isEmpty) {
-      errors.add('Enter a location or enable remote');
+    if (!_remotePosition) {
+      if (_locationController.text.trim().isEmpty) {
+        errors.add('Enter a work location or enable remote');
+      } else if (_jobLat == null || _jobLng == null) {
+        errors.add(
+          'Choose an address from search suggestions or use current location '
+          'so the job has map coordinates.',
+        );
+      }
     }
     errors.addAll(_salaryFieldErrors());
     return errors;
@@ -233,7 +266,10 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
   }
 
   bool get _locationPublishInvalid =>
-      !_remotePosition && _locationController.text.trim().isEmpty;
+      !_remotePosition &&
+      (_locationController.text.trim().isEmpty ||
+          _jobLat == null ||
+          _jobLng == null);
 
   Future<void> _postJob() async {
     final errors = _collectPublishErrors();
@@ -429,8 +465,6 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
               const SizedBox(height: 12),
               _buildJobTypeDropdown(),
               const SizedBox(height: 12),
-              _buildLocationField(),
-              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -463,12 +497,23 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
                     ),
                     Switch(
                       value: _remotePosition,
-                      onChanged: (v) => setState(() => _remotePosition = v),
+                      onChanged: (v) => setState(() {
+                        _remotePosition = v;
+                        if (v) {
+                          _jobLat = null;
+                          _jobLng = null;
+                          _locationController.clear();
+                        }
+                      }),
                       activeThumbColor: AppColors.brandPrimary,
                     ),
                   ],
                 ),
               ),
+              if (!_remotePosition) ...[
+                const SizedBox(height: 12),
+                _buildWorkLocationSection(),
+              ],
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -705,57 +750,120 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     );
   }
 
-  Widget _buildLocationField() {
-    final borderColor = _showValidation &&
-            _publishAttempted &&
-            _locationPublishInvalid
-        ? AppColors.error
-        : AppColors.backgroundGrey;
+  Widget _buildWorkLocationSection() {
+    final hasCoords = _jobLat != null && _jobLng != null;
+    final showLocError =
+        _showValidation && _publishAttempted && _locationPublishInvalid;
+    final borderColor =
+        showLocError ? AppColors.error : AppColors.backgroundGrey;
+    final decoration = InputDecoration(
+      filled: true,
+      fillColor: AppColors.backgroundWhite,
+      errorText: showLocError
+          ? (_locationController.text.trim().isEmpty
+              ? 'Required when not remote'
+              : 'Pick a suggestion or use current location for coordinates')
+          : null,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          _remotePosition ? 'Location' : 'Location *',
-          style: const TextStyle(
+        const Text(
+          'Work location *',
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 6),
-        GestureDetector(
-          onTap: _openLocationPicker,
-          child: AbsorbPointer(
-            child: TextField(
-              controller: _locationController,
-              readOnly: true,
-              decoration: InputDecoration(
-                hintText: 'Select city or address...',
-                filled: true,
-                fillColor: AppColors.backgroundWhite,
-                errorText: _showValidation &&
-                        _publishAttempted &&
-                        _locationPublishInvalid
-                    ? 'Required when not remote'
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppResources.radiusM),
-                  borderSide: BorderSide(color: borderColor),
+        StreetAddressField(
+          controller: _locationController,
+          hintText: 'Street, city, state — pick a suggestion or use search',
+          decoration: decoration,
+          onAddressPicked: _applyWorkAddress,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            'Pick a result from suggestions or address search to save latitude and longitude.',
+            style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Or use device location',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary.withValues(alpha: 0.9),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () async {
+              final granted = await di.sl<PermissionService>().requestWithDialog(
+                    context,
+                    AppPermission.location,
+                  );
+              if (!granted || !mounted) return;
+              final result =
+                  await di.sl<LocationService>().getCurrentLocationAsAddress();
+              if (!mounted) return;
+              result.fold(
+                (f) => ErrorDisplayHelper.show(
+                  context,
+                  message: f.message,
+                  title: 'Location',
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppResources.radiusM),
-                  borderSide: BorderSide(color: borderColor),
-                ),
-                suffixIcon: const Icon(
-                  Icons.arrow_drop_down,
-                  color: AppColors.textSecondary,
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              ),
+                (data) {
+                  _applyWorkAddress(data);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Address set from current location'),
+                    ),
+                  );
+                },
+              );
+            },
+            icon: const Icon(Icons.my_location, size: 18),
+            label: const Text('Use current location'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.brandPrimary,
+              side: BorderSide(color: AppColors.brandPrimary),
             ),
           ),
         ),
+        if (hasCoords)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, size: 18, color: AppColors.success),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Map coordinates saved for this job location.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

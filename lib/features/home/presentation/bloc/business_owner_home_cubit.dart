@@ -11,19 +11,24 @@ import 'business_owner_home_state.dart';
 
 const String _storageKeyPrefix = 'business_owner_selected_presence';
 
-/// Max items shown in the home "Recent activity" section.
-const int _recentActivityHomeLimit = 4;
-
 /// Cubit for business owner home: loads real presences from Supabase,
 /// plus deals, jobs, reviews as activity and lists for each selected business.
 class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
   BusinessOwnerHomeCubit(this._dashboardRepository, this._localStorage)
       : super(BusinessOwnerHomeInitial());
 
+  /// Max items shown in the home "Recent activity" section (single source of truth).
+  static const int recentActivityHomeLimit = 4;
+
   final DashboardRepository _dashboardRepository;
   final LocalStorage _localStorage;
 
   String? _ownerId;
+
+  List<OwnerActivityItem> _capRecentActivity(List<OwnerActivityItem> items) {
+    if (items.length <= recentActivityHomeLimit) return items;
+    return items.take(recentActivityHomeLimit).toList();
+  }
 
   Future<void> loadOwnerHome({
     required String ownerId,
@@ -79,7 +84,7 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
         presences: presences,
         selectedPresenceId: initialId,
         snapshot: snapshot,
-        recentActivity: activity,
+        recentActivity: _capRecentActivity(activity),
         activeDeals: deals,
         jobPosts: jobs,
         setupTasks: const [],
@@ -106,7 +111,7 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
         snapshot: result.snapshot,
         activeDeals: result.deals,
         jobPosts: result.jobs,
-        recentActivity: result.activity,
+        recentActivity: _capRecentActivity(result.activity),
       ));
       return;
     }
@@ -125,7 +130,7 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
         snapshot: snapshot,
         activeDeals: deals,
         jobPosts: jobs,
-        recentActivity: activity,
+        recentActivity: _capRecentActivity(activity),
       ));
     } catch (_) {
       if (_ownerId != null) {
@@ -170,7 +175,7 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
     return _AggregatedData(
       deals: allDeals,
       jobs: allJobs,
-      activity: allActivity.take(_recentActivityHomeLimit).toList(),
+      activity: allActivity.take(recentActivityHomeLimit).toList(),
       snapshot: OwnerSnapshotMetrics(
         views: totalViews,
         clicks: totalClicks,
@@ -238,7 +243,8 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
               !r.createdAt.isBefore(reviewRecencyCutoff))
           .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      final reviewItems = sortedRecentReviews.take(5).map((r) => OwnerActivityItem(
+      final reviewItems =
+          sortedRecentReviews.take(recentActivityHomeLimit).map((r) => OwnerActivityItem(
             id: r.id,
             type: OwnerActivityType.review,
             title: '${r.authorName} left a ${r.rating}-star review',
@@ -261,7 +267,7 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
       );
       final merged = [...eventItems, ...reviewItems].toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return merged.take(_recentActivityHomeLimit).toList();
+      return merged.take(recentActivityHomeLimit).toList();
     } catch (_) {
       return [];
     }
