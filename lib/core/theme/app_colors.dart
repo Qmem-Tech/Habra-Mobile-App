@@ -11,6 +11,13 @@ class AppColors {
   /// Primary brand color - Dark green (from design)
   /// Used for: Primary buttons, active states, progress indicators
   static const Color brandPrimary = Color(0xFF1F563F); // Primary green
+
+  /// Business owner home / marketing dashboard (matches owner-home mock).
+  static const Color ownerHomePrimary = Color(0xFF1B4332);
+  static const Color ownerHomeMintPill = Color(0xFFE8F5E9);
+  static const Color ownerHomeSectionBg = Color(0xFFF8F9FA);
+  static const Color ownerHomeQuickActionSecondary = Color(0xFFE8EAED);
+  static const Color ownerOpenNowBadge = Color(0xFFD6C4A4);
   static const Color brandPrimaryLight = Color(0xFF2D6B4F);
   static const Color brandPrimaryDark = Color(0xFF16402F);
 

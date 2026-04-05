@@ -204,6 +204,47 @@ class LocationService {
     ));
   }
 
+  /// Forward-geocode a query and return up to [maxResults] structured addresses
+  /// (via reverse geocode per hit). Used for address search / autocomplete UX.
+  ///
+  /// Note: Quality depends on the platform geocoder; for denser suggestions
+  /// consider Google Places Autocomplete with an API key.
+  Future<Either<Failure, List<BusinessAddressData>>> lookupAddressSuggestions(
+    String query, {
+    int maxResults = 5,
+  }) async {
+    final q = query.trim();
+    if (q.length < 4) {
+      return const Right([]);
+    }
+    try {
+      final locations = await locationFromAddress(q);
+      if (locations.isEmpty) {
+        return const Right([]);
+      }
+      final out = <BusinessAddressData>[];
+      final seen = <String>{};
+      for (final loc in locations.take(maxResults)) {
+        final rev = await reverseGeocodeToAddress(loc.latitude, loc.longitude);
+        rev.fold((_) {}, (BusinessAddressData data) {
+          final key = [
+            data.street ?? '',
+            data.city ?? '',
+            data.state ?? '',
+            data.zipCode ?? '',
+          ].join('|');
+          if (key.replaceAll('|', '').isEmpty) return;
+          if (seen.add(key)) {
+            out.add(data);
+          }
+        });
+      }
+      return Right(out);
+    } catch (e) {
+      return Left(LocationFailure('Address lookup failed: $e'));
+    }
+  }
+
   /// Geocode address string and return full [BusinessAddressData].
   Future<Either<Failure, BusinessAddressData>> geocodeToAddress(String address) async {
     if (address.trim().isEmpty) {

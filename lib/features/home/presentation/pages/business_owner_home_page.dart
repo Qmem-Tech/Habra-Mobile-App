@@ -28,11 +28,9 @@ import '../../../dashboard/presentation/pages/edit_business_page.dart';
 import '../../../dashboard/presentation/pages/update_hours_page.dart';
 import '../../../dashboard/presentation/pages/create_deal_page.dart';
 import '../../../dashboard/presentation/pages/create_job_post_page.dart';
-import '../../../../injection/injection_container.dart' as di;
-import '../../../events/presentation/bloc/create_event_cubit.dart';
-import '../../../events/presentation/pages/create_event_page.dart';
 import '../../../dashboard/presentation/pages/job_applicants_page.dart';
-import '../../../dashboard/domain/repositories/dashboard_repository.dart';
+import '../../../dashboard/domain/repositories/dashboard_repository.dart'
+    show LegalDocumentsStatus;
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../dashboard/presentation/widgets/business_gallery_photos_dialog.dart';
 import '../../../dashboard/presentation/widgets/business_images_upload_dialog.dart';
@@ -391,6 +389,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.ownerHomeSectionBg,
       key: _scaffoldKey,
       drawer: BlocBuilder<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
         builder: (context, state) {
@@ -638,61 +637,83 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     return SliverAppBar(
       floating: true,
       pinned: true,
-      backgroundColor: AppColors.backgroundWhite,
       elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.menu, color: AppColors.textPrimary),
-        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-      ),
-      centerTitle: false,
-      title: GestureDetector(
-        onTap: onBusinessSelectorTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.brandPrimary.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.storefront, size: 18, color: AppColors.brandPrimary),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.brandPrimary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
+      backgroundColor: AppColors.backgroundWhite,
+      toolbarHeight: 56,
+      // Drawer would add a second hamburger; menu lives in [title] below.
+      leading: const SizedBox.shrink(),
+      leadingWidth: 0,
+      titleSpacing: 0,
+      title: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.menu, color: AppColors.textPrimary),
+                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                ),
+                const Spacer(),
+                NotificationIconWithBadge(
+                  userId: widget.user.id,
+                  onOpenNotifications: () async {
+                    await Navigator.push<void>(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            BusinessOwnerNotificationPage(userId: widget.user.id),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            GestureDetector(
+              onTap: onBusinessSelectorTap,
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 240),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.ownerHomeMintPill,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.storefront,
+                      size: 18,
+                      color: AppColors.ownerHomePrimary,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ownerHomePrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_drop_down,
+                      size: 20,
+                      color: AppColors.ownerHomePrimary,
+                    ),
+                  ],
                 ),
               ),
-              const Icon(Icons.arrow_drop_down,
-                  size: 20, color: AppColors.brandPrimary),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
-          onPressed: () => _refreshOwnerHome(context),
-          tooltip: 'Refresh',
-        ),
-        NotificationIconWithBadge(
-          userId: widget.user.id,
-          onOpenNotifications: () async {
-            await Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => BusinessOwnerNotificationPage(userId: widget.user.id),
-              ),
-            );
-          },
-        ),
-      ],
     );
   }
 
@@ -716,8 +737,18 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildBusinessBanner(presence),
-              _buildBannerTitleRow(presence),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildBusinessBanner(presence),
+                    _buildBannerTitleRow(presence),
+                  ],
+                ),
+              ),
               if (presence != null && presence.isPendingApproval)
                 _buildUnderReviewNotice('under_review_${presence.id}'),
               if (_selectedBusinessLegalRejected && presence != null)
@@ -742,84 +773,136 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   dismissKey: 'legal_approved_${presence.id}',
                   presence: presence,
                 ),
-              if (presence != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-                  child: Row(
-                    children: [
-                      Text(
-                        presence.category,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      if (presence.rating != null) ...[
-                        Text(
-                          ' • ',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        Icon(Icons.star, size: 16, color: AppColors.brandSecondary),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${presence.rating}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+              Container(
+                width: double.infinity,
+                color: AppColors.ownerHomeSectionBg,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  20,
+                  AppResources.spacingM,
+                  16,
                 ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 20, AppResources.spacingM, 12),
                 child: _buildSectionHeader(
                   'Today\'s Snapshot',
                   actionLabel: 'View Reports',
-                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 0),
+                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
+                    context,
+                    1,
+                    dashboardTab: 0,
+                  ),
                 ),
               ),
-              _buildSnapshotCards(state.snapshot),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 24, AppResources.spacingM, 12),
+              Container(
+                width: double.infinity,
+                color: AppColors.ownerHomeSectionBg,
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _buildSnapshotCards(state.snapshot),
+              ),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  20,
+                  AppResources.spacingM,
+                  12,
+                ),
                 child: _buildSectionHeader('Quick Actions'),
               ),
-              _buildQuickActions(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 24, AppResources.spacingM, 12),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.only(bottom: 20),
+                child: _buildQuickActions(),
+              ),
+              Container(
+                width: double.infinity,
+                color: AppColors.ownerHomeSectionBg,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  8,
+                  AppResources.spacingM,
+                  12,
+                ),
                 child: _buildSectionHeader(
                   'Recent Activity',
-                  actionLabel: 'View All >',
-                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 3),
+                  actionLabel: 'View All',
+                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
+                    context,
+                    1,
+                    dashboardTab: 3,
+                  ),
                 ),
               ),
-              _buildRecentActivityList(
-                state.recentActivity,
-                onReplyToReview: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 3),
+              Container(
+                width: double.infinity,
+                color: AppColors.ownerHomeSectionBg,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  0,
+                  AppResources.spacingM,
+                  20,
+                ),
+                child: _buildRecentActivityList(
+                  state.recentActivity,
+                  onReplyToReview: () =>
+                      BusinessOwnerNavigationWrapper.navigateToTab(
+                    context,
+                    1,
+                    dashboardTab: 3,
+                  ),
+                ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 24, AppResources.spacingM, 12),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  20,
+                  AppResources.spacingM,
+                  12,
+                ),
                 child: _buildSectionHeader(
                   'Your Active Deals',
                   actionLabel: 'Manage',
-                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 1),
+                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
+                    context,
+                    1,
+                    dashboardTab: 1,
+                  ),
                 ),
               ),
-              _buildActiveDealsList(state.activeDeals),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 24, AppResources.spacingM, 12),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _buildActiveDealsList(state.activeDeals),
+              ),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  16,
+                  AppResources.spacingM,
+                  12,
+                ),
                 child: _buildSectionHeader(
                   'Your Job Posts',
                   actionLabel: 'Manage',
-                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 2),
+                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
+                    context,
+                    1,
+                    dashboardTab: 2,
+                  ),
                 ),
               ),
-              _buildJobPostsList(state.jobPosts),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.only(bottom: 24),
+                child: _buildJobPostsList(state.jobPosts),
+              ),
               const SizedBox(height: 32),
             ],
           ),
@@ -840,61 +923,130 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 20, AppResources.spacingM, 12),
+              Container(
+                width: double.infinity,
+                color: AppColors.ownerHomeSectionBg,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  20,
+                  AppResources.spacingM,
+                  12,
+                ),
                 child: _buildSectionHeader(
                   'This Month (All Businesses)',
                   actionLabel: 'View Reports',
-                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 0),
+                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
+                    context,
+                    1,
+                    dashboardTab: 0,
+                  ),
                 ),
               ),
-              _buildSnapshotCards(state.snapshot),
-              if (state.presences.any((presence) => presence.id != 'all' && presence.isPendingApproval))
+              Container(
+                width: double.infinity,
+                color: AppColors.ownerHomeSectionBg,
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildSnapshotCards(state.snapshot),
+              ),
+              if (state.presences.any((presence) =>
+                  presence.id != 'all' && presence.isPendingApproval))
                 _buildUnderReviewNotice('under_review_all'),
               if (_businessesNeedingLegalDocsCount > 0)
                 _buildLegalDocsRequiredNotice(
                   singleBusiness: false,
                   dismissKey: 'legal_required_all',
                 ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 24, AppResources.spacingM, 12),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  20,
+                  AppResources.spacingM,
+                  8,
+                ),
                 child: const Text(
                   'Your Businesses',
                   style: TextStyle(
                     fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
+                    letterSpacing: -0.3,
                   ),
                 ),
               ),
-              Padding(
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
                 padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
                 child: _buildYourBusinessesList(state),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM, vertical: 16),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppResources.spacingM,
+                  vertical: 16,
+                ),
                 child: OwnerAddNewBusinessCtaButton(
                   onPressed: () => _openAddNewPresence(context),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 8, AppResources.spacingM, 12),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  8,
+                  AppResources.spacingM,
+                  12,
+                ),
                 child: _buildSectionHeader('Quick Actions'),
               ),
-              _buildQuickActions(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 24, AppResources.spacingM, 12),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.only(bottom: 20),
+                child: _buildQuickActions(),
+              ),
+              Container(
+                width: double.infinity,
+                color: AppColors.ownerHomeSectionBg,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  8,
+                  AppResources.spacingM,
+                  12,
+                ),
                 child: _buildSectionHeader(
                   'Recent Activity',
-                  actionLabel: 'View All >',
-                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 3),
+                  actionLabel: 'View All',
+                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
+                    context,
+                    1,
+                    dashboardTab: 3,
+                  ),
                 ),
               ),
-              _buildRecentActivityList(
-                state.recentActivity,
-                onReplyToReview: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 3),
+              Container(
+                width: double.infinity,
+                color: AppColors.ownerHomeSectionBg,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  0,
+                  AppResources.spacingM,
+                  32,
+                ),
+                child: _buildRecentActivityList(
+                  state.recentActivity,
+                  onReplyToReview: () =>
+                      BusinessOwnerNavigationWrapper.navigateToTab(
+                    context,
+                    1,
+                    dashboardTab: 3,
+                  ),
+                ),
               ),
-              const SizedBox(height: 32),
             ],
           ),
         ),
@@ -913,51 +1065,86 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         SliverAppBar(
           floating: true,
           pinned: true,
-          backgroundColor: AppColors.backgroundWhite,
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.menu, color: AppColors.textPrimary),
-            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-          ),
-          title: GestureDetector(
-            onTap: _openBusinessLocations,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.brandPrimary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.storefront, size: 18, color: AppColors.brandPrimary),
-                  const SizedBox(width: 6),
-                  Text(
-                    state.selectedPresence?.shortDisplayName ?? 'My Business',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.brandPrimary,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
+          backgroundColor: AppColors.backgroundWhite,
+          toolbarHeight: 56,
+          leading: const SizedBox.shrink(),
+          leadingWidth: 0,
+          titleSpacing: 0,
+          title: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.menu, color: AppColors.textPrimary),
+                      onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                    ),
+                    const Spacer(),
+                    NotificationIconWithBadge(
+                      userId: widget.user.id,
+                      onOpenNotifications: () async {
+                        await Navigator.push<void>(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => BusinessOwnerNotificationPage(
+                              userId: widget.user.id,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                GestureDetector(
+                  onTap: _openBusinessLocations,
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 240),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.ownerHomeMintPill,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.storefront,
+                          size: 18,
+                          color: AppColors.ownerHomePrimary,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            state.selectedPresence?.shortDisplayName ??
+                                'My Business',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.ownerHomePrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_drop_down,
+                          size: 20,
+                          color: AppColors.ownerHomePrimary,
+                        ),
+                      ],
                     ),
                   ),
-                  const Icon(Icons.arrow_drop_down, size: 20, color: AppColors.brandPrimary),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          actions: [
-            NotificationIconWithBadge(
-              userId: widget.user.id,
-              onOpenNotifications: () async {
-                await Navigator.push<void>(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => BusinessOwnerNotificationPage(userId: widget.user.id),
-                  ),
-                );
-              },
-            ),
-          ],
         ),
         SliverToBoxAdapter(
           child: Padding(
@@ -1213,25 +1400,48 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   Widget _buildBusinessBanner(BusinessPresence? presence) {
     if (presence == null) return const SizedBox.shrink();
 
-    final coverUrl = presence.imageUrl;
+    final coverUrl = (presence.backgroundUrl != null &&
+            presence.backgroundUrl!.isNotEmpty)
+        ? presence.backgroundUrl!
+        : presence.imageUrl;
+    final logoUrl = presence.logoUrl;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
+      padding: const EdgeInsets.fromLTRB(
+        AppResources.spacingM,
+        8,
+        AppResources.spacingM,
+        0,
+      ),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppResources.radiusL),
-            child: AspectRatio(
-              aspectRatio: 2.2,
-              child: Image.network(
-                coverUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: AppColors.backgroundGrey,
-                  child: Image.asset(
-                    AppAssets.businessOwnerCoverPlaceholder,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.store, size: 48),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: AspectRatio(
+                aspectRatio: 2.05,
+                child: Image.network(
+                  coverUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: AppColors.backgroundGrey,
+                    child: Image.asset(
+                      AppAssets.businessOwnerCoverPlaceholder,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.store, size: 48),
+                    ),
                   ),
                 ),
               ),
@@ -1239,60 +1449,36 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           ),
           Positioned(
             left: 16,
-            bottom: -24,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: AppColors.backgroundGrey,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: Image.network(
-                      coverUrl,
+            bottom: -28,
+            child: Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                color: AppColors.backgroundGrey,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white, width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: logoUrl != null && logoUrl.isNotEmpty
+                  ? Image.network(
+                      logoUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Image.asset(
                         AppAssets.businessOwnerLogoPlaceholder,
                         fit: BoxFit.cover,
                       ),
+                    )
+                  : Image.asset(
+                      AppAssets.businessOwnerLogoPlaceholder,
+                      fit: BoxFit.cover,
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.backgroundLight,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: presence.isOpenNow ? AppColors.success : AppColors.textSecondary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        presence.isOpenNow ? 'Open Now' : 'Closed',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -1303,46 +1489,128 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   Widget _buildBannerTitleRow(BusinessPresence? presence) {
     if (presence == null) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppResources.spacingM, 36, AppResources.spacingM, 8),
+      padding: const EdgeInsets.fromLTRB(
+        AppResources.spacingM,
+        40,
+        AppResources.spacingM,
+        4,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.ownerOpenNowBadge,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: presence.isOpenNow
+                        ? AppColors.ownerHomePrimary
+                        : AppColors.textSecondary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  presence.isOpenNow ? 'Open Now' : 'Closed',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Text(
                   presence.name,
                   style: const TextStyle(
                     fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
+                    letterSpacing: -0.3,
                   ),
                 ),
               ),
               if (presence.isVerified)
-                const Icon(Icons.verified, color: AppColors.brandSecondary, size: 24),
+                const Padding(
+                  padding: EdgeInsets.only(left: 6),
+                  child: Icon(
+                    Icons.verified,
+                    color: AppColors.brandSecondary,
+                    size: 26,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Text(
+                presence.category,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              if (presence.rating != null) ...[
+                Text(
+                  '  •  ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textTertiary.withValues(alpha: 0.9),
+                  ),
+                ),
+                Icon(Icons.star_rounded,
+                    size: 18, color: AppColors.brandSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  '${presence.rating}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
             ],
           ),
           if (presence.isPendingApproval) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.brandPrimary.withValues(alpha: 0.1),
+                color: AppColors.ownerHomePrimary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppColors.ownerHomePrimary.withValues(alpha: 0.22),
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.schedule, size: 16, color: AppColors.brandPrimary),
+                  const Icon(Icons.schedule,
+                      size: 16, color: AppColors.ownerHomePrimary),
                   const SizedBox(width: 6),
                   Text(
                     'Pending for approval',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.brandPrimary,
+                      color: AppColors.ownerHomePrimary,
                     ),
                   ),
                 ],
@@ -1366,8 +1634,9 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           title,
           style: const TextStyle(
             fontSize: 18,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
             color: AppColors.textPrimary,
+            letterSpacing: -0.2,
           ),
         ),
         if (actionLabel != null)
@@ -1378,7 +1647,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: AppColors.brandPrimary,
+                color: AppColors.ownerHomePrimary,
               ),
             ),
           ),
@@ -1722,23 +1991,26 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         children: [
           Expanded(
             child: _buildMetricCard(
+              label: 'Views',
               icon: Icons.visibility_outlined,
               value: snapshot.viewsFormatted,
               changePercent: snapshot.viewsChangePercent,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: _buildMetricCard(
+              label: 'Clicks',
               icon: Icons.touch_app_outlined,
               value: snapshot.clicksFormatted,
               changePercent: snapshot.clicksChangePercent,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: _buildMetricCard(
-              icon: Icons.chat_bubble_outline,
+              label: 'Msgs',
+              icon: Icons.chat_bubble_outline_rounded,
               value: snapshot.messagesFormatted,
               changePercent: snapshot.messagesChangePercent,
               isNegative: snapshot.messagesChangePercent < 0,
@@ -1750,30 +2022,54 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   }
 
   Widget _buildMetricCard({
+    required String label,
     required IconData icon,
     required String value,
     required double changePercent,
     bool isNegative = false,
   }) {
     final color = isNegative ? AppColors.error : AppColors.success;
-    return AppCard(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      margin: EdgeInsets.zero,
-      backgroundColor: AppColors.backgroundLight,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundWhite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.textTertiary.withValues(alpha: 0.18),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 22, color: AppColors.textSecondary),
-          const SizedBox(height: 8),
+          Icon(icon, size: 20, color: AppColors.textSecondary),
+          const SizedBox(height: 6),
           Text(
-            value,
+            label,
             style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.2,
             ),
           ),
           const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 6),
           Row(
             children: [
               Icon(
@@ -1783,8 +2079,12 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
               ),
               const SizedBox(width: 4),
               Text(
-                '~${changePercent.abs().round()}%',
-                style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600),
+                '${changePercent >= 0 ? '+' : ''}${changePercent.abs().round()}%',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -1795,137 +2095,181 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
 
   Widget _buildQuickActions() {
     final state = context.read<BusinessOwnerHomeCubit>().state;
-    final selectedPresence = state is BusinessOwnerHomeLoaded ? state.selectedPresence : null;
-    final hasSpecificBusiness = selectedPresence != null && selectedPresence.id != 'all';
+    final selectedPresence =
+        state is BusinessOwnerHomeLoaded ? state.selectedPresence : null;
+    final hasSpecificBusiness =
+        selectedPresence != null && selectedPresence.id != 'all';
 
-    final actions = [
-      (Icons.event, 'Create Event', AppColors.brandPrimary, () async {
-        final dashboardCubit = context.read<DashboardCubit>();
-        final homeCubit = context.read<BusinessOwnerHomeCubit>();
-        final createEventCubit = di.sl<CreateEventCubit>();
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MultiBlocProvider(
-              providers: [
-                BlocProvider<DashboardCubit>.value(value: dashboardCubit),
-                BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
-                BlocProvider<CreateEventCubit>.value(value: createEventCubit),
-              ],
-              child: const CreateEventPage(),
-            ),
-          ),
+    const circleSize = 64.0;
+    const iconSize = 28.0;
+
+    Future<void> postDeal() async {
+      if (!hasSpecificBusiness) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Select a business first')),
         );
-        if (!context.mounted) return;
-        homeCubit.loadOwnerHome(ownerId: widget.user.id);
-      }),
-      (Icons.sell, 'Post Deal', AppColors.textPrimary, () async {
-        if (!hasSpecificBusiness) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Select a business first')),
-          );
-          return;
-        }
-        final dashboardCubit = context.read<DashboardCubit>();
-        final homeCubit = context.read<BusinessOwnerHomeCubit>();
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MultiBlocProvider(
-              providers: [
-                BlocProvider<DashboardCubit>.value(value: dashboardCubit),
-                BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
-              ],
-              child: const CreateDealPage(),
-            ),
+        return;
+      }
+      final dashboardCubit = context.read<DashboardCubit>();
+      final homeCubit = context.read<BusinessOwnerHomeCubit>();
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MultiBlocProvider(
+            providers: [
+              BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+              BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+            ],
+            child: const CreateDealPage(),
           ),
+        ),
+      );
+      if (!context.mounted) return;
+      homeCubit.loadOwnerHome(ownerId: widget.user.id);
+    }
+
+    Future<void> postJob() async {
+      if (!hasSpecificBusiness) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Select a business first')),
         );
-        if (!context.mounted) return;
-        homeCubit.loadOwnerHome(ownerId: widget.user.id);
-      }),
-      (Icons.work_outline, 'Post Job', AppColors.textPrimary, () async {
-        if (!hasSpecificBusiness) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Select a business first')),
-          );
-          return;
-        }
-        final dashboardCubit = context.read<DashboardCubit>();
-        final homeCubit = context.read<BusinessOwnerHomeCubit>();
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MultiBlocProvider(
-              providers: [
-                BlocProvider<DashboardCubit>.value(value: dashboardCubit),
-                BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
-              ],
-              child: const CreateJobPostPage(),
-            ),
+        return;
+      }
+      final dashboardCubit = context.read<DashboardCubit>();
+      final homeCubit = context.read<BusinessOwnerHomeCubit>();
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MultiBlocProvider(
+            providers: [
+              BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+              BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+            ],
+            child: const CreateJobPostPage(),
           ),
-        );
-        if (!context.mounted) return;
-        homeCubit.loadOwnerHome(ownerId: widget.user.id);
-      }),
-      (Icons.campaign_outlined, 'Promote', AppColors.textPrimary, () {
+        ),
+      );
+      if (!context.mounted) return;
+      homeCubit.loadOwnerHome(ownerId: widget.user.id);
+    }
+
+    void promote() =>
         BusinessOwnerNavigationWrapper.navigateToTab(context, 2);
-      }),
-      (Icons.schedule, 'Hours', AppColors.textPrimary, () {
-        if (!hasSpecificBusiness) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Select a business first')),
-          );
-          return;
-        }
-        final dashboardCubit = context.read<DashboardCubit>();
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => BlocProvider<DashboardCubit>.value(
-              value: dashboardCubit,
-              child: UpdateHoursPage(businessId: selectedPresence.id),
+
+    void hours() {
+      if (!hasSpecificBusiness) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Select a business first')),
+        );
+        return;
+      }
+      final dashboardCubit = context.read<DashboardCubit>();
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BlocProvider<DashboardCubit>.value(
+            value: dashboardCubit,
+            child: UpdateHoursPage(businessId: selectedPresence.id),
+          ),
+        ),
+      );
+    }
+
+    Widget action({
+      required IconData icon,
+      required String label,
+      required VoidCallback onTap,
+      required bool primary,
+    }) {
+      return Expanded(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: circleSize,
+                    height: circleSize,
+                    decoration: BoxDecoration(
+                      color: primary
+                          ? AppColors.ownerHomePrimary
+                          : AppColors.ownerHomeQuickActionSecondary,
+                      shape: BoxShape.circle,
+                      boxShadow: primary
+                          ? [
+                              BoxShadow(
+                                color: AppColors.ownerHomePrimary
+                                    .withValues(alpha: 0.35),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Icon(
+                      icon,
+                      color: primary
+                          ? AppColors.textOnPrimary
+                          : AppColors.textPrimary,
+                      size: iconSize,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      height: 1.15,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        );
-      }),
-    ];
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: actions.map((a) {
-          return GestureDetector(
-            onTap: a.$4,
-            child: Column(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: a.$3 == AppColors.brandPrimary
-                        ? AppColors.brandPrimary
-                        : AppColors.backgroundLight,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    a.$1,
-                    color: a.$3 == AppColors.brandPrimary ? AppColors.textOnPrimary : AppColors.textPrimary,
-                    size: 26,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  a.$2,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          action(
+            icon: Icons.sell_rounded,
+            label: 'Post Deal',
+            onTap: postDeal,
+            primary: true,
+          ),
+          action(
+            icon: Icons.work_outline_rounded,
+            label: 'Post Job',
+            onTap: postJob,
+            primary: false,
+          ),
+          action(
+            icon: Icons.campaign_outlined,
+            label: 'Promote',
+            onTap: promote,
+            primary: false,
+          ),
+          action(
+            icon: Icons.schedule_rounded,
+            label: 'Hours',
+            onTap: hours,
+            primary: false,
+          ),
+        ],
       ),
     );
   }
@@ -1934,56 +2278,119 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     List<OwnerActivityItem> items, {
     VoidCallback? onReplyToReview,
   }) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-      itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return _buildActivityCard(item, onReplyToReview: onReplyToReview);
-      },
+    if (items.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppResources.spacingL,
+          vertical: AppResources.spacingXL,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundWhite,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Text(
+          'No recent activity yet.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.backgroundWhite,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          thickness: 1,
+          color: AppColors.ownerHomeSectionBg,
+        ),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return _buildActivityCard(
+            item,
+            onReplyToReview: onReplyToReview,
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildActivityCard(OwnerActivityItem item, {VoidCallback? onReplyToReview}) {
+  Widget _buildActivityCard(
+    OwnerActivityItem item, {
+    VoidCallback? onReplyToReview,
+  }) {
     IconData iconData;
     Color iconBg;
+    Color iconColor;
     switch (item.type) {
       case OwnerActivityType.review:
-        iconData = Icons.star;
-        iconBg = AppColors.brandSecondary.withValues(alpha: 0.3);
+        iconData = Icons.star_rounded;
+        iconBg = AppColors.brandSecondary;
+        iconColor = AppColors.textOnPrimary;
         break;
       case OwnerActivityType.applicant:
-        iconData = Icons.person_add;
-        iconBg = AppColors.info.withValues(alpha: 0.2);
+        iconData = Icons.person_rounded;
+        iconBg = AppColors.info.withValues(alpha: 0.22);
+        iconColor = AppColors.info;
         break;
       case OwnerActivityType.event:
-        iconData = Icons.event;
-        iconBg = AppColors.brandPrimary.withValues(alpha: 0.15);
+        iconData = Icons.event_rounded;
+        iconBg = AppColors.ownerHomeMintPill;
+        iconColor = AppColors.ownerHomePrimary;
         break;
       default:
-        iconData = Icons.notifications;
-        iconBg = AppColors.backgroundGrey;
+        iconData = Icons.notifications_outlined;
+        iconBg = AppColors.ownerHomeQuickActionSecondary;
+        iconColor = AppColors.textPrimary;
     }
 
     final timeAgo = _formatTimeAgo(item.createdAt);
+    final showTrailingAction =
+        item.actionLabel != null && onReplyToReview != null;
 
-    return AppCard(
-      margin: EdgeInsets.zero,
-      padding: const EdgeInsets.all(AppResources.spacingM),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppResources.spacingM,
+        vertical: 14,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
               color: iconBg,
               shape: BoxShape.circle,
             ),
-            child: Icon(iconData, color: AppColors.brandPrimary, size: 22),
+            child: Icon(iconData, color: iconColor, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1994,7 +2401,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   item.title,
                   style: const TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),
@@ -2005,6 +2412,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                     style: TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
+                      height: 1.35,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -2022,31 +2430,35 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   timeAgo,
                   style: TextStyle(
                     fontSize: 12,
+                    fontWeight: FontWeight.w500,
                     color: AppColors.textTertiary,
                   ),
                 ),
-                if (item.actionLabel != null) ...[
-                  const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton(
-                      onPressed: onReplyToReview,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.brandPrimary,
-                        side: const BorderSide(color: AppColors.brandPrimary),
-                      ),
-                      child: Text(item.actionLabel!),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
+          if (showTrailingAction)
+            Padding(
+              padding: const EdgeInsets.only(left: 8, top: 2),
+              child: TextButton(
+                onPressed: onReplyToReview,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.ownerHomePrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  item.actionLabel!,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -2073,38 +2485,81 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         final expiry = deal.expiryDate != null
             ? 'Expires in ${deal.expiryDate!.difference(DateTime.now()).inDays} days'
             : '';
-        return AppCard(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          onTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 1),
-          child: Row(
-            children: [
-              Icon(Icons.sell, color: AppColors.brandPrimary, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      deal.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    if (expiry.isNotEmpty)
-                      Text(
-                        expiry,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                  ],
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
+              context,
+              1,
+              dashboardTab: 1,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundWhite,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.textTertiary.withValues(alpha: 0.12),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
-            ],
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.ownerHomePrimary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.sell_rounded,
+                      color: AppColors.textOnPrimary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          deal.title,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        if (expiry.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            expiry,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 22,
+                    color: AppColors.textTertiary,
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -2129,44 +2584,75 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final job = jobs[index];
-        return AppCard(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          onTap: () => _openJobApplicants(context, job),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundGrey,
-                  borderRadius: BorderRadius.circular(8),
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _openJobApplicants(context, job),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundWhite,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.textTertiary.withValues(alpha: 0.12),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      job.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.ownerHomeQuickActionSecondary,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    Text(
-                      '${job.postedDate != null ? "5" : "0"} Applicants waiting',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
+                    child: const Icon(
+                      Icons.work_outline_rounded,
+                      color: AppColors.textPrimary,
+                      size: 22,
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          job.title,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${job.postedDate != null ? "5" : "0"} Applicants waiting',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 22,
+                    color: AppColors.textTertiary,
+                  ),
+                ],
               ),
-              const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textSecondary),
-            ],
+            ),
           ),
         );
       },

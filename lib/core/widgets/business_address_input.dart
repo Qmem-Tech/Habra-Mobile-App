@@ -7,8 +7,9 @@ import '../domain/business_address_data.dart';
 import '../permissions/app_permission.dart';
 import '../services/permission_service.dart';
 import 'error_display_helper.dart';
-import 'address_autocomplete_dialog.dart';
+import 'address_lookup_sheet.dart';
 import 'address_map_picker_page.dart';
+import 'street_address_field.dart';
 import '../../injection/injection_container.dart' as di;
 
 /// Reusable business address input.
@@ -71,11 +72,12 @@ class BusinessAddressInput extends StatelessWidget {
         const SizedBox(height: 20),
         _buildLabel('Street Address'),
         const SizedBox(height: 8),
-        _buildTextField(
-          context,
-          streetController,
-          streetHint,
+        StreetAddressField(
+          controller: streetController,
+          hintText: streetHint,
+          decoration: _outlineFieldDecoration(),
           validator: streetValidator,
+          onAddressPicked: (data) => _applyAddress(context, data),
         ),
         const SizedBox(height: 16),
         _buildLabel('Suite / Unit'),
@@ -267,16 +269,16 @@ class BusinessAddressInput extends StatelessWidget {
     final initial = streetController.text.isNotEmpty
         ? '${streetController.text}, ${cityController.text}'.trim()
         : '';
-    final data = await showDialog<BusinessAddressData>(
-      context: context,
-      builder: (_) => AddressAutocompleteDialog(initialQuery: initial),
+    final data = await AddressLookupSheet.show(
+      context,
+      initialQuery: initial,
     );
     if (!context.mounted) return;
     final ctx = context;
     if (data != null) {
       _applyAddress(ctx, data);
       ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Address found')),
+        const SnackBar(content: Text('Address applied')),
       );
     }
   }
@@ -356,17 +358,8 @@ class BusinessAddressInput extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(
-    BuildContext context,
-    TextEditingController controller,
-    String hint, {
-    String? Function(String?)? validator,
-    TextInputType? keyboardType,
-    List<TextInputFormatter>? inputFormatters,
-    TextCapitalization textCapitalization = TextCapitalization.none,
-  }) {
-    final decoration = InputDecoration(
-      hintText: hint.isEmpty ? null : hint,
+  InputDecoration _outlineFieldDecoration() {
+    return InputDecoration(
       hintStyle: TextStyle(color: AppColors.textTertiary),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppResources.radiusM),
@@ -389,6 +382,20 @@ class BusinessAddressInput extends StatelessWidget {
         borderSide: const BorderSide(color: AppColors.error),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
+
+  Widget _buildTextField(
+    BuildContext context,
+    TextEditingController controller,
+    String hint, {
+    String? Function(String?)? validator,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+  }) {
+    final decoration = _outlineFieldDecoration().copyWith(
+      hintText: hint.isEmpty ? null : hint,
     );
 
     if (validator != null) {

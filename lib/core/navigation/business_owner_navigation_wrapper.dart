@@ -482,8 +482,18 @@ class _BusinessOwnerNavigationWrapperState
         ),
         bottomNavigationBar: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
-          selectedItemColor: AppColors.brandPrimary,
+          backgroundColor: AppColors.backgroundWhite,
+          elevation: 12,
+          selectedItemColor: AppColors.ownerHomePrimary,
           unselectedItemColor: AppColors.textSecondary,
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          ),
           currentIndex: _currentIndex,
           onTap: _onTabTapped,
           items: [
