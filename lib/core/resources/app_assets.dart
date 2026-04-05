@@ -9,6 +9,7 @@ class AppAssets {
   static const String _imagesPath = 'assets/images';
   static const String _iconsPath = 'assets/icons';
   static const String _logosPath = 'assets/logos';
+  static const String _illustrationPath = 'assets/illustration';
 
   // ==================== Logos ====================
   /// App logo - Hexagonal logo with interconnected figures
@@ -119,8 +120,10 @@ class AppAssets {
   static const String dashboardNoAnalytics = '$_imagesPath/home/no_results.png';
   /// Empty state: no reviews yet. Replace with custom asset when provided.
   static const String dashboardNoReviews = '$_imagesPath/home/no_results.png';
-  /// Boost listing: rocket/visibility illustration. Replace with custom asset when provided.
+  /// Boost listing: rocket/visibility illustration (PNG fallback).
   static const String dashboardBoostRocket = '$_imagesPath/home/business_placeholder.png';
+  /// Boost listing hero (Figma): gold rocket SVG.
+  static const String rocketLaunchSvg = '$_illustrationPath/rocket_launch.svg';
 
   // ==================== Community / Sidebar Flows ====================
   /// Saved Items empty state (bookmark illustration). Replace with custom asset when provided.

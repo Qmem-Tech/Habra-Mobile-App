@@ -263,6 +263,7 @@ CREATE TABLE public.boost_plans (
   title TEXT NOT NULL,
   description TEXT,
   price_usd NUMERIC(10, 2) NOT NULL,
+  original_price_usd NUMERIC(10, 2),
   duration_weeks INT NOT NULL,
   is_active BOOLEAN DEFAULT true,
   target_type boost_plan_target NOT NULL DEFAULT 'business_listing',

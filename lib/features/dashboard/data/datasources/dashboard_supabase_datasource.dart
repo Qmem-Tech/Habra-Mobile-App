@@ -534,12 +534,19 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       final rows = (res as List).cast<Map<String, dynamic>>();
       return rows.map((row) {
         final priceUsd = parseDouble(row['price_usd']) ?? 0.0;
+        final originalUsd = parseDouble(row['original_price_usd']);
         final durationWeeks = parseInt(row['duration_weeks']) ?? 1;
+        String? originalPriceFormatted;
+        if (originalUsd != null &&
+            originalUsd > priceUsd + 0.009) {
+          originalPriceFormatted = '\$${originalUsd.toStringAsFixed(2)}';
+        }
         return BoostPlan(
           id: parseStringRequired(row['id']),
           title: parseStringRequired(row['title']),
           description: parseString(row['description']) ?? '',
           priceFormatted: '\$${priceUsd.toStringAsFixed(2)}',
+          originalPriceFormatted: originalPriceFormatted,
           durationWeeks: durationWeeks,
         );
       }).toList();

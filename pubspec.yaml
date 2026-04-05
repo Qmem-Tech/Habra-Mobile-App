@@ -41,6 +41,7 @@ dependencies:
   connectivity_plus: ^5.0.2
   package_info_plus: ^9.0.0
   intl: ^0.20.2
+  flutter_svg: ^2.0.17
   qr_flutter: ^4.1.0
 
   # Maps & Location

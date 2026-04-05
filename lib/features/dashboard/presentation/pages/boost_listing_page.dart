@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
 import '../../../../core/constants/boost_plan_target.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/resources/app_resources.dart';
 import '../../../../core/resources/app_assets.dart';
+import '../../../../core/resources/app_resources.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/loader_helper.dart';
 import '../../../boosts/presentation/pages/order_confirmation_page.dart';
+import '../../domain/entities/boost_plan.dart';
 import '../bloc/dashboard_cubit.dart';
 import '../bloc/dashboard_state.dart';
+import '../utils/boost_plan_display.dart';
 
 class BoostListingPage extends StatefulWidget {
   const BoostListingPage({
@@ -40,13 +43,15 @@ class _BoostListingPageState extends State<BoostListingPage> {
   String get _planTarget =>
       widget.boostType ?? BoostPlanTarget.businessListing;
 
+  bool _autoRenew = false;
+
   @override
   void initState() {
     super.initState();
     context.read<DashboardCubit>().loadBoostPlans(targetType: _planTarget);
   }
 
-  Future<void> _boostNow(String price) async {
+  Future<void> _boostNow(BoostPlan plan) async {
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Processing...');
     await Future<void>.delayed(const Duration(seconds: 2));
@@ -81,7 +86,7 @@ class _BoostListingPageState extends State<BoostListingPage> {
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -197,15 +202,7 @@ class _BoostListingPageState extends State<BoostListingPage> {
             padding: const EdgeInsets.all(AppResources.spacingM),
             child: Column(
               children: [
-                Image.asset(
-                  AppAssets.dashboardBoostRocket,
-                  height: 120,
-                  errorBuilder: (_, __, ___) => Icon(
-                    Icons.rocket_launch,
-                    size: 80,
-                    color: AppColors.brandSecondary,
-                  ),
-                ),
+                _buildRocketHero(),
                 const SizedBox(height: 16),
                 const Text(
                   'Skyrocket Your Visibility',
@@ -226,22 +223,8 @@ class _BoostListingPageState extends State<BoostListingPage> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 24),
-                _BenefitCard(
-                  icon: Icons.trending_up,
-                  title: 'Top of Search',
-                  description: 'Appear first in local search results',
-                ),
-                _BenefitCard(
-                  icon: Icons.verified,
-                  title: 'Featured Badge',
-                  description: 'Stand out with a special badge',
-                ),
-                _BenefitCard(
-                  icon: Icons.headset_mic_outlined,
-                  title: 'Priority Support',
-                  description: 'Get faster assistance from our team',
-                ),
+                const SizedBox(height: 20),
+                _BenefitsPanel(),
                 const SizedBox(height: 24),
                 const Align(
                   alignment: Alignment.centerLeft,
@@ -250,6 +233,7 @@ class _BoostListingPageState extends State<BoostListingPage> {
                     style: TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -259,87 +243,47 @@ class _BoostListingPageState extends State<BoostListingPage> {
                   final isSelected = index == selectedIndex;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: GestureDetector(
-                      onTap: () => context.read<DashboardCubit>().setBoostPlanSelected(index),
-                      child: AppCard(
-                        margin: EdgeInsets.zero,
-                        padding: const EdgeInsets.all(16),
-                        backgroundColor: isSelected
-                            ? AppColors.brandPrimary.withValues(alpha: 0.08)
-                            : AppColors.backgroundLight,
-                        child: Row(
-                          children: [
-                            Radio<int>(
-                              value: index,
-                              // ignore: deprecated_member_use
-                              groupValue: selectedIndex,
-                              // ignore: deprecated_member_use
-                              onChanged: (_) =>
-                                  context.read<DashboardCubit>().setBoostPlanSelected(index),
-                              fillColor: WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) {
-                                if (states.contains(WidgetState.selected)) return AppColors.brandPrimary;
-                                return AppColors.textSecondary;
-                              }),
-                            ),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    plan.title,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    plan.description,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                  if (plan.originalPriceFormatted != null)
-                                    Text(
-                                      plan.originalPriceFormatted!,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textTertiary,
-                                        decoration: TextDecoration.lineThrough,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              plan.priceFormatted,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    child: _DurationPlanTile(
+                      plan: plan,
+                      radioValue: index,
+                      groupValue: selectedIndex,
+                      isSelected: isSelected,
+                      onSelect: () => context
+                          .read<DashboardCubit>()
+                          .setBoostPlanSelected(index),
                     ),
                   );
                 }),
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
+                _AutoRenewCard(
+                  autoRenew: _autoRenew,
+                  renewCaption: BoostPlanDisplay.autoRenewCaption(
+                    DateTime.now(),
+                    selected.durationWeeks,
+                  ),
+                  onChanged: (v) => setState(() => _autoRenew = v),
+                ),
+                const SizedBox(height: 20),
                 AppButton(
                   text: 'Boost Now • ${selected.priceFormatted}',
-                  onPressed: () => _boostNow(selected.priceFormatted),
+                  onPressed: () => _boostNow(selected),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.lock_outline, size: 16, color: AppColors.textTertiary),
+                    Icon(
+                      Icons.lock_outline,
+                      size: 16,
+                      color: AppColors.textTertiary,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Secure payment via Stripe',
-                      style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
@@ -350,10 +294,75 @@ class _BoostListingPageState extends State<BoostListingPage> {
       ),
     );
   }
+
+  Widget _buildRocketHero() {
+    return SizedBox(
+      height: 120,
+      child: SvgPicture.asset(
+        AppAssets.rocketLaunchSvg,
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+        placeholderBuilder: (_) => Icon(
+          Icons.rocket_launch,
+          size: 80,
+          color: AppColors.brandSecondary,
+        ),
+      ),
+    );
+  }
 }
 
-class _BenefitCard extends StatelessWidget {
-  const _BenefitCard({
+class _BenefitsPanel extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(AppResources.radiusL),
+        border: Border.all(
+          color: AppColors.backgroundGrey.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        children: [
+          _BenefitRow(
+            icon: Icons.trending_up,
+            title: 'Top of Search',
+            description: 'Appear first in local search results',
+          ),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: AppColors.backgroundGrey.withValues(alpha: 0.4),
+            indent: 14,
+            endIndent: 14,
+          ),
+          _BenefitRow(
+            icon: Icons.verified_outlined,
+            title: 'Featured Badge',
+            description: 'Stand out with a special badge',
+          ),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: AppColors.backgroundGrey.withValues(alpha: 0.4),
+            indent: 14,
+            endIndent: 14,
+          ),
+          _BenefitRow(
+            icon: Icons.headset_mic_outlined,
+            title: 'Priority Support',
+            description: 'Get faster assistance from our team',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BenefitRow extends StatelessWidget {
+  const _BenefitRow({
     required this.icon,
     required this.title,
     required this.description,
@@ -365,16 +374,15 @@ class _BenefitCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
           Container(
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.brandPrimary.withValues(alpha: 0.2),
+              color: AppColors.brandPrimary.withValues(alpha: 0.18),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: AppColors.brandPrimary, size: 22),
@@ -394,10 +402,196 @@ class _BenefitCard extends StatelessWidget {
                 ),
                 Text(
                   description,
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    height: 1.35,
+                  ),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DurationPlanTile extends StatelessWidget {
+  const _DurationPlanTile({
+    required this.plan,
+    required this.radioValue,
+    required this.groupValue,
+    required this.isSelected,
+    required this.onSelect,
+  });
+
+  final BoostPlan plan;
+  final int radioValue;
+  final int groupValue;
+  final bool isSelected;
+  final VoidCallback onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final headline = BoostPlanDisplay.durationHeadline(plan.durationWeeks);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onSelect,
+        borderRadius: BorderRadius.circular(AppResources.radiusL),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.brandPrimary.withValues(alpha: 0.08)
+                : AppColors.backgroundLight.withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(AppResources.radiusL),
+            border: Border.all(
+              color: isSelected
+                  ? AppColors.brandPrimary
+                  : AppColors.backgroundGrey.withValues(alpha: 0.45),
+              width: isSelected ? 2 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Radio<int>(
+                  value: radioValue,
+                  // ignore: deprecated_member_use
+                  groupValue: groupValue,
+                  // ignore: deprecated_member_use
+                  onChanged: (_) => onSelect(),
+                  fillColor: WidgetStateProperty.resolveWith<Color>((
+                    Set<WidgetState> states,
+                  ) {
+                    if (states.contains(WidgetState.selected)) {
+                      return AppColors.brandPrimary;
+                    }
+                    return AppColors.textSecondary;
+                  }),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        headline,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      if (plan.description.isNotEmpty)
+                        Text(
+                          plan.description,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                            height: 1.35,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      plan.priceFormatted,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (plan.originalPriceFormatted != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        plan.originalPriceFormatted!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textTertiary,
+                          decoration: TextDecoration.lineThrough,
+                          decorationColor: AppColors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AutoRenewCard extends StatelessWidget {
+  const _AutoRenewCard({
+    required this.autoRenew,
+    required this.renewCaption,
+    required this.onChanged,
+  });
+
+  final bool autoRenew;
+  final String renewCaption;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(AppResources.radiusL),
+        border: Border.all(
+          color: AppColors.backgroundGrey.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Auto-Renewal',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  renewCaption,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: autoRenew,
+            onChanged: onChanged,
+            activeThumbColor: AppColors.brandPrimary,
+            activeTrackColor: AppColors.brandPrimary.withValues(alpha: 0.45),
           ),
         ],
       ),
