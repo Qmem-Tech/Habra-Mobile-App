@@ -8,8 +8,7 @@ class SignInWithGoogleUseCase {
 
   SignInWithGoogleUseCase(this.repository);
 
-  Future<Either<Failure, User>> call() {
-    return repository.signInWithGoogle();
-    // return repository.signInWithGoogle();
+  Future<Either<Failure, User>> call({bool forceAccountPicker = false}) {
+    return repository.signInWithGoogle(forceAccountPicker: forceAccountPicker);
   }
 }

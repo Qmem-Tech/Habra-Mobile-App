@@ -10,7 +10,7 @@ import '../bloc/auth_state.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/customer_home_page.dart';
-import 'email_sign_up_page.dart';
+import 'business_sign_up_page.dart';
 import 'email_verification_page.dart';
 import 'forgot_password_page.dart';
 import 'wrong_path_page.dart';
@@ -259,10 +259,8 @@ class _BusinessEmailSignInPageState extends State<BusinessEmailSignInPage> {
                           child: InkWell(
                             onTap: () {
                               Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const EmailSignUpPage(
-                                    selectedRole: UserRole.businessOwner,
-                                  ),
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const BusinessSignUpPage(),
                                 ),
                               );
                             },

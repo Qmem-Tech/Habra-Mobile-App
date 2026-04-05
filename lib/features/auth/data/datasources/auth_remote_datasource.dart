@@ -6,7 +6,9 @@ import '../../domain/entities/user.dart';
 abstract class AuthRemoteDataSource {
   Future<UserModel> login(String email, String password);
   Future<UserModel> loginAsGuest();
-  Future<UserModel> signInWithGoogle();
+  /// When [forceAccountPicker] is true, clears the Google plugin's cached
+  /// account first so the user sees the account chooser (e.g. business flow).
+  Future<UserModel> signInWithGoogle({bool forceAccountPicker = false});
   Future<UserModel> signInWithApple();
   Future<UserModel> register(
     String email,

@@ -26,13 +26,14 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
 
   /// Web OAuth client ID (same as Supabase Google provider). Optional but
   /// recommended on Android; set via [AppConfig] / `GOOGLE_WEB_CLIENT_ID`.
-  GoogleSignIn get _googleSignIn {
+  /// Single instance so [signOut] and [signInWithGoogle] share plugin state.
+  late final GoogleSignIn _googleSignIn = () {
     final webClientId = AppConfig.googleWebClientId;
     if (webClientId.isNotEmpty) {
       return GoogleSignIn(serverClientId: webClientId);
     }
     return GoogleSignIn();
-  }
+  }();
 
   Future<UserModel> _sessionToUser() async {
     final session = _client.auth.currentSession;
@@ -107,8 +108,11 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
   }
 
   @override
-  Future<UserModel> signInWithGoogle() async {
+  Future<UserModel> signInWithGoogle({bool forceAccountPicker = false}) async {
     try {
+      if (forceAccountPicker) {
+        await _googleSignIn.signOut();
+      }
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         throw app_errors.AuthException('Google sign-in was cancelled');

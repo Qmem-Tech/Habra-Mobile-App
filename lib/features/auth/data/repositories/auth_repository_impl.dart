@@ -60,10 +60,13 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, User>> signInWithGoogle() async {
+  Future<Either<Failure, User>> signInWithGoogle(
+      {bool forceAccountPicker = false}) async {
     if (await networkInfo.isConnected) {
       try {
-        final user = await remoteDataSource.signInWithGoogle();
+        final user = await remoteDataSource.signInWithGoogle(
+          forceAccountPicker: forceAccountPicker,
+        );
         await localDataSource.cacheUser(user);
         return Right(user);
       } on ServerException catch (e) {

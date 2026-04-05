@@ -105,9 +105,10 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  Future<void> signInWithGoogle() async {
+  Future<void> signInWithGoogle({bool forceAccountPicker = false}) async {
     emit(AuthLoading());
-    final result = await signInWithGoogleUseCase();
+    final result =
+        await signInWithGoogleUseCase(forceAccountPicker: forceAccountPicker);
     result.fold(
       (failure) => emit(AuthError(failure.message)),
       (user) async {

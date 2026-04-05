@@ -15,7 +15,7 @@ import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/customer_home_page.dart';
 import '../widgets/social_auth_widgets.dart';
 import 'business_email_sign_in_page.dart';
-import 'email_sign_up_page.dart';
+import 'business_sign_up_page.dart';
 import 'email_verification_page.dart';
 import 'wrong_path_page.dart';
 
@@ -68,9 +68,7 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
   void _openBusinessSignUp() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => const EmailSignUpPage(
-          selectedRole: UserRole.businessOwner,
-        ),
+        builder: (_) => const BusinessSignUpPage(),
       ),
     );
   }
