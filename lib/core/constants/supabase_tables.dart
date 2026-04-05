@@ -8,6 +8,8 @@ class SupabaseTables {
   static const String deals = 'deals';
   static const String jobs = 'jobs';
   static const String reviews = 'reviews';
+  /// Owner replies (see `habra_full_schema.sql`); optional denormalized `reply_text` on [reviews].
+  static const String reviewReplies = 'review_replies';
   static const String jobApplications = 'job_applications';
   static const String boostPlans = 'boost_plans';
   static const String boosts = 'boosts';

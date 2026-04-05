@@ -360,7 +360,8 @@ class _DashboardPageState extends State<DashboardPage> {
                         overview: state.reviewsOverview,
                         reviews: state.reviews,
                         onRespond: (r) => _navigateToReplyToReview(r),
-                        onEditResponse: (r) => _navigateToReplyToReview(r),
+                        onEditResponse: (r) =>
+                            _navigateToReplyToReview(r, editing: true),
                       );
                     default:
                       return const SizedBox.shrink();
@@ -503,20 +504,28 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  void _navigateToReplyToReview(BusinessReview review) {
+  void _navigateToReplyToReview(BusinessReview review, {bool editing = false}) {
     final dashboardCubit = context.read<DashboardCubit>();
     Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => BlocProvider<DashboardCubit>.value(
           value: dashboardCubit,
-          child: ReplyToReviewPage(review: review),
+          child: ReplyToReviewPage(
+            review: review,
+            initialReplyText:
+                editing ? review.responseText?.trim() : null,
+          ),
         ),
       ),
     ).then((posted) {
-      if (posted == true && mounted) {
-        _loadDashboard();
-      }
+      if (posted != true || !mounted) return;
+      final homeState = context.read<BusinessOwnerHomeCubit>().state;
+      if (homeState is! BusinessOwnerHomeLoaded) return;
+      final bid = homeState.focusBusinessIdForOwnerTools;
+      if (bid == null) return;
+      // Avoid full [loadDashboard]: it emits [DashboardLoading] and hides the Reviews tab.
+      context.read<DashboardCubit>().refreshReviewsForBusiness(bid);
     });
   }
 }

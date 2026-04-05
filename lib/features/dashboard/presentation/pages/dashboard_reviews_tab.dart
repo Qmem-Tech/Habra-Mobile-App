@@ -8,9 +8,17 @@ import '../../domain/repositories/dashboard_repository.dart';
 import '../widgets/empty_state_widget.dart';
 import '../../../../core/resources/app_assets.dart';
 
-String _reviewAvatarInitial(String name) {
-  if (name.isEmpty) return '?';
-  return name[0].toUpperCase();
+/// Up to two letters (e.g. "Yared Kassa" → "YK").
+String _reviewAvatarInitials(String name) {
+  final parts =
+      name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  if (parts.isEmpty) return '?';
+  if (parts.length >= 2) {
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
+  final w = parts[0];
+  if (w.length >= 2) return w.substring(0, 2).toUpperCase();
+  return w[0].toUpperCase();
 }
 
 class DashboardReviewsTab extends StatelessWidget {
@@ -81,13 +89,14 @@ class _RatingOverviewCard extends StatelessWidget {
     return AppCard(
       margin: EdgeInsets.zero,
       padding: const EdgeInsets.all(20),
+      elevation: 2,
       child: Row(
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${overview.averageRating}',
+                overview.averageRating.toStringAsFixed(1),
                 style: const TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.bold,
@@ -96,13 +105,21 @@ class _RatingOverviewCard extends StatelessWidget {
               ),
               Row(
                 children: List.generate(5, (i) {
-                  final filled = (i + 1) <= overview.averageRating.round();
-                  final half = (i + 1) - overview.averageRating == 0.5;
-                  return Icon(
-                    half ? Icons.star_half : (filled ? Icons.star : Icons.star_border),
-                    size: 22,
-                    color: AppColors.brandPrimary,
-                  );
+                  final idx = i + 1;
+                  final avg = overview.averageRating;
+                  final IconData icon;
+                  final Color color;
+                  if (avg >= idx) {
+                    icon = Icons.star;
+                    color = AppColors.brandPrimary;
+                  } else if (avg >= idx - 0.5) {
+                    icon = Icons.star_half;
+                    color = AppColors.brandPrimary;
+                  } else {
+                    icon = Icons.star_border;
+                    color = AppColors.textTertiary;
+                  }
+                  return Icon(icon, size: 22, color: color);
                 }),
               ),
               const SizedBox(height: 4),
@@ -174,9 +191,11 @@ class _ReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final initials = _reviewAvatarInitials(review.authorName);
     return AppCard(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
+      elevation: 2,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -190,8 +209,9 @@ class _ReviewCard extends StatelessWidget {
                     : null,
                 child: review.authorImageUrl == null
                     ? Text(
-                        _reviewAvatarInitial(review.authorName),
-                        style: const TextStyle(
+                        initials,
+                        style: TextStyle(
+                          fontSize: initials.length > 1 ? 11 : 14,
                           color: AppColors.textSecondary,
                           fontWeight: FontWeight.w600,
                         ),
@@ -223,10 +243,13 @@ class _ReviewCard extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: List.generate(5, (i) {
+              final filled = i < review.rating;
               return Icon(
-                i < review.rating ? Icons.star : Icons.star_border,
+                filled ? Icons.star : Icons.star_border,
                 size: 18,
-                color: AppColors.brandPrimary,
+                color: filled
+                    ? AppColors.brandPrimary
+                    : AppColors.textTertiary,
               );
             }),
           ),
@@ -242,7 +265,7 @@ class _ReviewCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.backgroundLight,
                 borderRadius: BorderRadius.circular(8),
-                border: Border(
+                border: const Border(
                   left: BorderSide(color: AppColors.brandPrimary, width: 3),
                 ),
               ),
@@ -250,6 +273,7 @@ class _ReviewCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
                         'Your Response',
@@ -259,13 +283,14 @@ class _ReviewCard extends StatelessWidget {
                           color: AppColors.brandPrimary,
                         ),
                       ),
-                      if (review.responseTimeAgo != null) ...[
-                        const SizedBox(width: 8),
+                      if (review.responseTimeAgo != null)
                         Text(
                           review.responseTimeAgo!,
-                          style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textTertiary,
+                          ),
                         ),
-                      ],
                     ],
                   ),
                   const SizedBox(height: 4),

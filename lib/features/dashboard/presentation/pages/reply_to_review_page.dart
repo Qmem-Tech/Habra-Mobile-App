@@ -9,9 +9,15 @@ import '../../domain/entities/business_review.dart';
 import '../bloc/dashboard_cubit.dart';
 
 class ReplyToReviewPage extends StatefulWidget {
-  const ReplyToReviewPage({super.key, required this.review});
+  const ReplyToReviewPage({
+    super.key,
+    required this.review,
+    this.initialReplyText,
+  });
 
   final BusinessReview review;
+  /// Prefills the field when the owner edits an existing reply (same API as post).
+  final String? initialReplyText;
 
   @override
   State<ReplyToReviewPage> createState() => _ReplyToReviewPageState();
@@ -20,6 +26,20 @@ class ReplyToReviewPage extends StatefulWidget {
 class _ReplyToReviewPageState extends State<ReplyToReviewPage> {
   final _responseController = TextEditingController();
   static const int _maxChars = 500;
+
+  bool get _isEditing {
+    final s = widget.initialReplyText;
+    return s != null && s.trim().isNotEmpty;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialReplyText;
+    if (initial != null && initial.trim().isNotEmpty) {
+      _responseController.text = initial.trim();
+    }
+  }
 
   @override
   void dispose() {
@@ -35,7 +55,10 @@ class _ReplyToReviewPageState extends State<ReplyToReviewPage> {
       return;
     }
     final ctx = context;
-    LoaderHelper.show(ctx, message: 'Posting response...');
+    LoaderHelper.show(
+      ctx,
+      message: _isEditing ? 'Saving response...' : 'Posting response...',
+    );
     String? postError;
     try {
       postError = await ctx.read<DashboardCubit>().replyToReview(
@@ -44,7 +67,7 @@ class _ReplyToReviewPageState extends State<ReplyToReviewPage> {
           );
     } finally {
       if (ctx.mounted) {
-        LoaderHelper.hide(ctx);
+        await LoaderHelper.hide(ctx);
       }
     }
     if (!ctx.mounted) return;
@@ -60,13 +83,21 @@ class _ReplyToReviewPageState extends State<ReplyToReviewPage> {
   @override
   Widget build(BuildContext context) {
     final r = widget.review;
+    final initials = _replyPageAvatarInitials(r.authorName);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.backgroundWhite,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
-        title: const Text('Reply to Review', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        title: Text(
+          _isEditing ? 'Edit Response' : 'Reply to Review',
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -76,14 +107,44 @@ class _ReplyToReviewPageState extends State<ReplyToReviewPage> {
           children: [
             const Text('Original Review', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
             const SizedBox(height: 8),
-            AppCard(margin: EdgeInsets.zero, padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            AppCard(
+              margin: EdgeInsets.zero,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               Row(children: [
-                const CircleAvatar(radius: 20, backgroundColor: AppColors.backgroundGrey, child: Icon(Icons.person, color: AppColors.textTertiary)),
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppColors.backgroundGrey,
+                  backgroundImage: r.authorImageUrl != null
+                      ? NetworkImage(r.authorImageUrl!)
+                      : null,
+                  child: r.authorImageUrl == null
+                      ? Text(
+                          initials,
+                          style: TextStyle(
+                            fontSize: initials.length > 1 ? 11 : 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textTertiary,
+                          ),
+                        )
+                      : null,
+                ),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(r.authorName.length > 8 ? '${r.authorName.substring(0, 6)}.' : r.authorName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  Text(r.authorName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary), maxLines: 2, overflow: TextOverflow.ellipsis),
                   Row(children: [
-                    ...List.generate(5, (i) => Icon(i < r.rating ? Icons.star : Icons.star_border, size: 16, color: AppColors.brandPrimary)),
+                    ...List.generate(5, (i) {
+                      final filled = i < r.rating;
+                      return Icon(
+                        filled ? Icons.star : Icons.star_border,
+                        size: 16,
+                        color: filled
+                            ? AppColors.brandPrimary
+                            : AppColors.textTertiary,
+                      );
+                    }),
                     const SizedBox(width: 8),
                     Text(r.timeAgo, style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
                   ]),
@@ -91,7 +152,9 @@ class _ReplyToReviewPageState extends State<ReplyToReviewPage> {
               ]),
               const SizedBox(height: 12),
               Text(r.text, style: TextStyle(fontSize: 14, color: AppColors.textPrimary, height: 1.4)),
-            ])),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
             const Text('Your Response', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
             const SizedBox(height: 8),
@@ -118,12 +181,27 @@ class _ReplyToReviewPageState extends State<ReplyToReviewPage> {
               _TipBullet('Keep it professional, polite, and brief.'),
             ])),
             const SizedBox(height: 32),
-            AppButton(text: 'Post Response', onPressed: _postResponse),
+            AppButton(
+              text: _isEditing ? 'Save Response' : 'Post Response',
+              onPressed: _postResponse,
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+String _replyPageAvatarInitials(String name) {
+  final parts =
+      name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  if (parts.isEmpty) return '?';
+  if (parts.length >= 2) {
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
+  final w = parts[0];
+  if (w.length >= 2) return w.substring(0, 2).toUpperCase();
+  return w[0].toUpperCase();
 }
 
 class _TipBullet extends StatelessWidget {

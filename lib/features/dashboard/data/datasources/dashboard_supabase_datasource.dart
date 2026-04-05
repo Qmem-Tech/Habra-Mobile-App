@@ -705,6 +705,8 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         }
       }
       final rows = res.cast<Map<String, dynamic>>();
+      final replyByReviewId =
+          await _latestReviewRepliesByReviewIdForBusiness(businessId);
       return rows.map((row) {
         final profile = row[SupabaseTables.profiles];
         final authorName = profile is Map<String, dynamic>
@@ -714,21 +716,75 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
             ? parseString(profile['avatar_url'])
             : null;
         final createdAt = parseTimestampRequired(row['created_at']);
+        final reviewId = parseStringRequired(row['id']);
+        final replyRow = replyByReviewId[reviewId];
+        final replyFromTable = parseString(replyRow?['body']);
+        final replyFromColumn = parseString(row['reply_text']);
+        final repliedFromTable =
+            replyRow != null ? parseTimestamp(replyRow['created_at']) : null;
+        final repliedFromColumn = parseTimestamp(row['replied_at']);
+        final String? responseText;
+        final DateTime? repliedAt;
+        if (replyFromTable != null && replyFromTable.isNotEmpty) {
+          responseText = replyFromTable;
+          repliedAt = repliedFromTable ?? repliedFromColumn;
+        } else if (replyFromColumn != null && replyFromColumn.isNotEmpty) {
+          responseText = replyFromColumn;
+          repliedAt = repliedFromColumn ?? repliedFromTable;
+        } else {
+          responseText = null;
+          repliedAt = null;
+        }
         return BusinessReview(
-          id: parseStringRequired(row['id']),
+          id: reviewId,
           authorName: authorName,
           authorImageUrl: authorImg,
           rating: parseInt(row['rating']) ?? 5,
           text: parseStringRequired(row['comment']),
           timeAgo: _timeAgo(createdAt),
-          responseText: parseString(row['reply_text']),
-          responseTimeAgo: () {
-            final replied = parseTimestamp(row['replied_at']);
-            return replied != null ? _timeAgo(replied) : null;
-          }(),
+          responseText: responseText,
+          responseTimeAgo:
+              repliedAt != null ? _timeAgo(repliedAt) : null,
         );
       }).toList();
     });
+  }
+
+  /// Latest owner reply per review from `review_replies` (canonical Habra schema).
+  static bool _postgrestMissingReviewRepliesTable(PostgrestException e) {
+    final lower = e.message.toLowerCase();
+    if (!lower.contains('review_replies') &&
+        !lower.contains('review replies')) {
+      return false;
+    }
+    return lower.contains('does not exist') ||
+        lower.contains('schema cache') ||
+        lower.contains('could not find');
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _latestReviewRepliesByReviewIdForBusiness(
+    String businessId,
+  ) async {
+    try {
+      final res = await _client
+          .from(SupabaseTables.reviewReplies)
+          .select('review_id, body, created_at')
+          .eq('business_id', businessId)
+          .order('created_at', ascending: false);
+      final list = (res as List).cast<Map<String, dynamic>>();
+      final out = <String, Map<String, dynamic>>{};
+      for (final row in list) {
+        final rid = parseString(row['review_id']);
+        if (rid == null || rid.isEmpty) continue;
+        out.putIfAbsent(rid, () => row);
+      }
+      return out;
+    } on PostgrestException catch (e) {
+      if (_postgrestMissingReviewRepliesTable(e)) {
+        return {};
+      }
+      rethrow;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1125,29 +1181,113 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   Future<void> replyToReview(String reviewId, String replyText) async {
     return SupabaseFailureMapper.guard(() async {
       final timestamp = DateTime.now().toUtc().toIso8601String();
-      var payload = <String, dynamic>{
-        'reply_text': replyText,
-        'replied_at': timestamp,
-      };
+      final reviewSnap = await _client
+          .from(SupabaseTables.reviews)
+          .select('business_id')
+          .eq('id', reviewId)
+          .maybeSingle();
+      if (reviewSnap == null) {
+        throw Exception('Review not found');
+      }
+      final businessId = parseStringRequired(
+        Map<String, dynamic>.from(reviewSnap as Map)['business_id'],
+      );
+
+      var savedViaRepliesTable = false;
       try {
+        await _upsertOwnerReplyInReviewReplies(
+          reviewId: reviewId,
+          businessId: businessId,
+          replyText: replyText,
+          timestampUtc: timestamp,
+        );
+        savedViaRepliesTable = true;
+      } on PostgrestException catch (e) {
+        if (!_postgrestMissingReviewRepliesTable(e)) {
+          rethrow;
+        }
+      }
+
+      var savedViaReviewColumns = false;
+      PostgrestException? reviewColumnFailure;
+      try {
+        await _updateReviewsReplyColumns(reviewId, replyText, timestamp);
+        savedViaReviewColumns = true;
+      } on PostgrestException catch (e) {
+        reviewColumnFailure = e;
+      }
+
+      if (!savedViaRepliesTable) {
+        if (reviewColumnFailure != null) {
+          throw reviewColumnFailure;
+        }
+        if (!savedViaReviewColumns) {
+          throw Exception(
+            'Could not save your reply. Add the review_replies table (or reply_text '
+            'on reviews) and check RLS for business owners.',
+          );
+        }
+      }
+    });
+  }
+
+  Future<void> _upsertOwnerReplyInReviewReplies({
+    required String reviewId,
+    required String businessId,
+    required String replyText,
+    required String timestampUtc,
+  }) async {
+    final existing = await _client
+        .from(SupabaseTables.reviewReplies)
+        .select('id')
+        .eq('review_id', reviewId)
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    if (existing != null) {
+      final row = Map<String, dynamic>.from(existing as Map);
+      final id = parseString(row['id']);
+      if (id != null && id.isNotEmpty) {
+        await _client.from(SupabaseTables.reviewReplies).update({
+          'body': replyText,
+          'created_at': timestampUtc,
+        }).eq('id', id);
+        return;
+      }
+    }
+    await _client.from(SupabaseTables.reviewReplies).insert({
+      'review_id': reviewId,
+      'business_id': businessId,
+      'body': replyText,
+    });
+  }
+
+  Future<void> _updateReviewsReplyColumns(
+    String reviewId,
+    String replyText,
+    String timestamp,
+  ) async {
+    var payload = <String, dynamic>{
+      'reply_text': replyText,
+      'replied_at': timestamp,
+    };
+    try {
+      await _client
+          .from(SupabaseTables.reviews)
+          .update(payload)
+          .eq('id', reviewId);
+    } on PostgrestException catch (e) {
+      final lower = e.message.toLowerCase();
+      if (payload.containsKey('replied_at') && lower.contains('replied_at')) {
+        payload = Map<String, dynamic>.from(payload)..remove('replied_at');
         await _client
             .from(SupabaseTables.reviews)
             .update(payload)
             .eq('id', reviewId);
-      } on PostgrestException catch (e) {
-        final lower = e.message.toLowerCase();
-        // PostgREST: "Could not find the 'replied_at' column ... in the schema cache"
-        if (payload.containsKey('replied_at') && lower.contains('replied_at')) {
-          payload = Map<String, dynamic>.from(payload)..remove('replied_at');
-          await _client
-              .from(SupabaseTables.reviews)
-              .update(payload)
-              .eq('id', reviewId);
-        } else {
-          rethrow;
-        }
+      } else {
+        rethrow;
       }
-    });
+    }
   }
 
   // ---------------------------------------------------------------------------

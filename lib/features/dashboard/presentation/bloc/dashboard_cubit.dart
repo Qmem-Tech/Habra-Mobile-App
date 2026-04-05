@@ -49,6 +49,25 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
+  /// Reloads reviews and rating overview only — does not emit [DashboardLoading],
+  /// so the user stays on the current dashboard tab (e.g. Reviews) with visible content.
+  Future<void> refreshReviewsForBusiness(String businessId) async {
+    final current = state;
+    if (current is! DashboardTabState) return;
+    try {
+      final overview = await _repository.getReviewsOverview(businessId);
+      final reviews = await _repository.getReviews(businessId);
+      if (state is! DashboardTabState) return;
+      final s = state as DashboardTabState;
+      emit(s.copyWith(
+        reviewsOverview: overview ?? s.reviewsOverview,
+        reviews: reviews,
+      ));
+    } catch (_) {
+      // Reply already succeeded; keep showing the previous list rather than error state.
+    }
+  }
+
   Future<void> setDealsFilter(String businessId, DashboardDealStatus? status) async {
     final current = state;
     if (current is! DashboardTabState) return;
