@@ -7,15 +7,13 @@ import '../domain/business_address_data.dart';
 import '../permissions/app_permission.dart';
 import '../services/permission_service.dart';
 import 'error_display_helper.dart';
-import 'address_lookup_sheet.dart';
-import 'address_map_picker_page.dart';
 import 'street_address_field.dart';
 import '../../injection/injection_container.dart' as di;
 
 /// Reusable business address input.
 ///
-/// When [showOptionalAddressMethods] is true (default): current location, search, map, paste link.
-/// When false (new business registration): only a full-width **Use current location** action.
+/// When [showOptionalAddressMethods] is true (default): field hints and coordinate helper text.
+/// The address row always includes **Use current location** and typed suggestions on the street field.
 class BusinessAddressInput extends StatelessWidget {
   const BusinessAddressInput({
     super.key,
@@ -25,13 +23,15 @@ class BusinessAddressInput extends StatelessWidget {
     required this.stateController,
     required this.zipController,
     this.defaultState = 'AL',
-    /// When false, only "Current location" is shown (new business registration flow).
+    /// When false, tighter field hints (e.g. new business registration).
     this.showOptionalAddressMethods = true,
     /// When non-null, uses [TextFormField] so [FormState.validate] runs (e.g. registration).
     this.streetValidator,
     this.cityValidator,
     this.stateValidator,
     this.zipValidator,
+    /// Called after street/city/state/ZIP are filled from a suggestion or current location.
+    this.onAddressApplied,
   });
 
   final TextEditingController streetController;
@@ -45,6 +45,7 @@ class BusinessAddressInput extends StatelessWidget {
   final String? Function(String?)? cityValidator;
   final String? Function(String?)? stateValidator;
   final String? Function(String?)? zipValidator;
+  final ValueChanged<BusinessAddressData>? onAddressApplied;
 
   void _applyAddress(BuildContext context, BusinessAddressData data) {
     if (data.street != null) streetController.text = data.street!;
@@ -52,12 +53,15 @@ class BusinessAddressInput extends StatelessWidget {
     if (data.state != null) stateController.text = data.state!;
     if (data.zipCode != null) zipController.text = data.zipCode!;
     if (data.suite != null) suiteController.text = data.suite!;
+    onAddressApplied?.call(data);
   }
 
   @override
   Widget build(BuildContext context) {
     final showFieldHints = showOptionalAddressMethods;
-    final streetHint = showFieldHints ? 'Enter street address' : '';
+    final streetHint = showFieldHints
+        ? 'Street, city, state — suggestions appear as you type'
+        : '';
     final suiteHint = showFieldHints ? 'Optional' : '';
     final stateHint = showFieldHints ? defaultState : '';
     final zipHint = showFieldHints ? 'ZIP' : '';
@@ -65,10 +69,7 @@ class BusinessAddressInput extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showOptionalAddressMethods)
-          _buildMethodButtons(context)
-        else
-          _buildCurrentLocationOnly(context),
+        _buildCurrentLocationOnly(context),
         const SizedBox(height: 20),
         _buildLabel('Street Address'),
         const SizedBox(height: 8),
@@ -79,6 +80,16 @@ class BusinessAddressInput extends StatelessWidget {
           validator: streetValidator,
           onAddressPicked: (data) => _applyAddress(context, data),
         ),
+        if (showOptionalAddressMethods) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Pick a suggestion below to fill the form and save map coordinates when available.',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textTertiary,
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         _buildLabel('Suite / Unit'),
         const SizedBox(height: 8),
@@ -203,49 +214,6 @@ class BusinessAddressInput extends StatelessWidget {
     );
   }
 
-  Widget _buildMethodButtons(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Set address by',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _MethodChip(
-              icon: Icons.my_location,
-              label: 'Current location',
-              onTap: () => _onUseCurrentLocation(context),
-            ),
-            _MethodChip(
-              icon: Icons.search,
-              label: 'Search address',
-              onTap: () => _onSearchAddress(context),
-            ),
-            _MethodChip(
-              icon: Icons.map,
-              label: 'Pick on map',
-              onTap: () => _onPickOnMap(context),
-            ),
-            _MethodChip(
-              icon: Icons.link,
-              label: 'Paste link',
-              onTap: () => _onPasteLink(context),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Future<void> _onUseCurrentLocation(BuildContext context) async {
     final granted = await di.sl<PermissionService>().requestWithDialog(
       context,
@@ -260,88 +228,6 @@ class BusinessAddressInput extends StatelessWidget {
         _applyAddress(context, data);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Address set from current location')),
-        );
-      },
-    );
-  }
-
-  Future<void> _onSearchAddress(BuildContext context) async {
-    final initial = streetController.text.isNotEmpty
-        ? '${streetController.text}, ${cityController.text}'.trim()
-        : '';
-    final data = await AddressLookupSheet.show(
-      context,
-      initialQuery: initial,
-    );
-    if (!context.mounted) return;
-    final ctx = context;
-    if (data != null) {
-      _applyAddress(ctx, data);
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Address applied')),
-      );
-    }
-  }
-
-  Future<void> _onPickOnMap(BuildContext context) async {
-    double? initLat;
-    double? initLng;
-    if (streetController.text.isNotEmpty || cityController.text.isNotEmpty) {
-      final q = '${streetController.text}, ${cityController.text}'.trim();
-      if (q.isNotEmpty) {
-        final r = await di.sl<LocationService>().geocodeAddress(q);
-        r.fold((_) {}, (c) {
-          initLat = c.lat;
-          initLng = c.lng;
-        });
-      }
-    }
-    if (!context.mounted) return;
-    final data = await Navigator.push<BusinessAddressData>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AddressMapPickerPage(
-          initialLat: initLat,
-          initialLng: initLng,
-        ),
-      ),
-    );
-    if (!context.mounted) return;
-    final ctx = context;
-    if (data != null) {
-      _applyAddress(ctx, data);
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Address set from map')),
-      );
-    }
-  }
-
-  Future<void> _onPasteLink(BuildContext context) async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    if (!context.mounted) return;
-    final ctx = context;
-    final text = data?.text ?? '';
-    if (text.trim().isEmpty) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Clipboard is empty. Copy a Google Maps link first.')),
-      );
-      return;
-    }
-    final result = di.sl<LocationService>().parseGoogleMapsLink(text);
-    result.fold(
-      (f) => ErrorDisplayHelper.show(ctx, message: f.message, title: 'Invalid link'),
-      (coords) async {
-        final revResult = await di.sl<LocationService>()
-            .reverseGeocodeToAddress(coords.lat, coords.lng);
-        if (!ctx.mounted) return;
-        revResult.fold(
-          (f) => ErrorDisplayHelper.show(ctx, message: f.message, title: 'Address'),
-          (addr) {
-            _applyAddress(ctx, addr);
-            ScaffoldMessenger.of(ctx).showSnackBar(
-              const SnackBar(content: Text('Address set from link')),
-            );
-          },
         );
       },
     );
@@ -433,52 +319,6 @@ class _StateAbbrevInputFormatter extends TextInputFormatter {
     return TextEditingValue(
       text: t,
       selection: TextSelection.collapsed(offset: t.length),
-    );
-  }
-}
-
-class _MethodChip extends StatelessWidget {
-  const _MethodChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.brandPrimary.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(AppResources.radiusM),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppResources.radiusM),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppResources.radiusM),
-            border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: AppColors.brandPrimary),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.brandPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

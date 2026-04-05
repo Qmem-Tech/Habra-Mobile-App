@@ -64,6 +64,19 @@ class BusinessOwnerNavigationWrapper extends StatefulWidget {
     state?.navigateToTab(index, dashboardTab: dashboardTab);
   }
 
+  /// Pops the current route (e.g. [ListingStatusPage]) then switches to the Home tab.
+  /// No-op for the tab switch if this context is not under [BusinessOwnerNavigationWrapper].
+  static void popCurrentRouteAndOpenHome(BuildContext context) {
+    final state =
+        context.findAncestorStateOfType<_BusinessOwnerNavigationWrapperState>();
+    Navigator.of(context).pop();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (state?.mounted ?? false) {
+        state!.navigateToTab(0);
+      }
+    });
+  }
+
   /// Call after legal docs (or similar) change so Dashboard access is re-checked on next open.
   static void invalidateBusinessToolsAccessCache(BuildContext context) {
     final state =

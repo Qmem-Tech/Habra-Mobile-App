@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/business_media_limits.dart';
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/supabase/supabase_mappers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_utils.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -13,6 +15,7 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
 import '../../../../core/widgets/error_display_helper.dart';
 import '../../../../core/widgets/business_address_input.dart';
+import '../../../../core/domain/business_address_data.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../home/domain/entities/business_presence.dart';
 import '../bloc/dashboard_cubit.dart';
@@ -38,11 +41,14 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
   late final TextEditingController _cityController;
   late final TextEditingController _stateController;
   late final TextEditingController _zipController;
+  late final TextEditingController _locationLabelController;
 
   File? _logoFile;
   File? _backgroundFile;
   late List<String> _galleryUrls;
   bool _showValidation = false;
+  double? _latitude;
+  double? _longitude;
 
   static final RegExp _emailRe = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
 
@@ -59,7 +65,40 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
     _cityController = TextEditingController(text: widget.business.city ?? '');
     _stateController = TextEditingController(text: widget.business.state ?? '');
     _zipController = TextEditingController();
-    _galleryUrls = List<String>.from(widget.business.imageUrls);
+    _locationLabelController = TextEditingController(
+      text: widget.business.locationLabel ?? '',
+    );
+    _galleryUrls = List<String>.from(
+      widget.business.imageUrls.where((u) => u.trim().isNotEmpty),
+    );
+    _latitude = widget.business.latitude;
+    _longitude = widget.business.longitude;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncGalleryUrlsFromServer());
+  }
+
+  /// Home/cached [BusinessPresence] can omit or stale `image_urls`; refresh for this row.
+  Future<void> _syncGalleryUrlsFromServer() async {
+    try {
+      final res = await Supabase.instance.client
+          .from(SupabaseTables.businesses)
+          .select('image_urls')
+          .eq('id', widget.business.id)
+          .maybeSingle();
+      if (!mounted || res == null) return;
+      final fresh = parseStringList(res['image_urls']);
+      setState(() => _galleryUrls = fresh);
+    } catch (_) {
+      // Keep list from [widget.business] if the request fails.
+    }
+  }
+
+  void _onBusinessAddressApplied(BusinessAddressData data) {
+    setState(() {
+      if (data.hasCoordinates) {
+        _latitude = data.latitude;
+        _longitude = data.longitude;
+      }
+    });
   }
 
   Future<void> _openGalleryPhotos() async {
@@ -91,6 +130,7 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
     _cityController.dispose();
     _stateController.dispose();
     _zipController.dispose();
+    _locationLabelController.dispose();
     super.dispose();
   }
 
@@ -163,6 +203,13 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
         'address_city': _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : null,
         'address_state': _stateController.text.trim().isNotEmpty ? _stateController.text.trim() : null,
         'address_zip': _zipController.text.trim().isNotEmpty ? _zipController.text.trim() : null,
+        if (_latitude != null && _longitude != null) 'latitude': _latitude,
+        if (_latitude != null && _longitude != null) 'longitude': _longitude,
+        if (widget.business.parentBusinessId != null)
+          'location_label': () {
+            final t = _locationLabelController.text.trim();
+            return t.isNotEmpty ? t : null;
+          }(),
       };
 
       if (_logoFile != null) {
@@ -252,6 +299,40 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
               'These appear alongside your listing in Explore.',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
+            if (_galleryUrls.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 88,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _galleryUrls.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    final url = _galleryUrls[index];
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(AppResources.radiusM),
+                      child: Image.network(
+                        url,
+                        width: 88,
+                        height: 88,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 88,
+                          height: 88,
+                          color: AppColors.backgroundGrey,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.broken_image_outlined,
+                            color: AppColors.textTertiary,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: _openGalleryPhotos,
@@ -301,6 +382,14 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
                 return null;
               }(),
             ),
+            if (widget.business.parentBusinessId != null) ...[
+              const SizedBox(height: 12),
+              _buildField(
+                'Location label',
+                _locationLabelController,
+                hintText: 'Short name for this branch (optional)',
+              ),
+            ],
             const SizedBox(height: 24),
             _sectionTitle('Address'),
             const SizedBox(height: 12),
@@ -311,7 +400,27 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
               stateController: _stateController,
               zipController: _zipController,
               defaultState: 'AL',
+              onAddressApplied: _onBusinessAddressApplied,
             ),
+            if (_latitude != null && _longitude != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.check_circle, size: 18, color: AppColors.success),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Map coordinates saved for this listing (nearby search and maps).',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 32),
             AppButton(text: 'Save Changes', onPressed: _save),
           ],
@@ -403,6 +512,7 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
     int maxLines = 1,
     String? errorText,
     TextInputType? keyboardType,
+    String? hintText,
   }) {
     final hasError = errorText != null;
     return Column(
@@ -433,6 +543,7 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
               borderSide: BorderSide(color: hasError ? AppColors.error : AppColors.brandPrimary),
             ),
             errorText: errorText,
+            hintText: hintText,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),

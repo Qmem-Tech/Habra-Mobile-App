@@ -5,6 +5,7 @@ import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../domain/entities/business_presence.dart';
 import '../widgets/owner_business_group_card.dart';
+import '../widgets/owner_location_branch_card.dart';
 import 'add_new_presence_page.dart';
 
 /// Business locations selector: list of businesses/locations + Add New Presence.
@@ -13,12 +14,15 @@ class BusinessLocationsPage extends StatefulWidget {
   final String? currentPresenceId;
   /// When set, replaces the dynamic group/location title in the app bar (e.g. "My Businesses").
   final String? overrideAppBarTitle;
+  /// When true with [overrideAppBarTitle], shows one card per listing (branch-style UI).
+  final bool flatBranchCardLayout;
 
   const BusinessLocationsPage({
     super.key,
     this.presences = const <BusinessPresence>[],
     this.currentPresenceId,
     this.overrideAppBarTitle,
+    this.flatBranchCardLayout = false,
   });
 
   @override
@@ -124,7 +128,9 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
         centerTitle: true,
       ),
       body: _isMyBusinessesLayout
-          ? _buildMyBusinessesBody(byGroup)
+          ? (widget.flatBranchCardLayout
+              ? _buildMyLocationsBranchCardsBody(rest)
+              : _buildMyBusinessesBody(byGroup))
           : ListView(
               padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
               children: [
@@ -155,6 +161,12 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
           child: _isMyBusinessesLayout
               ? OwnerAddNewBusinessCtaButton(
                   onPressed: () => _openAddNewPresence(context),
+                  buttonLabel: widget.flatBranchCardLayout
+                      ? 'Add New Location'
+                      : 'Add New Business',
+                  promptText: widget.flatBranchCardLayout
+                      ? 'Have another branch?'
+                      : null,
                 )
               : AppButton(
                   text: 'Add New Presence',
@@ -163,6 +175,99 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
                 ),
         ),
       ),
+    );
+  }
+
+  Widget _buildMyLocationsBranchCardsBody(List<BusinessPresence> rest) {
+    if (rest.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppResources.spacingL),
+          child: Text(
+            'No locations yet. Add one to get started.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
+    final byId = {for (final p in rest) p.id: p};
+    final byRoot = <String, List<BusinessPresence>>{};
+    for (final p in rest) {
+      final rootKey = p.parentBusinessId ?? p.id;
+      byRoot.putIfAbsent(rootKey, () => []).add(p);
+    }
+
+    int compareWithinGroup(BusinessPresence a, BusinessPresence b, String rootId) {
+      final aRoot = a.id == rootId;
+      final bRoot = b.id == rootId;
+      if (aRoot != bRoot) return aRoot ? -1 : 1;
+      final na = (a.locationLabel?.trim().isNotEmpty ?? false)
+          ? a.locationLabel!.trim()
+          : a.name;
+      final nb = (b.locationLabel?.trim().isNotEmpty ?? false)
+          ? b.locationLabel!.trim()
+          : b.name;
+      return na.toLowerCase().compareTo(nb.toLowerCase());
+    }
+
+    final rootIds = byRoot.keys.toList()
+      ..sort((a, b) {
+        final titleA = byId[a]?.name ?? '';
+        final titleB = byId[b]?.name ?? '';
+        return titleA.toLowerCase().compareTo(titleB.toLowerCase());
+      });
+
+    final children = <Widget>[];
+    for (var i = 0; i < rootIds.length; i++) {
+      final rootId = rootIds[i];
+      final members = List<BusinessPresence>.from(byRoot[rootId]!)
+        ..sort((a, b) => compareWithinGroup(a, b, rootId));
+
+      if (members.length > 1) {
+        final headerTitle = byId[rootId]?.name ?? members.first.name;
+        children.add(
+          Padding(
+            padding: EdgeInsets.only(bottom: 8, top: i == 0 ? 0 : 4),
+            child: Text(
+              headerTitle,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        );
+      }
+
+      for (var j = 0; j < members.length; j++) {
+        children.add(
+          OwnerLocationBranchCard(
+            presence: members[j],
+            onView: () => _selectAndPop(members[j].id),
+          ),
+        );
+        if (j < members.length - 1) {
+          children.add(const SizedBox(height: 14));
+        }
+      }
+      if (i < rootIds.length - 1) {
+        children.add(const SizedBox(height: 20));
+      }
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppResources.spacingM,
+        AppResources.spacingM,
+        AppResources.spacingM,
+        AppResources.spacingL,
+      ),
+      children: children,
     );
   }
 

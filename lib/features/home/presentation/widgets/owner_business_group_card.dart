@@ -96,54 +96,93 @@ Future<void> showOwnerBusinessLocationsSheet({
   );
 }
 
-/// Full-width primary CTA: "Add New Business" + circled plus (My Businesses design).
+/// Full-width primary CTA: "Add New Business" (or [buttonLabel]) + circled plus.
 class OwnerAddNewBusinessCtaButton extends StatelessWidget {
   const OwnerAddNewBusinessCtaButton({
     super.key,
     required this.onPressed,
+    this.buttonLabel = 'Add New Business',
+    this.promptText,
+    this.promptIcon = Icons.storefront_outlined,
   });
 
   final VoidCallback onPressed;
+  final String buttonLabel;
+  /// When set, shows above the button (e.g. "Have another branch?").
+  final String? promptText;
+  final IconData promptIcon;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: AppResources.buttonHeightL,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.brandPrimary,
-          foregroundColor: AppColors.textOnPrimary,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppResources.radiusM),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (promptText != null) ...[
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(promptIcon, color: AppColors.textTertiary, size: 26),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  promptText!,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ],
+        SizedBox(
+          width: double.infinity,
+          height: AppResources.buttonHeightL,
+          child: ElevatedButton(
+            onPressed: onPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brandPrimary,
+              foregroundColor: AppColors.textOnPrimary,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppResources.radiusM),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  buttonLabel,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.textOnPrimary, width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.add, size: 18, color: AppColors.textOnPrimary),
+                ),
+              ],
+            ),
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Add New Business',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.textOnPrimary, width: 1.5),
-              ),
-              alignment: Alignment.center,
-              child: const Icon(Icons.add, size: 18, color: AppColors.textOnPrimary),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }

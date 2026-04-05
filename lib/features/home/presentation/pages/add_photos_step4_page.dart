@@ -704,13 +704,27 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
       if (!ctx.mounted) return;
       setState(() => _isSubmitting = false);
       if (!ctx.mounted) return;
+      final cityRaw =
+          widget.step3Data['address_city']?.toString().trim() ?? '';
+      final cityForStatus = cityRaw.isNotEmpty &&
+              cityRaw.toLowerCase() != 'unknown'
+          ? cityRaw
+          : null;
+      final streetRaw =
+          widget.step3Data['address_street']?.toString().trim() ?? '';
+      final locationLine = cityForStatus == null
+          ? null
+          : (streetRaw.isNotEmpty ? '$streetRaw, $cityRaw' : cityRaw);
+
       Navigator.of(ctx).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => ListingStatusPage(
             isVerified: false,
             businessId: createdBusinessId,
             businessName: widget.step3Data['name']?.toString() ?? 'Your business',
+            cityName: cityForStatus,
             imageUrl: logoUrl ?? backgroundUrl ?? '',
+            locationText: locationLine,
           ),
         ),
         (route) => route.isFirst,

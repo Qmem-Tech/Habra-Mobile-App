@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../domain/entities/business_presence.dart';
 import 'business_locations_page.dart';
 
-/// Full My Businesses card UI: used from profile, home/dashboard/boosts app bar selector,
-/// drawer flows (edit / photos), and setup when choosing a listing.
+/// Owner listing picker: **My Locations** branch-style cards + Add New Location.
+/// Used from profile, home pill, drawer, and other flows that choose a listing.
 class MyBusinessesPage extends StatelessWidget {
   const MyBusinessesPage({
     super.key,
@@ -20,7 +20,8 @@ class MyBusinessesPage extends StatelessWidget {
     return BusinessLocationsPage(
       presences: presences,
       currentPresenceId: currentPresenceId,
-      overrideAppBarTitle: 'My Businesses',
+      overrideAppBarTitle: 'My Locations',
+      flatBranchCardLayout: true,
     );
   }
 }

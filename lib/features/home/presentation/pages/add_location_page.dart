@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/domain/business_address_data.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/business_address_input.dart';
 import '../../domain/entities/business_brand_entity.dart';
@@ -34,8 +35,20 @@ class _AddLocationPageState extends State<AddLocationPage> {
   final _cityController = TextEditingController();
   final _stateController = TextEditingController(text: 'AL');
   final _zipController = TextEditingController();
+  final _locationLabelController = TextEditingController();
   bool _sameHoursAsMain = true;
   bool _isLoading = false;
+  double? _latitude;
+  double? _longitude;
+
+  void _onAddressApplied(BusinessAddressData data) {
+    setState(() {
+      if (data.hasCoordinates) {
+        _latitude = data.latitude;
+        _longitude = data.longitude;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -44,6 +57,7 @@ class _AddLocationPageState extends State<AddLocationPage> {
     _cityController.dispose();
     _stateController.dispose();
     _zipController.dispose();
+    _locationLabelController.dispose();
     super.dispose();
   }
 
@@ -93,7 +107,37 @@ class _AddLocationPageState extends State<AddLocationPage> {
                 stateController: _stateController,
                 zipController: _zipController,
                 defaultState: 'AL',
+                onAddressApplied: _onAddressApplied,
               ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _locationLabelController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Location label (optional)',
+                  hintText: 'e.g. Downtown, Airport',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              if (_latitude != null && _longitude != null) ...[
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.check_circle, size: 18, color: AppColors.success),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Map coordinates will be saved for this listing.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 24),
               _buildSameHoursSection(),
               const SizedBox(height: 48),
@@ -221,18 +265,25 @@ class _AddLocationPageState extends State<AddLocationPage> {
       final addressStreet = suite.isNotEmpty ? '$street, $suite' : street;
 
       final parent = widget.parentPresence;
+      final cityTrim = _cityController.text.trim();
+      final labelTrim = _locationLabelController.text.trim();
+      final locationLabel =
+          labelTrim.isNotEmpty ? labelTrim : (cityTrim.isNotEmpty ? cityTrim : null);
       final data = <String, dynamic>{
-        'name': '${widget.selectedBrand.name} - ${_cityController.text.trim()}',
+        'name': '${widget.selectedBrand.name} - ${cityTrim.isNotEmpty ? cityTrim : 'Location'}',
         'description': parent?.category,
         'address_street': addressStreet.isNotEmpty ? addressStreet : null,
-        'address_city': _cityController.text.trim().isNotEmpty
-            ? _cityController.text.trim()
-            : 'Unknown',
+        'address_city': cityTrim.isNotEmpty ? cityTrim : 'Unknown',
         'address_state':
             _stateController.text.trim().isNotEmpty ? _stateController.text.trim() : null,
         'address_zip': _zipController.text.trim().isNotEmpty ? _zipController.text.trim() : null,
         'logo_url': parent?.logoUrl ?? widget.selectedBrand.logoUrl,
         'background_url': parent?.backgroundUrl,
+        if (parent != null)
+          'parent_business_id': parent.parentBusinessId ?? parent.id,
+        if (locationLabel != null) 'location_label': locationLabel,
+        if (_latitude != null && _longitude != null) 'latitude': _latitude,
+        if (_latitude != null && _longitude != null) 'longitude': _longitude,
       };
       // Additional locations inherit parent approval; only brand-new businesses
       // use default pending in [DashboardSupabaseDataSource.createBusiness].
@@ -283,16 +334,24 @@ class _AddLocationPageState extends State<AddLocationPage> {
       final showAsLive = parent != null &&
           !parent.isPendingApproval &&
           parent.statusText != 'rejected';
+      final cityForStatus = cityTrim.isNotEmpty &&
+              cityTrim.toLowerCase() != 'unknown'
+          ? cityTrim
+          : null;
+      final streetTrim = _streetController.text.trim();
+      final locationLine = cityForStatus == null
+          ? null
+          : (streetTrim.isNotEmpty ? '$streetTrim, $cityTrim' : cityTrim);
+
       Navigator.of(ctx).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => ListingStatusPage(
             isVerified: showAsLive,
             businessId: businessId,
             businessName: widget.selectedBrand.name,
+            cityName: cityForStatus,
             imageUrl: parent?.logoUrl ?? widget.selectedBrand.logoUrl ?? '',
-            locationText: _cityController.text.trim().isNotEmpty
-                ? '${_streetController.text.trim()}, ${_cityController.text.trim()}'
-                : null,
+            locationText: locationLine,
           ),
         ),
         (route) => route.isFirst,

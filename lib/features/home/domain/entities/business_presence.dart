@@ -8,6 +8,9 @@ class BusinessPresence extends Equatable {
   final String category;
   final String? city;
   final String? state;
+  /// From `businesses.latitude` / `longitude` when set (maps, nearby).
+  final double? latitude;
+  final double? longitude;
   final String? phone;
   final String? email;
   final String? website;
@@ -23,6 +26,12 @@ class BusinessPresence extends Equatable {
   final String? statusText;
   final int? openOrdersCount;
   final String? businessGroupName;
+  /// Root listing id when this row is a branch (`businesses.parent_business_id`).
+  final String? parentBusinessId;
+  /// Short branch label for owner UI (`businesses.location_label`).
+  final String? locationLabel;
+  /// Denormalized monthly views when present (`businesses.monthly_profile_views`).
+  final int? monthlyProfileViews;
 
   const BusinessPresence({
     required this.id,
@@ -31,6 +40,8 @@ class BusinessPresence extends Equatable {
     required this.category,
     this.city,
     this.state,
+    this.latitude,
+    this.longitude,
     this.phone,
     this.email,
     this.website,
@@ -45,6 +56,9 @@ class BusinessPresence extends Equatable {
     this.statusText,
     this.openOrdersCount,
     this.businessGroupName,
+    this.parentBusinessId,
+    this.locationLabel,
+    this.monthlyProfileViews,
   });
 
   String get displayName => locationName != null ? '$name - $locationName' : name;
@@ -82,6 +96,8 @@ class BusinessPresence extends Equatable {
         category,
         city,
         state,
+        latitude,
+        longitude,
         phone,
         email,
         website,
@@ -96,5 +112,8 @@ class BusinessPresence extends Equatable {
         statusText,
         openOrdersCount,
         businessGroupName,
+        parentBusinessId,
+        locationLabel,
+        monthlyProfileViews,
       ];
 }

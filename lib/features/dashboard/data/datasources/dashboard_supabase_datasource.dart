@@ -147,14 +147,38 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   // ---------------------------------------------------------------------------
   // Owner businesses
   // ---------------------------------------------------------------------------
+  static const String _businessesParentFkHint =
+      'businesses!businesses_parent_business_id_fkey';
+
   @override
   Future<List<BusinessPresence>> getOwnerBusinesses(String ownerId) async {
     return SupabaseFailureMapper.guard(() async {
-      final res = await _client
-          .from(SupabaseTables.businesses)
-          .select('*, ${SupabaseTables.businessCategories}(${SupabaseTables.categories}(name))')
-          .eq('owner_id', ownerId)
-          .order('created_at', ascending: false);
+      final categoriesEmbed =
+          '${SupabaseTables.businessCategories}(${SupabaseTables.categories}(name))';
+      final withParent =
+          '*, parent_business:businesses!$_businessesParentFkHint(name), $categoriesEmbed';
+      final withoutParent = '*, $categoriesEmbed';
+
+      List<dynamic> res;
+      try {
+        res = await _client
+            .from(SupabaseTables.businesses)
+            .select(withParent)
+            .eq('owner_id', ownerId)
+            .order('created_at', ascending: false);
+      } on PostgrestException catch (e) {
+        if (e.code == 'PGRST200' ||
+            e.message.contains('could not find') ||
+            e.message.contains('relationship')) {
+          res = await _client
+              .from(SupabaseTables.businesses)
+              .select(withoutParent)
+              .eq('owner_id', ownerId)
+              .order('created_at', ascending: false);
+        } else {
+          rethrow;
+        }
+      }
       final rows = (res as List).cast<Map<String, dynamic>>();
       return rows.map(_rowToPresence).toList();
     });
@@ -179,6 +203,13 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       }
     }
 
+    String? businessGroupName;
+    final parentEmbed = row['parent_business'];
+    if (parentEmbed is Map) {
+      final pn = parseString(parentEmbed['name']);
+      if (pn != null && pn.isNotEmpty) businessGroupName = pn;
+    }
+
     return BusinessPresence(
       id: parseStringRequired(row['id']),
       name: parseStringRequired(row['name']),
@@ -186,6 +217,8 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       category: category,
       city: parseString(row['address_city']),
       state: parseString(row['address_state']),
+      latitude: parseDouble(row['latitude']),
+      longitude: parseDouble(row['longitude']),
       phone: parseString(row['phone']),
       email: parseString(row['email']),
       website: parseString(row['website']),
@@ -198,6 +231,10 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       rating: parseDouble(row['rating']),
       reviewCount: parseInt(row['review_count']),
       statusText: parseString(row['approval_status']),
+      businessGroupName: businessGroupName,
+      parentBusinessId: parseString(row['parent_business_id']),
+      locationLabel: parseString(row['location_label']),
+      monthlyProfileViews: parseInt(row['monthly_profile_views']),
     );
   }
 
@@ -1324,19 +1361,46 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   Future<String> createBusiness(
       String ownerId, Map<String, dynamic> data) async {
     return SupabaseFailureMapper.guard(() async {
-      final payload = Map<String, dynamic>.from(data);
-      payload['owner_id'] = ownerId;
-      if (!payload.containsKey('approval_status')) {
-        payload['approval_status'] = 'pending';
+      Future<String> insert(Map<String, dynamic> payload) async {
+        payload['owner_id'] = ownerId;
+        if (!payload.containsKey('approval_status')) {
+          payload['approval_status'] = 'pending';
+        }
+        payload['updated_at'] = DateTime.now().toIso8601String();
+        final res = await _client
+            .from(SupabaseTables.businesses)
+            .insert(payload)
+            .select('id')
+            .single();
+        final row = Map<String, dynamic>.from(res);
+        return parseStringRequired(row['id']);
       }
-      payload['updated_at'] = DateTime.now().toIso8601String();
-      final res = await _client
-          .from(SupabaseTables.businesses)
-          .insert(payload)
-          .select('id')
-          .single();
-      final row = Map<String, dynamic>.from(res);
-      return parseStringRequired(row['id']);
+
+      var payload = Map<String, dynamic>.from(data);
+      try {
+        return await insert(payload);
+      } on PostgrestException catch (e) {
+        final m = e.message.toLowerCase();
+        const branchKeys = [
+          'parent_business_id',
+          'location_label',
+          'monthly_profile_views',
+        ];
+        final mentionsBranch = branchKeys.any(
+          (k) => m.contains(k) || m.contains(k.replaceAll('_', ' ')),
+        );
+        if (!mentionsBranch ||
+            !(m.contains('does not exist') ||
+                m.contains('schema cache') ||
+                m.contains('column'))) {
+          rethrow;
+        }
+        final retry = Map<String, dynamic>.from(payload);
+        for (final k in branchKeys) {
+          retry.remove(k);
+        }
+        return await insert(retry);
+      }
     });
   }
 

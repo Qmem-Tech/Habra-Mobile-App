@@ -8,7 +8,6 @@ import '../resources/app_resources.dart';
 import '../services/location_service.dart';
 import '../theme/app_colors.dart';
 import '../../injection/injection_container.dart' as di;
-import 'address_lookup_sheet.dart';
 
 String _formatAddressLine(BusinessAddressData d) {
   final parts = <String>[
@@ -20,7 +19,7 @@ String _formatAddressLine(BusinessAddressData d) {
   return parts.isEmpty ? 'Selected location' : parts.join(', ');
 }
 
-/// Street line with debounced suggestions and a search action (opens [AddressLookupSheet]).
+/// Street line with debounced address suggestions (no separate search control).
 class StreetAddressField extends StatefulWidget {
   const StreetAddressField({
     super.key,
@@ -71,18 +70,6 @@ class _StreetAddressFieldState extends State<StreetAddressField> {
     _debounce = Timer(const Duration(milliseconds: 450), () {
       _runLookup(widget.controller.text);
     });
-  }
-
-  Future<void> _openSearchSheet() async {
-    final initial = widget.controller.text.trim().isNotEmpty
-        ? widget.controller.text.trim()
-        : '';
-    final data = await AddressLookupSheet.show(
-      context,
-      initialQuery: initial,
-    );
-    if (!mounted || data == null) return;
-    _applyPick(data);
   }
 
   void _applyPick(BusinessAddressData data) {
@@ -136,11 +123,7 @@ class _StreetAddressFieldState extends State<StreetAddressField> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
-          : IconButton(
-              tooltip: 'Search address',
-              icon: const Icon(Icons.search, color: AppColors.brandPrimary),
-              onPressed: _openSearchSheet,
-            ),
+          : null,
     );
   }
 

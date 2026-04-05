@@ -1,6 +1,8 @@
 /// Shared helpers for mapping Supabase row data to app types.
 library;
 
+import 'dart:convert';
+
 /// Parses optional ISO8601 timestamp from [value].
 DateTime? parseTimestamp(dynamic value) {
   if (value == null) return null;
@@ -55,14 +57,33 @@ bool parseBool(dynamic value) {
   return false;
 }
 
-/// Returns list of strings from Postgres TEXT[] or JSON array.
+/// Returns list of strings from Postgres TEXT[], JSON array, or a JSON array string.
 List<String> parseStringList(dynamic value) {
   if (value == null) return const [];
   if (value is List) {
     return value
         .map((e) => parseString(e))
         .whereType<String>()
+        .where((s) => s.isNotEmpty)
         .toList();
+  }
+  if (value is String) {
+    final s = value.trim();
+    if (s.isEmpty) return const [];
+    if (s.startsWith('[')) {
+      try {
+        final decoded = jsonDecode(s);
+        if (decoded is List) {
+          return decoded
+              .map((e) => parseString(e))
+              .whereType<String>()
+              .where((x) => x.isNotEmpty)
+              .toList();
+        }
+      } catch (_) {
+        return const [];
+      }
+    }
   }
   return const [];
 }

@@ -9,6 +9,8 @@ enum ListingStatusType {
 class ListingStatusEntity extends Equatable {
   final String businessId;
   final String businessName;
+  /// City chosen during registration (shown on status copy and card).
+  final String? cityName;
   final String? locationText;
   final String imageUrl;
   final ListingStatusType status;
@@ -17,6 +19,7 @@ class ListingStatusEntity extends Equatable {
   const ListingStatusEntity({
     required this.businessId,
     required this.businessName,
+    this.cityName,
     this.locationText,
     required this.imageUrl,
     required this.status,
@@ -27,5 +30,6 @@ class ListingStatusEntity extends Equatable {
   bool get isPending => status == ListingStatusType.pending;
 
   @override
-  List<Object?> get props => [businessId, businessName, locationText, imageUrl, status, isNewBusiness];
+  List<Object?> get props =>
+      [businessId, businessName, cityName, locationText, imageUrl, status, isNewBusiness];
 }

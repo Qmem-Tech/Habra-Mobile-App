@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../domain/entities/listing_status_entity.dart';
 
-/// Listing Status: shows Verification Pending or Live and Verified with business card.
+/// Listing Status: pending (review) or live + verified with business card.
 class ListingStatusPage extends StatelessWidget {
   const ListingStatusPage({
     super.key,
     this.isVerified = false,
     this.businessId = '',
     this.businessName,
+    this.cityName,
     this.imageUrl = '',
     this.locationText,
   });
@@ -20,18 +23,51 @@ class ListingStatusPage extends StatelessWidget {
   final bool isVerified;
   final String businessId;
   final String? businessName;
+  /// City from registration (preferred for copy and card).
+  final String? cityName;
   final String imageUrl;
+  /// Full address line when available (e.g. street + city).
   final String? locationText;
 
   ListingStatusEntity _listingEntity(BuildContext context) {
     return ListingStatusEntity(
       businessId: businessId,
       businessName: businessName ?? 'Your business',
+      cityName: cityName,
       locationText: locationText,
       imageUrl: imageUrl,
       status: isVerified ? ListingStatusType.verified : ListingStatusType.pending,
       isNewBusiness: businessId.isNotEmpty,
     );
+  }
+
+  String _primaryLocationLine(ListingStatusEntity entity) {
+    final c = entity.cityName?.trim();
+    if (c != null && c.isNotEmpty && c.toLowerCase() != 'unknown') {
+      return c;
+    }
+    final loc = entity.locationText?.trim();
+    if (loc != null && loc.isNotEmpty) {
+      final parts = loc.split(',');
+      if (parts.length >= 2) {
+        final last = parts.last.trim();
+        if (last.isNotEmpty) return last;
+      }
+      return loc;
+    }
+    return 'Location not set';
+  }
+
+  String _pendingBodyCopy(ListingStatusEntity entity) {
+    final name = entity.businessName;
+    final city = entity.cityName?.trim();
+    final hasCity =
+        city != null && city.isNotEmpty && city.toLowerCase() != 'unknown';
+    if (hasCity) {
+      return '$name in $city is currently under review and not yet visible '
+          'to the community.';
+    }
+    return '$name is currently under review and not yet visible to the community.';
   }
 
   @override
@@ -58,119 +94,170 @@ class ListingStatusPage extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingL),
-          child: Column(
-            children: [
-              const SizedBox(height: 24),
-              if (isVerified) ...[
-                Image.asset(
-                  AppAssets.businessOwnerVerifiedBadge,
-                  width: 80,
-                  height: 80,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: AppColors.brandSecondary.withValues(alpha: 0.3),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      size: 56,
-                      color: AppColors.brandSecondary,
-                    ),
-                  ),
+        child: isVerified
+            ? _buildVerifiedBody(context, entity)
+            : _buildPendingBody(context, entity),
+      ),
+      bottomNavigationBar: isVerified
+          ? null
+          : SafeArea(
+              minimum: const EdgeInsets.fromLTRB(
+                AppResources.spacingL,
+                8,
+                AppResources.spacingL,
+                AppResources.spacingM,
+              ),
+              child: AppButton(
+                text: 'Go To Homepage',
+                onPressed: () =>
+                    BusinessOwnerNavigationWrapper.popCurrentRouteAndOpenHome(
+                  context,
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Your listing is live and verified',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Visible to everyone in the community',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ] else ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.brandSecondary.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.schedule, size: 20, color: AppColors.textSecondary),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Verification Pending',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 28),
-              _buildBusinessCard(entity),
-              if (!isVerified) ...[
-                const SizedBox(height: 28),
-                const Text(
-                  'Listing is visible, but...',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Your listing is currently live but unverified. Verify your business to gain trust and unlock premium features like analytics and promoted posts.',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: AppColors.textSecondary,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    'Need help? Contact Support',
+              ),
+            ),
+    );
+  }
+
+  Widget _buildPendingBody(BuildContext context, ListingStatusEntity entity) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingL),
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          SvgPicture.asset(
+            AppAssets.pendingStatusSvg,
+            width: 150,
+            height: 158,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(height: 28),
+          const Text(
+            'Your Business Is Pending!',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _pendingBodyCopy(entity),
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.45,
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          _buildBusinessCard(entity),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVerifiedBody(BuildContext context, ListingStatusEntity entity) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingL),
+      child: Column(
+        children: [
+          const SizedBox(height: 24),
+          Image.asset(
+            AppAssets.businessOwnerVerifiedBadge,
+            width: 80,
+            height: 80,
+            errorBuilder: (_, __, ___) => Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.brandSecondary.withValues(alpha: 0.3),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle,
+                size: 56,
+                color: AppColors.brandSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Your listing is live and verified',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Visible to everyone in the community',
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.success,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 28),
+          _buildBusinessCard(entity),
+          const SizedBox(height: 32),
+          AppButton(
+            text: 'Preview Listing',
+            onPressed: () => Navigator.pop(context),
+          ),
+          const SizedBox(height: 48),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLocationBlock(ListingStatusEntity entity) {
+    final primary = _primaryLocationLine(entity);
+    final extra = entity.locationText?.trim();
+    final showExtra = extra != null &&
+        extra.isNotEmpty &&
+        extra.toLowerCase() != primary.toLowerCase();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.location_on, size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    primary,
                     style: TextStyle(
                       fontSize: 15,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                ),
-              ],
-              if (isVerified) ...[
-                const SizedBox(height: 32),
-                AppButton(
-                  text: 'Preview Listing',
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-              const SizedBox(height: 48),
-            ],
-          ),
+                  if (showExtra) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      extra,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.35,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
-      ),
+      ],
     );
   }
 
@@ -205,6 +292,7 @@ class ListingStatusPage extends StatelessWidget {
               ),
             ),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -218,23 +306,12 @@ class ListingStatusPage extends StatelessWidget {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(Icons.location_on, size: 16, color: AppColors.textSecondary),
-                        const SizedBox(width: 4),
-                        Text(
-                          entity.locationText ?? '',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
+                    const SizedBox(height: 10),
+                    _buildLocationBlock(entity),
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppResources.radiusM),
                 child: Image.network(

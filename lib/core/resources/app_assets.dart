@@ -66,6 +66,7 @@ class AppAssets {
   static const String dashboardNoReviews = _homeNoResults;
   static const String dashboardBoostRocket = _homeNoResults;
   static const String rocketLaunchSvg = '$_illustrationPath/rocket_launch.svg';
+  static const String pendingStatusSvg = '$_illustrationPath/pending_status.svg';
 
   // ==================== Community ====================
   static const String savedItemsEmpty = _homeNoResults;
@@ -92,6 +93,7 @@ class AppAssets {
       _homeNotificationEmpty,
       _illustrationMailbox,
       rocketLaunchSvg,
+      pendingStatusSvg,
     ];
   }
 }
