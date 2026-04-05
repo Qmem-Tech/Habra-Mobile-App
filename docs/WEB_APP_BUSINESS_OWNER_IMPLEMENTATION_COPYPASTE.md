@@ -292,7 +292,7 @@ const { data } = await supabase
   .from('boost_plans')
   .select('*')
   .eq('is_active', true)
-  .order('price_cents', { ascending: true });
+  .order('price_usd', { ascending: true });
 
 // My boosts
 const { data } = await supabase

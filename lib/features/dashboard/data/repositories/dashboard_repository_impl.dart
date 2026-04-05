@@ -51,7 +51,8 @@ class DashboardRepositoryImpl implements DashboardRepository {
       _remote.getApplicantDetail(applicantId, jobId);
 
   @override
-  Future<List<BoostPlan>> getBoostPlans() => _remote.getBoostPlans();
+  Future<List<BoostPlan>> getBoostPlans(String targetType) =>
+      _remote.getBoostPlans(targetType);
 
   @override
   Future<DashboardDeal> createDeal(String businessId, Map<String, dynamic> data) =>

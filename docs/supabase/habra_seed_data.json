@@ -10,10 +10,15 @@
     { "name": "Arts & Culture", "slug": "arts-culture" }
   ],
   "boost_plans": [
-    { "title": "Starter", "description": "Get your listing in front of more people for 1 week.", "price_cents": 999, "duration_weeks": 1, "is_active": true },
-    { "title": "Growth", "description": "2 weeks of boosted visibility. Best for new promotions.", "price_cents": 1999, "duration_weeks": 2, "is_active": true },
-    { "title": "Pro", "description": "1 month of prime placement. Save 20% vs weekly.", "price_cents": 6999, "duration_weeks": 4, "is_active": true },
-    { "title": "Scale", "description": "3 months. Maximum reach for serious growth.", "price_cents": 14999, "duration_weeks": 12, "is_active": true }
+    { "title": "Starter", "description": "Get your business profile in front of more people for 1 week.", "price_usd": 9.99, "duration_weeks": 1, "is_active": true, "target_type": "business_listing" },
+    { "title": "Growth", "description": "2 weeks of boosted visibility for your listing.", "price_usd": 19.99, "duration_weeks": 2, "is_active": true, "target_type": "business_listing" },
+    { "title": "Pro", "description": "1 month of prime placement for your business profile.", "price_usd": 69.99, "duration_weeks": 4, "is_active": true, "target_type": "business_listing" },
+    { "title": "Starter", "description": "Promote your deal to more customers — 1 week.", "price_usd": 8.99, "duration_weeks": 1, "is_active": true, "target_type": "deal" },
+    { "title": "Growth", "description": "2 weeks of boosted reach for your deal.", "price_usd": 17.99, "duration_weeks": 2, "is_active": true, "target_type": "deal" },
+    { "title": "Pro", "description": "1 month of prime placement for your deal.", "price_usd": 64.99, "duration_weeks": 4, "is_active": true, "target_type": "deal" },
+    { "title": "Starter", "description": "Reach more applicants — 1 week boost.", "price_usd": 10.99, "duration_weeks": 1, "is_active": true, "target_type": "job" },
+    { "title": "Growth", "description": "2 weeks of visibility for your job post.", "price_usd": 21.99, "duration_weeks": 2, "is_active": true, "target_type": "job" },
+    { "title": "Pro", "description": "1 month of prime placement for hiring.", "price_usd": 69.99, "duration_weeks": 4, "is_active": true, "target_type": "job" }
   ],
   "app_settings": [
     { "key": "maintenance_mode", "value": false },

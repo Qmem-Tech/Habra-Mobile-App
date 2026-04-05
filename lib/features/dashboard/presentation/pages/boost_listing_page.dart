@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/constants/boost_plan_target.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/resources/app_assets.dart';
@@ -36,10 +37,13 @@ class BoostListingPage extends StatefulWidget {
 }
 
 class _BoostListingPageState extends State<BoostListingPage> {
+  String get _planTarget =>
+      widget.boostType ?? BoostPlanTarget.businessListing;
+
   @override
   void initState() {
     super.initState();
-    context.read<DashboardCubit>().loadBoostPlans();
+    context.read<DashboardCubit>().loadBoostPlans(targetType: _planTarget);
   }
 
   Future<void> _boostNow(String price) async {
@@ -123,7 +127,7 @@ class _BoostListingPageState extends State<BoostListingPage> {
                         FilledButton(
                           onPressed: () => context
                               .read<DashboardCubit>()
-                              .loadBoostPlans(),
+                              .loadBoostPlans(targetType: _planTarget),
                           child: const Text('Retry'),
                         ),
                       ],

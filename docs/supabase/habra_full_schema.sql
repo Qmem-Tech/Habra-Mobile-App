@@ -20,6 +20,7 @@ CREATE TYPE ticket_status AS ENUM ('valid', 'used', 'cancelled');
 CREATE TYPE deal_status AS ENUM ('draft', 'active', 'expired', 'inactive');
 CREATE TYPE job_application_status AS ENUM ('pending', 'reviewed', 'shortlisted', 'rejected', 'hired');
 CREATE TYPE boost_status AS ENUM ('active', 'paused', 'completed', 'cancelled');
+CREATE TYPE boost_plan_target AS ENUM ('business_listing', 'deal', 'job');
 CREATE TYPE business_approval_status AS ENUM ('pending', 'approved', 'rejected');
 
 -- -----------------------------------------------------------------------------
@@ -261,9 +262,10 @@ CREATE TABLE public.boost_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   description TEXT,
-  price_cents INT NOT NULL,
+  price_usd NUMERIC(10, 2) NOT NULL,
   duration_weeks INT NOT NULL,
   is_active BOOLEAN DEFAULT true,
+  target_type boost_plan_target NOT NULL DEFAULT 'business_listing',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -273,6 +275,7 @@ CREATE TABLE public.boosts (
   boost_plan_id UUID NOT NULL REFERENCES public.boost_plans(id) ON DELETE CASCADE,
   deal_id UUID REFERENCES public.deals(id) ON DELETE SET NULL,
   job_id UUID REFERENCES public.jobs(id) ON DELETE SET NULL,
+  target_type boost_plan_target NOT NULL DEFAULT 'business_listing',
   status boost_status NOT NULL DEFAULT 'active',
   starts_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   ends_at TIMESTAMPTZ NOT NULL,
@@ -313,6 +316,7 @@ CREATE INDEX idx_job_applications_job ON public.job_applications(job_id);
 CREATE INDEX idx_saved_items_user_created ON public.saved_items(user_id, created_at DESC);
 CREATE INDEX idx_audit_log_created_at ON public.audit_log(created_at DESC);
 CREATE INDEX idx_audit_log_actor ON public.audit_log(actor_id);
+CREATE INDEX idx_boost_plans_target_active ON public.boost_plans (target_type) WHERE is_active = true;
 
 -- Optional: full-text search on businesses
 ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS search_vector tsvector

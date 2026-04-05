@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/constants/boost_plan_target.dart';
 import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
@@ -210,16 +211,26 @@ class BoostsSupabaseDataSource implements BoostsRemoteDataSource {
       final durationDays = durationWeeks * 7;
       final startsAt = DateTime.now();
       final endsAt = startsAt.add(Duration(days: durationDays));
+      final targetType = optionType == BoostPlanTarget.deal
+          ? BoostPlanTarget.deal
+          : optionType == BoostPlanTarget.job
+              ? BoostPlanTarget.job
+              : BoostPlanTarget.businessListing;
       final payload = <String, dynamic>{
         'business_id': businessId,
         'boost_plan_id': planId,
+        'target_type': targetType,
         'starts_at': startsAt.toIso8601String(),
         'ends_at': endsAt.toIso8601String(),
         'status': 'active',
         'auto_renew': autoRenew,
       };
-      if (optionType == 'deal') payload['deal_id'] = selectedId;
-      if (optionType == 'job') payload['job_id'] = selectedId;
+      if (optionType == BoostPlanTarget.deal) {
+        payload['deal_id'] = selectedId;
+      }
+      if (optionType == BoostPlanTarget.job) {
+        payload['job_id'] = selectedId;
+      }
       await _client.from(SupabaseTables.boosts).insert(payload);
     });
   }

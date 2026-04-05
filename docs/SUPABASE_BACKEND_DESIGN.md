@@ -125,7 +125,7 @@ This document provides a **project-level analysis**, **detailed step-by-step gui
 | 7 | **Dashboard – Jobs** | List/create/edit job posts → `jobs` (where `business_id` in own businesses). |
 | 8 | **Dashboard – Reviews** | List reviews for business; reply → `reviews`; optional `review_replies`. |
 | 9 | **Dashboard – Applicants** | List applications for own jobs → `job_applications`; view detail → `applicant_detail` (or same table + user profile). |
-| 10 | **Boosts** | List boost plans → `boost_plans`. Create boost for deal/job → `boosts` (references deal or job, business, plan, duration, status). Optional: payments via Edge Function. |
+| 10 | **Boosts** | List boost plans for a **target** (`boost_plans.target_type`: business listing, deal, or job) → `boost_plans`. Create boost → `boosts` (plan, `target_type`, optional `deal_id` / `job_id`, duration, status). Optional: payments via Edge Function. |
 | 11 | **Messages / Profile** | Placeholder today; later: `conversations`, `messages`; profile from `profiles`. |
 
 **Note:** The same backend and RLS apply whether the business owner uses the **mobile app** or the **business owner web app**; both use Supabase Auth and the same `profiles` / `businesses` data.
@@ -143,7 +143,7 @@ Super admins sign in to the **super admin web app** only (no admin entry in the 
 | 3 | **User management** | List/filter `profiles` (role, email, created_at). View detail; update role, suspend (e.g. `is_suspended` on profile), or delete. |
 | 4 | **Business management & approval** | List/filter `businesses` (including `approval_status = 'pending'`). View detail; **approve** (`approval_status = 'approved'`, set `reviewed_at`, `reviewed_by`) or **reject** (`approval_status = 'rejected'`, optional `rejection_reason`, `reviewed_at`, `reviewed_by`). Optionally verify (`is_verified`), feature (`is_featured`), deactivate (`is_active`). Only approved businesses appear in community-facing listing. |
 | 5 | **Content moderation** | List `deals`, `events`, `jobs`, `reviews`; hide/remove or flag; update status. |
-| 6 | **Boost plans** | CRUD on `boost_plans` (admin-only table or admin-only RLS). List `boosts` across all businesses. |
+| 6 | **Boost plans** | CRUD on `boost_plans` including **`target_type`** (`business_listing` \| `deal` \| `job`). List `boosts` across all businesses. |
 | 7 | **Reports / analytics** | Read-only aggregates (e.g. sign-ups over time, redemptions, ticket sales). Optional: materialized views or Edge Function for heavy reports. |
 | 8 | **Audit log** | List `audit_log` (admin actions and sensitive changes) for compliance and debugging. |
 
@@ -290,6 +290,7 @@ CREATE TYPE ticket_status AS ENUM ('valid', 'used', 'cancelled');
 CREATE TYPE deal_status AS ENUM ('draft', 'active', 'expired', 'inactive');
 CREATE TYPE job_application_status AS ENUM ('pending', 'reviewed', 'shortlisted', 'rejected', 'hired');
 CREATE TYPE boost_status AS ENUM ('active', 'paused', 'completed', 'cancelled');
+CREATE TYPE boost_plan_target AS ENUM ('business_listing', 'deal', 'job');
 CREATE TYPE business_approval_status AS ENUM ('pending', 'approved', 'rejected');
 ```
 
@@ -519,14 +520,15 @@ CREATE TABLE public.notifications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Boost plans (reference data)
+-- Boost plans (reference data). target_type scopes plans to business listing vs deal vs job boosts.
 CREATE TABLE public.boost_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   description TEXT,
-  price_cents INT NOT NULL,
+  price_usd NUMERIC(10, 2) NOT NULL,
   duration_weeks INT NOT NULL,
   is_active BOOLEAN DEFAULT true,
+  target_type boost_plan_target NOT NULL DEFAULT 'business_listing',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -537,6 +539,7 @@ CREATE TABLE public.boosts (
   boost_plan_id UUID NOT NULL REFERENCES public.boost_plans(id) ON DELETE CASCADE,
   deal_id UUID REFERENCES public.deals(id) ON DELETE SET NULL,
   job_id UUID REFERENCES public.jobs(id) ON DELETE SET NULL,
+  target_type boost_plan_target NOT NULL DEFAULT 'business_listing',
   status boost_status NOT NULL DEFAULT 'active',
   starts_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   ends_at TIMESTAMPTZ NOT NULL,

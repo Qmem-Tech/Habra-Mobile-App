@@ -236,8 +236,8 @@ Use design tokens for status badges (active = primary, inactive = grey, etc.).
 ### 7.5 Boost Plans
 
 - **List**: `supabase.from('boost_plans').select('*').order('created_at', { ascending: false })`.
-- **Create**: `supabase.from('boost_plans').insert({ title, description, price_cents, duration_weeks, is_active: true })`.
-- **Edit**: `supabase.from('boost_plans').update({ title, description, price_cents, duration_weeks, is_active }).eq('id', id)`.
+- **Create**: `supabase.from('boost_plans').insert({ title, description, price_usd, duration_weeks, is_active: true, target_type })` — `price_usd` is a **dollar amount** (number, e.g. `9.99`), not cents.
+- **Edit**: `supabase.from('boost_plans').update({ title, description, price_usd, duration_weeks, is_active, target_type }).eq('id', id)`.
 - **Delete**: `supabase.from('boost_plans').delete().eq('id', id)` (if you want hard delete; otherwise set `is_active: false`).
 
 ### 7.6 Boosts (All Businesses)

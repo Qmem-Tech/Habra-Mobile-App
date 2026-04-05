@@ -36,11 +36,11 @@ This document summarizes all changes made in **Habra Business Update Two** and p
 
 | Item | Description |
 |------|-------------|
-| **Fix** | Boost plans now load from `boost_plans` (price_cents, duration_weeks) |
+| **Fix** | Boost plans now load from `boost_plans` (`price_usd` in dollars, `duration_weeks`) |
 | **Fix** | Submit boost order persists to `boosts` table |
 | **Schema** | `boosts.auto_renew` (BOOLEAN, default false) |
 
-**Web app migration:** Ensure boost plans are fetched from `boost_plans` (not hardcoded). Use `price_cents` and `duration_weeks`. Submit boost orders to `boosts` table. Support `auto_renew` if your UI exposes it.
+**Web app migration:** Ensure boost plans are fetched from `boost_plans` (not hardcoded). Use **`price_usd`** (dollar amount, e.g. `9.99`) and `duration_weeks`. Submit boost orders to `boosts` table. Support `auto_renew` if your UI exposes it.
 
 ---
 
@@ -130,7 +130,7 @@ This document summarizes all changes made in **Habra Business Update Two** and p
 | 1 | **Create Event** page: form + image upload + ticket types → `events`, `event_tickets` | High |
 | 2 | **Create Deal** page: add image upload → `deals` bucket, pass `image_url` | High |
 | 3 | **Create Deal** page: ensure `valid_from`, `valid_until` are set (default if empty) | High |
-| 4 | **Boost plans**: fetch from `boost_plans`; use `price_cents`, `duration_weeks` | High |
+| 4 | **Boost plans**: fetch from `boost_plans`; use `price_usd`, `duration_weeks` | High |
 | 5 | **Boost submit**: persist to `boosts` table; support `auto_renew` if UI has it | High |
 | 6 | Add "Create Event" to navigation / dashboard | Medium |
 
@@ -139,7 +139,7 @@ This document summarizes all changes made in **Habra Business Update Two** and p
 | # | Task | Priority |
 |---|------|----------|
 | 1 | (Optional) View/manage `ticket_listings` for moderation | Low |
-| 2 | (Optional) Manage `boost_plans` — ensure `duration_weeks` and `price_cents` are used | Medium |
+| 2 | (Optional) Manage `boost_plans` — ensure `duration_weeks` and `price_usd` are used | Medium |
 
 ### Community Web App (if exists)
 
@@ -159,7 +159,7 @@ This document summarizes all changes made in **Habra Business Update Two** and p
 | id | UUID | PK |
 | title | TEXT | |
 | description | TEXT | |
-| price_cents | INT | Use this, not `price` |
+| price_usd | NUMERIC(10,2) | Dollar amount (e.g. 9.99), not cents |
 | duration_weeks | INT | Use this, not `duration_days` |
 | is_active | BOOLEAN | |
 

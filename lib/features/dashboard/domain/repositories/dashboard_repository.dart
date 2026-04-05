@@ -20,7 +20,7 @@ abstract class DashboardRepository {
   Future<List<BusinessReview>> getReviews(String businessId);
   Future<List<JobApplicant>> getApplicants(String jobId, {ApplicantStatus? status});
   Future<ApplicantDetail?> getApplicantDetail(String applicantId, String jobId);
-  Future<List<BoostPlan>> getBoostPlans();
+  Future<List<BoostPlan>> getBoostPlans(String targetType);
   Future<DashboardDeal> createDeal(String businessId, Map<String, dynamic> data);
   Future<DashboardJob> createJob(String businessId, Map<String, dynamic> data);
   Future<void> replyToReview(String reviewId, String replyText);

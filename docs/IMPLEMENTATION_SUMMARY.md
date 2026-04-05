@@ -22,7 +22,7 @@ This document summarizes the features implemented in this session.
 
 **Status:** Fixed and integrated
 
-- **Boost plans** loaded from Supabase `boost_plans` (price_cents, duration_weeks)
+- **Boost plans** loaded from Supabase `boost_plans` (`price_usd` in dollars, duration_weeks)
 - **Submit boost order** persists to `boosts` table
 - **Duration** uses `duration_weeks` (schema-aligned)
 - **Migration:** `add_boosts_auto_renew.sql` for `auto_renew` column
@@ -95,6 +95,8 @@ This document summarizes the features implemented in this session.
    ```
    Or run manually:
    - `docs/supabase/migrations/add_boosts_auto_renew.sql`
+   - `docs/supabase/migrations/add_boost_plan_target_type.sql`
+   - `docs/supabase/migrations/migrate_boost_plans_price_cents_to_price_usd.sql`
    - `docs/supabase/migrations/add_ticket_listings.sql`
 
 3. **Create storage buckets** in Supabase Dashboard (if missing):
@@ -143,7 +145,7 @@ This document summarizes the features implemented in this session.
 - `lib/features/events/domain/repositories/events_repository.dart` – `createEvent`
 - `lib/features/events/data/repositories/events_repository_impl.dart` – `createEvent`
 - `lib/features/boosts/data/datasources/boosts_supabase_datasource.dart` – `duration_weeks`
-- `lib/features/dashboard/data/datasources/dashboard_supabase_datasource.dart` – `getBoostPlans` (price_cents, duration_weeks)
+- `lib/features/dashboard/data/datasources/dashboard_supabase_datasource.dart` – `getBoostPlans` (price_usd, duration_weeks)
 - `lib/features/dashboard/presentation/pages/create_deal_page.dart` – image upload, valid dates
 - `lib/features/explore/presentation/pages/write_review_page.dart` – photo upload
 - `lib/features/events/presentation/pages/checkout_page.dart` – payment label

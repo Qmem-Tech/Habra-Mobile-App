@@ -47,6 +47,7 @@ DROP FUNCTION IF EXISTS public.is_admin() CASCADE;
 
 -- 4. Drop enums (order does not matter; no enum references another)
 DROP TYPE IF EXISTS public.business_approval_status CASCADE;
+DROP TYPE IF EXISTS public.boost_plan_target CASCADE;
 DROP TYPE IF EXISTS public.boost_status CASCADE;
 DROP TYPE IF EXISTS public.job_application_status CASCADE;
 DROP TYPE IF EXISTS public.deal_status CASCADE;

@@ -523,23 +523,23 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   // Boost plans
   // ---------------------------------------------------------------------------
   @override
-  Future<List<BoostPlan>> getBoostPlans() async {
+  Future<List<BoostPlan>> getBoostPlans(String targetType) async {
     return SupabaseFailureMapper.guard(() async {
       final res = await _client
           .from(SupabaseTables.boostPlans)
           .select('*')
           .eq('is_active', true)
-          .order('price_cents', ascending: true);
+          .eq('target_type', targetType)
+          .order('price_usd', ascending: true);
       final rows = (res as List).cast<Map<String, dynamic>>();
       return rows.map((row) {
-        final priceCents = parseInt(row['price_cents']) ?? 0;
-        final price = priceCents / 100.0;
+        final priceUsd = parseDouble(row['price_usd']) ?? 0.0;
         final durationWeeks = parseInt(row['duration_weeks']) ?? 1;
         return BoostPlan(
           id: parseStringRequired(row['id']),
           title: parseStringRequired(row['title']),
           description: parseString(row['description']) ?? '',
-          priceFormatted: '\$${price.toStringAsFixed(2)}',
+          priceFormatted: '\$${priceUsd.toStringAsFixed(2)}',
           durationWeeks: durationWeeks,
         );
       }).toList();

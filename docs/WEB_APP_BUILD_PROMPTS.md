@@ -99,7 +99,7 @@ Copy everything below the line into the **root of your admin web app project** (
    - **Jobs:** List `jobs` with business name; update `is_active` or equivalent to hide.  
    - **Reviews:** List `reviews` with business and user; admin can update/delete per RLS.
 
-5. **Boost plans:** List: `supabase.from('boost_plans').select('*')`. Create: `insert({ title, description, price_cents, duration_weeks, is_active: true })`. Edit: `update({ ... }).eq('id', id)`. Delete or set `is_active: false`.
+5. **Boost plans:** List: `supabase.from('boost_plans').select('*')`. Create: `insert({ title, description, price_usd, duration_weeks, is_active: true, target_type })` (`price_usd` in dollars, e.g. `9.99`). Edit: `update({ ... }).eq('id', id)`. Delete or set `is_active: false`.
 
 6. **Boosts:** List: `supabase.from('boosts').select('*, businesses(name), boost_plans(title), deals(title), jobs(title)').order('starts_at', { ascending: false })`. Read-only for this page.
 

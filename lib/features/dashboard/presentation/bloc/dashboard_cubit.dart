@@ -95,10 +95,13 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
-  Future<void> loadBoostPlans({int selectedIndex = 1}) async {
+  Future<void> loadBoostPlans({
+    required String targetType,
+    int selectedIndex = 1,
+  }) async {
     emit(BoostPlansLoading());
     try {
-      final plans = await _repository.getBoostPlans();
+      final plans = await _repository.getBoostPlans(targetType);
       emit(BoostPlansLoaded(plans, selectedIndex: selectedIndex));
     } catch (e) {
       emit(DashboardError(e.toString()));
