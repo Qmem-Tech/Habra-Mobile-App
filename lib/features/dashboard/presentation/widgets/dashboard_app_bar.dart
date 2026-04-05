@@ -40,15 +40,22 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: GestureDetector(
         onTap: onBusinessTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: AppColors.brandPrimary.withValues(alpha: 0.15),
+            color: AppColors.brandPrimary,
             borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brandPrimary.withValues(alpha: 0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.storefront, size: 18, color: AppColors.brandPrimary),
+              const Icon(Icons.storefront, size: 18, color: AppColors.textOnPrimary),
               const SizedBox(width: 6),
               Flexible(
                 child: Text(
@@ -56,12 +63,12 @@ class DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.brandPrimary,
+                    color: AppColors.textOnPrimary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(Icons.arrow_drop_down, size: 20, color: AppColors.brandPrimary),
+              const Icon(Icons.arrow_drop_down, size: 20, color: AppColors.textOnPrimary),
             ],
           ),
         ),

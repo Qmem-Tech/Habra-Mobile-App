@@ -15,7 +15,6 @@ import '../bloc/dashboard_cubit.dart';
 import '../bloc/dashboard_state.dart';
 import '../widgets/dashboard_app_bar.dart';
 import '../widgets/dashboard_tab_bar.dart';
-import '../widgets/dashboard_summary_header.dart';
 import 'dashboard_analytics_tab.dart';
 import 'dashboard_deals_tab.dart';
 import 'dashboard_jobs_tab.dart';
@@ -97,6 +96,7 @@ class _DashboardPageState extends State<DashboardPage> {
         }
       },
       child: Scaffold(
+        backgroundColor: AppColors.backgroundLight,
         key: _scaffoldKey,
         drawer: BlocBuilder<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
           builder: (context, state) {
@@ -255,23 +255,6 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         body: Column(
           children: [
-            BlocBuilder<DashboardCubit, DashboardState>(
-              buildWhen: (_, current) => current is DashboardTabState,
-              builder: (context, state) {
-                if (state is DashboardTabState) {
-                  return DashboardSummaryHeader(
-                    activeDealsCount: state.activeDealsCount,
-                    activeJobsCount: state.activeJobsCount,
-                    rating: state.analytics?.rating,
-                    reviewCount: state.analytics?.reviewCount,
-                    onDealsTap: () => setState(() => _tabIndex = 1),
-                    onJobsTap: () => setState(() => _tabIndex = 2),
-                    onReviewsTap: () => setState(() => _tabIndex = 3),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
             DashboardTabBar(
               currentIndex: _tabIndex,
               onTap: (index) {
