@@ -209,7 +209,9 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
                                       ? null
                                       : () => context
                                           .read<AuthCubit>()
-                                          .signInWithGoogle(),
+                                          .signInWithGoogle(
+                                            forceAccountPicker: true,
+                                          ),
                                 ),
                                 if (showApple)
                                   const SizedBox(height: AppResources.spacingM),
