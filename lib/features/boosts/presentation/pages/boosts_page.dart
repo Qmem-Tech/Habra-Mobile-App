@@ -15,6 +15,7 @@ import '../../../home/presentation/bloc/business_owner_subscription_cubit.dart';
 import '../../../home/presentation/pages/my_businesses_page.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
 import '../../../home/presentation/widgets/business_owner_drawer.dart';
+import '../../../explore/presentation/pages/business_detail_page.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../dashboard/presentation/pages/edit_business_page.dart';
@@ -138,6 +139,22 @@ class _BoostsPageState extends State<BoostsPage> {
                     ),
                   );
                 },
+                onViewPublicListingTap: selected != null && selected.id != 'all'
+                    ? () {
+                        final id = selected.id;
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          final nav = _scaffoldKey.currentContext;
+                          if (nav == null || !nav.mounted) return;
+                          Navigator.push<void>(
+                            nav,
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  BusinessDetailPage(businessId: id),
+                            ),
+                          );
+                        });
+                      }
+                    : null,
                 onBusinessPhotosTap: () async {
                   if (state is! BusinessOwnerHomeLoaded) return;
                   final loadedState = state;

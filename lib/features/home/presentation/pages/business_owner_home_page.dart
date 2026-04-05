@@ -38,6 +38,7 @@ import '../../../dashboard/presentation/widgets/business_images_upload_dialog.da
 import '../../../dashboard/presentation/widgets/choose_business_for_images_dialog.dart';
 import '../../../dashboard/presentation/widgets/choose_business_for_legal_docs_dialog.dart';
 import '../../../dashboard/presentation/widgets/legal_documents_upload_dialog.dart';
+import '../../../explore/presentation/pages/business_detail_page.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import 'business_owner_notification_page.dart';
 import 'add_new_presence_page.dart';
@@ -456,6 +457,23 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 ),
               );
             },
+            onViewPublicListingTap:
+                selectedPresence != null && selectedPresence.id != 'all'
+                    ? () {
+                        final id = selectedPresence.id;
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          final nav = _scaffoldKey.currentContext;
+                          if (nav == null || !nav.mounted) return;
+                          Navigator.push<void>(
+                            nav,
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  BusinessDetailPage(businessId: id),
+                            ),
+                          );
+                        });
+                      }
+                    : null,
             onBusinessPhotosTap: () async {
               if (state is! BusinessOwnerHomeLoaded) return;
               final loadedState = state;

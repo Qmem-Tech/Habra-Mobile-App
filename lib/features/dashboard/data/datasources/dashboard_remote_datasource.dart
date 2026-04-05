@@ -54,6 +54,10 @@ abstract class DashboardRemoteDataSource {
     LegalDocumentUploadResult upload, {
     String? fileName,
   });
+  Future<void> copyLegalDocumentsFromBusiness(
+    String fromBusinessId,
+    String toBusinessId,
+  );
   Future<void> deleteLegalDocument(String documentId);
   Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId);
 

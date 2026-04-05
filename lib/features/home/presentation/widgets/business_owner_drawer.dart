@@ -15,6 +15,8 @@ class BusinessOwnerDrawer extends StatelessWidget {
   final VoidCallback? onDashboardTap;
   final VoidCallback? onMessagesTap;
   final VoidCallback? onEditBusinessTap;
+  /// Opens the public business detail screen (Explore listing) for the selection.
+  final VoidCallback? onViewPublicListingTap;
   final VoidCallback? onBusinessPhotosTap;
   final VoidCallback? onUpdateHoursTap;
   final VoidCallback? onBoostListingTap;
@@ -36,6 +38,7 @@ class BusinessOwnerDrawer extends StatelessWidget {
     this.onDashboardTap,
     this.onMessagesTap,
     this.onEditBusinessTap,
+    this.onViewPublicListingTap,
     this.onBusinessPhotosTap,
     this.onUpdateHoursTap,
     this.onBoostListingTap,
@@ -226,6 +229,16 @@ class BusinessOwnerDrawer extends StatelessWidget {
             onEditBusinessTap?.call();
           },
         ),
+        if (selectedBusiness != null && onViewPublicListingTap != null)
+          _DrawerMenuItemData(
+            icon: Icons.storefront_outlined,
+            activeIcon: Icons.storefront,
+            title: 'View public listing',
+            onTap: () {
+              Navigator.pop(context);
+              onViewPublicListingTap?.call();
+            },
+          ),
         _DrawerMenuItemData(
           icon: Icons.photo_library_outlined,
           activeIcon: Icons.photo_library,

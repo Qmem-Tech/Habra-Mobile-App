@@ -51,6 +51,11 @@ abstract class DashboardRepository {
     LegalDocumentUploadResult upload, {
     String? fileName,
   });
+  /// Copies legal document rows from [fromBusinessId] to [toBusinessId] (branch inherits parent files + status).
+  Future<void> copyLegalDocumentsFromBusiness(
+    String fromBusinessId,
+    String toBusinessId,
+  );
   Future<void> deleteLegalDocument(String documentId);
   Future<List<String>> getBusinessIdsNeedingLegalDocs(String ownerId);
 

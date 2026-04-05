@@ -10,6 +10,7 @@ import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
 import '../../../home/presentation/pages/my_businesses_page.dart';
 import '../../../home/presentation/widgets/business_owner_drawer.dart';
+import '../../../explore/presentation/pages/business_detail_page.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import '../bloc/dashboard_cubit.dart';
 import '../bloc/dashboard_state.dart';
@@ -168,6 +169,23 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 );
               },
+              onViewPublicListingTap:
+                  selectedPresence != null && selectedPresence.id != 'all'
+                      ? () {
+                          final id = selectedPresence.id;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            final nav = _scaffoldKey.currentContext;
+                            if (nav == null || !nav.mounted) return;
+                            Navigator.push<void>(
+                              nav,
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    BusinessDetailPage(businessId: id),
+                              ),
+                            );
+                          });
+                        }
+                      : null,
               onBusinessPhotosTap: () async {
                 if (state is! BusinessOwnerHomeLoaded) return;
                 final loadedState = state;

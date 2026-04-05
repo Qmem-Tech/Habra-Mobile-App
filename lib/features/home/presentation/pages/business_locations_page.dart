@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../explore/presentation/pages/business_detail_page.dart';
 import '../../domain/entities/business_presence.dart';
 import '../widgets/owner_business_group_card.dart';
 import '../widgets/owner_location_branch_card.dart';
@@ -248,7 +249,8 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
         children.add(
           OwnerLocationBranchCard(
             presence: members[j],
-            onView: () => _selectAndPop(members[j].id),
+            onCardTap: () => _selectAndPop(members[j].id),
+            onView: () => _openPublicBusinessListing(context, members[j].id),
           ),
         );
         if (j < members.length - 1) {
@@ -272,7 +274,8 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
   }
 
   Widget _buildMyBusinessesBody(Map<String, List<BusinessPresence>> byGroup) {
-    final entries = byGroup.entries.toList();
+    final entries = byGroup.entries.toList()
+      ..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase()));
     if (entries.isEmpty) {
       return Center(
         child: Padding(
@@ -422,6 +425,15 @@ class _BusinessLocationsPageState extends State<BusinessLocationsPage> {
 
   void _selectAndPop(String? id) {
     Navigator.pop(context, id);
+  }
+
+  void _openPublicBusinessListing(BuildContext context, String businessId) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => BusinessDetailPage(businessId: businessId),
+      ),
+    );
   }
 
   Future<void> _openAddNewPresence(BuildContext context) async {

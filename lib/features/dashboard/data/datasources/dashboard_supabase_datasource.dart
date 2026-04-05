@@ -1727,6 +1727,110 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   }
 
   @override
+  Future<void> copyLegalDocumentsFromBusiness(
+    String fromBusinessId,
+    String toBusinessId,
+  ) async {
+    return SupabaseFailureMapper.guard(() async {
+      final baseCols =
+          'document_type, file_url, storage_bucket, storage_path, mime_type, '
+          'file_size_bytes, file_name, status, uploaded_at, reviewed_at, '
+          'reviewed_by, rejection_reason';
+      dynamic res;
+      try {
+        res = await _client
+            .from(SupabaseTables.businessLegalDocuments)
+            .select('$baseCols, review_status')
+            .eq('business_id', fromBusinessId);
+      } on PostgrestException catch (e) {
+        final m = e.message.toLowerCase();
+        if (m.contains('review_status') &&
+            (m.contains('column') || m.contains('schema'))) {
+          res = await _client
+              .from(SupabaseTables.businessLegalDocuments)
+              .select(baseCols)
+              .eq('business_id', fromBusinessId);
+        } else {
+          rethrow;
+        }
+      }
+      final rows = (res as List).cast<Map<String, dynamic>>();
+      if (rows.isEmpty) return;
+
+      for (final src in rows) {
+        final docType = parseString(src['document_type']);
+        final fileUrl = parseString(src['file_url']);
+        if (docType == null ||
+            docType.isEmpty ||
+            fileUrl == null ||
+            fileUrl.isEmpty) {
+          continue;
+        }
+        final effective = _legalDocumentStatusFromRow(src);
+        final statusOut = effective == 'approved' || effective == 'rejected'
+            ? effective
+            : 'pending';
+
+        final payload = <String, dynamic>{
+          'business_id': toBusinessId,
+          'document_type': docType,
+          'file_url': fileUrl,
+          'storage_bucket': parseString(src['storage_bucket']) ?? 'legal_documents',
+          'storage_path': parseString(src['storage_path']),
+          'mime_type': parseString(src['mime_type']),
+          'file_size_bytes': src['file_size_bytes'],
+          'file_name': parseString(src['file_name']),
+          'status': statusOut,
+        };
+        payload.removeWhere((_, v) => v == null);
+
+        final uploadAt = parseTimestamp(src['uploaded_at']);
+        if (uploadAt != null) {
+          payload['uploaded_at'] = uploadAt.toUtc().toIso8601String();
+        }
+        final revAt = parseTimestamp(src['reviewed_at']);
+        if (revAt != null) {
+          payload['reviewed_at'] = revAt.toUtc().toIso8601String();
+        }
+        final reviewedBy = parseString(src['reviewed_by']);
+        if (reviewedBy != null && reviewedBy.isNotEmpty) {
+          payload['reviewed_by'] = reviewedBy;
+        }
+        final rr = parseString(src['rejection_reason']);
+        if (rr != null && rr.isNotEmpty && statusOut == 'rejected') {
+          payload['rejection_reason'] = rr;
+        }
+
+        final rs = _legalDocumentRowStatus(src['review_status']);
+        final st = _legalDocumentRowStatus(src['status']);
+        if (rs.isNotEmpty) {
+          payload['review_status'] = rs;
+        } else if (st.isNotEmpty) {
+          payload['review_status'] = st;
+        }
+
+        try {
+          await _client
+              .from(SupabaseTables.businessLegalDocuments)
+              .insert(payload);
+        } on PostgrestException catch (e) {
+          final m = e.message.toLowerCase();
+          if (m.contains('review_status') &&
+              (m.contains('column') || m.contains('schema'))) {
+            final retry = Map<String, dynamic>.from(payload)
+              ..remove('review_status');
+            await _client
+                .from(SupabaseTables.businessLegalDocuments)
+                .insert(retry);
+          } else {
+            rethrow;
+          }
+        }
+      }
+    });
+  }
+
+  @override
   Future<void> deleteLegalDocument(String documentId) async {
     return SupabaseFailureMapper.guard(() async {
       await _client

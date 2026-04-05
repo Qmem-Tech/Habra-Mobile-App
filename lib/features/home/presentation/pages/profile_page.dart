@@ -10,6 +10,7 @@ import '../../../../core/widgets/notification_icon_with_badge.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
+import '../../../explore/presentation/pages/business_detail_page.dart';
 import '../../../dashboard/presentation/pages/boost_listing_page.dart';
 import '../../../dashboard/presentation/pages/edit_business_details_page.dart';
 import '../../../dashboard/presentation/pages/operating_hours_page.dart';
@@ -430,6 +431,21 @@ class _ProfilePageState extends State<ProfilePage> {
                                       ),
                                     ),
                                   ),
+                                ),
+                                _OwnerMenuTile(
+                                  icon: Icons.visibility_outlined,
+                                  title: 'View public listing',
+                                  subtitle: 'How customers see this business',
+                                  onTap: () {
+                                    Navigator.push<void>(
+                                      context,
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => BusinessDetailPage(
+                                          businessId: focus.id,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                                 _OwnerMenuTile(
                                   icon: Icons.photo_library_outlined,

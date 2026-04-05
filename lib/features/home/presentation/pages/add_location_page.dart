@@ -196,7 +196,7 @@ class _AddLocationPageState extends State<AddLocationPage> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'This location will automatically use the logo and business category from the parent business profile.',
+                  'This location inherits the logo, category, listing approval state, and legal documents from the parent business profile.',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
@@ -324,8 +324,9 @@ class _AddLocationPageState extends State<AddLocationPage> {
           if (categoryIds.isNotEmpty) {
             await repo.replaceBusinessCategoryLinks(businessId, categoryIds);
           }
+          await repo.copyLegalDocumentsFromBusiness(parent.id, businessId);
         } catch (_) {
-          // Listing exists; category copy is best-effort.
+          // Listing exists; category / legal copy is best-effort.
         }
       }
       if (!ctx.mounted) return;

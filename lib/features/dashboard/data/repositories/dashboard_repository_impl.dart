@@ -140,6 +140,13 @@ class DashboardRepositoryImpl implements DashboardRepository {
       _remote.uploadLegalDocument(businessId, documentType, upload, fileName: fileName);
 
   @override
+  Future<void> copyLegalDocumentsFromBusiness(
+    String fromBusinessId,
+    String toBusinessId,
+  ) =>
+      _remote.copyLegalDocumentsFromBusiness(fromBusinessId, toBusinessId);
+
+  @override
   Future<void> deleteLegalDocument(String documentId) =>
       _remote.deleteLegalDocument(documentId);
 

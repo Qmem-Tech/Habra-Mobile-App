@@ -35,12 +35,16 @@ class OwnerLocationBranchCard extends StatelessWidget {
     super.key,
     required this.presence,
     required this.onView,
+    /// Tap title/address area to select this location (e.g. close picker with this id).
+    this.onCardTap,
     /// When non-null, overrides [BusinessPresence.monthlyProfileViews] for display.
     this.monthlyViews,
   });
 
   final BusinessPresence presence;
+  /// Opens the public business listing (e.g. [BusinessDetailPage]).
   final VoidCallback onView;
+  final VoidCallback? onCardTap;
   final int? monthlyViews;
 
   Future<void> _openEdit(BuildContext context) async {
@@ -69,6 +73,82 @@ class OwnerLocationBranchCard extends StatelessWidget {
         ? label
         : (presence.name.trim().isNotEmpty ? presence.name : 'Listing');
 
+    final headerBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  ratingText,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: _ratingColor(rating),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.star_rounded,
+                  size: 20,
+                  color: _ratingColor(rating),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.location_on_outlined, size: 18, color: AppColors.textTertiary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                ownerBranchAddressLine(presence),
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.35,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (phone != null && phone.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.phone_outlined, size: 18, color: AppColors.textTertiary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  phone,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -79,77 +159,23 @@ class OwnerLocationBranchCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+          if (onCardTap != null)
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onCardTap,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: headerBlock,
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    ratingText,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: _ratingColor(rating),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.star_rounded,
-                    size: 20,
-                    color: _ratingColor(rating),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.location_on_outlined, size: 18, color: AppColors.textTertiary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  ownerBranchAddressLine(presence),
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.35,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (phone != null && phone.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.phone_outlined, size: 18, color: AppColors.textTertiary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    phone,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: headerBlock,
             ),
-          ],
-          const SizedBox(height: 14),
           Row(
             children: [
               Icon(Icons.visibility_outlined, size: 18, color: AppColors.textTertiary),

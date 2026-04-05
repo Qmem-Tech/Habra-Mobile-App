@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../../domain/entities/business_presence.dart';
 import 'business_locations_page.dart';
 
-/// Owner listing picker: **My Locations** branch-style cards + Add New Location.
-/// Used from profile, home pill, drawer, and other flows that choose a listing.
+/// Owner listing picker: **My Businesses** — one card per brand (grouped by
+/// [BusinessPresence.businessGroupName] / root name), with **View Locations**
+/// to pick a branch. Used from profile, home pill, drawer, and other flows.
 class MyBusinessesPage extends StatelessWidget {
   const MyBusinessesPage({
     super.key,
@@ -20,8 +21,8 @@ class MyBusinessesPage extends StatelessWidget {
     return BusinessLocationsPage(
       presences: presences,
       currentPresenceId: currentPresenceId,
-      overrideAppBarTitle: 'My Locations',
-      flatBranchCardLayout: true,
+      overrideAppBarTitle: 'My Businesses',
+      flatBranchCardLayout: false,
     );
   }
 }
