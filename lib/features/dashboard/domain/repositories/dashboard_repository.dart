@@ -21,7 +21,13 @@ abstract class DashboardRepository {
   Future<RatingOverview?> getReviewsOverview(String businessId);
   Future<List<BusinessReview>> getReviews(String businessId);
   Future<List<JobApplicant>> getApplicants(String jobId, {ApplicantStatus? status});
+  Future<void> markAllApplicantsReadForJob(String jobId);
   Future<ApplicantDetail?> getApplicantDetail(String applicantId, String jobId);
+  Future<void> updateJobApplicationStatus(
+    String applicationId,
+    String jobId,
+    String status,
+  );
   Future<List<BoostPlan>> getBoostPlans(String targetType);
   Future<DashboardDeal> createDeal(String businessId, Map<String, dynamic> data);
   Future<DashboardDeal> updateDeal(String dealId, Map<String, dynamic> data);

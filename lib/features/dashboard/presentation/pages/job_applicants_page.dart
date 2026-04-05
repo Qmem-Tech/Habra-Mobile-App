@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../domain/entities/job_applicant.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
@@ -10,6 +9,9 @@ import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../bloc/dashboard_cubit.dart';
 import '../bloc/dashboard_state.dart';
 import 'applicant_details_page.dart';
+
+/// Teal accent for "New" count badge (matches product mock).
+const Color _kNewBadgeTeal = Color(0xFF2A9D8F);
 
 class JobApplicantsPage extends StatefulWidget {
   const JobApplicantsPage({
@@ -77,11 +79,49 @@ class _JobApplicantsView extends StatefulWidget {
 }
 
 class _JobApplicantsViewState extends State<_JobApplicantsView> {
-  int _filterIndex = 0;
+  /// 0 = All, 1 = New, 2 = Reviewed
+  int _tabIndex = 0;
+  bool _markAllBusy = false;
+
+  Future<void> _onMarkAllRead(BuildContext context) async {
+    setState(() => _markAllBusy = true);
+    final ok =
+        await context.read<DashboardCubit>().markAllApplicantsReadForJob();
+    if (mounted) setState(() => _markAllBusy = false);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'All new applicants marked as read.'
+              : 'Could not update applicants. Try again.',
+        ),
+      ),
+    );
+  }
+
+  void _openApplicantDetail(BuildContext context, JobApplicant applicant) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider.value(
+          value: context.read<DashboardCubit>(),
+          child: ApplicantDetailsPage(
+            applicantId: applicant.id,
+            jobId: widget.jobId,
+            applicantName: applicant.name,
+            jobTitle: widget.jobTitle,
+            jobSubtitle: widget.jobSubtitle,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.backgroundWhite,
       appBar: AppBar(
         backgroundColor: AppColors.backgroundWhite,
         foregroundColor: AppColors.textPrimary,
@@ -97,14 +137,16 @@ class _JobApplicantsViewState extends State<_JobApplicantsView> {
               widget.jobTitle,
               style: const TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
+            const SizedBox(height: 2),
             Text(
               widget.jobSubtitle,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
+                fontWeight: FontWeight.w400,
                 color: AppColors.textSecondary,
               ),
             ),
@@ -120,49 +162,35 @@ class _JobApplicantsViewState extends State<_JobApplicantsView> {
           if (state is! ApplicantsLoaded) {
             return const Center(child: Text('No data'));
           }
-          final filter = _filterIndex == 0 ? null : (_filterIndex == 1 ? ApplicantStatus.newApplicant : ApplicantStatus.reviewed);
-          final allCount = state.applicants.length;
-          final newCount = state.applicants.where((a) => a.status == ApplicantStatus.newApplicant).length;
 
-          List<JobApplicant> list = state.applicants;
-          if (filter == ApplicantStatus.newApplicant) {
-            list = list.where((a) => a.status == ApplicantStatus.newApplicant).toList();
-          } else if (filter == ApplicantStatus.reviewed) {
-            list = list.where((a) => a.status == ApplicantStatus.reviewed).toList();
-          }
+          final applicants = state.applicants;
+          final pending =
+              applicants.where((a) => a.isPending).toList(growable: false);
+          final processed =
+              applicants.where((a) => !a.isPending).toList(growable: false);
+          final allCount = applicants.length;
+          final newCount = pending.length;
+          final reviewedCount = processed.length;
 
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    _FilterChip(
-                      label: 'All $allCount',
-                      selected: _filterIndex == 0,
-                      onTap: () => setState(() => _filterIndex = 0),
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: 'New $newCount',
-                      selected: _filterIndex == 1,
-                      onTap: () => setState(() => _filterIndex = 1),
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: 'Reviewed',
-                      selected: _filterIndex == 2,
-                      onTap: () => setState(() => _filterIndex = 2),
-                    ),
-                  ],
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: _ApplicantsSegmentedBar(
+                  allCount: allCount,
+                  newCount: newCount,
+                  reviewedCount: reviewedCount,
+                  selectedIndex: _tabIndex,
+                  onSelect: (i) => setState(() => _tabIndex = i),
                 ),
               ),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding:
+                      const EdgeInsets.only(left: 16, right: 16, bottom: 24),
                   children: [
-                    if (filter != ApplicantStatus.reviewed) ...[
+                    if (_tabIndex != 2) ...[
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -170,24 +198,61 @@ class _JobApplicantsViewState extends State<_JobApplicantsView> {
                             'New Applicants',
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary,
                             ),
                           ),
                           TextButton(
-                            onPressed: () {},
-                            child: const Text('Mark all read', style: TextStyle(color: AppColors.brandPrimary)),
+                            onPressed: pending.isEmpty || _markAllBusy
+                                ? null
+                                : () => _onMarkAllRead(context),
+                            child: _markAllBusy
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.brandPrimary,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Mark all read',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.brandPrimary,
+                                    ),
+                                  ),
                           ),
                         ],
                       ),
-                      ...list.where((a) => a.status == ApplicantStatus.newApplicant).map(                          (a) => _ApplicantCard(
+                      const SizedBox(height: 8),
+                      if (pending.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Text(
+                            _tabIndex == 1
+                                ? 'No new applicants.'
+                                : 'No new applicants right now.',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 14,
+                            ),
+                          ),
+                        )
+                      else
+                        ...pending.map(
+                          (a) => _NewApplicantCard(
                             applicant: a,
-                            onViewFull: () => _openApplicantDetail(context, a),
-                            onMessage: () {},
-                          )),
+                            onViewFull: () =>
+                                _openApplicantDetail(context, a),
+                            onMessage: () =>
+                                _openApplicantDetail(context, a),
+                          ),
+                        ),
                     ],
-                    if (list.any((a) => a.status == ApplicantStatus.reviewed)) ...[
-                      const SizedBox(height: 16),
+                    if (_tabIndex != 2 && processed.isNotEmpty) ...[
+                      const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -195,22 +260,55 @@ class _JobApplicantsViewState extends State<_JobApplicantsView> {
                             'Recently Reviewed',
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary,
                             ),
                           ),
                           TextButton(
-                            onPressed: () {},
-                            child: const Text('View all', style: TextStyle(color: AppColors.brandPrimary)),
+                            onPressed: () =>
+                                setState(() => _tabIndex = 2),
+                            child: const Text(
+                              'View all',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.brandPrimary,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      ...state.applicants.where((a) => a.status == ApplicantStatus.reviewed).map((a) => _ApplicantCard(
+                      const SizedBox(height: 8),
+                      ...processed.map(
+                        (a) => _ReviewedApplicantCard(
+                          applicant: a,
+                          onSeeDetails: () =>
+                              _openApplicantDetail(context, a),
+                        ),
+                      ),
+                    ],
+                    if (_tabIndex == 2) ...[
+                      if (processed.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 32),
+                          child: Center(
+                            child: Text(
+                              'No reviewed applicants yet.',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        ...processed.map(
+                          (a) => _ReviewedApplicantCard(
                             applicant: a,
-                            onViewFull: () => _openApplicantDetail(context, a),
-                            onMessage: () {},
-                            isReviewed: true,
-                          )),
+                            onSeeDetails: () =>
+                                _openApplicantDetail(context, a),
+                          ),
+                        ),
                     ],
                   ],
                 ),
@@ -221,83 +319,237 @@ class _JobApplicantsViewState extends State<_JobApplicantsView> {
       ),
     );
   }
-
-  void _openApplicantDetail(BuildContext context, JobApplicant applicant) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BlocProvider.value(
-          value: context.read<DashboardCubit>(),
-          child: ApplicantDetailsPage(
-            applicantId: applicant.id,
-            jobId: widget.jobId,
-            applicantName: applicant.name,
-          ),
-        ),
-      ),
-    );
-  }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, required this.selected, required this.onTap});
+class _ApplicantsSegmentedBar extends StatelessWidget {
+  const _ApplicantsSegmentedBar({
+    required this.allCount,
+    required this.newCount,
+    required this.reviewedCount,
+    required this.selectedIndex,
+    required this.onSelect,
+  });
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final int allCount;
+  final int newCount;
+  final int reviewedCount;
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.brandPrimary : AppColors.backgroundLight,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: selected ? AppColors.textOnPrimary : AppColors.textSecondary,
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _SegmentCell(
+              selected: selectedIndex == 0,
+              onTap: () => onSelect(0),
+              child: Text(
+                'All ($allCount)',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: selectedIndex == 0
+                      ? AppColors.textPrimary
+                      : AppColors.textSecondary,
+                ),
+              ),
+            ),
           ),
+          Expanded(
+            child: _SegmentCell(
+              selected: selectedIndex == 1,
+              onTap: () => onSelect(1),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'New ',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: selectedIndex == 1
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selectedIndex == 1
+                          ? _kNewBadgeTeal
+                          : _kNewBadgeTeal.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$newCount',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: selectedIndex == 1
+                            ? Colors.white
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: _SegmentCell(
+              selected: selectedIndex == 2,
+              onTap: () => onSelect(2),
+              child: Text(
+                reviewedCount > 0
+                    ? 'Reviewed ($reviewedCount)'
+                    : 'Reviewed',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: selectedIndex == 2
+                      ? AppColors.textPrimary
+                      : AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SegmentCell extends StatelessWidget {
+  const _SegmentCell({
+    required this.selected,
+    required this.onTap,
+    required this.child,
+  });
+
+  final bool selected;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.backgroundWhite : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(child: child),
         ),
       ),
     );
   }
 }
 
-class _ApplicantCard extends StatelessWidget {
-  const _ApplicantCard({
+class _ApplicantAvatar extends StatelessWidget {
+  const _ApplicantAvatar({this.url});
+
+  final String? url;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasUrl = url != null && url!.isNotEmpty;
+    return ClipOval(
+      child: hasUrl
+          ? Image.network(
+              url!,
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _placeholder(),
+            )
+          : _placeholder(),
+    );
+  }
+
+  Widget _placeholder() {
+    return Container(
+      width: 56,
+      height: 56,
+      color: AppColors.backgroundGrey,
+      child: const Icon(
+        Icons.person,
+        color: AppColors.textTertiary,
+        size: 28,
+      ),
+    );
+  }
+}
+
+class _NewApplicantCard extends StatelessWidget {
+  const _NewApplicantCard({
     required this.applicant,
     required this.onViewFull,
     required this.onMessage,
-    this.isReviewed = false,
   });
 
   final JobApplicant applicant;
   final VoidCallback onViewFull;
   final VoidCallback onMessage;
-  final bool isReviewed;
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      margin: const EdgeInsets.only(bottom: 12),
+    final loc = applicant.location.isEmpty
+        ? applicant.timeAgo
+        : '${applicant.location} • ${applicant.timeAgo}';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundWhite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.backgroundGrey.withValues(alpha: 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const CircleAvatar(
-                radius: 28,
-                backgroundColor: AppColors.backgroundGrey,
-                child: Icon(Icons.person, color: AppColors.textTertiary),
-              ),
+              _ApplicantAvatar(url: applicant.avatarUrl),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -307,52 +559,37 @@ class _ApplicantCard extends StatelessWidget {
                       applicant.name,
                       style: const TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${applicant.location} • ${applicant.timeAgo}',
-                          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                        ),
-                      ],
+                    Text(
+                      loc,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                    if (applicant.bioSnippet != null) ...[
-                      const SizedBox(height: 8),
+                    if (applicant.bioSnippet != null &&
+                        applicant.bioSnippet!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 10),
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: AppColors.backgroundLight,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           applicant.bioSnippet!,
-                          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                    if (isReviewed && applicant.statusLabel != null) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.brandSecondary.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          applicant.statusLabel!,
                           style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.brandPrimary,
+                            fontSize: 13,
+                            height: 1.35,
+                            color: AppColors.textSecondary,
                           ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -361,44 +598,170 @@ class _ApplicantCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
-                child: AppOutlinedButton(
-                  text: 'View Full',
+                child: OutlinedButton(
                   onPressed: onViewFull,
-                  height: 40,
-                  textColor: AppColors.textPrimary,
-                  borderColor: AppColors.backgroundGrey,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.backgroundGrey),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'View Full',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: AppButton(
                   text: 'Message',
                   onPressed: onMessage,
-                  icon: Icons.message_outlined,
-                  height: 40,
+                  icon: Icons.chat_bubble_outline,
+                  height: 44,
                 ),
               ),
             ],
           ),
-          if (isReviewed)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: onViewFull,
-                  icon: const Icon(Icons.arrow_forward, size: 16),
-                  label: const Text('See Details'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.brandPrimary,
-                  ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewedApplicantCard extends StatelessWidget {
+  const _ReviewedApplicantCard({
+    required this.applicant,
+    required this.onSeeDetails,
+  });
+
+  final JobApplicant applicant;
+  final VoidCallback onSeeDetails;
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = applicant.location.isEmpty
+        ? applicant.timeAgo
+        : '${applicant.location} • ${applicant.timeAgo}';
+    final label = applicant.statusLabel ?? 'Reviewed';
+    final orangeStyle = applicant.rawStatus == 'shortlisted';
+    final badgeFg =
+        orangeStyle ? AppColors.warning : AppColors.brandPrimary;
+    final badgeBg = badgeFg.withValues(alpha: 0.14);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundWhite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.backgroundGrey.withValues(alpha: 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ApplicantAvatar(url: applicant.avatarUrl),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      applicant.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      loc,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: badgeBg,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: badgeFg,
+                            ),
+                          ),
+                        ),
+                        if (applicant.statusTimeAgo != null) ...[
+                          const SizedBox(width: 10),
+                          Text(
+                            applicant.statusTimeAgo!,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
               ),
+            ],
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onSeeDetails,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.brandPrimary,
+                padding: const EdgeInsets.only(top: 8),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'See Details',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Icon(Icons.arrow_forward, size: 16),
+                ],
+              ),
             ),
+          ),
         ],
       ),
     );

@@ -55,8 +55,20 @@ class DashboardRepositoryImpl implements DashboardRepository {
       _remote.getApplicants(jobId, status: status);
 
   @override
+  Future<void> markAllApplicantsReadForJob(String jobId) =>
+      _remote.markAllApplicantsReadForJob(jobId);
+
+  @override
   Future<ApplicantDetail?> getApplicantDetail(String applicantId, String jobId) =>
       _remote.getApplicantDetail(applicantId, jobId);
+
+  @override
+  Future<void> updateJobApplicationStatus(
+    String applicationId,
+    String jobId,
+    String status,
+  ) =>
+      _remote.updateJobApplicationStatus(applicationId, jobId, status);
 
   @override
   Future<List<BoostPlan>> getBoostPlans(String targetType) =>

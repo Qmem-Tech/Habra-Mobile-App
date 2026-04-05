@@ -31,7 +31,12 @@ class ApplicantDetail extends Equatable {
   final String? phone;
   final String location;
   final String appliedFor;
-  final String receivedDate;
+  /// Calendar label, e.g. "Oct 12, 2023".
+  final String receivedOnLabel;
+  /// Relative time since application (optional subtitle).
+  final String? appliedAgo;
+  /// DB `job_applications.status` e.g. `pending`, `hired`.
+  final String applicationStatus;
   final String coverLetter;
   final List<ApplicantExperience> experience;
   final String? resumeFileName;
@@ -47,13 +52,18 @@ class ApplicantDetail extends Equatable {
     this.phone,
     required this.location,
     required this.appliedFor,
-    required this.receivedDate,
+    required this.receivedOnLabel,
+    this.appliedAgo,
+    this.applicationStatus = 'pending',
     required this.coverLetter,
     required this.experience,
     this.resumeFileName,
     this.resumeFileSize,
     this.resumeFileUrl,
   });
+
+  bool get isTerminalStatus =>
+      applicationStatus == 'rejected' || applicationStatus == 'hired';
 
   @override
   List<Object?> get props => [
@@ -65,7 +75,9 @@ class ApplicantDetail extends Equatable {
         phone,
         location,
         appliedFor,
-        receivedDate,
+        receivedOnLabel,
+        appliedAgo,
+        applicationStatus,
         coverLetter,
         experience,
         resumeFileName,

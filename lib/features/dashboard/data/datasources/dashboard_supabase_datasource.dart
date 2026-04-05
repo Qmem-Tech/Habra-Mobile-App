@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/supabase_tables.dart';
@@ -21,6 +22,23 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   DashboardSupabaseDataSource();
 
   SupabaseClient get _client => Supabase.instance.client;
+
+  static String _formatReceivedOnLabel(DateTime dt) {
+    return DateFormat.yMMMd().format(dt.toLocal());
+  }
+
+  static String? _resumeFileNameFromUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return null;
+    try {
+      final u = Uri.parse(url.trim());
+      if (u.pathSegments.isEmpty) return 'Resume';
+      final last = u.pathSegments.last;
+      if (last.isEmpty) return 'Resume';
+      return last.split('?').first;
+    } catch (_) {
+      return 'Resume';
+    }
+  }
 
   /// Combines free-text cover message with structured screening answers for the detail UI.
   String _mergeCoverLetterAndScreening(
@@ -632,6 +650,26 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   // ---------------------------------------------------------------------------
   // Applicants
   // ---------------------------------------------------------------------------
+  static ApplicantStatus _applicantListStatusFromDb(String statusStr) {
+    if (statusStr == 'pending') return ApplicantStatus.newApplicant;
+    return ApplicantStatus.reviewed;
+  }
+
+  static String? _jobApplicationPipelineLabel(String statusStr) {
+    switch (statusStr) {
+      case 'shortlisted':
+        return 'Interview Scheduled';
+      case 'hired':
+        return 'Hired';
+      case 'rejected':
+        return 'Not selected';
+      case 'reviewed':
+        return 'Reviewed';
+      default:
+        return null;
+    }
+  }
+
   @override
   Future<List<JobApplicant>> getApplicants(String jobId,
       {ApplicantStatus? status}) async {
@@ -641,9 +679,11 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           .select('*, ${SupabaseTables.profiles}!job_applications_user_id_fkey(full_name, avatar_url)')
           .eq('job_id', jobId);
       if (status != null) {
-        final statusStr =
-            status == ApplicantStatus.reviewed ? 'reviewed' : 'pending';
-        query = query.eq('status', statusStr);
+        if (status == ApplicantStatus.newApplicant) {
+          query = query.eq('status', 'pending');
+        } else {
+          query = query.neq('status', 'pending');
+        }
       }
       final res = await query.order('created_at', ascending: false);
       final rows = (res as List).cast<Map<String, dynamic>>();
@@ -653,18 +693,36 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
             ? parseStringRequired(profile['full_name'], 'Applicant')
             : 'Applicant';
         final createdAt = parseTimestampRequired(row['created_at']);
+        final updatedAt = parseTimestamp(row['updated_at']);
         final statusStr = parseString(row['status']) ?? 'pending';
+        final appPhoto = parseString(row['photo_url']);
+        final profileAvatar = profile is Map<String, dynamic>
+            ? parseString(profile['avatar_url'])
+            : null;
+        final avatarUrl = appPhoto ?? profileAvatar;
         return JobApplicant(
           id: parseStringRequired(row['id']),
           name: name,
           location: '',
           timeAgo: _timeAgo(createdAt),
           bioSnippet: parseString(row['cover_message']),
-          status: statusStr == 'reviewed'
-              ? ApplicantStatus.reviewed
-              : ApplicantStatus.newApplicant,
+          avatarUrl: avatarUrl,
+          status: _applicantListStatusFromDb(statusStr),
+          statusLabel: _jobApplicationPipelineLabel(statusStr),
+          statusTimeAgo: updatedAt != null ? _timeAgo(updatedAt) : null,
+          rawStatus: statusStr,
         );
       }).toList();
+    });
+  }
+
+  @override
+  Future<void> markAllApplicantsReadForJob(String jobId) async {
+    return SupabaseFailureMapper.guard(() async {
+      await _client.from(SupabaseTables.jobApplications).update({
+        'status': 'reviewed',
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('job_id', jobId).eq('status', 'pending');
     });
   }
 
@@ -675,7 +733,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       final res = await _client
           .from(SupabaseTables.jobApplications)
           .select(
-            '*, ${SupabaseTables.profiles}!job_applications_user_id_fkey(full_name, avatar_url), ${SupabaseTables.jobs}!job_applications_job_id_fkey(title)',
+            '*, ${SupabaseTables.profiles}!job_applications_user_id_fkey(full_name, avatar_url, email, phone), ${SupabaseTables.jobs}!job_applications_job_id_fkey(title)',
           )
           .eq('id', applicantId)
           .eq('job_id', jobId)
@@ -696,6 +754,9 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           (profile is Map<String, dynamic> ? parseString(profile['email']) : null);
       final profilePhone = parseString(row['phone']) ??
           (profile is Map<String, dynamic> ? parseString(profile['phone']) : null);
+      final createdAt = parseTimestampRequired(row['created_at']);
+      final resumeUrl = parseString(row['resume_url']);
+      final statusStr = parseString(row['status']) ?? 'pending';
       return ApplicantDetail(
         id: parseStringRequired(row['id']),
         name: profileName,
@@ -706,17 +767,31 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         location: '',
         appliedFor:
             job is Map<String, dynamic> ? parseStringRequired(job['title']) : '',
-        receivedDate: _timeAgo(parseTimestampRequired(row['created_at'])),
+        receivedOnLabel: _formatReceivedOnLabel(createdAt),
+        appliedAgo: _timeAgo(createdAt),
+        applicationStatus: statusStr,
         coverLetter: _mergeCoverLetterAndScreening(
           row['cover_message'],
           row['screening_answers'],
         ),
         experience: const [],
-        resumeFileName: parseString(row['resume_url']) != null
-            ? 'Resume'
-            : null,
-        resumeFileUrl: parseString(row['resume_url']),
+        resumeFileName: _resumeFileNameFromUrl(resumeUrl),
+        resumeFileUrl: resumeUrl,
       );
+    });
+  }
+
+  @override
+  Future<void> updateJobApplicationStatus(
+    String applicationId,
+    String jobId,
+    String status,
+  ) async {
+    return SupabaseFailureMapper.guard(() async {
+      await _client.from(SupabaseTables.jobApplications).update({
+        'status': status,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', applicationId).eq('job_id', jobId);
     });
   }
 

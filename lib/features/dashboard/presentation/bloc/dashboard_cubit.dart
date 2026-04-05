@@ -84,6 +84,26 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
+  /// Marks every `pending` application for the current [ApplicantsLoaded.jobId] as `reviewed`.
+  Future<bool> markAllApplicantsReadForJob() async {
+    final current = state;
+    if (current is! ApplicantsLoaded) return false;
+    try {
+      await _repository.markAllApplicantsReadForJob(current.jobId);
+      final applicants = await _repository.getApplicants(current.jobId);
+      emit(ApplicantsLoaded(
+        jobId: current.jobId,
+        jobTitle: current.jobTitle,
+        jobSubtitle: current.jobSubtitle,
+        applicants: applicants,
+        filter: current.filter,
+      ));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> loadApplicantDetail(String applicantId, String jobId) async {
     emit(ApplicantDetailLoading());
     try {
@@ -95,6 +115,26 @@ class DashboardCubit extends Cubit<DashboardState> {
       }
     } catch (e) {
       emit(ApplicantDetailError(e.toString()));
+    }
+  }
+
+  /// Updates [status] on `job_applications` (e.g. `rejected`, `hired`) and refreshes detail without a full-screen loader.
+  Future<bool> updateJobApplicationStatus({
+    required String applicationId,
+    required String jobId,
+    required String status,
+  }) async {
+    final current = state;
+    if (current is! ApplicantDetailLoaded) return false;
+    try {
+      await _repository.updateJobApplicationStatus(applicationId, jobId, status);
+      final detail = await _repository.getApplicantDetail(applicationId, jobId);
+      if (detail != null) {
+        emit(ApplicantDetailLoaded(detail));
+      }
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

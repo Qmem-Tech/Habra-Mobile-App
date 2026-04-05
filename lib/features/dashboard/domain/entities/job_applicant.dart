@@ -9,9 +9,12 @@ class JobApplicant extends Equatable {
   final String location;
   final String timeAgo;
   final String? bioSnippet;
+  final String? avatarUrl;
   final ApplicantStatus status;
   final String? statusLabel;
   final String? statusTimeAgo;
+  /// Raw DB status: `pending`, `reviewed`, `shortlisted`, etc.
+  final String rawStatus;
 
   const JobApplicant({
     required this.id,
@@ -19,10 +22,14 @@ class JobApplicant extends Equatable {
     required this.location,
     required this.timeAgo,
     this.bioSnippet,
+    this.avatarUrl,
     this.status = ApplicantStatus.newApplicant,
     this.statusLabel,
     this.statusTimeAgo,
+    this.rawStatus = 'pending',
   });
+
+  bool get isPending => status == ApplicantStatus.newApplicant;
 
   @override
   List<Object?> get props => [
@@ -31,8 +38,10 @@ class JobApplicant extends Equatable {
         location,
         timeAgo,
         bioSnippet,
+        avatarUrl,
         status,
         statusLabel,
         statusTimeAgo,
+        rawStatus,
       ];
 }

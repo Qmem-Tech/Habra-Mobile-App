@@ -23,7 +23,15 @@ abstract class DashboardRemoteDataSource {
   Future<RatingOverview?> getReviewsOverview(String businessId);
   Future<List<BusinessReview>> getReviews(String businessId);
   Future<List<JobApplicant>> getApplicants(String jobId, {ApplicantStatus? status});
+  /// Sets every `pending` application for [jobId] to `reviewed` (owner has seen them).
+  Future<void> markAllApplicantsReadForJob(String jobId);
   Future<ApplicantDetail?> getApplicantDetail(String applicantId, String jobId);
+  /// [status] must be a valid `job_application_status` enum value (e.g. `rejected`, `hired`).
+  Future<void> updateJobApplicationStatus(
+    String applicationId,
+    String jobId,
+    String status,
+  );
   Future<List<BoostPlan>> getBoostPlans(String targetType);
   Future<DashboardDeal> createDeal(String businessId, Map<String, dynamic> data);
   Future<DashboardDeal> updateDeal(String dealId, Map<String, dynamic> data);
