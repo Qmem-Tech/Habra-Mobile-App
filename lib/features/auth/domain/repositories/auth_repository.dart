@@ -29,4 +29,7 @@ abstract class AuthRepository {
 
   /// Updates local auth cache (name, avatar, etc.) after profile edits; no remote call.
   Future<Either<Failure, void>> cacheUserProfile(User user);
+
+  /// Saves `profiles.city` and refreshes the cached session user.
+  Future<Either<Failure, User>> updateHomeCity(String city);
 }

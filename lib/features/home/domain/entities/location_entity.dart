@@ -38,3 +38,31 @@ class LocationEntity extends Equatable {
         longitude,
       ];
 }
+
+/// Parses `profiles.city` (free text like "Seattle" or "Seattle, WA") for session / feed use.
+LocationEntity locationEntityFromProfileCity(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) {
+    return const LocationEntity(id: 'profile', city: '', country: 'USA');
+  }
+  final parts = trimmed
+      .split(',')
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .toList();
+  if (parts.length == 1) {
+    return LocationEntity(
+      id: 'profile',
+      city: parts.first,
+      country: 'USA',
+      displayName: trimmed,
+    );
+  }
+  return LocationEntity(
+    id: 'profile',
+    city: parts.first,
+    state: parts[1],
+    country: parts.length > 2 ? parts[2] : 'USA',
+    displayName: trimmed,
+  );
+}

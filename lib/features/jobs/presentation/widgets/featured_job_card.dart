@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/job_listing.dart';
+import 'job_company_logo.dart';
 
 class FeaturedJobCard extends StatelessWidget {
   final JobListing job;
@@ -23,15 +24,8 @@ class FeaturedJobCard extends StatelessWidget {
         margin: const EdgeInsets.only(right: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha:0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: AppColors.backgroundLight,
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,31 +33,10 @@ class FeaturedJobCard extends StatelessWidget {
             // Company Logo/Name
             Row(
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.backgroundLight,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: job.companyLogoUrl != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.asset(
-                            job.companyLogoUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Icon(
-                                Icons.business,
-                                color: AppColors.textSecondary,
-                              );
-                            },
-                          ),
-                        )
-                      : Icon(
-                          Icons.business,
-                          color: AppColors.textSecondary,
-                        ),
+                JobCompanyLogo(
+                  url: job.companyLogoUrl,
+                  size: 48,
+                  borderRadius: 10,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -103,7 +76,7 @@ class FeaturedJobCard extends StatelessWidget {
               job.title,
               style: const TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary,
               ),
               maxLines: 2,
@@ -128,12 +101,13 @@ class FeaturedJobCard extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: onApply ?? onTap,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.brandPrimary,
+                  backgroundColor: AppColors.customerHomePrimary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  elevation: 0,
                 ),
                 child: const Text(
                   'Apply Now',
@@ -152,17 +126,17 @@ class FeaturedJobCard extends StatelessWidget {
 
   Widget _buildChip(String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
-        borderRadius: BorderRadius.circular(6),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
         style: const TextStyle(
           fontSize: 12,
           color: AppColors.textPrimary,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

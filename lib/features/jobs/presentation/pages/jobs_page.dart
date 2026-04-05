@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/location/profile_home_city_sync.dart';
 import '../../../../core/location/session_device_location_cubit.dart';
 import '../../../../core/navigation/main_nav_scope.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -9,16 +10,17 @@ import '../../../../injection/injection_container.dart' as di;
 import '../../../home/domain/entities/location_entity.dart';
 import '../../../home/presentation/pages/location_selection_page.dart';
 import '../../../home/presentation/pages/notification_page.dart';
-import '../bloc/job_applications_cubit.dart';
 import '../bloc/jobs_cubit.dart';
 import '../bloc/jobs_state.dart';
 import '../widgets/featured_job_card.dart';
 import '../widgets/recent_job_card.dart';
 import '../widgets/job_category_chip.dart';
 import '../../domain/entities/job_filters.dart';
+import '../../domain/entities/job_listing.dart';
+import '../../domain/job_quick_filter_options.dart';
 import 'job_detail_page.dart';
 import 'job_filters_bottom_sheet.dart';
-import 'my_applications_page.dart';
+import 'jobs_section_list_page.dart';
 import 'no_jobs_found_page.dart';
 
 class JobsPage extends StatefulWidget {
@@ -33,8 +35,7 @@ class JobsPage extends StatefulWidget {
 class _JobsPageState extends State<JobsPage> {
   final TextEditingController _searchController = TextEditingController();
   String? _currentLocation;
-  String _selectedCategory = 'All Jobs';
-  List<String> _categories = ['All Jobs'];
+  String _selectedJobTypeChip = kJobsQuickFilterAll;
   JobFilters? _activeFilters;
 
   @override
@@ -57,6 +58,8 @@ class _JobsPageState extends State<JobsPage> {
     if (!mounted || result == null) return;
     SessionDeviceLocationCubit.maybeOf(context)?.setSessionLocation(result);
     setState(() => _currentLocation = result.fullDisplayName);
+    await persistProfileHomeCityIfSignedIn(context, result);
+    if (!mounted) return;
     _loadJobs(context, null);
   }
 
@@ -96,6 +99,7 @@ class _JobsPageState extends State<JobsPage> {
     if (filters != null) {
       setState(() {
         _activeFilters = filters;
+        _syncJobTypeChipFromFilters();
       });
     }
     if (!ctx.mounted) return;
@@ -108,13 +112,13 @@ class _JobsPageState extends State<JobsPage> {
   Widget build(BuildContext context) {
     final sessionCubit = SessionDeviceLocationCubit.maybeOf(context);
     final scaffold = Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: AppColors.backgroundWhite,
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(),
             _buildSearchBar(),
-            _buildCategoryFilters(),
+            _buildJobTypeQuickFilters(),
             Expanded(
               child: BlocBuilder<JobsCubit, JobsState>(
                 builder: (context, state) {
@@ -146,7 +150,8 @@ class _JobsPageState extends State<JobsPage> {
                         _loadJobs(context, null);
                       },
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -187,7 +192,6 @@ class _JobsPageState extends State<JobsPage> {
       create: (context) {
         final cubit = di.sl<JobsCubit>();
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          cubit.loadJobCategories();
           final loc = SessionDeviceLocationCubit.tryLabel(context) ??
               _currentLocation ??
               'Washington, D.C.';
@@ -207,82 +211,78 @@ class _JobsPageState extends State<JobsPage> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
       child: Row(
         children: [
           IconButton(
             onPressed: () {
               MainNavScope.maybeOf(context)?.scaffoldKey.currentState?.openDrawer();
             },
-            icon: const Icon(Icons.menu),
-            color: AppColors.textPrimary,
+            icon: const Icon(Icons.menu, color: AppColors.textPrimary, size: 26),
           ),
           Expanded(
-            child: GestureDetector(
-              onTap: _openLocationPicker,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.brandPrimaryLight.withValues(alpha:0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 16,
-                      color: AppColors.brandPrimary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _resolvedLocationLabel(context),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary,
+            child: Center(
+              child: GestureDetector(
+                onTap: _openLocationPicker,
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 220),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.customerLocationPillBg,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        size: 18,
+                        color: AppColors.customerHomePrimary,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.arrow_drop_down,
-                      size: 16,
-                      color: AppColors.brandPrimary,
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          _resolvedLocationLabel(context),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.customerHomePrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 20,
+                        color: AppColors.customerHomePrimary,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => BlocProvider(
-                    create: (_) => di.sl<JobApplicationsCubit>(),
-                    child: const MyApplicationsPage(),
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.work_history_outlined),
-            tooltip: 'My Applications',
-            color: AppColors.textPrimary,
-          ),
-          NotificationIconWithBadge(
-            userId: MainNavScope.maybeOf(context)?.userId,
-            iconColor: AppColors.textPrimary,
-            onOpenNotifications: () async {
-              await Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => NotificationPage(userId: MainNavScope.maybeOf(context)?.userId),
-                ),
-              );
-            },
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Material(
+              color: AppColors.backgroundLight,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: NotificationIconWithBadge(
+                userId: MainNavScope.maybeOf(context)?.userId,
+                iconColor: AppColors.textPrimary,
+                onOpenNotifications: () async {
+                  final scope = MainNavScope.maybeOf(context);
+                  await Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => NotificationPage(userId: scope?.userId),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),
@@ -291,80 +291,106 @@ class _JobsPageState extends State<JobsPage> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Search jobs',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: IconButton(
-            icon: const Icon(Icons.tune),
-            onPressed: _showFilters,
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search jobs',
+                hintStyle: TextStyle(color: AppColors.textTertiary),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: AppColors.textSecondary,
+                ),
+                filled: true,
+                fillColor: AppColors.backgroundLight,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (_) {
+                _loadJobs(context, null);
+              },
+            ),
           ),
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+          const SizedBox(width: 8),
+          Material(
+            color: AppColors.backgroundLight,
+            borderRadius: BorderRadius.circular(14),
+            clipBehavior: Clip.antiAlias,
+            child: IconButton(
+              onPressed: _showFilters,
+              icon: const Icon(Icons.tune_rounded),
+              color: AppColors.textPrimary,
+              tooltip: 'Filters',
+            ),
           ),
-        ),
-        onChanged: (value) {
-          _loadJobs(context, null);
+        ],
+      ),
+    );
+  }
+
+  /// Keeps the highlighted chip in sync when filters come from the sheet
+  /// (e.g. one job type selected) or when multiple types are chosen.
+  void _syncJobTypeChipFromFilters() {
+    final types = _activeFilters?.jobTypes ?? [];
+    if (types.length == 1 && kJobsQuickFilterJobTypes.contains(types.first)) {
+      _selectedJobTypeChip = types.first;
+    } else {
+      _selectedJobTypeChip = kJobsQuickFilterAll;
+    }
+  }
+
+  Widget _buildJobTypeQuickFilters() {
+    final chips = jobsQuickFilterChipLabels();
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: chips.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final label = chips[index];
+          final isSelected = _selectedJobTypeChip == label;
+          return JobCategoryChip(
+            label: label,
+            isSelected: isSelected,
+            onTap: () {
+              setState(() {
+                _selectedJobTypeChip = label;
+                if (label == kJobsQuickFilterAll) {
+                  _activeFilters = _activeFilters?.copyWith(jobTypes: []) ??
+                      const JobFilters();
+                } else {
+                  _activeFilters = (_activeFilters ?? const JobFilters())
+                      .copyWith(jobTypes: [label]);
+                }
+              });
+              final cubit = context.read<JobsCubit>();
+              final loc = _resolvedLocationLabel(context);
+              cubit.loadJobs(
+                location: loc,
+                filters: _activeFilters,
+                searchQuery: _searchController.text.isEmpty
+                    ? null
+                    : _searchController.text,
+              );
+            },
+          );
         },
       ),
     );
   }
 
-  Widget _buildCategoryFilters() {
-    return BlocBuilder<JobsCubit, JobsState>(
-      builder: (context, state) {
-        if (state is JobCategoriesLoaded) {
-          _categories = state.categories;
-        }
-
-        return SizedBox(
-          height: 40,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _categories.length,
-            itemBuilder: (context, index) {
-              final category = _categories[index];
-              final isSelected = _selectedCategory == category;
-              return JobCategoryChip(
-                label: category,
-                isSelected: isSelected,
-                onTap: () {
-                  setState(() {
-                    _selectedCategory = category;
-                    if (category == 'All Jobs') {
-                      _activeFilters = _activeFilters?.copyWith(
-                        categories: [],
-                      );
-                    } else {
-                      _activeFilters = (_activeFilters ?? const JobFilters())
-                          .copyWith(categories: [category]);
-                    }
-                  });
-                  // Use the context from BlocBuilder
-                  final cubit = context.read<JobsCubit>();
-                  cubit.loadJobs(
-                    location: _currentLocation,
-                    filters: _activeFilters,
-                    searchQuery: _searchController.text.isEmpty
-                        ? null
-                        : _searchController.text,
-                  );
-                },
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildFeaturedJobs(List featuredJobs) {
+  Widget _buildFeaturedJobs(List<JobListing> featuredJobs) {
     if (featuredJobs.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -376,20 +402,33 @@ class _JobsPageState extends State<JobsPage> {
             const Text(
               'Featured Jobs',
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: AppColors.customerHomePrimary,
               ),
             ),
             TextButton(
               onPressed: () {
-                // TODO: Navigate to all featured jobs
+                final cubit = context.read<JobsCubit>();
+                Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => BlocProvider.value(
+                      value: cubit,
+                      child: JobsSectionListPage(
+                        title: 'Featured jobs',
+                        jobs: featuredJobs,
+                      ),
+                    ),
+                  ),
+                );
               },
               child: const Text(
                 'View All >',
                 style: TextStyle(
                   fontSize: 14,
-                  color: AppColors.brandPrimary,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.customerHomePrimary,
                 ),
               ),
             ),
@@ -397,7 +436,7 @@ class _JobsPageState extends State<JobsPage> {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 240,
+          height: 268,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: featuredJobs.length,
@@ -429,7 +468,7 @@ class _JobsPageState extends State<JobsPage> {
     );
   }
 
-  Widget _buildRecentJobs(List recentJobs) {
+  Widget _buildRecentJobs(List<JobListing> recentJobs) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -439,30 +478,44 @@ class _JobsPageState extends State<JobsPage> {
             const Text(
               'Recent Jobs',
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: AppColors.customerHomePrimary,
               ),
             ),
             TextButton(
               onPressed: () {
-                // TODO: Navigate to all recent jobs
+                final cubit = context.read<JobsCubit>();
+                Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => BlocProvider.value(
+                      value: cubit,
+                      child: JobsSectionListPage(
+                        title: 'Recent jobs',
+                        jobs: recentJobs,
+                      ),
+                    ),
+                  ),
+                );
               },
               child: const Text(
                 'View All >',
                 style: TextStyle(
                   fontSize: 14,
-                  color: AppColors.brandPrimary,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.customerHomePrimary,
                 ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        ListView.builder(
+        ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: recentJobs.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final job = recentJobs[index];
             return RecentJobCard(

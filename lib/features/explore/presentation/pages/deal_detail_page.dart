@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_share.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../saved_items/domain/entities/saved_item.dart';
+import '../../../saved_items/domain/usecases/save_item_usecase.dart';
 import '../../domain/entities/deal.dart';
 import '../bloc/deals_cubit.dart';
 import '../bloc/deals_state.dart';
@@ -99,13 +103,67 @@ class DealDetailPage extends StatelessWidget {
         },
       ),
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.5),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.arrow_back, color: Colors.white),
+        ),
         onPressed: () => Navigator.pop(context),
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.share, color: Colors.white),
-          onPressed: () {},
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.5),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.share, color: Colors.white),
+          ),
+          onPressed: () {
+            final addr = deal.business.fullAddress.trim();
+            final lines = <String>[
+              deal.title,
+              deal.business.name,
+              deal.displayPrice,
+              if (addr.isNotEmpty) addr,
+            ];
+            shareText(lines.join('\n'), subject: deal.title);
+          },
+        ),
+        IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.brandSecondary,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.bookmark_add_outlined, color: Colors.white),
+          ),
+          onPressed: () async {
+            if (Supabase.instance.client.auth.currentUser == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Sign in to save deals')),
+              );
+              return;
+            }
+            final result = await di.sl<SaveItemUseCase>()(
+              itemType: SavedItemType.deal,
+              referenceId: deal.id,
+            );
+            if (!context.mounted) return;
+            result.fold(
+              (f) => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(f.message)),
+              ),
+              (_) => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Deal saved to your list')),
+              ),
+            );
+          },
         ),
       ],
     );

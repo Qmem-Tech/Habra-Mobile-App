@@ -275,6 +275,22 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
       SupabaseFailureMapper.throwFromError(e);
     }
   }
+
+  @override
+  Future<UserModel> updateProfileCity(String city) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) {
+        throw app_errors.AuthException('Not signed in');
+      }
+      await SupabaseFailureMapper.guard(() async {
+        await _client.from('profiles').update({'city': city}).eq('id', userId);
+      });
+      return _sessionToUser();
+    } catch (e) {
+      SupabaseFailureMapper.throwFromError(e);
+    }
+  }
 }
 
 String _generateAppleSignInNonce([int length = 32]) {

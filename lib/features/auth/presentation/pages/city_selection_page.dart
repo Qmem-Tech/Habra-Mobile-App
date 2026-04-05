@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
 import '../../../../core/widgets/location_picker_bottom_sheet.dart';
+import '../bloc/auth_cubit.dart';
+import '../bloc/auth_state.dart';
 import 'interests_selection_page.dart';
 
 class CitySelectionPage extends StatefulWidget {
@@ -40,18 +43,28 @@ class _CitySelectionPageState extends State<CitySelectionPage> {
     });
   }
 
-  void _onContinue() {
-    if (_selectedCity != null) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const InterestsSelectionPage(),
-        ),
-      );
-    } else {
+  Future<void> _onContinue() async {
+    if (_selectedCity == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a city')),
       );
+      return;
     }
+    try {
+      final auth = context.read<AuthCubit>();
+      final state = auth.state;
+      if (state is AuthAuthenticated && !state.user.isGuest) {
+        await auth.saveHomeCity(_selectedCity!);
+      }
+    } catch (_) {
+      // Onboarding may run without [AuthCubit] above this route.
+    }
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const InterestsSelectionPage(),
+      ),
+    );
   }
 
   @override

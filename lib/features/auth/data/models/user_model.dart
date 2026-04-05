@@ -7,6 +7,7 @@ class UserModel extends User {
     required super.name,
     required super.role,
     super.avatarUrl,
+    super.city,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -16,6 +17,7 @@ class UserModel extends User {
       name: json['name'] as String,
       role: _roleFromString(json['role'] as String? ?? 'customer'),
       avatarUrl: json['avatarUrl'] as String?,
+      city: json['city'] as String?,
     );
   }
 
@@ -26,6 +28,7 @@ class UserModel extends User {
       'name': name,
       'role': roleToString(role),
       'avatarUrl': avatarUrl,
+      'city': city,
     };
   }
 
@@ -36,12 +39,14 @@ class UserModel extends User {
     final name = profile['full_name'] as String? ?? '';
     final roleString = profile['role'] as String? ?? 'customer';
     final avatarUrl = profile['avatar_url'] as String?;
+    final city = profile['city'] as String?;
     return UserModel(
       id: id,
       email: email,
       name: name,
       role: _roleFromString(roleString),
       avatarUrl: avatarUrl,
+      city: city,
     );
   }
 

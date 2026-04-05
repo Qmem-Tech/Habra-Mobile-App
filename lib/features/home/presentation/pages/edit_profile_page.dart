@@ -154,6 +154,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               name: state.profile.fullName,
               role: u.role,
               avatarUrl: state.profile.avatarUrl,
+              city: u.city,
             );
             context.read<AuthCubit>().applyProfileEditsToSession(updated);
           }

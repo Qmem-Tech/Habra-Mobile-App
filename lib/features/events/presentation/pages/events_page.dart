@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/location/profile_home_city_sync.dart';
 import '../../../../core/location/session_device_location_cubit.dart';
 import '../../../../core/navigation/main_nav_scope.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -54,6 +55,8 @@ class _EventsPageState extends State<EventsPage> {
     if (!mounted || result == null) return;
     SessionDeviceLocationCubit.maybeOf(context)?.setSessionLocation(result);
     setState(() => _currentLocation = result.fullDisplayName);
+    await persistProfileHomeCityIfSignedIn(context, result);
+    if (!mounted) return;
     _loadEvents(context);
   }
 

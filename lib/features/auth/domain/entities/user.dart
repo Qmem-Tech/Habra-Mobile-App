@@ -16,12 +16,16 @@ class User extends Equatable {
   /// Public avatar from `profiles.avatar_url` when available.
   final String? avatarUrl;
 
+  /// Home / feed location label from `profiles.city` (set at onboarding or when picking location).
+  final String? city;
+
   const User({
     required this.id,
     required this.email,
     required this.name,
     required this.role,
     this.avatarUrl,
+    this.city,
   });
 
   bool get isGuest => role == UserRole.guest;
@@ -30,5 +34,5 @@ class User extends Equatable {
   bool get isAdmin => role == UserRole.admin;
 
   @override
-  List<Object?> get props => [id, email, name, role, avatarUrl];
+  List<Object?> get props => [id, email, name, role, avatarUrl, city];
 }

@@ -26,4 +26,7 @@ abstract class AuthRemoteDataSource {
 
   /// Updates the current user's password. Requires an active recovery session (from reset link).
   Future<void> updatePassword(String newPassword);
+
+  /// Persists home / feed location label to `profiles.city` and returns refreshed user.
+  Future<UserModel> updateProfileCity(String city);
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/job_filters.dart';
+import '../../domain/job_quick_filter_options.dart';
 
 class JobFiltersBottomSheet extends StatefulWidget {
   final JobFilters? initialFilters;
@@ -24,7 +25,7 @@ class _JobFiltersBottomSheetState extends State<JobFiltersBottomSheet> {
     'Construction',
     'Healthcare',
   ];
-  final List<String> _jobTypes = ['Full-time', 'Part-time'];
+  final List<String> _jobTypes = List<String>.from(kJobsQuickFilterJobTypes);
   final List<String> _dateRanges = [
     'Today',
     'Past 3 Days',

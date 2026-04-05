@@ -214,11 +214,30 @@ class AuthRepositoryImpl implements AuthRepository {
           name: user.name,
           role: user.role,
           avatarUrl: user.avatarUrl,
+          city: user.city,
         ),
       );
       return const Right(null);
     } on CacheException catch (e) {
       return Left(CacheFailure(e.message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, User>> updateHomeCity(String city) async {
+    if (!await networkInfo.isConnected) {
+      return const Left(NetworkFailure('No Internet Connection'));
+    }
+    try {
+      final user = await remoteDataSource.updateProfileCity(city);
+      await localDataSource.cacheUser(user);
+      return Right(user);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on AuthException catch (e) {
+      return Left(AuthFailure(e.message));
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
     }
   }
 }

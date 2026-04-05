@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/location/location_access_messages.dart';
+import '../../../../core/location/profile_home_city_sync.dart';
 import '../../../../core/location/session_device_location_cubit.dart';
 import '../../../../core/location/user_geo_for_feed.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -849,6 +850,7 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     if (widget.useSessionDeviceLocation) {
       context.read<SessionDeviceLocationCubit>().setSessionLocation(result);
+      await persistProfileHomeCityIfSignedIn(context, result);
     } else {
       setState(() {
         _currentLocation = result;

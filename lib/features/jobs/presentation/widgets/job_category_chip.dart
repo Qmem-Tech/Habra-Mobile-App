@@ -19,16 +19,17 @@ class JobCategoryChip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        margin: const EdgeInsets.only(right: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.brandPrimary : AppColors.backgroundLight,
+          color: isSelected
+              ? AppColors.customerHomePrimary
+              : AppColors.backgroundLight,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
             color: isSelected ? Colors.white : AppColors.textPrimary,
           ),
         ),

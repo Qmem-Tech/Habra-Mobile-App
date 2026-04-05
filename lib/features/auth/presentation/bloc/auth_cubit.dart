@@ -182,4 +182,18 @@ class AuthCubit extends Cubit<AuthState> {
     await authRepository.cacheUserProfile(updated);
     emit(AuthAuthenticated(updated));
   }
+
+  /// Saves `profiles.city` (home / feed metro) and updates session + local cache.
+  Future<void> saveHomeCity(String city) async {
+    final trimmed = city.trim();
+    if (trimmed.isEmpty) return;
+    final result = await authRepository.updateHomeCity(trimmed);
+    result.fold(
+      (_) {},
+      (user) async {
+        await revenueCatService.identifyUser(user.id, email: user.email);
+        emit(AuthAuthenticated(user));
+      },
+    );
+  }
 }
