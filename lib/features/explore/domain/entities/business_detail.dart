@@ -59,7 +59,20 @@ class BusinessDetail extends Equatable {
     this.photos = const [],
   });
 
-  String get fullAddress => '$address, $city, $state $zipCode';
+  String get fullAddress {
+    final a = address.trim();
+    final c = city.trim();
+    final s = state.trim();
+    final z = zipCode.trim();
+    final cityState = [c, s].where((x) => x.isNotEmpty).join(', ');
+    final parts = <String>[
+      if (a.isNotEmpty) a,
+      if (cityState.isNotEmpty) cityState,
+      if (z.isNotEmpty) z,
+    ];
+    if (parts.isEmpty) return 'Address not available';
+    return parts.join(', ');
+  }
 
   @override
   List<Object?> get props => [

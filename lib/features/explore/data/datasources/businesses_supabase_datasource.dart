@@ -1,3 +1,5 @@
+import 'dart:math' show Random;
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/supabase_tables.dart';
@@ -200,17 +202,39 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
           .order('created_at', ascending: false);
       final reviews = (reviewsRes as List).cast<Map<String, dynamic>>().map(_rowToReview).toList();
 
-      final imageUrls = parseStringList(row['image_urls']);
-      final mainImage = parseString(row['logo_url']) ?? (imageUrls.isNotEmpty ? imageUrls.first : '');
-      final List<String> allImages = mainImage.isNotEmpty
-          ? [mainImage, ...imageUrls.where((u) => u != mainImage)]
-          : List<String>.from(imageUrls);
-      if (allImages.isEmpty) allImages.add('https://placehold.co/400x300?text=Business');
+      final gallery = parseStringList(row['image_urls']);
+      final backgroundUrl = parseString(row['background_url']);
+      final logoUrl = parseString(row['logo_url']);
+      final seen = <String>{};
+      final allImages = <String>[];
+      void addUrl(String? u) {
+        final s = u?.trim();
+        if (s == null || s.isEmpty || seen.contains(s)) return;
+        seen.add(s);
+        allImages.add(s);
+      }
+
+      addUrl(backgroundUrl);
+      for (final u in gallery) {
+        addUrl(u);
+      }
+      addUrl(logoUrl);
+      if (allImages.isEmpty) {
+        allImages.add('https://placehold.co/400x300?text=Business');
+      }
+
+      final listingCategoryIds = _listingCategoryIdsFromRow(row);
+      final similar = await _fetchSimilarBusinessListItems(
+        excludeBusinessId: businessId,
+        categoryIds: listingCategoryIds,
+      );
+
+      final isActive = parseBool(row['is_active']);
 
       return BusinessDetail(
         id: listItem.id,
         name: listItem.name,
-        description: parseStringRequired(row['description']),
+        description: parseString(row['description']) ?? '',
         imageUrls: allImages,
         categories: listItem.categories,
         address: listItem.address,
@@ -225,16 +249,63 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
         reviewCount: listItem.reviewCount,
         priceRange: listItem.priceRange,
         isVerified: listItem.isVerified,
-        isOpen: true,
+        isOpen: isActive,
         closingTime: listItem.closingTime,
         openingTime: listItem.openingTime,
         hours: const [],
         currentDeals: deals,
         reviews: reviews,
-        similarBusinesses: const [],
-        photos: allImages,
+        similarBusinesses: similar,
+        photos: List<String>.from(allImages),
       );
     });
+  }
+
+  /// Other approved listings sharing a linked category (shuffled, capped).
+  Future<List<BusinessListItem>> _fetchSimilarBusinessListItems({
+    required String excludeBusinessId,
+    required List<String> categoryIds,
+  }) async {
+    if (categoryIds.isEmpty) return [];
+    try {
+      final catFilter = categoryIds.length > 5 ? categoryIds.sublist(0, 5) : categoryIds;
+      final bcRes = await _client
+          .from(SupabaseTables.businessCategories)
+          .select('business_id')
+          .inFilter('category_id', catFilter);
+      final bcRows = (bcRes as List).cast<Map<String, dynamic>>();
+      final candidateIds = <String>[];
+      final seen = <String>{};
+      for (final r in bcRows) {
+        final bid = parseString(r['business_id']);
+        if (bid == null ||
+            bid == excludeBusinessId ||
+            seen.contains(bid)) {
+          continue;
+        }
+        seen.add(bid);
+        candidateIds.add(bid);
+      }
+      if (candidateIds.isEmpty) return <BusinessListItem>[];
+      candidateIds.shuffle(Random());
+      final take = candidateIds.take(16).toList();
+      final bizRes = await _client
+          .from('businesses')
+          .select('*, business_categories(categories(id, name, slug))')
+          .inFilter('id', take)
+          .eq('approval_status', 'approved')
+          .eq('is_active', true);
+      final rows = (bizRes as List).cast<Map<String, dynamic>>();
+      final byId = {for (final r in rows) parseStringRequired(r['id']): r};
+      final ordered = <BusinessListItem>[];
+      for (final id in take) {
+        final r = byId[id];
+        if (r != null) ordered.add(_rowToBusinessListItem(r));
+      }
+      return ordered.take(8).toList();
+    } catch (_) {
+      return <BusinessListItem>[];
+    }
   }
 
   Deal _rowToDeal(Map<String, dynamic> row, [BusinessListItem? business]) {

@@ -9,6 +9,8 @@ import '../../../../core/utils/app_share.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../domain/entities/business_detail.dart';
+import '../../domain/entities/review.dart';
 import '../../domain/repositories/businesses_repository.dart';
 import '../bloc/businesses_cubit.dart';
 import '../bloc/businesses_state.dart';
@@ -62,7 +64,7 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, dynamic business) {
+  Widget _buildContent(BuildContext context, BusinessDetail business) {
     return CustomScrollView(
       slivers: [
         _buildAppBar(context, business),
@@ -77,7 +79,7 @@ class BusinessDetailPage extends StatelessWidget {
               _buildLocation(context, business),
               _buildPhotos(business),
               _buildReviews(context, business),
-              if (business.similarBusinesses.isNotEmpty) _buildSimilarBusinesses(business),
+              if (business.similarBusinesses.isNotEmpty) _buildSimilarBusinesses(context, business),
               const SizedBox(height: 24),
             ],
           ),
@@ -86,20 +88,14 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildAppBar(BuildContext context, dynamic business) {
+  Widget _buildAppBar(BuildContext context, BusinessDetail business) {
+    final hero = business.imageUrls.isNotEmpty ? business.imageUrls.first : AppAssets.businessPlaceholder;
     return SliverAppBar(
       expandedHeight: 250,
       pinned: true,
       flexibleSpace: FlexibleSpaceBar(
-        background: Image.asset(
-          business.imageUrls.isNotEmpty ? business.imageUrls.first : AppAssets.businessPlaceholder,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: AppColors.backgroundGrey,
-              child: const Icon(Icons.store, size: 64, color: AppColors.textSecondary),
-            );
-          },
+        background: SizedBox.expand(
+          child: _coverImage(hero),
         ),
       ),
       leading: IconButton(
@@ -110,8 +106,8 @@ class BusinessDetailPage extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.share, color: Colors.white),
           onPressed: () {
-            final name = business.name as String? ?? 'Business';
-            final addr = business.fullAddress as String? ?? '';
+            final name = business.name;
+            final addr = business.fullAddress;
             shareText(
               addr.isNotEmpty ? '$name\n$addr' : name,
               subject: name,
@@ -122,7 +118,7 @@ class BusinessDetailPage extends StatelessWidget {
           icon: const Icon(Icons.bookmark_border, color: Colors.white),
           onPressed: () {
             // saved_items table only supports event/deal; share is the supported “save” path for businesses today.
-            final name = business.name as String? ?? 'Business';
+            final name = business.name;
             shareText('Saved via Habra: $name', subject: name);
           },
         ),
@@ -130,7 +126,8 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(dynamic business) {
+  Widget _buildHeader(BusinessDetail business) {
+    final metaLine = _categoryAndPriceLine(business);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -181,14 +178,16 @@ class BusinessDetailPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            '${business.categories.map((c) => c.displayName).join(', ')} • ${business.priceRange ?? ''}',
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
+          if (metaLine.isNotEmpty) ...[
+            Text(
+              metaLine,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
+          ],
           Row(
             children: [
               Icon(
@@ -214,7 +213,9 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, dynamic business) {
+  Widget _buildActionButtons(BuildContext context, BusinessDetail business) {
+    final site = business.website?.trim();
+    final hasSite = site != null && site.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -223,10 +224,20 @@ class BusinessDetailPage extends StatelessWidget {
             child: _buildActionButton(
               icon: Icons.phone,
               label: 'Call',
-              onTap: () => _launchDialer(context, business.phoneNumber as String?),
+              onTap: () => _launchDialer(context, business.phoneNumber),
             ),
           ),
           const SizedBox(width: 12),
+          if (hasSite) ...[
+            Expanded(
+              child: _buildActionButton(
+                icon: Icons.language,
+                label: 'Website',
+                onTap: () => _launchWebsite(context, site),
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
           Expanded(
             child: _buildActionButton(
               icon: Icons.directions,
@@ -286,7 +297,7 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildCurrentDeals(dynamic business) {
+  Widget _buildCurrentDeals(BusinessDetail business) {
     if (business.currentDeals.isEmpty) return const SizedBox.shrink();
 
     return Padding(
@@ -353,7 +364,8 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildAbout(dynamic business) {
+  Widget _buildAbout(BusinessDetail business) {
+    final desc = business.description.trim();
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -369,7 +381,9 @@ class BusinessDetailPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            business.description,
+            desc.isEmpty
+                ? 'No description has been added for this business yet.'
+                : desc,
             style: const TextStyle(
               fontSize: 14,
               color: AppColors.textSecondary,
@@ -381,7 +395,7 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildLocation(BuildContext context, dynamic business) {
+  Widget _buildLocation(BuildContext context, BusinessDetail business) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -465,7 +479,7 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildPhotos(dynamic business) {
+  Widget _buildPhotos(BusinessDetail business) {
     if (business.photos.isEmpty) return const SizedBox.shrink();
 
     return Padding(
@@ -504,19 +518,7 @@ class BusinessDetailPage extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 8),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.asset(
-                      business.photos[index],
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          width: 100,
-                          height: 100,
-                          color: AppColors.backgroundGrey,
-                        );
-                      },
-                    ),
+                    child: _galleryThumb(business.photos[index]),
                   ),
                 );
               },
@@ -527,7 +529,7 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildReviews(BuildContext context, dynamic business) {
+  Widget _buildReviews(BuildContext context, BusinessDetail business) {
     return BlocBuilder<ReviewsCubit, ReviewsState>(
       builder: (context, reviewsState) {
         return Padding(
@@ -580,7 +582,7 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildRatingSummary(dynamic business, reviews) {
+  Widget _buildRatingSummary(BusinessDetail business, List<Review> reviews) {
     final ratingCounts = List.generate(5, (index) {
       final star = 5 - index;
       return reviews.where((r) => r.rating == star).length;
@@ -666,7 +668,7 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSimilarBusinesses(dynamic business) {
+  Widget _buildSimilarBusinesses(BuildContext context, BusinessDetail business) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -692,7 +694,13 @@ class BusinessDetailPage extends StatelessWidget {
                   child: BusinessCard(
                     business: business.similarBusinesses[index],
                     onTap: () {
-                      // Navigate to business detail
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => BusinessDetailPage(
+                            businessId: business.similarBusinesses[index].id,
+                          ),
+                        ),
+                      );
                     },
                   ),
                 );
@@ -701,6 +709,110 @@ class BusinessDetailPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  static String _categoryAndPriceLine(BusinessDetail business) {
+    final cats = business.categories.map((c) => c.displayName).join(', ');
+    final price = business.priceRange?.trim() ?? '';
+    final parts = <String>[
+      if (cats.isNotEmpty) cats,
+      if (price.isNotEmpty) price,
+    ];
+    return parts.join(' • ');
+  }
+
+  static bool _isHttpUrl(String url) {
+    final l = url.toLowerCase().trim();
+    return l.startsWith('http://') || l.startsWith('https://');
+  }
+
+  static Widget _coverImage(String url) {
+    if (_isHttpUrl(url)) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => _placeholderCover(),
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return ColoredBox(
+            color: AppColors.backgroundGrey,
+            child: Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  value: progress.expectedTotalBytes != null
+                      ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                      : null,
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
+    if (url.isNotEmpty) {
+      return Image.asset(
+        url,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => _placeholderCover(),
+      );
+    }
+    return _placeholderCover();
+  }
+
+  static Widget _placeholderCover() {
+    return const ColoredBox(
+      color: AppColors.backgroundGrey,
+      child: Center(
+        child: Icon(Icons.store, size: 64, color: AppColors.textSecondary),
+      ),
+    );
+  }
+
+  static Widget _galleryThumb(String url) {
+    const w = 100.0;
+    const h = 100.0;
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) {
+      return Container(width: w, height: h, color: AppColors.backgroundGrey);
+    }
+    if (_isHttpUrl(trimmed)) {
+      return Image.network(
+        trimmed,
+        width: w,
+        height: h,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(width: w, height: h, color: AppColors.backgroundGrey),
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            width: w,
+            height: h,
+            color: AppColors.backgroundGrey,
+            child: const Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        },
+      );
+    }
+    return Image.asset(
+      trimmed,
+      width: w,
+      height: h,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(width: w, height: h, color: AppColors.backgroundGrey),
     );
   }
 
@@ -724,6 +836,26 @@ class BusinessDetailPage extends StatelessWidget {
     } else if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cannot open phone dialer')),
+      );
+    }
+  }
+
+  static Future<void> _launchWebsite(BuildContext context, String raw) async {
+    var uri = Uri.tryParse(raw);
+    if (uri == null || !uri.hasScheme) {
+      uri = Uri.tryParse('https://$raw');
+    }
+    if (uri == null) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid website URL')),
+      );
+      return;
+    }
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open website')),
       );
     }
   }
