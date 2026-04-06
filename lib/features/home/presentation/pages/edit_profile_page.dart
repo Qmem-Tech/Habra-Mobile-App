@@ -36,7 +36,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _profileLoadTriggered = false;
   bool _hasPrefilledFromProfile = false;
   String? _avatarUrl;
-  List<String> _selectedInterests = const ['Concert', 'Food and dining'];
+  List<String> _selectedInterests = const [];
 
   @override
   void initState() {
@@ -411,27 +411,45 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   child: Wrap(
                     spacing: AppResources.spacingS,
                     runSpacing: AppResources.spacingS,
-                    children: _selectedInterests
-                        .map(
-                          (interest) => Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.settingsIconTileBackground,
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Text(
-                              interest,
-                              style: const TextStyle(
-                                color: AppColors.ownerHomePrimary,
-                                fontWeight: FontWeight.w600,
+                    children: _selectedInterests.isEmpty
+                        ? [
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.backgroundLight,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppColors.backgroundGrey.withValues(alpha: 0.7),
+                                ),
+                              ),
+                              child: const Text(
+                                'No interests selected yet. Tap "Edit Interests" to choose what you like.',
+                                style: TextStyle(color: AppColors.textSecondary),
                               ),
                             ),
-                          ),
-                        )
-                        .toList(),
+                          ]
+                        : _selectedInterests
+                            .map(
+                              (interest) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.settingsIconTileBackground,
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: Text(
+                                  interest,
+                                  style: const TextStyle(
+                                    color: AppColors.ownerHomePrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
                   ),
                 ),
               ],

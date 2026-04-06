@@ -101,13 +101,14 @@ class _InterestsSelectionPageState extends State<InterestsSelectionPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
-          TextButton(
-            onPressed: _onSkip,
-            child: Text(
-              'Skip',
-              style: AppFonts.body(color: AppColors.brandPrimary),
+          if (widget.onboardingFlow)
+            TextButton(
+              onPressed: _onSkip,
+              child: Text(
+                'Skip',
+                style: AppFonts.body(color: AppColors.brandPrimary),
+              ),
             ),
-          ),
         ],
       ),
       body: SafeArea(
@@ -136,7 +137,7 @@ class _InterestsSelectionPageState extends State<InterestsSelectionPage> {
                 padding: const EdgeInsets.all(AppResources.spacingL),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 1.2,
+                  childAspectRatio: 0.9,
                   crossAxisSpacing: AppResources.spacingM,
                   mainAxisSpacing: AppResources.spacingM,
                 ),
@@ -171,7 +172,7 @@ class _InterestsSelectionPageState extends State<InterestsSelectionPage> {
                       child: Stack(
                         children: [
                           Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
                               // Icon background
                               Container(
@@ -189,14 +190,18 @@ class _InterestsSelectionPageState extends State<InterestsSelectionPage> {
                               ),
                               const SizedBox(height: AppResources.spacingM),
                               // Interest name
-                              Text(
-                                interest.name,
-                                style: AppFonts.bodySmall(
-                                  color: AppColors.textPrimary,
+                              Expanded(
+                                child: Center(
+                                  child: Text(
+                                    interest.name,
+                                    style: AppFonts.bodySmall(
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
