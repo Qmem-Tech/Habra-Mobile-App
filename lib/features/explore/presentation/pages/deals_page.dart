@@ -191,16 +191,42 @@ class _DealsPageState extends State<DealsPage> {
       );
     }
 
-    return SizedBox(
-      height: 50,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [
-          _dealCategoryChip(label: 'All', id: null),
-          ..._listingCategories.map((c) => _dealCategoryChip(label: c.name, id: c.id)),
-        ],
-      ),
+    return BlocBuilder<DealsCubit, DealsState>(
+      builder: (context, state) {
+        final availableCategoryIds = state is DealsLoaded
+            ? state.deals
+                .expand((d) => d.business.listingCategoryIds)
+                .where((id) => id.trim().isNotEmpty)
+                .toSet()
+            : <String>{};
+
+        final visibleCategories = availableCategoryIds.isEmpty
+            ? _listingCategories
+            : _listingCategories
+                .where((c) => availableCategoryIds.contains(c.id))
+                .toList();
+
+        if (_selectedListingCategoryId != null &&
+            !visibleCategories.any((c) => c.id == _selectedListingCategoryId)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() => _selectedListingCategoryId = null);
+          });
+        }
+
+        return SizedBox(
+          height: 50,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              _dealCategoryChip(label: 'All', id: null),
+              ...visibleCategories
+                  .map((c) => _dealCategoryChip(label: c.name, id: c.id)),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -237,8 +263,14 @@ class _DealsPageState extends State<DealsPage> {
     final scoped = cid == null || cid.isEmpty
         ? deals
         : deals.where((d) => d.business.listingCategoryIds.contains(cid)).toList();
+    if (scoped.isEmpty) {
+      return _buildEmptyState();
+    }
     final hotDeals = scoped.where((d) => d.type == DealType.hotDeal).toList();
     final happyHour = scoped.where((d) => d.type == DealType.happyHour).toList();
+    final otherDeals = scoped
+        .where((d) => d.type != DealType.hotDeal && d.type != DealType.happyHour)
+        .toList();
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -272,6 +304,28 @@ class _DealsPageState extends State<DealsPage> {
             _buildSectionHeader('Happy Hour', '🍹'),
             const SizedBox(height: 12),
             ...happyHour.map((deal) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: DealCard(
+                  deal: deal,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DealDetailPage(dealId: deal.id),
+                      ),
+                    );
+                  },
+                ),
+              );
+            }),
+          ],
+          if (otherDeals.isNotEmpty) ...[
+            if (hotDeals.isNotEmpty || happyHour.isNotEmpty)
+              const SizedBox(height: 24),
+            _buildSectionHeader('All Deals', '🏷️'),
+            const SizedBox(height: 12),
+            ...otherDeals.map((deal) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: DealCard(

@@ -44,6 +44,12 @@ class AppColors {
   static const Color backgroundLight = Color(0xFFF5F5F5);
   static const Color backgroundGrey = Color(0xFFE0E0E0);
 
+  /// Settings / account screen: icon tile background (sage from design mock).
+  static const Color settingsIconTileBackground = Color(0xFFD8E2DC);
+
+  /// Log out and other destructive text accents (design mock).
+  static const Color logoutActionText = Color(0xFFD9534F);
+
   // ==================== Light Theme Colors ====================
   static const Color lightPrimary = brandPrimary;
   static const Color lightSecondary = brandSecondary;

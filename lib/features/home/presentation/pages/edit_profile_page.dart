@@ -10,6 +10,7 @@ import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../auth/presentation/pages/interests_selection_page.dart';
 import '../../../profile/domain/entities/user_profile.dart';
 import '../../../profile/domain/repositories/profile_repository.dart';
 import '../../../profile/presentation/bloc/edit_profile_cubit.dart';
@@ -35,6 +36,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _profileLoadTriggered = false;
   bool _hasPrefilledFromProfile = false;
   String? _avatarUrl;
+  List<String> _selectedInterests = const ['Concert', 'Food and dining'];
 
   @override
   void initState() {
@@ -84,8 +86,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
             phone: _phoneNumber.isEmpty ? null : _phoneNumber,
             bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
             location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
+            interests: _selectedInterests,
           ),
         );
+  }
+
+  Future<void> _openInterestsEditor() async {
+    final result = await Navigator.push<List<String>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InterestsSelectionPage(
+          onboardingFlow: false,
+          initialSelected: _selectedInterests,
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() => _selectedInterests = result);
   }
 
   Future<void> _pickAndUploadPhoto(BuildContext context) async {
@@ -120,6 +137,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (profile.phone != null && profile.phone!.isNotEmpty) {
         _phoneNumber = profile.phone!;
         _initialPhoneNumber = profile.phone!;
+      }
+      if (profile.interests.isNotEmpty) {
+        _selectedInterests = List<String>.from(profile.interests);
       }
       _avatarUrl = profile.avatarUrl;
     });
@@ -180,11 +200,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
         final saving = state is EditProfileSaving;
         final loadedProfile = state is EditProfileLoaded ? state.profile : null;
         final displayAvatarUrl = _avatarUrl ?? loadedProfile?.avatarUrl;
+        final fieldBorder = OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(
+            color: AppColors.backgroundGrey.withValues(alpha: 0.7),
+          ),
+        );
 
         return Scaffold(
           backgroundColor: AppColors.backgroundWhite,
           appBar: AppBar(
-            title: const Text('Edit Profile'),
+            centerTitle: true,
+            title: const Text(
+              'Edit Profile',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
             backgroundColor: AppColors.backgroundWhite,
             foregroundColor: AppColors.textPrimary,
             elevation: 0,
@@ -200,55 +230,74 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     : Text(
                         'Save',
                         style: TextStyle(
-                          color: AppColors.brandPrimary,
-                          fontWeight: FontWeight.w600,
+                          color: AppColors.ownerHomePrimary,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
               ),
             ],
           ),
           body: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppResources.spacingL),
+            padding: const EdgeInsets.fromLTRB(
+              AppResources.spacingM,
+              AppResources.spacingS,
+              AppResources.spacingM,
+              AppResources.spacingL,
+            ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: AppResources.spacingM),
-                CircleAvatar(
-                  radius: 56,
-                  backgroundColor: AppColors.brandPrimary.withValues(alpha: 0.2),
-                  backgroundImage: displayAvatarUrl != null && displayAvatarUrl.isNotEmpty
-                      ? NetworkImage(displayAvatarUrl)
-                      : null,
-                  child: displayAvatarUrl == null || displayAvatarUrl.isEmpty
-                      ? Text(
-                          widget.user.name.isNotEmpty
-                              ? widget.user.name[0].toUpperCase()
-                              : '?',
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.brandPrimary,
-                          ),
-                        )
-                      : null,
-                ),
-                const SizedBox(height: AppResources.spacingM),
-                OutlinedButton.icon(
-                  onPressed: saving ? null : () => _pickAndUploadPhoto(context),
-                  icon: const Icon(Icons.camera_alt, size: 18),
-                  label: const Text('Change Photo'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.brandPrimary,
-                    side: const BorderSide(color: AppColors.brandPrimary),
+                Center(
+                  child: CircleAvatar(
+                    radius: 48,
+                    backgroundColor: AppColors.settingsIconTileBackground,
+                    backgroundImage:
+                        displayAvatarUrl != null && displayAvatarUrl.isNotEmpty
+                        ? NetworkImage(displayAvatarUrl)
+                        : null,
+                    child: displayAvatarUrl == null || displayAvatarUrl.isEmpty
+                        ? Text(
+                            widget.user.name.isNotEmpty
+                                ? widget.user.name[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.ownerHomePrimary,
+                            ),
+                          )
+                        : null,
                   ),
                 ),
-                const SizedBox(height: AppResources.spacingXL),
+                const SizedBox(height: AppResources.spacingS),
+                Center(
+                  child: FilledButton(
+                    onPressed: saving ? null : () => _pickAndUploadPhoto(context),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.settingsIconTileBackground,
+                      foregroundColor: AppColors.ownerHomePrimary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    child: const Text(
+                      'Change Photo',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppResources.spacingL),
                 _LabeledField(
                   label: 'Full Name',
                   child: TextField(
                     controller: _nameController,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: InputDecoration(
+                      enabledBorder: fieldBorder,
+                      focusedBorder: fieldBorder.copyWith(
+                        borderSide: const BorderSide(color: AppColors.ownerHomePrimary),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),
                   ),
                 ),
@@ -259,11 +308,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     controller: _emailController,
                     readOnly: true,
                     decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
+                      enabledBorder: fieldBorder,
+                      focusedBorder: fieldBorder,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       filled: true,
                       fillColor: AppColors.backgroundLight,
-                      suffixIcon: Icon(Icons.lock_outline, size: 18, color: AppColors.textTertiary),
                     ),
                   ),
                 ),
@@ -275,9 +324,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     disableLengthCheck: true,
                     initialValue: _stripCountryCode(_initialPhoneNumber),
                     initialCountryCode: 'US',
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: InputDecoration(
+                      enabledBorder: fieldBorder,
+                      focusedBorder: fieldBorder.copyWith(
+                        borderSide: const BorderSide(color: AppColors.ownerHomePrimary),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),
                     onChanged: (PhoneNumber phone) {
                       _phoneNumber = phone.completeNumber;
@@ -301,11 +353,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         readOnly: true,
                         decoration: InputDecoration(
                           hintText: 'Select your city...',
-                          border: const OutlineInputBorder(),
+                          enabledBorder: fieldBorder,
+                          focusedBorder: fieldBorder,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          suffixIcon: Icon(
-                            Icons.arrow_drop_down,
-                            color: AppColors.textSecondary,
+                          suffixIcon: const Icon(
+                            Icons.verified,
+                            color: AppColors.ownerHomePrimary,
+                            size: 20,
                           ),
                         ),
                       ),
@@ -313,16 +367,71 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ),
                 ),
                 const SizedBox(height: AppResources.spacingM),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _bioController,
+                  builder: (_, value, __) {
+                    return _LabeledField(
+                      label: 'Bio',
+                      trailing: Text(
+                        '${value.text.length}/160',
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                      child: TextField(
+                        controller: _bioController,
+                        maxLines: 4,
+                        maxLength: 160,
+                        decoration: InputDecoration(
+                          counterText: '',
+                          enabledBorder: fieldBorder,
+                          focusedBorder: fieldBorder.copyWith(
+                            borderSide: const BorderSide(color: AppColors.ownerHomePrimary),
+                          ),
+                          contentPadding: const EdgeInsets.all(14),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: AppResources.spacingM),
                 _LabeledField(
-                  label: 'Bio',
-                  child: TextField(
-                    controller: _bioController,
-                    maxLines: 4,
-                    maxLength: 160,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.all(14),
+                  label: 'Interests',
+                  trailing: TextButton(
+                    onPressed: _openInterestsEditor,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.ownerHomePrimary,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 0),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
+                    child: const Text(
+                      'Edit Interests',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  child: Wrap(
+                    spacing: AppResources.spacingS,
+                    runSpacing: AppResources.spacingS,
+                    children: _selectedInterests
+                        .map(
+                          (interest) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.settingsIconTileBackground,
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Text(
+                              interest,
+                              style: const TextStyle(
+                                color: AppColors.ownerHomePrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                 ),
               ],
@@ -336,21 +445,33 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
 class _LabeledField extends StatelessWidget {
   final String label;
+  final Widget? trailing;
   final Widget child;
 
-  const _LabeledField({required this.label, required this.child});
+  const _LabeledField({
+    required this.label,
+    required this.child,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppColors.brandPrimary,
-                fontWeight: FontWeight.w600,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
+            ),
+            if (trailing != null) trailing!,
+          ],
         ),
         const SizedBox(height: AppResources.spacingXS),
         child,

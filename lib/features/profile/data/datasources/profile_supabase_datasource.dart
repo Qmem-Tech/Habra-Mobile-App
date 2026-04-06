@@ -10,7 +10,7 @@ import 'profile_remote_datasource.dart';
 /// Profile CRUD via Supabase `profiles` table.
 ///
 /// Core columns (always present): id, email, full_name, role, avatar_url, phone, created_at.
-/// Optional columns the app can use: bio, city.
+/// Optional columns the app can use: bio, city, interests.
 /// Run `add_profiles_optional_columns.sql` to add any that are missing.
 class ProfileSupabaseDataSource implements ProfileRemoteDataSource {
   ProfileSupabaseDataSource();
@@ -36,7 +36,7 @@ class ProfileSupabaseDataSource implements ProfileRemoteDataSource {
 
       if (!_schemaProbed) {
         _schemaProbed = true;
-        for (final col in ['bio', 'city']) {
+        for (final col in ['bio', 'city', 'interests']) {
           if (!row.containsKey(col)) _missingColumns.add(col);
         }
       }
@@ -49,6 +49,9 @@ class ProfileSupabaseDataSource implements ProfileRemoteDataSource {
         bio: row.containsKey('bio') ? parseString(row['bio']) : null,
         location: parseString(row['city']) ?? parseString(row['location']),
         avatarUrl: parseString(row['avatar_url']),
+        interests: row.containsKey('interests')
+            ? parseStringList(row['interests'])
+            : const [],
         createdAt: parseTimestamp(row['created_at']),
       );
     });
@@ -67,6 +70,9 @@ class ProfileSupabaseDataSource implements ProfileRemoteDataSource {
       }
       if (update.bio != null && !_missingColumns.contains('bio')) {
         payload['bio'] = update.bio!;
+      }
+      if (update.interests != null && !_missingColumns.contains('interests')) {
+        payload['interests'] = update.interests!;
       }
 
       if (payload.isEmpty) return getProfile(userId);
@@ -92,7 +98,7 @@ class ProfileSupabaseDataSource implements ProfileRemoteDataSource {
   /// Returns `true` if at least one column was stripped (retry is possible).
   bool _stripMissingColumns(Map<String, dynamic> payload, String message) {
     bool stripped = false;
-    for (final col in ['bio', 'city']) {
+    for (final col in ['bio', 'city', 'interests']) {
       if (payload.containsKey(col) && message.contains(col)) {
         _missingColumns.add(col);
         payload.remove(col);

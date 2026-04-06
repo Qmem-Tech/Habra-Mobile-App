@@ -14,9 +14,12 @@ class SavedItemsRepositoryImpl implements SavedItemsRepository {
     SavedItemType? filterType,
   }) async {
     try {
-      final String? typeStr = filterType != null
-          ? (filterType == SavedItemType.deal ? 'deal' : 'event')
-          : null;
+      final String? typeStr = switch (filterType) {
+        null => null,
+        SavedItemType.deal => 'deal',
+        SavedItemType.event => 'event',
+        SavedItemType.job => 'job',
+      };
       final list = await remoteDataSource.getSavedItems(filterType: typeStr);
       return Right(list);
     } catch (e) {
@@ -30,8 +33,13 @@ class SavedItemsRepositoryImpl implements SavedItemsRepository {
     required String referenceId,
   }) async {
     try {
+      final typeStr = switch (itemType) {
+        SavedItemType.deal => 'deal',
+        SavedItemType.event => 'event',
+        SavedItemType.job => 'job',
+      };
       await remoteDataSource.saveItem(
-        itemType: itemType == SavedItemType.deal ? 'deal' : 'event',
+        itemType: typeStr,
         referenceId: referenceId,
       );
       return const Right(null);

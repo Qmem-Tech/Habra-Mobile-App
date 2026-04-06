@@ -15,6 +15,7 @@ class UserProfileUpdate {
   final String? bio;
   final String? location;
   final String? avatarUrl;
+  final List<String>? interests;
 
   const UserProfileUpdate({
     this.fullName,
@@ -22,5 +23,6 @@ class UserProfileUpdate {
     this.bio,
     this.location,
     this.avatarUrl,
+    this.interests,
   });
 }

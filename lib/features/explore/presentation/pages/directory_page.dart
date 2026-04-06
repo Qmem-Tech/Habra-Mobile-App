@@ -26,17 +26,24 @@ class DirectoryPage extends StatefulWidget {
 
 class _DirectoryPageState extends State<DirectoryPage> {
   final TextEditingController _searchController = TextEditingController();
+  BusinessesCubit? _businessesCubit;
   String? _selectedListingCategoryId;
   List<ListingCategory> _listingCategories = [];
   bool _categoriesLoading = true;
   String _currentLocation = 'Washington, D.C.';
   Timer? _searchDebounce;
 
+  BusinessesCubit get _cubit => _businessesCubit ??= di.sl<BusinessesCubit>();
+
   @override
   void initState() {
     super.initState();
     _selectedListingCategoryId = widget.initialListingCategoryId;
     _loadCategoryRows();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadBusinesses(context);
+    });
   }
 
   Future<void> _loadCategoryRows() async {
@@ -55,6 +62,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
   void dispose() {
     _searchDebounce?.cancel();
     _searchController.dispose();
+    _businessesCubit?.close();
     super.dispose();
   }
 
@@ -65,11 +73,11 @@ class _DirectoryPageState extends State<DirectoryPage> {
         : null;
     final loc = SessionDeviceLocationCubit.tryLabel(context) ??
         _currentLocation;
-    context.read<BusinessesCubit>().loadBusinesses(
-          location: loc,
-          filters: filters,
-          searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
-        );
+    _cubit.loadBusinesses(
+      location: loc,
+      filters: filters,
+      searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
+    );
   }
 
   String _displayLocationLabel(BuildContext context) {
@@ -106,6 +114,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
           _buildResultsHeader(),
           Expanded(
             child: BlocBuilder<BusinessesCubit, BusinessesState>(
+              bloc: _cubit,
               builder: (context, state) {
                 if (state is BusinessesLoading) {
                   return const HabraCircularLoader(fullScreen: true);
@@ -145,14 +154,8 @@ class _DirectoryPageState extends State<DirectoryPage> {
             child: scaffold,
           );
 
-    return BlocProvider(
-      create: (context) {
-        final cubit = di.sl<BusinessesCubit>();
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _loadBusinesses(context);
-        });
-        return cubit;
-      },
+    return BlocProvider.value(
+      value: _cubit,
       child: synced,
     );
   }
@@ -275,6 +278,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
 
   Widget _buildResultsHeader() {
     return BlocBuilder<BusinessesCubit, BusinessesState>(
+      bloc: _cubit,
       builder: (context, state) {
         final count = state is BusinessesLoaded ? state.businesses.length : 0;
         return Padding(

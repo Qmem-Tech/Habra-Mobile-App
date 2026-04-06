@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../../../injection/injection_container.dart' as di;
+import '../../../auth/presentation/bloc/auth_cubit.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../profile/domain/repositories/profile_repository.dart';
 import 'welcome_page.dart';
 
 class Interest {
@@ -12,7 +17,14 @@ class Interest {
 }
 
 class InterestsSelectionPage extends StatefulWidget {
-  const InterestsSelectionPage({super.key});
+  const InterestsSelectionPage({
+    super.key,
+    this.initialSelected = const [],
+    this.onboardingFlow = true,
+  });
+
+  final List<String> initialSelected;
+  final bool onboardingFlow;
 
   @override
   State<InterestsSelectionPage> createState() => _InterestsSelectionPageState();
@@ -30,14 +42,48 @@ class _InterestsSelectionPageState extends State<InterestsSelectionPage> {
     Interest(name: 'Housing', icon: Icons.home),
   ];
 
-  final Set<String> _selectedInterests = {};
+  late final Set<String> _selectedInterests;
 
-  void _onContinue() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => const WelcomePage(),
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _selectedInterests = widget.initialSelected.toSet();
+  }
+
+  Future<void> _persistInterests() async {
+    final authState = context.read<AuthCubit>().state;
+    if (authState is! AuthAuthenticated || authState.user.isGuest) return;
+    final selected = _selectedInterests.toList()..sort();
+    await di.sl<ProfileRepository>().updateProfile(
+          authState.user.id,
+          UserProfileUpdate(interests: selected),
+        );
+  }
+
+  Future<void> _onContinue() async {
+    await _persistInterests();
+    if (!mounted) return;
+    if (widget.onboardingFlow) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const WelcomePage(),
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).pop(_selectedInterests.toList());
+  }
+
+  void _onSkip() {
+    if (widget.onboardingFlow) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const WelcomePage(),
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).pop();
   }
 
   @override
@@ -56,7 +102,7 @@ class _InterestsSelectionPageState extends State<InterestsSelectionPage> {
         ),
         actions: [
           TextButton(
-            onPressed: _onContinue,
+            onPressed: _onSkip,
             child: Text(
               'Skip',
               style: AppFonts.body(color: AppColors.brandPrimary),

@@ -480,7 +480,7 @@ Future<void> init() async {
   sl.registerLazySingleton(() => SaveItemUseCase(sl<SavedItemsRepository>()));
   sl.registerLazySingleton(() => RemoveSavedItemUseCase(sl<SavedItemsRepository>()));
   sl.registerFactory(() => SavedItemsCubit(
-    getSavedItemsUseCase: sl<GetSavedItemsUseCase>(),
-    removeSavedItemUseCase: sl<RemoveSavedItemUseCase>(),
-  ));
+        getSavedItemsUseCase: sl<GetSavedItemsUseCase>(),
+        removeSavedItemUseCase: sl<RemoveSavedItemUseCase>(),
+      ));
 }

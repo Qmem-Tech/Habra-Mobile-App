@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum SavedItemType { event, deal }
+enum SavedItemType { event, deal, job }
 
 class SavedItem extends Equatable {
   final String id;

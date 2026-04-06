@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
+import 'package:habra_mobile_app/l10n/app_localizations.dart';
 
 import '../../../../core/constants/boost_plan_target.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -21,6 +21,7 @@ import '../bloc/business_owner_home_state.dart';
 import '../../../profile/domain/entities/user_profile.dart';
 import '../../../profile/domain/usecases/get_profile_usecase.dart';
 import '../../../profile/presentation/bloc/edit_profile_cubit.dart';
+import '../../../settings/presentation/widgets/account_settings_body.dart';
 import 'business_owner_notification_page.dart';
 import 'edit_profile_page.dart';
 import 'location_map_page.dart';
@@ -84,31 +85,6 @@ class _ProfilePageState extends State<ProfilePage> {
           ownerId: widget.user.id,
           showSetupIncomplete: false,
         );
-  }
-
-  static String _phoneDisplay(String? phone) {
-    final t = phone?.trim();
-    if (t == null || t.isEmpty) return '—';
-    return t;
-  }
-
-  static String _bioDisplay(String? bio) {
-    final t = bio?.trim();
-    if (t == null || t.isEmpty) return '—';
-    return t;
-  }
-
-  static String _roleLabel(UserRole role) {
-    switch (role) {
-      case UserRole.customer:
-        return 'Community member';
-      case UserRole.businessOwner:
-        return 'Business owner';
-      case UserRole.admin:
-        return 'Admin';
-      case UserRole.guest:
-        return 'Guest';
-    }
   }
 
   Future<void> _openEditProfile() async {
@@ -263,12 +239,15 @@ class _ProfilePageState extends State<ProfilePage> {
       backgroundColor: AppColors.backgroundWhite,
       appBar: AppBar(
         title: Text(
-          'Profile',
-          style: AppFonts.mediumTitle(color: AppColors.textPrimary),
+          AppLocalizations.of(context)!.settings,
+          style: AppFonts.mediumTitle(color: AppColors.textPrimary)
+              .copyWith(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.backgroundWhite,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -276,13 +255,11 @@ class _ProfilePageState extends State<ProfilePage> {
               ? _ProfileErrorView(message: _error!, onRetry: _loadProfile)
               : RefreshIndicator(
                   onRefresh: _refreshAll,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppResources.spacingL,
-                      vertical: AppResources.spacingM,
-                    ),
-                    child: _buildCustomerBody(context),
+                  child: AccountSettingsBody(
+                    user: widget.user,
+                    displayNameOverride: _profile?.fullName,
+                    avatarUrlOverride: _profile?.avatarUrl,
+                    onReturnedFromEditProfile: _loadProfile,
                   ),
                 ),
     );
@@ -754,175 +731,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildCustomerBody(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: AppResources.spacingM),
-        Text(
-          'Account',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.2,
-              ),
-        ),
-        const SizedBox(height: AppResources.spacingL),
-        Center(
-          child: GestureDetector(
-            onTap: _openEditProfile,
-            child: Stack(
-              children: [
-                CircleAvatar(
-                  radius: 52,
-                  backgroundColor: AppColors.brandPrimary.withValues(alpha: 0.2),
-                  backgroundImage: _profile?.avatarUrl != null &&
-                          _profile!.avatarUrl!.isNotEmpty
-                      ? NetworkImage(_profile!.avatarUrl!)
-                      : null,
-                  child: _profile?.avatarUrl == null ||
-                          _profile!.avatarUrl!.isEmpty
-                      ? Text(
-                          (widget.user.name.isNotEmpty
-                                  ? widget.user.name[0]
-                                  : widget.user.email.isNotEmpty
-                                      ? widget.user.email[0]
-                                      : '?')
-                              .toUpperCase(),
-                          style: AppFonts.largeTitle(color: AppColors.brandPrimary)
-                              .copyWith(fontSize: 36),
-                        )
-                      : null,
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppColors.brandPrimary,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.backgroundWhite,
-                        width: 2,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.camera_alt,
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: AppResources.spacingL),
-        Text(
-          _profile?.fullName ?? widget.user.name,
-          style: AppFonts.mediumTitle(color: AppColors.textPrimary)
-              .copyWith(fontSize: 22),
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: AppResources.spacingXS),
-        Text(
-          widget.user.email,
-          style: AppFonts.body(color: AppColors.textSecondary),
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: AppResources.spacingM),
-        _InfoTile(
-          icon: Icons.phone_outlined,
-          label: 'Phone',
-          value: _phoneDisplay(_profile?.phone),
-        ),
-        if (_profile?.createdAt != null) ...[
-          const SizedBox(height: AppResources.spacingS),
-          _InfoTile(
-            icon: Icons.calendar_today_outlined,
-            label: 'Member since',
-            value: DateFormat.yMMMMd().format(
-              _profile!.createdAt!.toLocal(),
-            ),
-          ),
-        ],
-        const SizedBox(height: AppResources.spacingM),
-        Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppResources.spacingM,
-              vertical: AppResources.spacingS,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.backgroundGrey.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(AppResources.radiusM),
-            ),
-            child: Text(
-              _roleLabel(widget.user.role),
-              style: AppFonts.bodySmall(color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-        if (_profile?.location != null && _profile!.location!.isNotEmpty) ...[
-          const SizedBox(height: AppResources.spacingXL),
-          Text(
-            'Location',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: AppResources.spacingS),
-          _InfoTile(
-            icon: Icons.location_on_outlined,
-            label: '',
-            value: _profile!.location!,
-          ),
-        ],
-        const SizedBox(height: AppResources.spacingXL),
-        Text(
-          'About',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
-        ),
-        const SizedBox(height: AppResources.spacingS),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppResources.spacingM),
-          decoration: BoxDecoration(
-            color: AppColors.backgroundLight,
-            borderRadius: BorderRadius.circular(AppResources.radiusL),
-          ),
-          child: Text(
-            _bioDisplay(_profile?.bio),
-            style: AppFonts.body(
-              color: (_profile?.bio?.trim().isNotEmpty ?? false)
-                  ? AppColors.textPrimary
-                  : AppColors.textTertiary,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppResources.spacingXL),
-        TextButton.icon(
-          onPressed: _openEditProfile,
-          icon: const Icon(Icons.edit_outlined, size: 20),
-          label: const Text('Edit profile'),
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.brandPrimary,
-          ),
-        ),
-        const SizedBox(height: AppResources.spacingL),
-      ],
-    );
-  }
 }
 
 class _OwnerRatingRow extends StatelessWidget {
@@ -1129,54 +937,6 @@ class _ProfileErrorView extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppResources.spacingM),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
-        borderRadius: BorderRadius.circular(AppResources.radiusL),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 22, color: AppColors.brandPrimary),
-          const SizedBox(width: AppResources.spacingS),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (label.isNotEmpty) ...[
-                  Text(
-                    label,
-                    style: AppFonts.bodySmall(color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 2),
-                ],
-                Text(
-                  value,
-                  style: AppFonts.body(color: AppColors.textPrimary),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -8,9 +8,9 @@ import '../../domain/entities/saved_item.dart';
 import '../bloc/saved_items_cubit.dart';
 import '../bloc/saved_items_state.dart';
 
-enum SavedItemsFilter { all, events, deals }
+enum SavedItemsFilter { all, events, deals, jobs }
 
-/// Saved Items screen with filter tabs (All, Events, Deals), list from backend, empty state.
+/// Saved Items screen with filter tabs (All, Events, Deals, Jobs), list from backend, empty state.
 class SavedItemsPage extends StatefulWidget {
   const SavedItemsPage({super.key});
 
@@ -29,6 +29,8 @@ class _SavedItemsPageState extends State<SavedItemsPage> {
         return SavedItemType.event;
       case SavedItemsFilter.deals:
         return SavedItemType.deal;
+      case SavedItemsFilter.jobs:
+        return SavedItemType.job;
     }
   }
 
@@ -48,11 +50,12 @@ class _SavedItemsPageState extends State<SavedItemsPage> {
               selected: _filter,
               onSelected: (v) {
                 setState(() => _filter = v);
-                final type = v == SavedItemsFilter.all
-                    ? null
-                    : (v == SavedItemsFilter.deals
-                        ? SavedItemType.deal
-                        : SavedItemType.event);
+                final SavedItemType? type = switch (v) {
+                  SavedItemsFilter.all => null,
+                  SavedItemsFilter.events => SavedItemType.event,
+                  SavedItemsFilter.deals => SavedItemType.deal,
+                  SavedItemsFilter.jobs => SavedItemType.job,
+                };
                 context.read<SavedItemsCubit>().loadSavedItems(filterType: type);
               },
             ),
@@ -84,7 +87,7 @@ class _SavedItemsPageState extends State<SavedItemsPage> {
                       illustrationPath: AppAssets.savedItemsEmpty,
                       title: 'Nothing saved yet',
                       message:
-                          'Keep track of your favorite Habesha restaurants, upcoming cultural events, and exclusive deals.',
+                          'Keep track of your favorite events, deals, and bookmarked jobs.',
                       buttonLabel: 'Start Exploring',
                       onButtonTap: () => Navigator.pop(context),
                     );
@@ -105,7 +108,7 @@ class _SavedItemsPageState extends State<SavedItemsPage> {
                             item: item,
                             onUnsave: () => context
                                 .read<SavedItemsCubit>()
-                                .removeItem(item.id),
+                                .removeItem(item),
                           );
                         },
                       ),
@@ -159,7 +162,12 @@ class _SavedItemCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.title ?? (item.itemType == SavedItemType.event ? 'Event' : 'Deal'),
+                  item.title ??
+                      switch (item.itemType) {
+                        SavedItemType.event => 'Event',
+                        SavedItemType.deal => 'Deal',
+                        SavedItemType.job => 'Job',
+                      },
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppColors.textPrimary,
@@ -212,24 +220,29 @@ class _FilterTabs extends StatelessWidget {
         horizontal: AppResources.spacingL,
         vertical: AppResources.spacingM,
       ),
-      child: Row(
+      child: Wrap(
+        spacing: AppResources.spacingS,
+        runSpacing: AppResources.spacingS,
         children: [
           _TabChip(
             label: 'All',
             isSelected: selected == SavedItemsFilter.all,
             onTap: () => onSelected(SavedItemsFilter.all),
           ),
-          const SizedBox(width: AppResources.spacingS),
           _TabChip(
             label: 'Events',
             isSelected: selected == SavedItemsFilter.events,
             onTap: () => onSelected(SavedItemsFilter.events),
           ),
-          const SizedBox(width: AppResources.spacingS),
           _TabChip(
             label: 'Deals',
             isSelected: selected == SavedItemsFilter.deals,
             onTap: () => onSelected(SavedItemsFilter.deals),
+          ),
+          _TabChip(
+            label: 'Jobs',
+            isSelected: selected == SavedItemsFilter.jobs,
+            onTap: () => onSelected(SavedItemsFilter.jobs),
           ),
         ],
       ),

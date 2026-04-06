@@ -62,7 +62,7 @@ class _CitySelectionPageState extends State<CitySelectionPage> {
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const InterestsSelectionPage(),
+        builder: (_) => const InterestsSelectionPage(onboardingFlow: true),
       ),
     );
   }

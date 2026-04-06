@@ -7,15 +7,21 @@ import '../models/saved_item_model.dart';
 import 'saved_items_remote_datasource.dart';
 
 /// Saved items CRUD via Supabase table `saved_items`.
-/// Columns: id, user_id, item_type ('event'|'deal'), reference_id, created_at. Optional: title, image_url for display.
+/// Columns: id, user_id, item_type ('event'|'deal'|'job'), reference_id, created_at. Optional: title, image_url for display.
 class SavedItemsSupabaseDataSource implements SavedItemsRemoteDataSource {
   SavedItemsSupabaseDataSource();
 
   SupabaseClient get _client => Supabase.instance.client;
 
   static SavedItemType _itemTypeFromString(String? s) {
-    if (s == 'deal') return SavedItemType.deal;
-    return SavedItemType.event;
+    switch (s) {
+      case 'deal':
+        return SavedItemType.deal;
+      case 'job':
+        return SavedItemType.job;
+      default:
+        return SavedItemType.event;
+    }
   }
 
   SavedItemModel _rowToModel(Map<String, dynamic> row) {
