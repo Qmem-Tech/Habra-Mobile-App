@@ -415,15 +415,15 @@ class _HomePageState extends State<HomePage> {
   Widget _buildGreetingSection() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
         child: Text(
           'Selam, ${_displayFirstName()}! 👋',
           style: const TextStyle(
-            fontSize: 34,
-            fontWeight: FontWeight.w800,
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
-            letterSpacing: -0.8,
-            height: 1.15,
+            letterSpacing: -0.3,
+            height: 1.2,
           ),
         ),
       ),
@@ -433,7 +433,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildSearchSection() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
         child: GestureDetector(
           onTap: () async {
             await Navigator.push<void>(
@@ -446,7 +446,7 @@ class _HomePageState extends State<HomePage> {
             );
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
             decoration: BoxDecoration(
               color: AppColors.backgroundLight,
               borderRadius: BorderRadius.circular(12),
@@ -484,7 +484,7 @@ class _HomePageState extends State<HomePage> {
     VoidCallback? onAction,
   }) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -493,10 +493,10 @@ class _HomePageState extends State<HomePage> {
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 31,
-                fontWeight: FontWeight.w800,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
-                letterSpacing: -0.4,
+                letterSpacing: -0.2,
               ),
             ),
           ),
@@ -511,8 +511,8 @@ class _HomePageState extends State<HomePage> {
                     Text(
                       actionLabel.replaceAll(' >', ''),
                       style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.customerHomePrimary,
                       ),
                     ),
@@ -610,7 +610,7 @@ class _HomePageState extends State<HomePage> {
             )
           else
             SizedBox(
-              height: 232,
+              height: 176,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),

@@ -12,8 +12,8 @@ class EventCard extends StatelessWidget {
     this.onTap,
   });
 
-  static const double _cardWidth = 300;
-  static const double _imageHeight = 232;
+  static const double _cardWidth = 162;
+  static const double _imageHeight = 96;
 
   @override
   Widget build(BuildContext context) {
@@ -21,10 +21,10 @@ class EventCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: _cardWidth,
-        margin: const EdgeInsets.only(right: 16),
+        margin: const EdgeInsets.only(right: 8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.1),
@@ -46,15 +46,15 @@ class EventCard extends StatelessWidget {
           children: [
             _buildImage(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     event.title,
                     style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                       height: 1.25,
                       letterSpacing: -0.3,
@@ -62,22 +62,22 @@ class EventCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 5),
                   Row(
                     children: [
                       Icon(
                         Icons.access_time,
-                        size: 17,
+                        size: 12,
                         color: AppColors.textSecondary.withValues(alpha: 0.9),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           _formatDateTime(event.dateTime),
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 10,
                             color: AppColors.textSecondary.withValues(alpha: 0.95),
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w500,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

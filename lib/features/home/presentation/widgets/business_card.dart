@@ -19,11 +19,11 @@ class BusinessCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(14),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(9),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: AppColors.backgroundGrey.withValues(alpha: 0.35),
           ),
@@ -38,10 +38,10 @@ class BusinessCard extends StatelessWidget {
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               child: _buildThumb(),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 9),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,8 +54,8 @@ class BusinessCard extends StatelessWidget {
                               ? 'Business'
                               : business.name,
                           style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                             letterSpacing: -0.2,
                           ),
@@ -68,17 +68,17 @@ class BusinessCard extends StatelessWidget {
                           padding: EdgeInsets.only(left: 4),
                           child: Icon(
                             Icons.verified,
-                            size: 18,
+                            size: 16,
                             color: AppColors.customerHomePrimary,
                           ),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 1),
                   Text(
                     categoryLine,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 11,
                       color: AppColors.textSecondary.withValues(alpha: 0.95),
                       fontWeight: FontWeight.w500,
                     ),
@@ -86,11 +86,11 @@ class BusinessCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (business.status != null && business.status!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       business.status!,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: AppColors.customerHomePrimary,
                       ),
@@ -107,7 +107,7 @@ class BusinessCard extends StatelessWidget {
                   children: [
                     const Icon(
                       Icons.star_rounded,
-                      size: 22,
+                      size: 16,
                       color: Color(0xFFFFC107),
                     ),
                     const SizedBox(width: 2),
@@ -116,7 +116,7 @@ class BusinessCard extends StatelessWidget {
                           ? business.rating.toStringAsFixed(1)
                           : '—',
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: 12,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
                       ),
@@ -124,13 +124,10 @@ class BusinessCard extends StatelessWidget {
                   ],
                 ),
                 if (business.reviewCount > 0) ...[
-                  const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                   Text(
                     '(${business.reviewCount})',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
+                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                   ),
                 ],
               ],
@@ -161,27 +158,27 @@ class BusinessCard extends StatelessWidget {
     final url = business.imageUrl.trim();
     if (url.isEmpty) {
       return Container(
-        width: 80,
-        height: 80,
+        width: 50,
+        height: 50,
         color: AppColors.backgroundLight,
-        child: const Icon(Icons.storefront, size: 36, color: AppColors.textSecondary),
+        child: const Icon(Icons.storefront, size: 30, color: AppColors.textSecondary),
       );
     }
     return Image.network(
       url,
-      width: 80,
-      height: 80,
+      width: 50,
+      height: 50,
       fit: BoxFit.cover,
       loadingBuilder: (context, child, progress) {
         if (progress == null) return child;
         return Container(
-          width: 80,
-          height: 80,
+          width: 50,
+          height: 50,
           color: AppColors.backgroundLight,
           child: const Center(
             child: SizedBox(
-              width: 22,
-              height: 22,
+              width: 20,
+              height: 20,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
           ),
@@ -189,8 +186,8 @@ class BusinessCard extends StatelessWidget {
       },
       errorBuilder: (context, error, stackTrace) {
         return Container(
-          width: 80,
-          height: 80,
+          width: 50,
+          height: 50,
           color: AppColors.backgroundGrey,
           child: const Icon(Icons.business, size: 32, color: AppColors.textSecondary),
         );
