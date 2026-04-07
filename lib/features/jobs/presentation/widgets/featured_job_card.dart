@@ -85,8 +85,8 @@ class FeaturedJobCard extends StatelessWidget {
             const SizedBox(height: 12),
             // Job Details Chips
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 6,
+              runSpacing: 6,
               children: [
                 if (job.salary != null)
                   _buildChip(job.salary!),
@@ -126,17 +126,18 @@ class FeaturedJobCard extends StatelessWidget {
 
   Widget _buildChip(String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.backgroundGrey.withValues(alpha: 0.55)),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          fontSize: 12,
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w600,
+          fontSize: 11,
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );

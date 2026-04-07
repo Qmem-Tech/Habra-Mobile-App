@@ -382,12 +382,12 @@ class _JobsPageState extends State<JobsPage> {
   Widget _buildJobTypeQuickFilters() {
     final chips = jobsQuickFilterChipLabels();
     return SizedBox(
-      height: 56,
+      height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: chips.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
         itemBuilder: (context, index) {
           final label = chips[index];
           final isSelected = _selectedJobTypeChip == label;

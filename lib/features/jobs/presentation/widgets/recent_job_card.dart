@@ -100,8 +100,8 @@ class RecentJobCard extends StatelessWidget {
                 builder: (context, constraints) {
                   final rowW = constraints.maxWidth;
                   return Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
                       ConstrainedBox(
                         constraints: BoxConstraints(maxWidth: rowW),
@@ -172,9 +172,9 @@ class RecentJobCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.backgroundGrey.withValues(alpha: 0.55)),
       ),
       child: Text(
         label,
@@ -183,8 +183,8 @@ class RecentJobCard extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           fontSize: 11,
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w600,
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );

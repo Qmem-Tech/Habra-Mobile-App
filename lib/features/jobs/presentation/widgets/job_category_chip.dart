@@ -18,19 +18,24 @@ class JobCategoryChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
               ? AppColors.customerHomePrimary
               : AppColors.backgroundLight,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.customerHomePrimary
+                : AppColors.backgroundGrey.withValues(alpha: 0.55),
+          ),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : AppColors.textPrimary,
+            fontWeight: FontWeight.w500,
+            color: isSelected ? Colors.white : AppColors.textSecondary,
           ),
         ),
       ),
