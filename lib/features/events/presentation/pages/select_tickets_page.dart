@@ -68,25 +68,41 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
   }
 
   Widget _buildContent(BuildContext context, EventDetail event) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          _buildEventInfoCard(event),
-          _buildTicketsSection(event),
-          _buildOrderSummary(),
-          _buildContinueButton(context, event),
-        ],
-      ),
+    final availableTypes = event.ticketTypes
+        .where((t) =>
+            t.status == TicketStatus.available || t.status == TicketStatus.lowStock)
+        .toList();
+    final soldOutTypes =
+        event.ticketTypes.where((t) => t.status == TicketStatus.soldOut).toList();
+    final allTypes = [...availableTypes, ...soldOutTypes];
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+            child: Column(
+              children: [
+                _buildEventInfoCard(event),
+                const SizedBox(height: 16),
+                _buildTicketsSection(allTypes),
+                const SizedBox(height: 16),
+                _buildOrderSummary(),
+              ],
+            ),
+          ),
+        ),
+        _buildContinueButton(context, event),
+      ],
     );
   }
 
   Widget _buildEventInfoCard(EventDetail event) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.backgroundLight,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
@@ -95,8 +111,8 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
             child: event.imageUrl.startsWith('assets/')
                 ? Image.asset(
                     event.imageUrl,
-                    width: 80,
-                    height: 80,
+                    width: 56,
+                    height: 56,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
@@ -109,8 +125,8 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
                   )
                 : Image.network(
                     event.imageUrl,
-                    width: 80,
-                    height: 80,
+                    width: 56,
+                    height: 56,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
@@ -131,24 +147,47 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
                   event.title,
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  DateFormat('EEE, MMM d • h:mm a').format(event.startDate),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.brandPrimary,
-                  ),
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today, size: 14, color: AppColors.success),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        DateFormat('EEE, MMM d • h:mm a').format(event.startDate),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.brandPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  '${event.venue}, ${event.city}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, size: 14, color: AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        '${event.venue}, ${event.city}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -158,14 +197,9 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
     );
   }
 
-  Widget _buildTicketsSection(EventDetail event) {
-    final availableTypes = event.ticketTypes
-        .where((t) =>
-            t.status == TicketStatus.available || t.status == TicketStatus.lowStock)
-        .toList();
-
+  Widget _buildTicketsSection(List<TicketType> ticketTypes) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -173,10 +207,10 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Select ticket type',
+                'Tickets',
                 style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               Text(
@@ -189,136 +223,8 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildTicketTypeDropdown(event, availableTypes),
-          if (availableTypes.isEmpty && event.ticketTypes.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(
-                'All ticket types are currently sold out.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
+          ...ticketTypes.map(_buildTicketCard),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTicketTypeDropdown(EventDetail event, List<TicketType> availableTypes) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.brandPrimary.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<TicketType>(
-          hint: Row(
-            children: [
-              Icon(Icons.confirmation_number_outlined, color: AppColors.brandPrimary, size: 22),
-              const SizedBox(width: 12),
-              Text(
-                'Choose ticket type (Regular, VIP, etc.)',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          isExpanded: true,
-          icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.brandPrimary, size: 28),
-          borderRadius: BorderRadius.circular(12),
-          dropdownColor: Colors.white,
-          elevation: 8,
-          items: availableTypes
-              .map(
-                (t) => DropdownMenuItem<TicketType>(
-                  value: t,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _getTicketIcon(t.icon),
-                          color: _getTicketIconColor(t.status),
-                          size: 22,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                t.name,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              if (t.description.isNotEmpty)
-                                Text(
-                                  t.description,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              if (t.status == TicketStatus.lowStock && t.availableQuantity != null)
-                                Text(
-                                  'Only ${t.availableQuantity} left',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.warning,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          '\$${t.price.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.brandPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: availableTypes.isEmpty
-              ? null
-              : (TicketType? selected) {
-                  if (selected == null) return;
-                  setState(() {
-                    final current = _selectedTickets[selected.id] ?? 0;
-                    final maxQty = selected.status == TicketStatus.lowStock &&
-                            selected.availableQuantity != null
-                        ? selected.availableQuantity!
-                        : 10;
-                    _selectedTickets[selected.id] = (current + 1).clamp(0, maxQty);
-                    if (_currentEvent != null) {
-                      _calculateTotal(_currentEvent!.ticketTypes);
-                    }
-                  });
-                },
-        ),
       ),
     );
   }
@@ -341,61 +247,29 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
     }
 
     return Container(
-      margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.backgroundGrey),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Order summary',
+            'Order Summary',
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
-          if (selectedBreakdown.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            ...selectedBreakdown.map(
-              (b) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        b.type.name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                    _buildQuantityChip(b.type),
-                    const SizedBox(width: 12),
-                    Text(
-                      '\$${(b.type.price * b.qty).toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
+          if (selectedBreakdown.isNotEmpty) const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Subtotal ($totalItems items)', style: TextStyle(color: AppColors.textSecondary)),
-              Text('\$${_subtotal.toStringAsFixed(2)}'),
+              Text('Subtotal($totalItems items)', style: TextStyle(color: AppColors.textSecondary)),
+              Text('\$${_subtotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 12),
@@ -409,7 +283,7 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
                   Icon(Icons.info_outline, size: 16, color: AppColors.textSecondary),
                 ],
               ),
-              Text('\$${_serviceFee.toStringAsFixed(2)}'),
+              Text('\$${_serviceFee.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
           const Divider(height: 24),
@@ -426,8 +300,8 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
               Text(
                 '\$${_total.toStringAsFixed(2)}',
                 style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.brandPrimary,
                 ),
               ),
@@ -442,7 +316,7 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
     final hasTickets = _selectedTickets.values.any((qty) => qty > 0);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -456,56 +330,61 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Total',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ),
-                  Text(
-                    '\$${_total.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                    Text(
+                      '\$${_total.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              AppButton(
-                text: 'Continue',
-                width: 150,
-                onPressed: hasTickets
-                    ? () {
-                        final tickets = _selectedTickets.entries
-                            .map((e) => {
-                                  'ticketTypeId': e.key,
-                                  'quantity': e.value,
-                                })
-                            .toList();
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: AppButton(
+                  text: 'Continue',
+                  onPressed: hasTickets
+                      ? () {
+                          final tickets = _selectedTickets.entries
+                              .map((e) => {
+                                    'ticketTypeId': e.key,
+                                    'quantity': e.value,
+                                  })
+                              .toList();
 
-                        final authState = context.read<AuthCubit>().state;
-                        final initialEmail =
-                            authState is AuthAuthenticated ? authState.user.email : null;
+                          final authState = context.read<AuthCubit>().state;
+                          final initialEmail = authState is AuthAuthenticated
+                              ? authState.user.email
+                              : null;
 
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CheckoutPage(
-                              eventId: event.id,
-                              tickets: tickets,
-                              initialEmail: initialEmail,
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CheckoutPage(
+                                eventId: event.id,
+                                tickets: tickets,
+                                initialEmail: initialEmail,
+                              ),
                             ),
-                          ),
-                        );
-                      }
-                    : null,
-                icon: Icons.arrow_forward,
+                          );
+                        }
+                      : null,
+                  icon: Icons.arrow_forward,
+                ),
               ),
             ],
           ),
@@ -523,47 +402,224 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
     );
   }
 
-  Widget _buildQuantityChip(TicketType ticketType) {
-    final quantity = _selectedTickets[ticketType.id] ?? 0;
-    final maxQty = ticketType.status == TicketStatus.lowStock &&
-            ticketType.availableQuantity != null
-        ? ticketType.availableQuantity!
-        : 10;
-    final options = List.generate(maxQty + 1, (i) => i);
+  Widget _buildStatusDot(Color color) {
+    return Container(
+      width: 7,
+      height: 7,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+
+  int _maxQtyFor(TicketType ticketType) {
+    if (ticketType.status == TicketStatus.lowStock &&
+        ticketType.availableQuantity != null) {
+      return ticketType.availableQuantity!.clamp(0, 10);
+    }
+    return 10;
+  }
+
+  void _updateQuantity(TicketType ticketType, int nextQty) {
+    final maxQty = _maxQtyFor(ticketType);
+    final qty = nextQty.clamp(0, maxQty);
+    setState(() {
+      if (qty == 0) {
+        _selectedTickets.remove(ticketType.id);
+      } else {
+        _selectedTickets[ticketType.id] = qty;
+      }
+      if (_currentEvent != null) {
+        _calculateTotal(_currentEvent!.ticketTypes);
+      }
+    });
+  }
+
+  Widget _buildQuantityStepper(TicketType ticketType, {required bool enabled}) {
+    final qty = _selectedTickets[ticketType.id] ?? 0;
+    final maxQty = _maxQtyFor(ticketType);
+    final canMinus = enabled && qty > 0;
+    final canPlus = enabled && qty < maxQty;
+
+    return Row(
+      children: [
+        _stepperButton(
+          icon: Icons.remove,
+          enabled: canMinus,
+          onTap: () => _updateQuantity(ticketType, qty - 1),
+        ),
+        SizedBox(
+          width: 28,
+          child: Text(
+            '$qty',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        _stepperButton(
+          icon: Icons.add,
+          enabled: canPlus,
+          onTap: () => _updateQuantity(ticketType, qty + 1),
+        ),
+      ],
+    );
+  }
+
+  Widget _stepperButton({
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: enabled ? AppColors.brandPrimary : AppColors.backgroundLight,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        child: SizedBox(
+          width: 32,
+          height: 32,
+          child: Icon(
+            icon,
+            size: 18,
+            color: enabled ? Colors.white : AppColors.textTertiary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTicketCard(TicketType ticketType) {
+    final isSoldOut = ticketType.status == TicketStatus.soldOut;
+    final isLowStock = ticketType.status == TicketStatus.lowStock;
+
+    final statusText = isSoldOut
+        ? 'Sold Out'
+        : isLowStock
+            ? 'Low Stock! Only ${ticketType.availableQuantity ?? 0} left'
+            : 'Available';
+    final statusColor = isSoldOut
+        ? AppColors.error
+        : isLowStock
+            ? AppColors.warning
+            : AppColors.success;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.backgroundGrey),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int>(
-          value: quantity,
-          isDense: true,
-          icon: Icon(Icons.arrow_drop_down, color: AppColors.brandPrimary, size: 20),
-          borderRadius: BorderRadius.circular(8),
-          dropdownColor: Colors.white,
-          elevation: 4,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          items: options
-              .map((q) => DropdownMenuItem<int>(value: q, child: Text('$q')))
-              .toList(),
-          onChanged: (v) {
-            if (v == null) return;
-            setState(() {
-              if (v == 0) {
-                _selectedTickets.remove(ticketType.id);
-              } else {
-                _selectedTickets[ticketType.id] = v;
-              }
-              if (_currentEvent != null) {
-                _calculateTotal(_currentEvent!.ticketTypes);
-              }
-            });
-          },
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  _getTicketIcon(ticketType.icon),
+                  color: _getTicketIconColor(ticketType.status),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            ticketType.name,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '\$${ticketType.price.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      ticketType.description.isEmpty
+                          ? 'Ticket access'
+                          : ticketType.description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        _buildStatusDot(statusColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          statusText,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: statusColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text(
+                isSoldOut ? 'Unavailable' : 'View details',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: isSoldOut ? AppColors.textTertiary : AppColors.brandPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              if (isSoldOut)
+                OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.notifications_none, size: 16),
+                  label: const Text('Notify Me'),
+                )
+              else
+                _buildQuantityStepper(ticketType, enabled: true),
+            ],
+          ),
+        ],
       ),
     );
   }

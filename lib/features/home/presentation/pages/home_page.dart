@@ -415,11 +415,11 @@ class _HomePageState extends State<HomePage> {
   Widget _buildGreetingSection() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
         child: Text(
           'Selam, ${_displayFirstName()}! 👋',
           style: const TextStyle(
-            fontSize: 28,
+            fontSize: 34,
             fontWeight: FontWeight.w800,
             color: AppColors.textPrimary,
             letterSpacing: -0.8,
@@ -433,7 +433,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildSearchSection() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
         child: GestureDetector(
           onTap: () async {
             await Navigator.push<void>(
@@ -446,10 +446,10 @@ class _HomePageState extends State<HomePage> {
             );
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: AppColors.backgroundLight,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: AppColors.backgroundGrey.withValues(alpha: 0.35),
               ),
@@ -465,7 +465,7 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   'Find business, event...',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     color: AppColors.textSecondary.withValues(alpha: 0.85),
                     fontWeight: FontWeight.w400,
                   ),
@@ -484,7 +484,7 @@ class _HomePageState extends State<HomePage> {
     VoidCallback? onAction,
   }) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, 14),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -493,7 +493,7 @@ class _HomePageState extends State<HomePage> {
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 20,
+                fontSize: 31,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary,
                 letterSpacing: -0.4,
@@ -501,19 +501,28 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           if (actionLabel != null && onAction != null)
-            TextButton(
-              onPressed: onAction,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                foregroundColor: AppColors.customerHomePrimary,
-              ),
-              child: Text(
-                actionLabel,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+            InkWell(
+              onTap: onAction,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: Row(
+                  children: [
+                    Text(
+                      actionLabel.replaceAll(' >', ''),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.customerHomePrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: AppColors.customerHomePrimary,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -601,10 +610,10 @@ class _HomePageState extends State<HomePage> {
             )
           else
             SizedBox(
-              height: 320,
+              height: 232,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: events.length,
                 itemBuilder: (context, index) {
                   final event = events[index];
@@ -658,10 +667,10 @@ class _HomePageState extends State<HomePage> {
             )
           else
             SizedBox(
-              height: 124,
+              height: 110,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: topDeals.length,
                 itemBuilder: (context, index) {
                   final deal = topDeals[index];
@@ -720,7 +729,7 @@ class _HomePageState extends State<HomePage> {
             )
           else
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -773,7 +782,7 @@ class _HomePageState extends State<HomePage> {
             )
           else
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),

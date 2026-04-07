@@ -159,9 +159,9 @@ class _JobsPageState extends State<JobsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildFeaturedJobs(state.featuredJobs),
+                            _buildFeaturedJobs(context, state.featuredJobs),
                             const SizedBox(height: 24),
-                            _buildRecentJobs(state.recentJobs),
+                            _buildRecentJobs(context, state.recentJobs),
                           ],
                         ),
                       ),
@@ -421,7 +421,10 @@ class _JobsPageState extends State<JobsPage> {
     );
   }
 
-  Widget _buildFeaturedJobs(List<JobListing> featuredJobs) {
+  Widget _buildFeaturedJobs(
+    BuildContext blocContext,
+    List<JobListing> featuredJobs,
+  ) {
     if (featuredJobs.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -440,9 +443,9 @@ class _JobsPageState extends State<JobsPage> {
             ),
             TextButton(
               onPressed: () {
-                final cubit = context.read<JobsCubit>();
+                final cubit = blocContext.read<JobsCubit>();
                 Navigator.push<void>(
-                  context,
+                  blocContext,
                   MaterialPageRoute<void>(
                     builder: (_) => BlocProvider.value(
                       value: cubit,
@@ -499,7 +502,10 @@ class _JobsPageState extends State<JobsPage> {
     );
   }
 
-  Widget _buildRecentJobs(List<JobListing> recentJobs) {
+  Widget _buildRecentJobs(
+    BuildContext blocContext,
+    List<JobListing> recentJobs,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -516,9 +522,9 @@ class _JobsPageState extends State<JobsPage> {
             ),
             TextButton(
               onPressed: () {
-                final cubit = context.read<JobsCubit>();
+                final cubit = blocContext.read<JobsCubit>();
                 Navigator.push<void>(
-                  context,
+                  blocContext,
                   MaterialPageRoute<void>(
                     builder: (_) => BlocProvider.value(
                       value: cubit,
