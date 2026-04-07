@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/storage/local_storage.dart';
+import '../../../dashboard/domain/entities/dashboard_deal.dart';
 import '../../../dashboard/domain/repositories/dashboard_repository.dart';
 import '../../domain/entities/business_presence.dart';
 import '../../domain/entities/owner_snapshot_metrics.dart';
@@ -197,6 +198,7 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
                 businessId: businessId,
                 discountPercent: 0,
                 expiryDate: d.expiryDate,
+                status: _mapOwnerDealStatus(d.status),
               ))
           .toList();
     } catch (_) {
@@ -303,6 +305,19 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
     clicks: 0,
     messages: 0,
   );
+
+  OwnerDealStatus _mapOwnerDealStatus(DashboardDealStatus status) {
+    switch (status) {
+      case DashboardDealStatus.draft:
+        return OwnerDealStatus.draft;
+      case DashboardDealStatus.active:
+        return OwnerDealStatus.published;
+      case DashboardDealStatus.inactive:
+        return OwnerDealStatus.paused;
+      case DashboardDealStatus.expired:
+        return OwnerDealStatus.expired;
+    }
+  }
 }
 
 class _AggregatedData {

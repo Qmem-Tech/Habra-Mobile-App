@@ -227,6 +227,7 @@ class _EventsPageState extends State<EventsPage> {
                   context,
                   MaterialPageRoute(
                     builder: (searchContext) => events_search.SearchPage(
+                      initialQuery: _searchController.text,
                       onSearch: (query) {
                         _searchController.text = query;
                         // State's [context] finds [EventsCubit] from this page.
@@ -247,14 +248,37 @@ class _EventsPageState extends State<EventsPage> {
                   children: [
                     Icon(Icons.search, color: AppColors.textSecondary.withValues(alpha:0.7), size: 20),
                     const SizedBox(width: 12),
-                    Text(
-                      'Search events...',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w400,
+                    Expanded(
+                      child: Text(
+                        _searchController.text.trim().isEmpty
+                            ? 'Search events...'
+                            : _searchController.text.trim(),
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: _searchController.text.trim().isEmpty
+                              ? AppColors.textSecondary
+                              : AppColors.textPrimary,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (_searchController.text.trim().isNotEmpty)
+                      GestureDetector(
+                        onTap: () {
+                          _searchController.clear();
+                          _loadEvents(context);
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 18,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -297,38 +321,43 @@ class _EventsPageState extends State<EventsPage> {
     ];
 
     return SizedBox(
-      height: 50,
+      height: 44,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         itemCount: categories.length,
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = category == _selectedCategory;
           return Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.only(right: 6),
             child: GestureDetector(
               onTap: () {
-              setState(() {
-                _selectedCategory = category;
-              });
-              _loadEvents(context);
+                setState(() {
+                  _selectedCategory = category;
+                });
+                _loadEvents(context);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.brandPrimary : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  color: isSelected
+                      ? AppColors.brandPrimary
+                      : AppColors.backgroundLight,
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,
+                    color: isSelected
+                        ? AppColors.brandPrimary
+                        : AppColors.backgroundGrey.withValues(alpha: 0.55),
                   ),
                 ),
                 child: Text(
                   category.displayName,
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isSelected ? Colors.white : AppColors.textPrimary,
+                    fontWeight: FontWeight.w500,
+                    color: isSelected ? Colors.white : AppColors.textSecondary,
                   ),
                 ),
               ),

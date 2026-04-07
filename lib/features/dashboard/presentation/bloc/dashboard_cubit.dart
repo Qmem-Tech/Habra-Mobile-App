@@ -243,6 +243,15 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
+  Future<bool> deleteDeal(String dealId) async {
+    try {
+      await _repository.deleteDeal(dealId);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<DashboardJob?> createJob(
       String businessId, Map<String, dynamic> data) async {
     try {
@@ -260,6 +269,15 @@ class DashboardCubit extends Cubit<DashboardState> {
     } catch (e) {
       emit(DashboardError(e.toString()));
       return null;
+    }
+  }
+
+  Future<bool> deleteJob(String jobId) async {
+    try {
+      await _repository.deleteJob(jobId);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 

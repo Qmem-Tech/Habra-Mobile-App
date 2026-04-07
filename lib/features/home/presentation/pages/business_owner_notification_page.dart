@@ -251,6 +251,25 @@ class _BusinessOwnerNotificationPageState
                   ],
                 ),
               ),
+              PopupMenuButton<String>(
+                onSelected: (value) async {
+                  if (value == 'edit') {
+                    await _editNotification(n);
+                    return;
+                  }
+                  if (value == 'delete') {
+                    await _deleteNotification(n);
+                  }
+                },
+                itemBuilder: (_) {
+                  final editable = _isUserCreatedNotification(n);
+                  return [
+                    if (editable)
+                      const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ];
+                },
+              ),
             ],
           ),
           if (actionLabel != null) ...[
@@ -314,6 +333,25 @@ class _BusinessOwnerNotificationPageState
               ],
             ),
           ),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'edit') {
+                await _editNotification(n);
+                return;
+              }
+              if (value == 'delete') {
+                await _deleteNotification(n);
+              }
+            },
+            itemBuilder: (_) {
+              final editable = _isUserCreatedNotification(n);
+              return [
+                if (editable)
+                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                const PopupMenuItem(value: 'delete', child: Text('Delete')),
+              ];
+            },
+          ),
           Text(
             timeAgo,
             style: TextStyle(
@@ -323,6 +361,89 @@ class _BusinessOwnerNotificationPageState
           ),
         ],
       ),
+    );
+  }
+
+  bool _isUserCreatedNotification(NotificationEntity n) {
+    return !n.id.startsWith('platform_notif:');
+  }
+
+  Future<void> _deleteNotification(NotificationEntity n) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Notification'),
+        content: const Text('This notification will be removed from your list.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final ok = await context.read<NotificationCubit>().deleteNotification(n.id);
+    if (!mounted) return;
+    if (ok) {
+      await context.read<NotificationCubit>().loadNotifications(widget.userId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notification deleted')),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not delete notification')),
+    );
+  }
+
+  Future<void> _editNotification(NotificationEntity n) async {
+    final titleController = TextEditingController(text: n.title);
+    final descriptionController = TextEditingController(text: n.description);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Notification'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(labelText: 'Title'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: descriptionController,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final title = titleController.text.trim();
+    final description = descriptionController.text.trim();
+    if (title.isEmpty || description.isEmpty) return;
+    final ok = await context.read<NotificationCubit>().updateNotification(
+          n.id,
+          title: title,
+          description: description,
+        );
+    if (!mounted) return;
+    if (ok) {
+      await context.read<NotificationCubit>().loadNotifications(widget.userId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notification updated')),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not update notification')),
     );
   }
 

@@ -76,4 +76,22 @@ class NotificationCubit extends Cubit<NotificationState> {
       (_) => loadNotifications(userId),
     );
   }
+
+  Future<bool> deleteNotification(String notificationId) async {
+    final result = await notificationRepository.deleteNotification(notificationId);
+    return result.fold((_) => false, (_) => true);
+  }
+
+  Future<bool> updateNotification(
+    String notificationId, {
+    required String title,
+    required String description,
+  }) async {
+    final result = await notificationRepository.updateNotification(
+      notificationId,
+      title: title,
+      description: description,
+    );
+    return result.fold((_) => false, (_) => true);
+  }
 }

@@ -26,6 +26,25 @@ class _DealsPageState extends State<DealsPage> {
   bool _listingCategoriesLoading = true;
   String _currentLocation = 'Washington, D.C.';
 
+  List<Deal> _applyLocalFilters(List<Deal> deals) {
+    final cid = _selectedListingCategoryId;
+    final byCategory = cid == null || cid.isEmpty
+        ? deals
+        : deals.where((d) => d.business.listingCategoryIds.contains(cid)).toList();
+
+    final q = _searchController.text.trim().toLowerCase();
+    if (q.isEmpty) return byCategory;
+    return byCategory.where((d) {
+      final haystack = <String>[
+        d.title,
+        d.description,
+        d.business.name,
+        d.discountText ?? '',
+      ].join(' ').toLowerCase();
+      return haystack.contains(q);
+    }).toList();
+  }
+
   void _reloadDeals(BuildContext context) {
     final loc = SessionDeviceLocationCubit.tryLabel(context) ?? _currentLocation;
     context.read<DealsCubit>().loadDeals(location: loc);
@@ -158,6 +177,7 @@ class _DealsPageState extends State<DealsPage> {
                           color: AppColors.textSecondary,
                         ),
                       ),
+                      onChanged: (_) => setState(() {}),
                     ),
                   ),
                   if (_searchController.text.isNotEmpty)
@@ -180,7 +200,7 @@ class _DealsPageState extends State<DealsPage> {
   Widget _buildCategoryFilters() {
     if (_listingCategoriesLoading) {
       return const SizedBox(
-        height: 50,
+        height: 56,
         child: Center(
           child: SizedBox(
             width: 24,
@@ -194,7 +214,7 @@ class _DealsPageState extends State<DealsPage> {
     return BlocBuilder<DealsCubit, DealsState>(
       builder: (context, state) {
         final availableCategoryIds = state is DealsLoaded
-            ? state.deals
+            ? _applyLocalFilters(state.deals)
                 .expand((d) => d.business.listingCategoryIds)
                 .where((id) => id.trim().isNotEmpty)
                 .toSet()
@@ -215,10 +235,10 @@ class _DealsPageState extends State<DealsPage> {
         }
 
         return SizedBox(
-          height: 50,
+          height: 48,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
             children: [
               _dealCategoryChip(label: 'All', id: null),
               ...visibleCategories
@@ -232,25 +252,40 @@ class _DealsPageState extends State<DealsPage> {
 
   Widget _dealCategoryChip({required String label, required String? id}) {
     final isSelected = _selectedListingCategoryId == id;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final maxChipWidth = screenWidth * 0.32;
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.only(right: 6),
       child: GestureDetector(
         onTap: () => setState(() => _selectedListingCategoryId = id),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.brandPrimary : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,
-            ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: 64,
+            maxWidth: maxChipWidth,
+            minHeight: 34,
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: isSelected ? Colors.white : AppColors.textPrimary,
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.brandPrimary : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected
+                    ? AppColors.brandPrimary
+                    : AppColors.backgroundGrey,
+              ),
+            ),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? Colors.white : AppColors.textPrimary,
+              ),
             ),
           ),
         ),
@@ -259,10 +294,7 @@ class _DealsPageState extends State<DealsPage> {
   }
 
   Widget _buildDealsList(List<Deal> deals) {
-    final cid = _selectedListingCategoryId;
-    final scoped = cid == null || cid.isEmpty
-        ? deals
-        : deals.where((d) => d.business.listingCategoryIds.contains(cid)).toList();
+    final scoped = _applyLocalFilters(deals);
     if (scoped.isEmpty) {
       return _buildEmptyState();
     }

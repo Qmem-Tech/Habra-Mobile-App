@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/location/profile_home_city_sync.dart';
@@ -34,6 +36,7 @@ class JobsPage extends StatefulWidget {
 
 class _JobsPageState extends State<JobsPage> {
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
   String? _currentLocation;
   String _selectedJobTypeChip = kJobsQuickFilterAll;
   JobFilters? _activeFilters;
@@ -65,6 +68,7 @@ class _JobsPageState extends State<JobsPage> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -316,10 +320,37 @@ class _JobsPageState extends State<JobsPage> {
                 ),
               ),
               onChanged: (_) {
-                _loadJobs(context, null);
+                setState(() {});
+                _searchDebounce?.cancel();
+                _searchDebounce = Timer(
+                  const Duration(milliseconds: 350),
+                  () {
+                    if (!mounted) return;
+                    _loadJobs(context, null);
+                  },
+                );
               },
             ),
           ),
+          if (_searchController.text.trim().isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Material(
+              color: AppColors.backgroundLight,
+              borderRadius: BorderRadius.circular(14),
+              clipBehavior: Clip.antiAlias,
+              child: IconButton(
+                onPressed: () {
+                  _searchDebounce?.cancel();
+                  _searchController.clear();
+                  setState(() {});
+                  _loadJobs(context, null);
+                },
+                icon: const Icon(Icons.close_rounded),
+                color: AppColors.textPrimary,
+                tooltip: 'Clear search',
+              ),
+            ),
+          ],
           const SizedBox(width: 8),
           Material(
             color: AppColors.backgroundLight,
@@ -351,10 +382,10 @@ class _JobsPageState extends State<JobsPage> {
   Widget _buildJobTypeQuickFilters() {
     final chips = jobsQuickFilterChipLabels();
     return SizedBox(
-      height: 44,
+      height: 56,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
         itemCount: chips.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {

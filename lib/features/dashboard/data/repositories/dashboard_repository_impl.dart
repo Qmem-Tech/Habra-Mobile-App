@@ -87,12 +87,18 @@ class DashboardRepositoryImpl implements DashboardRepository {
       _remote.updateDealStatus(dealId, status);
 
   @override
+  Future<void> deleteDeal(String dealId) => _remote.deleteDeal(dealId);
+
+  @override
   Future<DashboardJob> createJob(String businessId, Map<String, dynamic> data) =>
       _remote.createJob(businessId, data);
 
   @override
   Future<DashboardJob> updateJob(String jobId, Map<String, dynamic> data) =>
       _remote.updateJob(jobId, data);
+
+  @override
+  Future<void> deleteJob(String jobId) => _remote.deleteJob(jobId);
 
   @override
   Future<void> replyToReview(String reviewId, String replyText) =>

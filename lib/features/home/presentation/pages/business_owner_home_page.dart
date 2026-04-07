@@ -29,6 +29,7 @@ import '../../../dashboard/presentation/pages/edit_business_page.dart';
 import '../../../dashboard/presentation/pages/update_hours_page.dart';
 import '../../../dashboard/presentation/pages/create_deal_page.dart';
 import '../../../dashboard/presentation/pages/create_job_post_page.dart';
+import '../../../dashboard/presentation/pages/dashboard_page.dart';
 import '../../../dashboard/presentation/pages/job_applicants_page.dart';
 import '../../../dashboard/domain/repositories/dashboard_repository.dart'
     show LegalDocumentsStatus;
@@ -743,6 +744,28 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         );
   }
 
+  Future<void> _openDashboardManageTab(int tabIndex) async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider<DashboardCubit>.value(value: context.read<DashboardCubit>()),
+            BlocProvider<BusinessOwnerHomeCubit>.value(
+              value: context.read<BusinessOwnerHomeCubit>(),
+            ),
+            BlocProvider<BusinessOwnerSubscriptionCubit>.value(
+              value: context.read<BusinessOwnerSubscriptionCubit>(),
+            ),
+          ],
+          child: DashboardPage(user: widget.user, initialTabIndex: tabIndex),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _refreshOwnerHome(context);
+  }
+
   Widget _buildSingleBusinessView(BusinessOwnerHomeLoaded state) {
     final presence = state.selectedPresence;
 
@@ -882,13 +905,9 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   12,
                 ),
                 child: _buildSectionHeader(
-                  'Your Active Deals',
+                  'Your Deals',
                   actionLabel: 'Manage',
-                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
-                    context,
-                    1,
-                    dashboardTab: 1,
-                  ),
+                  onActionTap: () => _openDashboardManageTab(1),
                 ),
               ),
               Container(
@@ -909,11 +928,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 child: _buildSectionHeader(
                   'Your Job Posts',
                   actionLabel: 'Manage',
-                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
-                    context,
-                    1,
-                    dashboardTab: 2,
-                  ),
+                  onActionTap: () => _openDashboardManageTab(2),
                 ),
               ),
               Container(
@@ -2491,7 +2506,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
         child: Text(
-          'No active deals.',
+          'No deals yet.',
           style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
       );
@@ -2504,6 +2519,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final deal = deals[index];
+        final status = _statusPresentation(deal.status);
         final expiry = deal.expiryDate != null
             ? 'Expires in ${deal.expiryDate!.difference(DateTime.now()).inDays} days'
             : '';
@@ -2552,13 +2568,40 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          deal.title,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                deal.title,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: status.$2,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                status.$1,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: status.$3,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         if (expiry.isNotEmpty) ...[
                           const SizedBox(height: 4),
@@ -2576,8 +2619,24 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   ),
                   Icon(
                     Icons.chevron_right_rounded,
-                    size: 22,
+                    size: 20,
                     color: AppColors.textTertiary,
+                  ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        await _openDashboardManageTab(1);
+                        return;
+                      }
+                      if (value == 'delete') {
+                        await _deleteDeal(deal);
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    ],
                   ),
                 ],
               ),
@@ -2586,6 +2645,33 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         );
       },
     );
+  }
+
+  (String, Color, Color) _statusPresentation(OwnerDealStatus status) {
+    switch (status) {
+      case OwnerDealStatus.draft:
+        return ('Draft', AppColors.info.withValues(alpha: 0.2), AppColors.info);
+      case OwnerDealStatus.published:
+        return (
+          'Published',
+          AppColors.success.withValues(alpha: 0.2),
+          AppColors.success,
+        );
+      case OwnerDealStatus.paused:
+        return (
+          'Paused',
+          AppColors.textTertiary.withValues(alpha: 0.2),
+          AppColors.textSecondary,
+        );
+      case OwnerDealStatus.expired:
+        return ('Expired', AppColors.error.withValues(alpha: 0.12), AppColors.error);
+      case OwnerDealStatus.unknown:
+        return (
+          'Unknown',
+          AppColors.textTertiary.withValues(alpha: 0.2),
+          AppColors.textSecondary,
+        );
+    }
   }
 
   Widget _buildJobPostsList(List<Job> jobs) {
@@ -2667,10 +2753,21 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                       ],
                     ),
                   ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 22,
-                    color: AppColors.textTertiary,
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        await _openDashboardManageTab(2);
+                        return;
+                      }
+                      if (value == 'delete') {
+                        await _deleteJob(job);
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    ],
                   ),
                 ],
               ),
@@ -2678,6 +2775,62 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _deleteDeal(Deal deal) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Deal'),
+        content: Text('Delete "${deal.title}"? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final ok = await context.read<DashboardCubit>().deleteDeal(deal.id);
+    if (!mounted) return;
+    if (ok) {
+      await _refreshOwnerHome(context);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Deal deleted')),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not delete deal')),
+    );
+  }
+
+  Future<void> _deleteJob(Job job) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Job'),
+        content: Text('Delete "${job.title}"? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final ok = await context.read<DashboardCubit>().deleteJob(job.id);
+    if (!mounted) return;
+    if (ok) {
+      await _refreshOwnerHome(context);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Job deleted')),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not delete job')),
     );
   }
 

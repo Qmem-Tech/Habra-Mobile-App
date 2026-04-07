@@ -1073,6 +1073,13 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     });
   }
 
+  @override
+  Future<void> deleteDeal(String dealId) async {
+    return SupabaseFailureMapper.guard(() async {
+      await _client.from(SupabaseTables.deals).delete().eq('id', dealId);
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Create Job
   // ---------------------------------------------------------------------------
@@ -1158,6 +1165,13 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           .eq('job_id', jobId);
       final applicants = (appRes as List).length;
       return _mapRowToDashboardJob(row, applicantsCount: applicants);
+    });
+  }
+
+  @override
+  Future<void> deleteJob(String jobId) async {
+    return SupabaseFailureMapper.guard(() async {
+      await _client.from(SupabaseTables.jobs).delete().eq('id', jobId);
     });
   }
 

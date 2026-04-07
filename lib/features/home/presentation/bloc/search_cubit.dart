@@ -6,6 +6,7 @@ import 'search_state.dart';
 class SearchCubit extends Cubit<SearchState> {
   final SearchUseCase searchUseCase;
   final SearchRepository searchRepository;
+  String _lastLocation = '';
 
   SearchCubit({
     required this.searchUseCase,
@@ -50,6 +51,7 @@ class SearchCubit extends Cubit<SearchState> {
   }
 
   Future<void> search(String query, SearchCategory category, String location) async {
+    _lastLocation = location;
     if (query.isEmpty) {
       emit(SearchInitial(
         recentSearches: state.recentSearches,
@@ -101,7 +103,7 @@ class SearchCubit extends Cubit<SearchState> {
     if (currentState is SearchResultsLoaded) {
       // If there's a query, re-search with new category
       if (currentState.query.isNotEmpty) {
-        search(currentState.query, category, ''); // TODO: Pass location
+        search(currentState.query, category, _lastLocation);
       } else {
         emit(SearchInitial(
           recentSearches: currentState.recentSearches,

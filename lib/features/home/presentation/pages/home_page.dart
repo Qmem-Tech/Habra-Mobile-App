@@ -438,7 +438,11 @@ class _HomePageState extends State<HomePage> {
           onTap: () async {
             await Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (_) => const SearchPage()),
+              MaterialPageRoute<void>(
+                builder: (_) => SearchPage(
+                  location: _locationQueryString(context),
+                ),
+              ),
             );
           },
           child: Container(

@@ -47,6 +47,38 @@ class NotificationRepositoryImpl implements NotificationRepository {
   }
 
   @override
+  Future<Either<Failure, void>> deleteNotification(String notificationId) async {
+    try {
+      await remoteDataSource.deleteNotification(notificationId);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updateNotification(
+    String notificationId, {
+    required String title,
+    required String description,
+  }) async {
+    try {
+      await remoteDataSource.updateNotification(
+        notificationId,
+        title: title,
+        description: description,
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, int>> getUnreadCount(String userId) async {
     try {
       final count = await remoteDataSource.getUnreadCount(userId);

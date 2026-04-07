@@ -178,6 +178,28 @@ class NotificationSupabaseDataSource implements NotificationRemoteDataSource {
   }
 
   @override
+  Future<void> deleteNotification(String notificationId) async {
+    if (notificationId.startsWith(_platformIdPrefix)) return;
+    await SupabaseFailureMapper.guard(() => _client
+        .from(SupabaseTables.notifications)
+        .delete()
+        .eq('id', notificationId));
+  }
+
+  @override
+  Future<void> updateNotification(
+    String notificationId, {
+    required String title,
+    required String description,
+  }) async {
+    if (notificationId.startsWith(_platformIdPrefix)) return;
+    await SupabaseFailureMapper.guard(() => _client
+        .from(SupabaseTables.notifications)
+        .update({'title': title, 'body': description})
+        .eq('id', notificationId));
+  }
+
+  @override
   Future<int> getUnreadCount(String userId) async {
     final res = await SupabaseFailureMapper.guard(() => _client
         .from(SupabaseTables.notifications)

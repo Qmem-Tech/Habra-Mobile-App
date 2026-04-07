@@ -8,7 +8,14 @@ import '../bloc/search_state.dart';
 import 'search_results_page.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({super.key});
+  const SearchPage({
+    super.key,
+    this.location = '',
+    this.initialQuery = '',
+  });
+
+  final String location;
+  final String initialQuery;
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -16,6 +23,14 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialQuery.trim().isNotEmpty) {
+      _searchController.text = widget.initialQuery.trim();
+    }
+  }
 
   @override
   void dispose() {
@@ -54,7 +69,7 @@ class _SearchPageState extends State<SearchPage> {
               setState(() {});
               if (value.isEmpty) {
                 final cat = context.read<SearchCubit>().state.selectedCategory;
-                context.read<SearchCubit>().search('', cat, '');
+                context.read<SearchCubit>().search('', cat, widget.location);
               }
             },
             onSubmitted: (value) {
@@ -110,16 +125,21 @@ class _SearchPageState extends State<SearchPage> {
 
   Widget _buildCategoryFilters(BuildContext context, SearchState state) {
     final selected = state.selectedCategory;
-    return Row(
-      children: [
-        _buildCategoryFilter(context, SearchCategory.all, 'All', selected),
-        const SizedBox(width: 8),
-        _buildCategoryFilter(context, SearchCategory.events, 'Events', selected),
-        const SizedBox(width: 8),
-        _buildCategoryFilter(context, SearchCategory.business, 'Business', selected),
-        const SizedBox(width: 8),
-        _buildCategoryFilter(context, SearchCategory.jobs, 'Jobs', selected),
-      ],
+    return SizedBox(
+      height: 56,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        children: [
+          _buildCategoryFilter(context, SearchCategory.all, 'All', selected),
+          const SizedBox(width: 8),
+          _buildCategoryFilter(context, SearchCategory.events, 'Events', selected),
+          const SizedBox(width: 8),
+          _buildCategoryFilter(context, SearchCategory.business, 'Business', selected),
+          const SizedBox(width: 8),
+          _buildCategoryFilter(context, SearchCategory.jobs, 'Jobs', selected),
+        ],
+      ),
     );
   }
 
@@ -135,10 +155,10 @@ class _SearchPageState extends State<SearchPage> {
         context.read<SearchCubit>().setCategory(category);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.brandPrimary : Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,
           ),
@@ -294,7 +314,7 @@ class _SearchPageState extends State<SearchPage> {
   void _performSearch(String query) {
     if (query.isNotEmpty) {
       final cat = context.read<SearchCubit>().state.selectedCategory;
-      context.read<SearchCubit>().search(query, cat, '');
+      context.read<SearchCubit>().search(query, cat, widget.location);
     }
   }
 }

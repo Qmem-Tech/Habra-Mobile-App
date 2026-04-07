@@ -11,6 +11,7 @@ import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
 import '../../../settings/presentation/pages/terms_of_service_page.dart';
+import 'city_selection_page.dart';
 import 'email_verification_page.dart';
 
 class EmailSignUpPage extends StatefulWidget {
@@ -55,7 +56,7 @@ class _EmailSignUpPageState extends State<EmailSignUpPage> {
         destination = GuestHomePage(user: user);
         break;
       case UserRole.customer:
-        destination = CustomerHomePage(user: user);
+        destination = const CitySelectionPage();
         break;
     }
 

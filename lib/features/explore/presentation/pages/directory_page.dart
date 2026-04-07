@@ -189,6 +189,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
                         ),
                       ),
                       onChanged: (value) {
+                        setState(() {});
                         _searchDebounce?.cancel();
                         _searchDebounce = Timer(
                           const Duration(milliseconds: 400),
@@ -203,7 +204,9 @@ class _DirectoryPageState extends State<DirectoryPage> {
                     IconButton(
                       icon: const Icon(Icons.clear, size: 20),
                       onPressed: () {
+                        _searchDebounce?.cancel();
                         _searchController.clear();
+                        setState(() {});
                         _loadBusinesses(context);
                       },
                     ),
@@ -219,7 +222,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
   Widget _buildCategoryFilters() {
     if (_categoriesLoading) {
       return const SizedBox(
-        height: 50,
+        height: 56,
         child: Center(
           child: SizedBox(
             width: 24,
@@ -231,10 +234,10 @@ class _DirectoryPageState extends State<DirectoryPage> {
     }
 
     return SizedBox(
-      height: 50,
+      height: 56,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         children: [
           _directoryCategoryChip(label: 'All', id: null),
           ..._listingCategories.map(
@@ -255,10 +258,10 @@ class _DirectoryPageState extends State<DirectoryPage> {
           _loadBusinesses(context);
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
           decoration: BoxDecoration(
             color: isSelected ? AppColors.brandPrimary : Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: isSelected ? AppColors.brandPrimary : AppColors.backgroundGrey,
             ),

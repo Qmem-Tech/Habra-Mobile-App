@@ -3,8 +3,13 @@ import '../../../../core/theme/app_colors.dart';
 
 class SearchPage extends StatefulWidget {
   final Function(String)? onSearch;
+  final String initialQuery;
 
-  const SearchPage({super.key, this.onSearch});
+  const SearchPage({
+    super.key,
+    this.onSearch,
+    this.initialQuery = '',
+  });
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -12,6 +17,14 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialQuery.trim().isNotEmpty) {
+      _searchController.text = widget.initialQuery.trim();
+    }
+  }
 
   @override
   void dispose() {
@@ -39,7 +52,11 @@ class _SearchPageState extends State<SearchPage> {
                     icon: const Icon(Icons.clear, size: 20),
                     onPressed: () {
                       _searchController.clear();
+                      if (widget.onSearch != null) {
+                        widget.onSearch!('');
+                      }
                       setState(() {});
+                      Navigator.pop(context);
                     },
                   )
                 : null,

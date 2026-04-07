@@ -11,6 +11,7 @@ class DealModel extends Deal {
     required super.discountPercent,
     super.promoCode,
     super.expiryDate,
+    super.status,
   });
 
   factory DealModel.fromJson(Map<String, dynamic> json) {
@@ -26,7 +27,23 @@ class DealModel extends Deal {
       expiryDate: json['expiryDate'] != null
           ? DateTime.parse(json['expiryDate'] as String)
           : null,
+      status: _statusFromJson(json['status'] as String?),
     );
+  }
+
+  static OwnerDealStatus _statusFromJson(String? status) {
+    switch ((status ?? '').toLowerCase()) {
+      case 'draft':
+        return OwnerDealStatus.draft;
+      case 'active':
+        return OwnerDealStatus.published;
+      case 'inactive':
+        return OwnerDealStatus.paused;
+      case 'expired':
+        return OwnerDealStatus.expired;
+      default:
+        return OwnerDealStatus.unknown;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -40,6 +57,7 @@ class DealModel extends Deal {
       'discountPercent': discountPercent,
       'promoCode': promoCode,
       'expiryDate': expiryDate?.toIso8601String(),
+      'status': status.name,
     };
   }
 }

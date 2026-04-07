@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+enum OwnerDealStatus { draft, published, paused, expired, unknown }
+
 class Deal extends Equatable {
   final String id;
   final String title;
@@ -10,6 +12,7 @@ class Deal extends Equatable {
   final double discountPercent;
   final String? promoCode;
   final DateTime? expiryDate;
+  final OwnerDealStatus status;
 
   const Deal({
     required this.id,
@@ -21,6 +24,7 @@ class Deal extends Equatable {
     required this.discountPercent,
     this.promoCode,
     this.expiryDate,
+    this.status = OwnerDealStatus.unknown,
   });
 
   @override
@@ -34,5 +38,6 @@ class Deal extends Equatable {
         discountPercent,
         promoCode,
         expiryDate,
+        status,
       ];
 }

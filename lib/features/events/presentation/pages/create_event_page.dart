@@ -583,31 +583,41 @@ class _CreateEventPageState extends State<CreateEventPage> {
               }
             }
           },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.backgroundWhite,
-              borderRadius: BorderRadius.circular(AppResources.radiusM),
-              border: Border.all(color: AppColors.backgroundGrey),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.calendar_today, size: 20, color: AppColors.textSecondary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    value != null
-                        ? DateFormat('MMM d, y • HH:mm').format(value)
-                        : 'Select',
-                    style: TextStyle(
-                      color: value != null ? AppColors.textPrimary : AppColors.textSecondary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final dateText = value == null
+                  ? 'Select'
+                  : constraints.maxWidth < 175
+                      ? DateFormat('MMM d • HH:mm').format(value)
+                      : DateFormat('MMM d, y • HH:mm').format(value);
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundWhite,
+                  borderRadius: BorderRadius.circular(AppResources.radiusM),
+                  border: Border.all(color: AppColors.backgroundGrey),
                 ),
-              ],
-            ),
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 20, color: AppColors.textSecondary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        dateText,
+                        style: TextStyle(
+                          color: value != null
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ],
