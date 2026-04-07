@@ -235,7 +235,8 @@ class _EventsPageState extends State<EventsPage> {
                     ),
                   ),
                 );
-                if (!mounted || query == null) return;
+                if (!mounted) return;
+                if (query == null) return;
                 _searchController.text = query;
                 _loadEvents(context);
               },

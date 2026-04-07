@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -105,22 +106,11 @@ class BusinessDetailPage extends StatelessWidget {
       actions: [
         IconButton(
           icon: const Icon(Icons.share, color: Colors.white),
-          onPressed: () {
-            final name = business.name;
-            final addr = business.fullAddress;
-            shareText(
-              addr.isNotEmpty ? '$name\n$addr' : name,
-              subject: name,
-            );
-          },
+          onPressed: () => _shareBusiness(context, business),
         ),
         IconButton(
           icon: const Icon(Icons.bookmark_border, color: Colors.white),
-          onPressed: () {
-            // saved_items table only supports event/deal; share is the supported “save” path for businesses today.
-            final name = business.name;
-            shareText('Saved via Habra: $name', subject: name);
-          },
+          onPressed: () => _saveBusiness(context, business),
         ),
       ],
     );
@@ -861,6 +851,44 @@ class BusinessDetailPage extends StatelessWidget {
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open website')),
+      );
+    }
+  }
+
+  static Future<void> _shareBusiness(
+    BuildContext context,
+    BusinessDetail business,
+  ) async {
+    final name = business.name.trim();
+    final address = business.fullAddress.trim();
+    final text = address.isNotEmpty ? '$name\n$address' : name;
+    try {
+      await shareText(text, subject: name);
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open share sheet')),
+      );
+    }
+  }
+
+  static Future<void> _saveBusiness(
+    BuildContext context,
+    BusinessDetail business,
+  ) async {
+    final name = business.name.trim();
+    final address = business.fullAddress.trim();
+    final payload = address.isNotEmpty ? '$name\n$address' : name;
+    try {
+      await Clipboard.setData(ClipboardData(text: payload));
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Business details copied')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save business details')),
       );
     }
   }

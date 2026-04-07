@@ -23,6 +23,10 @@ class _SearchPageState extends State<SearchPage> {
     Navigator.pop(context, _searchController.text.trim());
   }
 
+  void _closeWithCurrentQuery() {
+    Navigator.pop(context, _searchController.text.trim());
+  }
+
   List<EventListItem> get _filteredEvents {
     final query = _searchController.text.trim().toLowerCase();
     if (query.isEmpty) return widget.availableEvents;
@@ -54,7 +58,7 @@ class _SearchPageState extends State<SearchPage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _closeWithCurrentQuery,
         ),
         title: TextField(
           controller: _searchController,
@@ -79,7 +83,7 @@ class _SearchPageState extends State<SearchPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: _closeWithCurrentQuery,
             child: const Text(
               'Cancel',
               style: TextStyle(color: AppColors.textSecondary),
