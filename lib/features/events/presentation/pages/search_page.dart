@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../domain/entities/event_list_item.dart';
 
 class SearchPage extends StatefulWidget {
   final String initialQuery;
+  final List<EventListItem> availableEvents;
 
   const SearchPage({
     super.key,
     this.initialQuery = '',
+    this.availableEvents = const [],
   });
 
   @override
@@ -15,16 +18,20 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
-  final List<String> _quickSearches = const [
-    'Concert',
-    'Party',
-    'Cultural',
-    'Community',
-    'Networking',
-  ];
 
   void _applyAndClose() {
     Navigator.pop(context, _searchController.text.trim());
+  }
+
+  List<EventListItem> get _filteredEvents {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return widget.availableEvents;
+    return widget.availableEvents.where((event) {
+      final title = event.title.toLowerCase();
+      final venue = event.venue.toLowerCase();
+      final location = event.location.toLowerCase();
+      return title.contains(query) || venue.contains(query) || location.contains(query);
+    }).toList();
   }
 
   @override
@@ -95,7 +102,7 @@ class _SearchPageState extends State<SearchPage> {
                   border: Border.all(color: AppColors.backgroundGrey.withValues(alpha: 0.5)),
                 ),
                 child: Text(
-                  'Press search on keyboard or tap Apply to filter events.',
+                  'Showing matching available events.',
                   style: TextStyle(
                     color: AppColors.textSecondary.withValues(alpha: 0.95),
                     fontSize: 13,
@@ -104,7 +111,7 @@ class _SearchPageState extends State<SearchPage> {
               )
             else
               Text(
-                'Quick searches',
+                'Available events',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -112,30 +119,56 @@ class _SearchPageState extends State<SearchPage> {
                 ),
               ),
             const SizedBox(height: 12),
-            if (_searchController.text.trim().isEmpty)
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _quickSearches.map((keyword) {
-                  return ActionChip(
-                    label: Text(keyword),
-                    onPressed: () {
-                      _searchController.text = keyword;
-                      _applyAndClose();
-                    },
-                    backgroundColor: AppColors.backgroundLight,
-                    side: BorderSide(
-                      color: AppColors.backgroundGrey.withValues(alpha: 0.6),
+            Expanded(
+              child: _filteredEvents.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No events match this query.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.textSecondary.withValues(alpha: 0.95),
+                          fontSize: 13,
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: _filteredEvents.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final event = _filteredEvents[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          leading: const Icon(
+                            Icons.event_outlined,
+                            size: 18,
+                            color: AppColors.textSecondary,
+                          ),
+                          title: Text(
+                            event.title,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${event.venue} • ${event.location}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary.withValues(alpha: 0.9),
+                            ),
+                          ),
+                          onTap: () {
+                            _searchController.text = event.title;
+                            _applyAndClose();
+                          },
+                        );
+                      },
                     ),
-                    labelStyle: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  );
-                }).toList(),
-              )
-            else
-              const Spacer(),
+            ),
             SizedBox(
               width: double.infinity,
               child: FilledButton(

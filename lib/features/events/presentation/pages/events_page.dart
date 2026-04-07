@@ -34,6 +34,7 @@ class _EventsPageState extends State<EventsPage> {
   EventCategory _selectedCategory = EventCategory.all;
   EventFilters? _activeFilters;
   String? _currentLocation;
+  List<EventListItem> _availableEvents = const [];
 
   @override
   void initState() {
@@ -109,6 +110,7 @@ class _EventsPageState extends State<EventsPage> {
                   }
 
                   if (state is EventsLoaded) {
+                    _availableEvents = state.events;
                     if (state.events.isEmpty) {
                       return _buildEmptyState();
                     }
@@ -229,6 +231,7 @@ class _EventsPageState extends State<EventsPage> {
                   MaterialPageRoute(
                     builder: (searchContext) => events_search.SearchPage(
                       initialQuery: _searchController.text,
+                      availableEvents: _availableEvents,
                     ),
                   ),
                 );
@@ -373,47 +376,21 @@ class _EventsPageState extends State<EventsPage> {
             _loadEvents(context);
           },
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.all(16),
         itemCount: events.length,
         itemBuilder: (context, index) {
-          final event = events[index];
-          final date = '${event.dateTime.month}/${event.dateTime.day}/${event.dateTime.year}';
-          final time =
-              '${event.dateTime.hour % 12 == 0 ? 12 : event.dateTime.hour % 12}:${event.dateTime.minute.toString().padLeft(2, '0')} ${event.dateTime.hour >= 12 ? 'PM' : 'AM'}';
-
-          return ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-            title: Text(
-              event.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            subtitle: Text(
-              '$date • $time • ${event.location}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary.withValues(alpha: 0.95),
-              ),
-            ),
-            trailing: const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textSecondary,
-              size: 20,
-            ),
+          return EventListCard(
+            event: events[index],
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => EventDetailPage(eventId: event.id),
+                  builder: (_) => EventDetailPage(eventId: events[index].id),
                 ),
               );
+            },
+            onBookmark: () {
+              // TODO: Implement bookmark
             },
           );
         },
