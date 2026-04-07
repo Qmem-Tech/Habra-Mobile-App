@@ -79,9 +79,10 @@ class _EventsPageState extends State<EventsPage> {
   }
 
   void _loadEvents(BuildContext context) {
+    final effective = _effectiveFilters();
     context.read<EventsCubit>().loadEvents(
           location: _currentLocation,
-          filters: _effectiveFilters(),
+          filters: effective,
           searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
         );
   }
@@ -222,20 +223,18 @@ class _EventsPageState extends State<EventsPage> {
         children: [
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                final query = await Navigator.push<String>(
                   context,
                   MaterialPageRoute(
                     builder: (searchContext) => events_search.SearchPage(
                       initialQuery: _searchController.text,
-                      onSearch: (query) {
-                        _searchController.text = query;
-                        // State's [context] finds [EventsCubit] from this page.
-                        _loadEvents(context);
-                      },
                     ),
                   ),
                 );
+                if (!mounted || query == null) return;
+                _searchController.text = query;
+                _loadEvents(context);
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -374,21 +373,47 @@ class _EventsPageState extends State<EventsPage> {
             _loadEvents(context);
           },
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: events.length,
         itemBuilder: (context, index) {
-          return EventListCard(
-            event: events[index],
+          final event = events[index];
+          final date = '${event.dateTime.month}/${event.dateTime.day}/${event.dateTime.year}';
+          final time =
+              '${event.dateTime.hour % 12 == 0 ? 12 : event.dateTime.hour % 12}:${event.dateTime.minute.toString().padLeft(2, '0')} ${event.dateTime.hour >= 12 ? 'PM' : 'AM'}';
+
+          return ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+            title: Text(
+              event.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            subtitle: Text(
+              '$date • $time • ${event.location}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary.withValues(alpha: 0.95),
+              ),
+            ),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => EventDetailPage(eventId: events[index].id),
+                  builder: (_) => EventDetailPage(eventId: event.id),
                 ),
               );
-            },
-            onBookmark: () {
-              // TODO: Implement bookmark
             },
           );
         },
