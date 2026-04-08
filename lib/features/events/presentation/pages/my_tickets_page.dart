@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -378,8 +379,8 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
           const SizedBox(height: 32),
           ElevatedButton(
             onPressed: () {
-              // Navigate to events page
               Navigator.pop(context);
+              MainNavigationWrapper.navigateToTab(context, 1);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.brandPrimary,
