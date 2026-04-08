@@ -24,13 +24,25 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
 
   String get _authRedirectUrl => SupabaseConfig.authRedirectUrl;
 
-  /// Web OAuth client ID (same as Supabase Google provider). Optional but
-  /// recommended on Android; set via [AppConfig] / `GOOGLE_WEB_CLIENT_ID`.
+  /// Web OAuth client ID (same as Supabase Google provider). On iOS, Google
+  /// Sign-In 8.x also requires the iOS client ID ([AppConfig.googleIosClientId] /
+  /// `GOOGLE_IOS_CLIENT_ID` → Info.plist `GIDClientID` via `pod install`).
   /// Single instance so [signOut] and [signInWithGoogle] share plugin state.
   late final GoogleSignIn _googleSignIn = () {
     final webClientId = AppConfig.googleWebClientId;
+    final iosClientId = AppConfig.googleIosClientId;
+    final useIosClientId = !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.iOS &&
+        iosClientId.isNotEmpty;
+
     if (webClientId.isNotEmpty) {
-      return GoogleSignIn(serverClientId: webClientId);
+      return GoogleSignIn(
+        serverClientId: webClientId,
+        clientId: useIosClientId ? iosClientId : null,
+      );
+    }
+    if (useIosClientId) {
+      return GoogleSignIn(clientId: iosClientId);
     }
     return GoogleSignIn();
   }();
@@ -110,6 +122,15 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
   @override
   Future<UserModel> signInWithGoogle({bool forceAccountPicker = false}) async {
     try {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        if (AppConfig.googleIosClientId.isEmpty) {
+          throw app_errors.AuthException(
+            'Google Sign-In on iOS needs GOOGLE_IOS_CLIENT_ID in dart_defines.json '
+            '(create an iOS OAuth client in Google Cloud Console for this app’s bundle ID), '
+            'then run: cd ios && pod install, and rebuild the app.',
+          );
+        }
+      }
       if (forceAccountPicker) {
         await _googleSignIn.signOut();
       }
@@ -170,10 +191,72 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
         idToken: idToken,
         nonce: rawNonce,
       );
+
+      final userId = _client.auth.currentUser?.id;
+      if (userId != null) {
+        await _syncAppleProfileDisplayName(
+          userId: userId,
+          email: _client.auth.currentUser?.email,
+          credential: appleCredential,
+        );
+      }
+
       return _sessionToUser();
     } catch (e) {
       SupabaseFailureMapper.throwFromError(e);
     }
+  }
+
+  /// Apple only sends [PersonNameComponents]-style names in the native credential,
+  /// not in the ID token, so Supabase `raw_user_meta_data` often has no `full_name`.
+  /// [AuthorizationCredentialAppleID.givenName]/[familyName] are usually non-null only
+  /// on the first successful sign-in for that app + Apple ID.
+  Future<void> _syncAppleProfileDisplayName({
+    required String userId,
+    required String? email,
+    required AuthorizationCredentialAppleID credential,
+  }) async {
+    final fromApple = _fullNameFromAppleCredential(credential);
+    if (fromApple != null && fromApple.isNotEmpty) {
+      await SupabaseFailureMapper.guard(() async {
+        await _client
+            .from('profiles')
+            .update({'full_name': fromApple})
+            .eq('id', userId);
+      });
+      try {
+        await _client.auth.updateUser(
+          UserAttributes(
+            data: {'full_name': fromApple, 'name': fromApple},
+          ),
+        );
+      } catch (_) {
+        // Keep profile row; auth metadata is best-effort.
+      }
+      return;
+    }
+
+    final row = await SupabaseFailureMapper.guard(
+      () => _client
+          .from('profiles')
+          .select('full_name')
+          .eq('id', userId)
+          .maybeSingle(),
+    );
+    final existing = row is Map<String, dynamic>
+        ? (row['full_name'] as String? ?? '').trim()
+        : '';
+    if (existing.isNotEmpty) return;
+
+    final fallback = _appleProfileNameFallback(email);
+    if (fallback == null || fallback.isEmpty) return;
+
+    await SupabaseFailureMapper.guard(() async {
+      await _client
+          .from('profiles')
+          .update({'full_name': fallback})
+          .eq('id', userId);
+    });
   }
 
   @override
@@ -303,3 +386,23 @@ String _generateAppleSignInNonce([int length = 32]) {
 
 String _sha256OfString(String input) =>
     sha256.convert(utf8.encode(input)).toString();
+
+String? _fullNameFromAppleCredential(AuthorizationCredentialAppleID credential) {
+  final given = credential.givenName?.trim() ?? '';
+  final family = credential.familyName?.trim() ?? '';
+  if (given.isEmpty && family.isEmpty) return null;
+  if (given.isEmpty) return family;
+  if (family.isEmpty) return given;
+  return '$given $family';
+}
+
+/// When Apple returns no name (returning user or user chose not to share), avoid an empty UI label.
+String? _appleProfileNameFallback(String? email) {
+  if (email == null || email.isEmpty) return null;
+  final at = email.indexOf('@');
+  if (at <= 0) return null;
+  final local = email.substring(0, at).trim();
+  if (local.isEmpty) return null;
+  if (local.toLowerCase().contains('privaterelay')) return 'Apple User';
+  return local;
+}

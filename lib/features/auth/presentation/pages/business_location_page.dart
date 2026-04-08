@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import '../../../../core/permissions/app_permission.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/services/permission_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../../../core/widgets/error_display_helper.dart';
+import '../../../../injection/injection_container.dart' as di;
+import '../../../../core/services/location_service.dart';
 import 'business_contact_page.dart';
 
 class BusinessLocationPage extends StatefulWidget {
@@ -29,10 +34,42 @@ class _BusinessLocationPageState extends State<BusinessLocationPage> {
     super.dispose();
   }
 
-  void _onUseCurrentLocation() {
-    // TODO: Implement location services
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Location services coming soon')),
+  Future<void> _onUseCurrentLocation() async {
+    final granted = await di.sl<PermissionService>().requestWithDialog(
+      context,
+      AppPermission.location,
+    );
+    if (!granted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Location permission is needed to fill your address. You can enable it in Settings.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
+    final result = await di.sl<LocationService>().getCurrentLocationAsAddress(
+      nativePermissionAlreadyGranted: true,
+    );
+    if (!mounted) return;
+    result.fold(
+      (f) => ErrorDisplayHelper.show(context, message: f.message, title: 'Location'),
+      (data) {
+        if (data.street != null) {
+          _streetAddressController.text = data.street!;
+        }
+        if (data.city != null) _cityController.text = data.city!;
+        if (data.state != null) _stateController.text = data.state!;
+        if (data.zipCode != null) _zipCodeController.text = data.zipCode!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Address set from current location')),
+        );
+      },
     );
   }
 
@@ -105,7 +142,7 @@ class _BusinessLocationPageState extends State<BusinessLocationPage> {
                   width: double.infinity,
                   height: AppResources.buttonHeightM,
                   child: OutlinedButton.icon(
-                    onPressed: _onUseCurrentLocation,
+                    onPressed: () => _onUseCurrentLocation(),
                     icon: Icon(
                       Icons.explore,
                       color: AppColors.brandPrimary,

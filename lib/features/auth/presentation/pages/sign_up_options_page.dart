@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -212,21 +211,12 @@ class SignUpOptionsPage extends StatelessWidget {
                     ],
 
                     if (showApple)
-                      SizedBox(
-                        width: double.infinity,
+                      AppleSignInButton(
                         height: AppResources.buttonHeightL,
-                        child: SignInWithAppleButton(
-                          onPressed: () {
-                            if (isLoading) return;
-                            context.read<AuthCubit>().signInWithApple();
-                          },
-                          text: 'Continue with Apple',
-                          style: SignInWithAppleButtonStyle.black,
-                          height: AppResources.buttonHeightL,
-                          borderRadius: BorderRadius.circular(
-                            AppResources.radiusL,
-                          ),
-                        ),
+                        borderRadius: AppResources.radiusL,
+                        onPressed: isLoading
+                            ? null
+                            : () => context.read<AuthCubit>().signInWithApple(),
                       ),
 
                     SizedBox(

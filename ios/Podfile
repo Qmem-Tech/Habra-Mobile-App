@@ -44,8 +44,46 @@ def sync_maps_key_from_dart_defines
   File.write(xcconfig_path, "GOOGLE_MAPS_API_KEY=#{key}\n")
 end
 
+# iOS OAuth client ID + reversed URL scheme for Google Sign-In 8.x (GIDClientID / CFBundleURLSchemes).
+def reverse_google_ios_client_id(client_id)
+  s = client_id.to_s.strip
+  return '' if s.empty?
+  return '' unless s.end_with?('.apps.googleusercontent.com')
+
+  prefix = s.sub(/\.apps\.googleusercontent\.com\z/, '')
+  "com.googleusercontent.apps.#{prefix}"
+end
+
+def sync_google_sign_in_ios_from_dart_defines
+  require 'json'
+  defines_path = File.expand_path('../dart_defines.json', __dir__)
+  xcconfig_path = File.expand_path('Flutter/GoogleSignInIos.generated.xcconfig', __dir__)
+  client_id = ''
+  web_client_id = ''
+  if File.exist?(defines_path)
+    begin
+      data = JSON.parse(File.read(defines_path))
+      client_id = data['GOOGLE_IOS_CLIENT_ID'].to_s.strip
+      web_client_id = data['GOOGLE_WEB_CLIENT_ID'].to_s.strip
+    rescue JSON::ParserError
+      client_id = ''
+      web_client_id = ''
+    end
+  end
+  reversed = reverse_google_ios_client_id(client_id)
+  File.write(
+    xcconfig_path,
+    <<~EOS
+      GOOGLE_IOS_CLIENT_ID=#{client_id}
+      GOOGLE_IOS_REVERSED_CLIENT_ID=#{reversed}
+      GOOGLE_WEB_CLIENT_ID=#{web_client_id}
+    EOS
+  )
+end
+
 flutter_ios_podfile_setup
 sync_maps_key_from_dart_defines
+sync_google_sign_in_ios_from_dart_defines
 
 target 'Runner' do
   # Firebase pods often break with "Include of non-modular header inside framework module"
@@ -65,8 +103,11 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-      # Ensure proper debug information format for iOS
-      if config.build_settings['DEBUG_INFORMATION_FORMAT'] == nil
+      # App Store Connect symbol upload expects dSYMs for Release archives.
+      # Using only "dwarf" for pods can trigger missing ObjectiveC.framework dSYM warnings.
+      if config.name == 'Release' || config.name == 'Profile'
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+      elsif config.build_settings['DEBUG_INFORMATION_FORMAT'] == nil
         config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
       end
       # Remove unsupported compiler flags
@@ -75,6 +116,30 @@ post_install do |installer|
         flags = flags.is_a?(String) ? flags.split(' ') : flags
         flags.reject! { |flag| flag == '-G' || flag.start_with?('-G') }
         config.build_settings[flag_key] = flags
+      end
+
+      # permission_handler_apple: each permission defaults to 0 (disabled) unless a macro is set.
+      # Without these, iOS can show the system sheet but the plugin still reports "denied".
+      if target.name == 'permission_handler_apple'
+        defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS']
+        if defs.nil?
+          defs = ['$(inherited)']
+        elsif defs.is_a?(String)
+          defs = defs.split(' ').reject(&:empty?)
+        else
+          defs = defs.reject { |x| x.to_s.empty? }.dup
+        end
+        %w[
+          PERMISSION_LOCATION=1
+          PERMISSION_CAMERA=1
+          PERMISSION_PHOTOS=1
+          PERMISSION_CONTACTS=1
+        ].each do |macro|
+          key = macro.split('=', 2).first
+          defs.reject! { |d| d.to_s.start_with?("#{key}=") }
+          defs << macro unless defs.include?(macro)
+        end
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs
       end
 
       # Xcode 16.4 + current gRPC sources trigger a warning that is treated as error in some setups.

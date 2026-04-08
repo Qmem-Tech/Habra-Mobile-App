@@ -13,6 +13,11 @@
 /// [AppConfig.googleMapsApiKey]). Android reads the same file in Gradle; iOS
 /// generates `ios/Flutter/MapsKey.generated.xcconfig` on `pod install`. Legacy
 /// alias: `MAPS_SDK_API_KEY`.
+///
+/// **Google Sign-In on iOS:** Set `GOOGLE_IOS_CLIENT_ID` (iOS OAuth client ID in
+/// Cloud Console for your bundle ID). `pod install` writes
+/// `ios/Flutter/GoogleSignInIos.generated.xcconfig` for `GIDClientID` and the
+/// reversed URL scheme in Info.plist. Keep `GOOGLE_WEB_CLIENT_ID` for Supabase.
 class AppConfig {
   AppConfig._();
 
@@ -38,6 +43,14 @@ class AppConfig {
   // --- Google Sign-In (Supabase OAuth) ---
   static const String googleWebClientId = String.fromEnvironment(
     'GOOGLE_WEB_CLIENT_ID',
+    defaultValue: '',
+  );
+
+  /// iOS OAuth client ID (`*.apps.googleusercontent.com`) from Google Cloud Console.
+  /// Required on iOS: Google Sign-In 8.x reads [GIDClientID] from Info.plist; set
+  /// `GOOGLE_IOS_CLIENT_ID` in `dart_defines.json` (synced on `pod install`).
+  static const String googleIosClientId = String.fromEnvironment(
+    'GOOGLE_IOS_CLIENT_ID',
     defaultValue: '',
   );
 

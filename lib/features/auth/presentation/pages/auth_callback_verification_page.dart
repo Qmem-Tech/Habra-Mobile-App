@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import '../../../splash/presentation/pages/splash_page.dart';
 import '../bloc/auth_cubit.dart';
@@ -184,24 +185,11 @@ class _AuthCallbackVerificationPageState
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppResources.spacingXL),
-                      SizedBox(
-                        width: double.infinity,
-                        height: AppResources.buttonHeightM,
-                        child: ElevatedButton(
-                          onPressed: _isVerified ? _continue : _checkVerification,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.brandPrimary,
-                            foregroundColor: AppColors.textOnPrimary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(AppResources.radiusM),
-                            ),
-                          ),
-                          child: Text(
-                            _isVerified ? 'Continue' : 'Check Again',
-                            style: AppFonts.button(color: AppColors.textOnPrimary),
-                          ),
-                        ),
+                      AppButton(
+                        text: _isVerified ? 'Continue' : 'Check Again',
+                        onPressed: _isVerified
+                            ? _continue
+                            : () => _checkVerification(),
                       ),
                       if (!_isVerified) ...[
                         const SizedBox(height: AppResources.spacingM),

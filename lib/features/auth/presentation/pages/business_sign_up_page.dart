@@ -1,8 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -193,20 +191,15 @@ class BusinessSignUpPage extends StatelessWidget {
                                 const SizedBox(height: AppResources.spacingM),
                             ],
                             if (showApple)
-                              SizedBox(
+                              AppleSignInButton(
                                 height: AppResources.buttonHeightL,
-                                width: double.infinity,
-                                child: SignInWithAppleButton(
-                                  onPressed: () {
-                                    if (isLoading) return;
-                                    context
+                                borderRadius: AppResources.radiusL,
+                                label: 'Sign up with Apple',
+                                onPressed: isLoading
+                                    ? null
+                                    : () => context
                                         .read<AuthCubit>()
-                                        .signInWithApple();
-                                  },
-                                  text: 'Sign up with Apple',
-                                  style: SignInWithAppleButtonStyle.black,
-                                  height: AppResources.buttonHeightL,
-                                ),
+                                        .signInWithApple(),
                               ),
                             const SizedBox(height: AppResources.spacingXL),
                           ],

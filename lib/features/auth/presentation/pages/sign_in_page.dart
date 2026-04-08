@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -149,13 +148,10 @@ class _SignInPageState extends State<SignInPage> {
                     ),
                     if (showApple) ...[
                       const SizedBox(height: AppResources.spacingL),
-                      SignInWithAppleButton(
-                        onPressed: () {
-                          if (isLoading) return;
-                          context.read<AuthCubit>().signInWithApple();
-                        },
-                        style: SignInWithAppleButtonStyle.black,
-                        height: AppResources.buttonHeightM,
+                      AppleSignInButton(
+                        onPressed: isLoading
+                            ? null
+                            : () => context.read<AuthCubit>().signInWithApple(),
                       ),
                     ],
                     if (showGoogle) ...[
