@@ -143,12 +143,15 @@ flutter build apk --release --dart-define-from-file=dart_defines.json
 **Configure (external)**
 
 1. Stripe Dashboard → publishable key → `dart_defines.json`.
-2. Deploy Supabase Edge Function (default name `create-event-payment-intent`) that accepts e.g. `{ "order_id": "..." }` and returns `clientSecret` / `client_secret`.
+2. Deploy Supabase Edge Functions:
+   - `create-event-payment-intent` (creates/reuses PaymentIntent, returns PaymentSheet session)
+   - `stripe-event-webhook` (Stripe webhook: finalizes order states)
+   - `refund-event-order` (support/admin initiated refunds)
 3. **Never** ship secret keys or webhook secrets in the mobile app.
 
 **Behavior if publishable key empty:** Stripe uninitialized; checkout fails until configured.
 
-**Verify:** Create order → PaymentSheet opens → test card succeeds.
+**Verify:** Create order → PaymentSheet opens → Stripe webhook marks order `completed` → app transitions from processing to success.
 
 ---
 

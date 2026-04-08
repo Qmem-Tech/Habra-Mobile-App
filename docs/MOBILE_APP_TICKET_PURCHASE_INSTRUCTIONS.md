@@ -27,21 +27,14 @@ Ensure the table exists (from `add_notifications_and_ticket_purchases.sql`):
 
 ## 2. Insert a Purchase (Supabase)
 
-When a customer completes a ticket purchase in the mobile app:
+For Stripe-backed event checkout, purchases must be inserted by the backend webhook handler, not directly by the mobile app.
 
-```dart
-// Flutter / Dart example
-final purchase = {
-  'event_id': eventId,           // UUID of the event
-  'event_ticket_id': ticketId,   // UUID of the event_ticket (e.g. "General")
-  'buyer_id': supabase.auth.currentUser?.id,
-  'quantity': quantity,          // e.g. 2
-  'total_cents': totalCents,     // optional: price * quantity * 100
-  'status': 'completed',
-};
+When a customer completes a ticket purchase:
 
-await supabase.from('event_ticket_purchases').insert(purchase);
-```
+1. App creates order + tickets.
+2. App starts Stripe PaymentSheet.
+3. `stripe-event-webhook` receives `payment_intent.succeeded`.
+4. Webhook upserts `event_ticket_purchases` rows idempotently (`order_id`, `event_ticket_id`).
 
 ```kotlin
 // Kotlin / Android example
@@ -164,14 +157,14 @@ Implement this in your mobile app if you want to block over-selling.
 
 ---
 
-## 10. Mobile App Implementation (Done)
+## 10. Mobile App Implementation (Current)
 
-The mobile app inserts into `event_ticket_purchases` automatically when payment completes:
+The mobile app no longer finalizes orders or inserts `event_ticket_purchases` directly.
 
-- **Where:** `lib/features/events/data/datasources/events_supabase_datasource.dart`
-- **When:** `processPayment()` — after updating `orders.status` to `'completed'`
-- **Flow:** Fetches tickets for the order, aggregates by `event_ticket_id`, inserts one row per ticket type with `event_id`, `event_ticket_id`, `buyer_id`, `quantity`, `total_cents`, `status: 'completed'`
-- **Migration:** `docs/supabase/migrations/add_notifications_and_ticket_purchases.sql` — run once in Supabase SQL Editor
+- **Where:** `lib/features/events/presentation/bloc/tickets_cubit.dart` and `lib/features/events/data/datasources/events_supabase_datasource.dart`
+- **When:** after PaymentSheet success, app marks the order as `processing` and polls for webhook-confirmed status
+- **Source of truth:** `stripe-event-webhook` Edge Function + DB function `finalize_event_order_payment`
+- **Migration:** run `docs/supabase/migrations/add_event_payment_hardening.sql`
 
 ---
 

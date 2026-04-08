@@ -47,7 +47,9 @@ class Order extends Equatable {
 
 enum OrderStatus {
   pending,
+  processing,
   completed,
   failed,
   cancelled,
+  refunded,
 }

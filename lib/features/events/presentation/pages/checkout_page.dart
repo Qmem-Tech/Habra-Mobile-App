@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
@@ -296,9 +295,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       child: Text(
                         stripeOn
                             ? 'You’ll complete payment in Stripe’s secure sheet. Card, Apple Pay, Google Pay, and other methods your account supports may appear there.'
-                            : (kDebugMode
-                                ? 'Stripe is not configured. In debug builds the order can still complete without a real charge.'
-                                : 'Online payment is not configured for this build. Add STRIPE_PUBLISHABLE_KEY and your payment backend to enable checkout.'),
+                            : 'Online payment is not configured for this build. Add STRIPE_PUBLISHABLE_KEY and your payment backend to enable checkout.',
                         style: TextStyle(
                           fontSize: 14,
                           height: 1.4,
@@ -408,7 +405,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return BlocBuilder<TicketsCubit, TicketsState>(
       builder: (context, state) {
         final isLoading = state is PaymentProcessing || state is OrderLoading;
-        final canPay = _stripe.isConfigured || kDebugMode;
+        final canPay = _stripe.isConfigured;
         return Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           decoration: BoxDecoration(
@@ -424,7 +421,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (!_stripe.isConfigured && !kDebugMode)
+              if (!_stripe.isConfigured)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Text(

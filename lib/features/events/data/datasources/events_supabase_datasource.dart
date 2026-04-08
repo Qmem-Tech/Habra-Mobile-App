@@ -21,6 +21,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
   EventsSupabaseDataSource();
 
   SupabaseClient get _client => Supabase.instance.client;
+  static const double _serviceFeeRate = 0.05;
 
   static EventCategory _categoryFromString(String? s) {
     if (s == null || s.isEmpty) return EventCategory.all;
@@ -266,7 +267,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       if (userId == null) throw Exception('Not authenticated');
 
       final eventDetail = await getEventDetail(eventId);
-      num totalAmount = 0;
+      num subtotalAmount = 0;
       final selectedTickets = <SelectedTicket>[];
       for (final t in tickets) {
         final ticketTypeId = (t['ticket_type_id'] ?? t['event_ticket_id'] ?? t['ticketTypeId']) as String?;
@@ -276,7 +277,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         if (etRes is Map<String, dynamic>) {
           final price = parseDouble(etRes['price']) ?? 0;
           final name = parseStringRequired(etRes['name']);
-          totalAmount += price * qty;
+          subtotalAmount += price * qty;
           final tt = TicketTypeModel(
             id: parseStringRequired(etRes['id']),
             name: name,
@@ -290,11 +291,15 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         }
       }
 
+      final serviceFeeAmount = subtotalAmount * _serviceFeeRate;
+      final totalAmount = subtotalAmount + serviceFeeAmount;
       final orderRes = await _client.from('orders').insert({
         'user_id': userId,
         'type': 'event',
         'event_id': eventId,
         'status': 'pending',
+        'subtotal_amount': subtotalAmount,
+        'service_fee_amount': serviceFeeAmount,
         'total_amount': totalAmount,
         'contact_email': contactInfo['email'] ?? '',
         'contact_phone': contactInfo['phone'] ?? '',
@@ -312,14 +317,13 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         }
       }
 
-      final serviceFee = 0.0;
       return OrderModel(
         id: orderId,
         event: eventDetail,
         tickets: selectedTickets,
-        subtotal: totalAmount.toDouble(),
-        serviceFee: serviceFee,
-        total: totalAmount.toDouble() + serviceFee,
+        subtotal: subtotalAmount.toDouble(),
+        serviceFee: serviceFeeAmount.toDouble(),
+        total: totalAmount.toDouble(),
         createdAt: parseTimestampRequired((orderRes as Map)['created_at']),
         status: events_domain.OrderStatus.pending,
       );
@@ -333,87 +337,52 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
     String? promoCode,
   }) async {
     return SupabaseFailureMapper.guard(() async {
-      await _client.from('orders').update({
-        'status': 'completed',
-        'payment_method': paymentMethod['type'] ?? 'card',
-        'payment_id': paymentMethod['id'] ?? '',
-      }).eq('id', orderId);
+      final stripePaymentIntentId = parseString(
+        paymentMethod['payment_intent_id'] ?? paymentMethod['paymentIntentId'],
+      );
+      final stripeCustomerId = parseString(
+        paymentMethod['customer_id'] ?? paymentMethod['customerId'],
+      );
+      final paymentType = parseString(paymentMethod['type']) ?? 'stripe';
+      final paymentId = parseString(paymentMethod['id']) ?? '';
 
-      final res = await _client.from('orders').select('*').eq('id', orderId).single();
-      final row = Map<String, dynamic>.from(res as Map);
-      final eventId = parseString(row['event_id']);
-      final buyerId = parseString(row['user_id']);
-      if (eventId == null || buyerId == null) throw Exception('Order not found');
-
-      // Insert into event_ticket_purchases for web app sold/left counts and organizer notification
-      await _insertEventTicketPurchases(orderId, eventId, buyerId);
-
-      final eventDetail = await getEventDetail(eventId);
-      final ticketRows = await _client
-          .from(SupabaseTables.tickets)
-          .select('id')
-          .eq('order_id', orderId);
-      final issuedIds = <String>[];
-      for (final r in ticketRows as List<dynamic>) {
-        final row = Map<String, dynamic>.from(r as Map);
-        final tid = parseString(row['id']);
-        if (tid != null) issuedIds.add(tid);
+      try {
+        await _client.rpc('mark_event_order_processing', params: {
+          'p_order_id': orderId,
+          'p_payment_provider': 'stripe',
+          'p_stripe_payment_intent_id': stripePaymentIntentId,
+          'p_payment_method': paymentType,
+          'p_payment_id': paymentId,
+          'p_stripe_customer_id': stripeCustomerId,
+        });
+      } catch (_) {
+        await _client.from('orders').update({
+          'status': 'processing',
+          'payment_provider': 'stripe',
+          'stripe_payment_intent_id': stripePaymentIntentId,
+          'stripe_customer_id': stripeCustomerId,
+          'payment_method': paymentType,
+          'payment_id': paymentId,
+          'payment_started_at': DateTime.now().toIso8601String(),
+        }).eq('id', orderId);
       }
 
-      return OrderModel(
-        id: orderId,
-        event: eventDetail,
-        tickets: const [],
-        subtotal: parseDouble(row['total_amount']) ?? 0,
-        serviceFee: 0,
-        total: parseDouble(row['total_amount']) ?? 0,
-        createdAt: parseTimestampRequired(row['created_at']),
-        status: events_domain.OrderStatus.completed,
-        issuedTicketIds: issuedIds,
+      final deadline = DateTime.now().add(const Duration(seconds: 45));
+      while (DateTime.now().isBefore(deadline)) {
+        final order = await _fetchOrderModel(orderId);
+        if (order.status == events_domain.OrderStatus.completed ||
+            order.status == events_domain.OrderStatus.failed ||
+            order.status == events_domain.OrderStatus.cancelled ||
+            order.status == events_domain.OrderStatus.refunded) {
+          return order;
+        }
+        await Future<void>.delayed(const Duration(seconds: 2));
+      }
+
+      throw Exception(
+        'Payment is still being confirmed. Please check your tickets in a moment.',
       );
     });
-  }
-
-  /// Inserts into event_ticket_purchases for each ticket type in the order.
-  /// Enables web app sold/left counts per ticket type and triggers organizer notification.
-  Future<void> _insertEventTicketPurchases(
-    String orderId,
-    String eventId,
-    String buyerId,
-  ) async {
-    final ticketsRes = await _client
-        .from(SupabaseTables.tickets)
-        .select('event_ticket_id, quantity, event_tickets(price)')
-        .eq('order_id', orderId);
-    final rows = (ticketsRes as List).cast<Map<String, dynamic>>();
-
-    // Aggregate by event_ticket_id: { ticketId -> { quantity, price } }
-    final Map<String, _TicketAggregate> agg = {};
-    for (final r in rows) {
-      final ticketId = parseString(r['event_ticket_id']);
-      if (ticketId == null) continue;
-      final qty = parseInt(r['quantity']) ?? 1;
-      final et = r['event_tickets'];
-      final price = et is Map<String, dynamic>
-          ? (parseDouble(et['price']) ?? 0)
-          : 0.0;
-      agg[ticketId] = _TicketAggregate(
-        quantity: (agg[ticketId]?.quantity ?? 0) + qty,
-        price: agg[ticketId]?.price ?? price,
-      );
-    }
-
-    for (final e in agg.entries) {
-      final totalCents = (e.value.price * e.value.quantity * 100).round();
-      await _client.from(SupabaseTables.eventTicketPurchases).insert({
-        'event_id': eventId,
-        'event_ticket_id': e.key,
-        'buyer_id': buyerId,
-        'quantity': e.value.quantity,
-        'total_cents': totalCents,
-        'status': 'completed',
-      });
-    }
   }
 
   @override
@@ -457,11 +426,59 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       return getEventDetail(eventId);
     });
   }
-}
 
-/// Helper for aggregating ticket quantities by event_ticket_id.
-class _TicketAggregate {
-  _TicketAggregate({required this.quantity, required this.price});
-  final int quantity;
-  final double price;
+  Future<OrderModel> _fetchOrderModel(String orderId) async {
+    final res = await _client.from('orders').select('*').eq('id', orderId).single();
+    final row = Map<String, dynamic>.from(res as Map);
+    final eventId = parseString(row['event_id']);
+    if (eventId == null) throw Exception('Order event not found');
+
+    final eventDetail = await getEventDetail(eventId);
+    final ticketRows = await _client
+        .from(SupabaseTables.tickets)
+        .select('id')
+        .eq('order_id', orderId);
+
+    final issuedIds = <String>[];
+    for (final r in ticketRows as List<dynamic>) {
+      final ticketRow = Map<String, dynamic>.from(r as Map);
+      final ticketId = parseString(ticketRow['id']);
+      if (ticketId != null) issuedIds.add(ticketId);
+    }
+
+    final subtotal = parseDouble(row['subtotal_amount']) ??
+        parseDouble(row['total_amount']) ??
+        0;
+    final serviceFee = parseDouble(row['service_fee_amount']) ?? 0;
+    final total = parseDouble(row['total_amount']) ?? subtotal + serviceFee;
+
+    return OrderModel(
+      id: orderId,
+      event: eventDetail,
+      tickets: const [],
+      subtotal: subtotal,
+      serviceFee: serviceFee,
+      total: total,
+      createdAt: parseTimestampRequired(row['created_at']),
+      status: _parseOrderStatus(parseString(row['status'])),
+      issuedTicketIds: issuedIds,
+    );
+  }
+
+  events_domain.OrderStatus _parseOrderStatus(String? status) {
+    switch ((status ?? '').toLowerCase()) {
+      case 'processing':
+        return events_domain.OrderStatus.processing;
+      case 'completed':
+        return events_domain.OrderStatus.completed;
+      case 'failed':
+        return events_domain.OrderStatus.failed;
+      case 'cancelled':
+        return events_domain.OrderStatus.cancelled;
+      case 'refunded':
+        return events_domain.OrderStatus.refunded;
+      default:
+        return events_domain.OrderStatus.pending;
+    }
+  }
 }

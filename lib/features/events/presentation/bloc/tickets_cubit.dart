@@ -83,9 +83,17 @@ class TicketsCubit extends Cubit<TicketsState> {
       (order) {
         if (order.status == events.OrderStatus.completed) {
           emit(PaymentSuccess(order));
+        } else if (order.status == events.OrderStatus.processing ||
+            order.status == events.OrderStatus.pending) {
+          emit(PaymentFailed(
+            'Payment confirmation is still in progress. Please check My Tickets in a moment.',
+            order: order,
+          ));
         } else {
           emit(PaymentFailed(
-            'Payment could not be processed',
+            order.status == events.OrderStatus.refunded
+                ? 'Payment was refunded.'
+                : 'Payment could not be processed',
             order: order,
           ));
         }
@@ -121,9 +129,8 @@ class TicketsCubit extends Cubit<TicketsState> {
     emit(PaymentProcessing(order));
 
     if (stripePaymentService.isConfigured) {
-      final clientSecret =
-          await stripePaymentService.fetchPaymentIntentClientSecret(order.id);
-      if (clientSecret == null || clientSecret.isEmpty) {
+      final session = await stripePaymentService.fetchPaymentSheetSession(order.id);
+      if (session == null || session.clientSecret.isEmpty) {
         emit(PaymentFailed(
           'Could not start card payment. Deploy a Supabase function that returns '
           'clientSecret (see docs/PAYMENTS_AND_SSO_SETUP.md).',
@@ -133,7 +140,9 @@ class TicketsCubit extends Cubit<TicketsState> {
       }
 
       final paid = await stripePaymentService.presentPaymentSheet(
-        paymentIntentClientSecret: clientSecret,
+        paymentIntentClientSecret: session.clientSecret,
+        customerId: session.customerId,
+        customerEphemeralKeySecret: session.customerEphemeralKeySecret,
       );
       if (!paid) {
         emit(PaymentFailed('Payment was cancelled.', order: order));
@@ -145,7 +154,9 @@ class TicketsCubit extends Cubit<TicketsState> {
         paymentMethod: {
           ...paymentMethod,
           'type': 'stripe',
-          'id': 'stripe_payment_sheet',
+          'id': 'stripe_payment_sheet_v2',
+          'payment_intent_id': session.paymentIntentId,
+          'customer_id': session.customerId,
         },
         promoCode: promoCode,
       );
@@ -155,38 +166,17 @@ class TicketsCubit extends Cubit<TicketsState> {
         (completedOrder) {
           if (completedOrder.status == events.OrderStatus.completed) {
             emit(PaymentSuccess(completedOrder));
-          } else {
+          } else if (completedOrder.status == events.OrderStatus.processing ||
+              completedOrder.status == events.OrderStatus.pending) {
             emit(PaymentFailed(
-              'Payment could not be processed',
+              'Payment confirmation is still processing. Your charge may still complete shortly.',
               order: completedOrder,
             ));
-          }
-        },
-      );
-      return;
-    }
-
-    if (kDebugMode) {
-      debugPrint(
-        'TicketsCubit: STRIPE_PUBLISHABLE_KEY not set — completing order in debug only (no charge).',
-      );
-      final processResult = await processPaymentUseCase(
-        orderId: order.id,
-        paymentMethod: {
-          ...paymentMethod,
-          'type': 'debug',
-          'id': 'debug_no_stripe',
-        },
-        promoCode: promoCode,
-      );
-      processResult.fold(
-        (failure) => emit(PaymentFailed(failure.message, order: order)),
-        (completedOrder) {
-          if (completedOrder.status == events.OrderStatus.completed) {
-            emit(PaymentSuccess(completedOrder));
           } else {
             emit(PaymentFailed(
-              'Payment could not be processed',
+              completedOrder.status == events.OrderStatus.refunded
+                  ? 'Payment was refunded.'
+                  : 'Payment could not be processed',
               order: completedOrder,
             ));
           }
