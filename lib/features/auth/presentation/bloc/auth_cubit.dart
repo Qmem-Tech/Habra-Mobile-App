@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/services/push_notification_service.dart';
 import '../../../../core/services/revenue_cat_service.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
@@ -26,6 +27,7 @@ class AuthCubit extends Cubit<AuthState> {
   final UpdatePasswordUseCase updatePasswordUseCase;
   final RevenueCatService revenueCatService;
   final AuthRepository authRepository;
+  final PushNotificationService pushNotificationService;
 
   AuthCubit({
     required this.loginUseCase,
@@ -39,6 +41,7 @@ class AuthCubit extends Cubit<AuthState> {
     required this.updatePasswordUseCase,
     required this.revenueCatService,
     required this.authRepository,
+    required this.pushNotificationService,
   }) : super(AuthInitial());
 
   Future<void> login(String email, String password) async {
@@ -131,6 +134,11 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> logout() async {
+    final uid =
+        state is AuthAuthenticated ? (state as AuthAuthenticated).user.id : null;
+    if (uid != null) {
+      await pushNotificationService.clearTokenForUser(uid);
+    }
     final result = await logoutUseCase();
     await result.fold<Future<void>>(
       (failure) async {
@@ -153,12 +161,17 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> updatePassword(String newPassword) async {
+    final previousUid =
+        state is AuthAuthenticated ? (state as AuthAuthenticated).user.id : null;
     emit(AuthLoading());
     final result = await updatePasswordUseCase(newPassword);
     result.fold(
       (failure) => emit(AuthError(failure.message)),
       (_) async {
         emit(const AuthPasswordUpdated());
+        if (previousUid != null) {
+          await pushNotificationService.clearTokenForUser(previousUid);
+        }
         await logoutUseCase();
         emit(AuthUnauthenticated());
       },

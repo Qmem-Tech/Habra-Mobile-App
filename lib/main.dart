@@ -1,9 +1,12 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:habra_mobile_app/features/auth/domain/usecases/sign_in_with_apple_usecase.dart';
 import 'package:habra_mobile_app/features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 import 'package:habra_mobile_app/l10n/app_localizations.dart';
+import 'core/notifications/fcm_background_handler.dart';
+import 'core/navigation/main_navigation_wrapper.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/services/revenue_cat_service.dart';
 import 'core/services/stripe_payment_service.dart';
@@ -31,6 +34,7 @@ import 'features/onboarding/domain/usecases/complete_onboarding_usecase.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   if (!SupabaseConfig.isConfigured) {
     runApp(const _MissingConfigApp());
@@ -122,6 +126,7 @@ class MyApp extends StatelessWidget {
             updatePasswordUseCase: di.sl<UpdatePasswordUseCase>(),
             revenueCatService: di.sl<RevenueCatService>(),
             authRepository: di.sl<AuthRepository>(),
+            pushNotificationService: di.sl<PushNotificationService>(),
           ),
         ),
         BlocProvider(
@@ -140,6 +145,7 @@ class MyApp extends StatelessWidget {
           return BlocBuilder<LocalizationCubit, LocalizationState>(
             builder: (context, localeState) {
               return MaterialApp(
+                navigatorKey: mainNavigatorKey,
                 title: 'Habra',
                 debugShowCheckedModeBanner: false,
 

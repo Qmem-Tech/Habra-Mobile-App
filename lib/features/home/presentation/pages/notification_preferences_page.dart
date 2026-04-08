@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/services/push_notification_service.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -45,6 +46,12 @@ class _NotificationPreferencesPageState
   Future<void> _onPushChanged(bool value) async {
     setState(() => _pushEnabled = value);
     await _storage.setBool(_pushKey(widget.userId), value);
+    final push = di.sl<PushNotificationService>();
+    if (value) {
+      await push.registerTokenForUser(widget.userId);
+    } else {
+      await push.clearTokenForUser(widget.userId);
+    }
   }
 
   @override

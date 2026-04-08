@@ -187,7 +187,9 @@ Future<void> init() async {
   sl.registerLazySingleton<StorageService>(() => StorageService());
   sl.registerLazySingleton<RevenueCatService>(() => RevenueCatService());
   sl.registerLazySingleton<StripePaymentService>(() => StripePaymentService());
-  sl.registerLazySingleton<PushNotificationService>(() => PushNotificationService());
+  sl.registerLazySingleton<PushNotificationService>(
+    () => PushNotificationService(sl<LocalStorage>()),
+  );
 
   // Features - Auth (Supabase only)
   sl.registerLazySingleton<AuthRemoteDataSource>(

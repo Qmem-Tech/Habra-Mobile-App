@@ -157,19 +157,18 @@ flutter build apk --release --dart-define-from-file=dart_defines.json
 | | |
 |--|--|
 | **Purpose** | Device push when notifications are created (e.g. new job) |
-| **In the app today** | **`PushNotificationService` is a no-op stub** — app runs without Firebase |
-| **Keys** | No `dart-define` for FCM; use Firebase config files + code changes |
+| **In the app today** | **`PushNotificationService`** initializes FCM, syncs `profiles.fcm_token`, foreground local notifications, deep links via `NotificationDeepLinkRouter`; degrades if Firebase/native config is missing |
+| **Keys** | No `dart-define` for FCM; use `lib/firebase_options.dart` (run `flutterfire configure`), `google-services.json` when present, and iOS `GoogleService-Info.plist` |
 
-**To enable real push**
+**Project setup (still required for production)**
 
 1. **SQL** (Supabase, in order):  
    `docs/supabase/migrations/add_notifications_fcm_token.sql`  
    `docs/supabase/migrations/add_notify_on_new_job_trigger.sql`
-2. **Dependencies:** add `firebase_core`, `firebase_messaging` to `pubspec.yaml`.
-3. **Code:** replace stub in `lib/core/services/push_notification_service.dart` with FCM init + token sync to `profiles.fcm_token`.
-4. **Android:** `google-services.json` in `android/app/` + Gradle plugin (FlutterFire docs).
-5. **iOS:** `GoogleService-Info.plist`, Push capability, APNs in Firebase.
-6. **Delivery:** webhook or Edge Function to send FCM on `notifications` insert (in-app list works without this; **background push** needs it).
+2. **Dependencies:** `firebase_core`, `firebase_messaging`, `flutter_local_notifications` in `pubspec.yaml` (already added).
+3. **Android:** add `android/app/google-services.json`; the Google Services Gradle plugin applies only when that file exists.
+4. **iOS:** `GoogleService-Info.plist`, Push capability, Background **Remote notifications**, APNs key in Firebase; `Runner.entitlements` includes `aps-environment`.
+5. **Delivery:** webhook or Edge Function to send FCM HTTP v1 on `notifications` insert (`data` keys documented in [PUSH_NOTIFICATIONS_SETUP.md](./PUSH_NOTIFICATIONS_SETUP.md)).
 
 **Deep dive:** [PUSH_NOTIFICATIONS_SETUP.md](./PUSH_NOTIFICATIONS_SETUP.md).
 
@@ -183,7 +182,7 @@ Use this before testing each area end-to-end.
 - [ ] **Google:** OAuth clients; Supabase Google provider; `GOOGLE_WEB_CLIENT_ID` (recommended)  
 - [ ] **RevenueCat:** keys in `dart_defines.json`; products, offerings, entitlements; sandbox testers  
 - [ ] **Stripe:** publishable key; Edge Function deployed; merchant ID if Apple Pay  
-- [ ] **Push:** only if required — Firebase files, packages, real service implementation, SQL, sender pipeline  
+- [ ] **Push:** `flutterfire configure` / real `firebase_options` + native Firebase files; Supabase SQL; Edge Function or webhook FCM sender; test token in `profiles.fcm_token`  
 
 ---
 

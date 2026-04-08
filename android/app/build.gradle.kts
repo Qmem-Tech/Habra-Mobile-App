@@ -10,6 +10,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// FCM: only apply when google-services.json is present (run `flutterfire configure` or add file from Firebase Console).
+val googleServicesJson = file("google-services.json")
+if (googleServicesJson.exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 /** Reads repo-root `dart_defines.json` so the Maps key stays centralized with Flutter defines. */
 fun loadGoogleMapsApiKeyFromDartDefines(projectRoot: File): String {
     val f = File(projectRoot, "dart_defines.json")

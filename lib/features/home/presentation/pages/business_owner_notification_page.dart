@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/notifications/notification_deep_link_router.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -278,7 +279,11 @@ class _BusinessOwnerNotificationPageState
               width: double.infinity,
               child: AppButton(
                 text: actionLabel,
-                onPressed: () {},
+                onPressed: () {
+                  if (n.actionId != null && n.actionId!.trim().isNotEmpty) {
+                    NotificationDeepLinkRouter.openFromNotificationEntity(n);
+                  }
+                },
                 height: 44,
                 backgroundColor: actionLabel == 'Review Application'
                     ? AppColors.brandPrimary

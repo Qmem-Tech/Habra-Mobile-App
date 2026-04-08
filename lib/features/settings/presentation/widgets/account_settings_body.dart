@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:habra_mobile_app/l10n/app_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/constants/storage_keys.dart';
+import '../../../../core/services/push_notification_service.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -91,6 +93,12 @@ class _AccountSettingsBodyState extends State<AccountSettingsBody> {
     if (id == null) return;
     setState(() => _pushEnabled = value);
     await _storage.setBool(_pushKey(id), value);
+    final push = di.sl<PushNotificationService>();
+    if (value) {
+      await push.registerTokenForUser(id);
+    } else {
+      await push.clearTokenForUser(id);
+    }
   }
 
   String _languageName(String code) {
@@ -243,6 +251,16 @@ class _AccountSettingsBodyState extends State<AccountSettingsBody> {
                   ),
                 ),
         ),
+        if (user != null) ...[
+          const SizedBox(height: AppResources.spacingS),
+          _SettingsCard(
+            child: _ChevronTile(
+              icon: Icons.settings_suggest_outlined,
+              title: 'System notification settings',
+              onTap: () => openAppSettings(),
+            ),
+          ),
+        ],
         const SizedBox(height: AppResources.spacingL),
         _SectionTitle(title: 'Privacy & Support'),
         _SettingsCard(

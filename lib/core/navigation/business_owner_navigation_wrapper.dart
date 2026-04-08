@@ -139,6 +139,9 @@ class _BusinessOwnerNavigationWrapperState
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
     di.sl<PushNotificationService>().registerTokenForUser(widget.user.id);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      di.sl<PushNotificationService>().consumePendingDeepLink();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final snap = await _ensureToolsSnapshot(forceRefresh: true);
       if (!mounted) return;
@@ -151,6 +154,14 @@ class _BusinessOwnerNavigationWrapperState
         _pageController.jumpToPage(0);
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(BusinessOwnerNavigationWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.user.id != oldWidget.user.id) {
+      di.sl<PushNotificationService>().registerTokenForUser(widget.user.id);
+    }
   }
 
   @override

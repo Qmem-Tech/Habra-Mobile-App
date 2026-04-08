@@ -100,6 +100,20 @@ The trigger only inserts into `notifications`. To send actual push notifications
 }
 ```
 
+### FCM `data` keys (mobile app contract)
+
+Edge Functions / Admin SDK should send string keys in `data` (FCM stringifies values).
+
+| Key | Required for deep link | Description |
+|-----|------------------------|-------------|
+| `type` | Yes | `job`, `event`, `deal`, `review`, `message`, `general`, `business`, `listing` |
+| `action_id` | Yes | Target id: job / event / deal id, or **business id** for `review` / `listing` |
+| `title` | No | Used for foreground local notification if `notification` block is absent |
+| `body` | No | Same |
+| `notification_id` | No | Reserved |
+
+If `type` or `action_id` is missing, tapping the notification opens the in-app **Notifications** list.
+
 ## 6. Notification UI
 
 - **Header**: Habra logo + "Notifications" title
@@ -108,7 +122,7 @@ The trigger only inserts into `notifications`. To send actual push notifications
 
 ## 7. Troubleshooting
 
-- **Android build fails (missing google-services.json)**: Add the file from Firebase Console, or run `flutterfire configure`. To disable push temporarily, remove the `com.google.gms.google-services` plugin from `android/app/build.gradle.kts` and `android/settings.gradle.kts`.
+- **Android build without `google-services.json`**: The Google Services Gradle plugin is applied only when `android/app/google-services.json` exists, so the project still builds. Add the file (or run `flutterfire configure`) for production FCM on Android.
 - **No push when app closed**: Ensure FCM is configured and the Edge Function/webhook is sending.
 - **Token not saved**: Check `profiles` has `fcm_token` column; user must be signed in.
 - **Firebase init error**: Add `google-services.json` (Android) and `GoogleService-Info.plist` (iOS). The app will skip push init if Firebase isn't configured.

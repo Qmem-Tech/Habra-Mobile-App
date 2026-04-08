@@ -69,6 +69,11 @@ dependencies:
   # Permissions
   permission_handler: ^11.3.0
 
+  # Push (FCM) — see docs/PUSH_NOTIFICATIONS_SETUP.md
+  firebase_core: ^3.8.1
+  firebase_messaging: ^15.1.5
+  flutter_local_notifications: ^18.0.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

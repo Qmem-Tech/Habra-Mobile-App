@@ -60,6 +60,17 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
     if (widget.userId != null) {
       di.sl<PushNotificationService>().registerTokenForUser(widget.userId!);
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      di.sl<PushNotificationService>().consumePendingDeepLink();
+    });
+  }
+
+  @override
+  void didUpdateWidget(MainNavigationWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.userId != null && widget.userId != oldWidget.userId) {
+      di.sl<PushNotificationService>().registerTokenForUser(widget.userId!);
+    }
   }
 
   @override
