@@ -458,7 +458,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 AppPermission.location,
               );
               if (!granted || !mounted) return;
-              final result = await di.sl<LocationService>().getCurrentLocationAsAddress();
+              await Future<void>.delayed(const Duration(milliseconds: 200));
+              if (!mounted) return;
+              final result = await di.sl<LocationService>().getCurrentLocationAsAddress(
+                nativePermissionAlreadyGranted: true,
+              );
               if (!mounted) return;
               result.fold(
                 (f) => ErrorDisplayHelper.show(context, message: f.message, title: 'Location'),

@@ -16,26 +16,74 @@ class LocationService {
 
   /// Request location permission. Returns true if granted.
   Future<bool> requestPermission() async {
-    final status = await Geolocator.checkPermission();
+    var status = await Geolocator.checkPermission();
     if (status == LocationPermission.deniedForever) {
       return false;
     }
-    if (status == LocationPermission.denied) {
-      final requested = await Geolocator.requestPermission();
-      return requested == LocationPermission.whileInUse ||
-          requested == LocationPermission.always;
+    if (status == LocationPermission.denied ||
+        status == LocationPermission.unableToDetermine) {
+      var requested = await Geolocator.requestPermission();
+      if (requested == LocationPermission.whileInUse ||
+          requested == LocationPermission.always) {
+        return true;
+      }
+      // iOS: after the system sheet dismisses, Geolocator can briefly still report
+      // denied while permission_handler already granted — poll until settled.
+      for (var i = 0; i < 12; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        status = await Geolocator.checkPermission();
+        if (status == LocationPermission.whileInUse ||
+            status == LocationPermission.always) {
+          return true;
+        }
+        if (status == LocationPermission.deniedForever) {
+          return false;
+        }
+      }
+      return false;
     }
     return true;
   }
 
   /// Get current position and reverse geocode to [BusinessAddressData].
   /// Returns [Left(Failure)] if permission denied, service disabled, or geocoding fails.
-  Future<Either<Failure, BusinessAddressData>> getCurrentLocationAsAddress() async {
-    final posResult = await getCurrentPosition();
+  ///
+  /// When [nativePermissionAlreadyGranted] is true, skips [requestPermission] and calls
+  /// [Geolocator.getCurrentPosition] directly (use after [PermissionService.requestWithDialog]
+  /// so iOS does not get stuck on a stale Geolocator permission read).
+  Future<Either<Failure, BusinessAddressData>> getCurrentLocationAsAddress({
+    bool nativePermissionAlreadyGranted = false,
+  }) async {
+    final Either<Failure, Position> posResult;
+    if (nativePermissionAlreadyGranted) {
+      posResult = await _getPositionAfterExternalPermissionGrant();
+    } else {
+      posResult = await getCurrentPosition();
+    }
     return posResult.fold(
       (f) => Left(f),
       (position) => reverseGeocodeToAddress(position.latitude, position.longitude),
     );
+  }
+
+  /// Used when [permission_handler] / the user already granted location in the OS sheet.
+  Future<Either<Failure, Position>> _getPositionAfterExternalPermissionGrant() async {
+    final enabled = await isLocationServiceEnabled();
+    if (!enabled) {
+      return const Left(LocationFailure('Location services are disabled.'));
+    }
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      );
+      return Right(position);
+    } on PermissionDeniedException {
+      return getCurrentPosition();
+    } on LocationServiceDisabledException {
+      return const Left(LocationFailure('Location services are disabled.'));
+    } catch (e) {
+      return Left(LocationFailure('Could not get position: $e'));
+    }
   }
 
   /// Get current position and reverse geocode to a [LocationEntity].

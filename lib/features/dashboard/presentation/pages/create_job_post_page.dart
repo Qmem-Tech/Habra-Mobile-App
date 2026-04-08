@@ -818,8 +818,12 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
                     AppPermission.location,
                   );
               if (!granted || !mounted) return;
+              await Future<void>.delayed(const Duration(milliseconds: 200));
+              if (!mounted) return;
               final result =
-                  await di.sl<LocationService>().getCurrentLocationAsAddress();
+                  await di.sl<LocationService>().getCurrentLocationAsAddress(
+                nativePermissionAlreadyGranted: true,
+              );
               if (!mounted) return;
               result.fold(
                 (f) => ErrorDisplayHelper.show(

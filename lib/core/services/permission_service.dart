@@ -1,13 +1,19 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../permissions/app_permission.dart';
 import '../widgets/permission_request_dialog.dart';
 
-import 'package:flutter/material.dart';
-
 /// Service for checking and requesting app permissions with Habra-themed UI.
 class PermissionService {
   PermissionService();
+
+  static bool _useGeolocatorForLocationOnIos(AppPermission p) =>
+      p == AppPermission.location &&
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.iOS;
 
   /// Photos: iOS 14+ / Android 14+ can return [PermissionStatus.limited] (partial
   /// library). That is still enough to pick images — [PermissionStatus.isGranted]
@@ -21,14 +27,48 @@ class PermissionService {
 
   /// Check if permission is granted.
   Future<bool> isGranted(AppPermission appPermission) async {
+    if (_useGeolocatorForLocationOnIos(appPermission)) {
+      final s = await Geolocator.checkPermission();
+      return s == LocationPermission.whileInUse || s == LocationPermission.always;
+    }
     final status = await appPermission.permission.status;
     return _hasAccess(appPermission, status);
   }
 
   /// Check if permission is permanently denied (user must go to settings).
   Future<bool> isPermanentlyDenied(AppPermission appPermission) async {
+    if (_useGeolocatorForLocationOnIos(appPermission)) {
+      final s = await Geolocator.checkPermission();
+      return s == LocationPermission.deniedForever;
+    }
     final status = await appPermission.permission.status;
     return status.isPermanentlyDenied;
+  }
+
+  /// iOS: use Core Location via Geolocator so status matches [getCurrentPosition].
+  /// permission_handler only reports location correctly when Pod macros are set;
+  /// Geolocator always uses the same native path as actual fixes.
+  Future<bool> _requestIosLocationViaGeolocator() async {
+    var s = await Geolocator.checkPermission();
+    if (s == LocationPermission.deniedForever) return false;
+    if (s == LocationPermission.whileInUse || s == LocationPermission.always) {
+      return true;
+    }
+    if (s == LocationPermission.denied || s == LocationPermission.unableToDetermine) {
+      s = await Geolocator.requestPermission();
+    }
+    if (s == LocationPermission.whileInUse || s == LocationPermission.always) {
+      return true;
+    }
+    for (var i = 0; i < 15; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      s = await Geolocator.checkPermission();
+      if (s == LocationPermission.whileInUse || s == LocationPermission.always) {
+        return true;
+      }
+      if (s == LocationPermission.deniedForever) return false;
+    }
+    return false;
   }
 
   /// Request permission. Shows Habra dialog first if not granted.
@@ -51,10 +91,18 @@ class PermissionService {
 
     // Dismissing our modal bottom sheet and immediately calling the native
     // permission API can fail to show the system dialog (especially on iOS).
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!context.mounted) return false;
 
-    final status = await appPermission.permission.request();
+    if (_useGeolocatorForLocationOnIos(appPermission)) {
+      return _requestIosLocationViaGeolocator();
+    }
+
+    var status = await appPermission.permission.request();
+    if (_hasAccess(appPermission, status)) return true;
+    // iOS: status can lag one frame after the user taps Allow on the system sheet.
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    status = await appPermission.permission.status;
     return _hasAccess(appPermission, status);
   }
 
@@ -86,14 +134,21 @@ class PermissionService {
 
     bool allGranted = true;
     for (final p in notGranted) {
-      final status = await p.permission.request();
-      if (!_hasAccess(p, status)) allGranted = false;
+      if (_useGeolocatorForLocationOnIos(p)) {
+        if (!await _requestIosLocationViaGeolocator()) allGranted = false;
+      } else {
+        final status = await p.permission.request();
+        if (!_hasAccess(p, status)) allGranted = false;
+      }
     }
     return allGranted;
   }
 
   /// Request permission directly (no dialog). For internal use.
   Future<bool> request(AppPermission appPermission) async {
+    if (_useGeolocatorForLocationOnIos(appPermission)) {
+      return _requestIosLocationViaGeolocator();
+    }
     final status = await appPermission.permission.request();
     return _hasAccess(appPermission, status);
   }

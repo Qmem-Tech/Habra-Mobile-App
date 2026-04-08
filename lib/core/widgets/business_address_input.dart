@@ -219,8 +219,24 @@ class BusinessAddressInput extends StatelessWidget {
       context,
       AppPermission.location,
     );
-    if (!granted || !context.mounted) return;
-    final result = await di.sl<LocationService>().getCurrentLocationAsAddress();
+    if (!granted) {
+      if (context.mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Location permission is needed to fill your address. You can enable it in Settings.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    // Let the iOS system permission sheet finish dismissing before location + context use.
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    if (!context.mounted) return;
+    final result = await di.sl<LocationService>().getCurrentLocationAsAddress(
+      nativePermissionAlreadyGranted: true,
+    );
     if (!context.mounted) return;
     result.fold(
       (f) => ErrorDisplayHelper.show(context, message: f.message, title: 'Location'),
