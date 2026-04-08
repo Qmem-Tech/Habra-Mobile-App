@@ -540,7 +540,7 @@ class _ProfileCard extends StatelessWidget {
                   backgroundColor:
                       AppColors.settingsIconTileBackground,
                   backgroundImage:
-                      hasPhoto ? NetworkImage(url!) : null,
+                      hasPhoto ? NetworkImage(url) : null,
                   child: !hasPhoto
                       ? Text(
                           displayName.isNotEmpty

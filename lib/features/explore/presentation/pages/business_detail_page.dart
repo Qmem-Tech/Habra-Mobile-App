@@ -334,14 +334,13 @@ class BusinessDetailPage extends StatelessWidget {
                             color: AppColors.textPrimary,
                           ),
                         ),
-                        if (deal.description != null)
-                          Text(
-                            deal.description!,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
+                        Text(
+                          deal.description,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
                           ),
+                        ),
                       ],
                     ),
                   ),

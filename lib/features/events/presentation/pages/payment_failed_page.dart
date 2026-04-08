@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../domain/entities/order.dart' as events;
+import 'my_tickets_page.dart';
 
 class PaymentFailedPage extends StatelessWidget {
   final String message;
@@ -67,6 +68,18 @@ class PaymentFailedPage extends StatelessWidget {
                 text: 'Use Different Card',
                 onPressed: () {
                   Navigator.pop(context);
+                },
+              ),
+              const SizedBox(height: 16),
+              AppOutlinedButton(
+                text: 'Check My Tickets',
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MyTicketsPage(initialUpcoming: false),
+                    ),
+                  );
                 },
               ),
             ],

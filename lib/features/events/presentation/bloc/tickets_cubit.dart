@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/stripe_payment_service.dart';
 import '../../domain/usecases/get_user_tickets_usecase.dart';

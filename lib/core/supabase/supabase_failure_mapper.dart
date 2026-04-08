@@ -104,7 +104,7 @@ class SupabaseFailureMapper {
     ];
     final combined = parts.join(' ');
     if (combined.isEmpty) {
-      return 'Sign-in failed (${e.code ?? 'unknown'}). Please try again.';
+      return 'Sign-in failed (${e.code}). Please try again.';
     }
     return _fallbackMessage(combined);
   }

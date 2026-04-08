@@ -179,7 +179,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
           rethrow;
         }
       }
-      final rows = (res as List).cast<Map<String, dynamic>>();
+      final rows = List<Map<String, dynamic>>.from(res);
       return rows.map(_rowToPresence).toList();
     });
   }

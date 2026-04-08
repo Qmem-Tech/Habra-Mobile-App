@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
-import '../bloc/tickets_cubit.dart';
-import 'package:intl/intl.dart';
+import '../../domain/entities/ticket.dart';
+import '../../domain/repositories/events_repository.dart';
 
 class TicketDetailPage extends StatefulWidget {
   final String ticketId;
@@ -18,63 +18,91 @@ class TicketDetailPage extends StatefulWidget {
 
 class _TicketDetailPageState extends State<TicketDetailPage> {
   bool _policiesExpanded = true;
+  late final EventsRepository _eventsRepository;
+  late Future<Ticket?> _ticketFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _eventsRepository = di.sl<EventsRepository>();
+    _ticketFuture = _loadTicket();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => di.sl<TicketsCubit>(),
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("My Ticket's Detail"),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-            onPressed: () => Navigator.pop(context),
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Ticket Detail'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          onPressed: () => Navigator.pop(context),
         ),
-        body: FutureBuilder(
-          future: _loadTicket(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const HabraCircularLoader(fullScreen: true);
-            }
+      ),
+      body: FutureBuilder<Ticket?>(
+        future: _ticketFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const HabraCircularLoader(fullScreen: true);
+          }
 
-            if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
-              return Center(
-                child: Text(
-                  snapshot.hasError
-                      ? 'Error loading ticket: ${snapshot.error}'
-                      : 'Ticket not found',
+          if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      snapshot.hasError
+                          ? 'Could not load this ticket right now.'
+                          : 'Ticket not found.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _ticketFuture = _loadTicket();
+                        });
+                      },
+                      child: const Text('Retry'),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Back to My Tickets'),
+                    ),
+                  ],
                 ),
-              );
-            }
-
-            final ticket = snapshot.data!;
-            return SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildEventSummary(ticket),
-                  _buildTicketNavigation(),
-                  _buildQRCode(ticket),
-                  _buildEventDetails(ticket),
-                  _buildActionButtons(),
-                  _buildEventPolicies(ticket),
-                ],
               ),
             );
-          },
-        ),
+          }
+
+          final ticket = snapshot.data!;
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildEventSummary(ticket),
+                _buildTicketNavigation(),
+                _buildQRCode(ticket),
+                _buildEventDetails(ticket),
+                _buildActionButtons(),
+                _buildEventPolicies(ticket),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  Future<dynamic> _loadTicket() async {
-    // TODO: load ticket via EventsRepository.getTicketDetail(widget.ticketId) or TicketsCubit
-    await Future.delayed(const Duration(milliseconds: 300));
-    return null;
+  Future<Ticket?> _loadTicket() async {
+    final result = await _eventsRepository.getTicketDetail(widget.ticketId);
+    return result.fold((_) => null, (ticket) => ticket);
   }
 
-  Widget _buildEventSummary(dynamic ticket) {
-    final event = ticket['event'];
+  Widget _buildEventSummary(Ticket ticket) {
+    final event = ticket.event;
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
@@ -87,9 +115,9 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: (event['imageUrl'] as String).startsWith('assets/')
+            child: event.imageUrl.startsWith('assets/')
                 ? Image.asset(
-                    event['imageUrl'],
+                    event.imageUrl,
                     width: 80,
                     height: 80,
                     fit: BoxFit.cover,
@@ -103,7 +131,7 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
                     },
                   )
                 : Image.network(
-                    event['imageUrl'],
+                    event.imageUrl,
                     width: 80,
                     height: 80,
                     fit: BoxFit.cover,
@@ -123,7 +151,7 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  event['title'],
+                  event.title,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -136,7 +164,7 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
                     Icon(Icons.calendar_today, size: 14, color: AppColors.textSecondary),
                     const SizedBox(width: 4),
                     Text(
-                      DateFormat('EEE, MMM d • h:mm a').format(event['startDate']),
+                      DateFormat('EEE, MMM d • h:mm a').format(event.startDate),
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -151,7 +179,7 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        '${event['venue']}, ${event['address']}',
+                        '${event.venue}, ${event.address}',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
@@ -197,8 +225,8 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
     );
   }
 
-  Widget _buildQRCode(dynamic ticket) {
-    final qrData = ticket['ticketId'] ?? 'HB-89204';
+  Widget _buildQRCode(Ticket ticket) {
+    final qrData = ticket.qrCode?.isNotEmpty == true ? ticket.qrCode! : ticket.ticketId;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(24),
@@ -227,8 +255,8 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
     );
   }
 
-  Widget _buildEventDetails(dynamic ticket) {
-    final event = ticket['event'];
+  Widget _buildEventDetails(Ticket ticket) {
+    final event = ticket.event;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -239,7 +267,7 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
                 child: _buildDetailItem(
                   'Date',
                   Icons.calendar_today,
-                  DateFormat('MMM d, yyyy').format(event['startDate']),
+                  DateFormat('MMM d, yyyy').format(event.startDate),
                 ),
               ),
               const SizedBox(width: 16),
@@ -247,7 +275,7 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
                 child: _buildDetailItem(
                   'Time',
                   Icons.access_time,
-                  DateFormat('h:mm a').format(event['startDate']),
+                  DateFormat('h:mm a').format(event.startDate),
                 ),
               ),
             ],
@@ -256,7 +284,7 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
           _buildDetailItem(
             'Location',
             Icons.location_on,
-            '${event['venue']}, ${event['address']}',
+            '${event.venue}, ${event.address}',
             fullWidth: true,
           ),
         ],
@@ -395,8 +423,8 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
     );
   }
 
-  Widget _buildEventPolicies(dynamic ticket) {
-    final policies = ticket['policies'] as List<dynamic>? ?? [];
+  Widget _buildEventPolicies(Ticket ticket) {
+    final policies = ticket.event.policies ?? [];
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),

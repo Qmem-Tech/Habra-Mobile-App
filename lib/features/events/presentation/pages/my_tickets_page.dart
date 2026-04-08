@@ -11,14 +11,22 @@ import 'ticket_detail_page.dart';
 import 'package:intl/intl.dart';
 
 class MyTicketsPage extends StatefulWidget {
-  const MyTicketsPage({super.key});
+  final bool initialUpcoming;
+
+  const MyTicketsPage({super.key, this.initialUpcoming = true});
 
   @override
   State<MyTicketsPage> createState() => _MyTicketsPageState();
 }
 
 class _MyTicketsPageState extends State<MyTicketsPage> {
-  bool _isUpcoming = true;
+  late bool _isUpcoming;
+
+  @override
+  void initState() {
+    super.initState();
+    _isUpcoming = widget.initialUpcoming;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,9 +155,6 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
   }
 
   Widget _buildTicketCard(Ticket ticket) {
-    // Count tickets with same event for this user (simplified - in real app, count from order)
-    final ticketCount = ticket.id.contains('_2') ? 2 : 1;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -281,7 +286,7 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                           ),
                         ),
                         child: Text(
-                          ticketCount > 1 ? 'View Ticket ($ticketCount)' : 'View Ticket',
+                          'View Ticket',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w400,
@@ -394,6 +399,12 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
       final monthKey = DateFormat('MMMM yyyy').format(ticket.event.startDate);
       grouped.putIfAbsent(monthKey, () => []).add(ticket);
     }
-    return grouped;
+    final sortedKeys = grouped.keys.toList()
+      ..sort((a, b) {
+        final aDate = DateFormat('MMMM yyyy').parse(a);
+        final bDate = DateFormat('MMMM yyyy').parse(b);
+        return aDate.compareTo(bDate);
+      });
+    return {for (final key in sortedKeys) key: grouped[key]!};
   }
 }

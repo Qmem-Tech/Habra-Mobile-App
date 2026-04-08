@@ -272,7 +272,9 @@ class OrderConfirmationPage extends StatelessWidget {
             onPressed: () {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (_) => const MyTicketsPage()),
+                MaterialPageRoute(
+                  builder: (_) => const MyTicketsPage(initialUpcoming: true),
+                ),
               );
             },
           ),

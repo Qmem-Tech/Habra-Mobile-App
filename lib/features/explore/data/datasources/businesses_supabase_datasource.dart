@@ -403,7 +403,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
           final bname = parseStringRequired(biz['name']);
           final logoUrl = parseString(biz['logo_url']);
           final imageUrls = parseStringList(biz['image_urls']);
-          final bImage = logoUrl ?? (imageUrls.isNotEmpty ? imageUrls.first : '') ?? '';
+          final bImage = logoUrl ?? (imageUrls.isNotEmpty ? imageUrls.first : '');
           b = BusinessListItem(
             id: bid ?? '',
             name: bname,
@@ -451,7 +451,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
         final bid = parseString(biz['id']);
         final logoUrl = parseString(biz['logo_url']);
         final imageUrls = parseStringList(biz['image_urls']);
-        final bImage = logoUrl ?? (imageUrls.isNotEmpty ? imageUrls.first : '') ?? '';
+        final bImage = logoUrl ?? (imageUrls.isNotEmpty ? imageUrls.first : '');
         b = BusinessListItem(
           id: bid ?? '',
           name: parseStringRequired(biz['name']),

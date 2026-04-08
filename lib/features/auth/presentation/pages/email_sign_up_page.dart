@@ -6,7 +6,6 @@ import '../../../../core/theme/app_fonts.dart';
 import '../bloc/auth_cubit.dart';
 import '../bloc/auth_state.dart';
 import '../../domain/entities/user.dart';
-import '../../../home/presentation/pages/customer_home_page.dart';
 import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';

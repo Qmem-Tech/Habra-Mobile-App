@@ -2,7 +2,7 @@ import 'package:equatable/equatable.dart';
 
 /// Organizer event row for home activity and dashboard lists (from `events`).
 class OwnerUpcomingEvent extends Equatable {
-  OwnerUpcomingEvent({
+  const OwnerUpcomingEvent({
     required this.id,
     required this.title,
     required this.startAt,

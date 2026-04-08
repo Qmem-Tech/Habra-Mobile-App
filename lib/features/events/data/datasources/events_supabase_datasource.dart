@@ -183,46 +183,71 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return <TicketModel>[];
 
-      var query = _client
+      final purchasesRes = await _client
+          .from('event_ticket_purchases')
+          .select('order_id')
+          .eq('buyer_id', userId)
+          .eq('status', 'completed');
+
+      final purchaseRows = (purchasesRes as List).cast<Map<String, dynamic>>();
+      final orderIds = purchaseRows
+          .map((row) => parseString(row['order_id']))
+          .whereType<String>()
+          .toSet()
+          .toList();
+      if (orderIds.isEmpty) return <TicketModel>[];
+
+      final ordersRes = await _client
           .from('orders')
-          .select('*, tickets(*, event_tickets(*), events(*))')
+          .select('*')
+          .inFilter('id', orderIds)
           .eq('user_id', userId)
-          .eq('type', 'event');
-      if (upcomingOnly) {
-        query = query.gte('created_at', DateTime.now().subtract(const Duration(days: 365)).toIso8601String());
-      }
-      final ordersRes = await query;
+          .eq('type', 'event')
+          .eq('status', 'completed');
       final ordersList = ordersRes as List;
       if (ordersList.isEmpty) return <TicketModel>[];
 
       final tickets = <TicketModel>[];
+      final now = DateTime.now();
       for (final orderRow in ordersList) {
         final orderMap = Map<String, dynamic>.from(orderRow as Map);
         final eventId = parseString(orderMap['event_id']);
         if (eventId == null) continue;
-        final eventRes = await _client.from('events').select('*').eq('id', eventId).maybeSingle();
-        if (eventRes == null) continue;
+
         final eventDetail = await getEventDetail(eventId);
-        final ticketsList = orderMap['tickets'];
-        if (ticketsList is List) {
-          for (final t in ticketsList) {
-            final tm = Map<String, dynamic>.from(t as Map);
-            final etId = parseString(tm['event_ticket_id']);
-            if (etId == null) continue;
-            final etRes = await _client.from('event_tickets').select('*').eq('id', etId).maybeSingle();
-            final price = etRes is Map<String, dynamic> ? parseDouble(etRes['price']) ?? 0.0 : 0.0;
-            final name = etRes is Map<String, dynamic> ? parseStringRequired(etRes['name']) : 'Ticket';
-            tickets.add(TicketModel(
-              id: parseStringRequired(tm['id']),
-              ticketId: parseStringRequired(tm['id']),
-              event: eventDetail,
-              ticketTypeName: name,
-              price: price,
-              purchaseDate: parseTimestampRequired(orderMap['created_at']),
-              isVerified: false,
-              qrCode: null,
-            ));
-          }
+        final isUpcoming = !eventDetail.startDate.isBefore(now);
+        if (upcomingOnly != isUpcoming) continue;
+
+        final orderId = parseString(orderMap['id']);
+        if (orderId == null) continue;
+
+        final ticketsRes = await _client
+            .from('tickets')
+            .select('*')
+            .eq('order_id', orderId)
+            .eq('status', 'valid');
+
+        if (ticketsRes.isEmpty) continue;
+
+        for (final t in ticketsRes) {
+          final tm = Map<String, dynamic>.from(t as Map);
+          final etId = parseString(tm['event_ticket_id']);
+          if (etId == null) continue;
+
+          final etRes = await _client.from('event_tickets').select('*').eq('id', etId).maybeSingle();
+          final price = etRes is Map<String, dynamic> ? parseDouble(etRes['price']) ?? 0.0 : 0.0;
+          final name = etRes is Map<String, dynamic> ? parseStringRequired(etRes['name']) : 'Ticket';
+
+          tickets.add(TicketModel(
+            id: parseStringRequired(tm['id']),
+            ticketId: parseStringRequired(tm['id']),
+            event: eventDetail,
+            ticketTypeName: name,
+            price: price,
+            purchaseDate: parseTimestampRequired(orderMap['created_at']),
+            isVerified: true,
+            qrCode: null,
+          ));
         }
       }
       return tickets;
@@ -232,12 +257,27 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
   @override
   Future<TicketModel> getTicketDetail(String ticketId) async {
     return SupabaseFailureMapper.guard(() async {
-      final res = await _client.from('tickets').select('*, orders!inner(*), event_tickets(*), events(*)').eq('id', ticketId).maybeSingle();
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) throw Exception('Not authenticated');
+
+      final res = await _client
+          .from('tickets')
+          .select('*, orders!inner(*), event_tickets(*)')
+          .eq('id', ticketId)
+          .maybeSingle();
       if (res == null) throw Exception('Ticket not found');
+
       final row = Map<String, dynamic>.from(res as Map);
-      final orderId = parseStringRequired(row['order_id']);
-      final orderRes = await _client.from('orders').select('*').eq('id', orderId).maybeSingle();
-      final eventId = orderRes is Map<String, dynamic> ? parseString(orderRes['event_id']) : null;
+      final order = row['orders'] is Map<String, dynamic>
+          ? Map<String, dynamic>.from(row['orders'] as Map)
+          : null;
+      if (order == null) throw Exception('Ticket order not found');
+      if (parseString(order['user_id']) != userId) throw Exception('Ticket not found');
+      if ((parseString(order['status']) ?? '').toLowerCase() != 'completed') {
+        throw Exception('Ticket is not active');
+      }
+
+      final eventId = parseString(order['event_id']);
       if (eventId == null) throw Exception('Event not found');
       final eventDetail = await getEventDetail(eventId);
       final et = row['event_tickets'];
@@ -250,7 +290,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         ticketTypeName: name,
         price: price,
         purchaseDate: parseTimestampRequired(row['created_at']),
-        isVerified: false,
+        isVerified: true,
         qrCode: null,
       );
     });

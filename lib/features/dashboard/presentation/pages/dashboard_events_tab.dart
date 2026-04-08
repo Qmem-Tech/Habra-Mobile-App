@@ -229,8 +229,8 @@ class _EventRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = event.imageUrl?.trim();
-    final hasImage = url != null && url.isNotEmpty;
+    final url = event.imageUrl?.trim() ?? '';
+    final hasImage = url.isNotEmpty;
 
     return Material(
       color: Colors.transparent,
@@ -262,7 +262,7 @@ class _EventRow extends StatelessWidget {
                   height: _thumb,
                   child: hasImage
                       ? Image.network(
-                          url!,
+                          url,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => _placeholderThumb(),
                         )

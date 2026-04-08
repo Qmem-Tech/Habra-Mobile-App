@@ -226,7 +226,9 @@ class NavigationDrawer extends StatelessWidget {
           if (!context.mounted) return;
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const MyTicketsPage()),
+            MaterialPageRoute(
+              builder: (_) => const MyTicketsPage(initialUpcoming: true),
+            ),
           );
         },
       ),
