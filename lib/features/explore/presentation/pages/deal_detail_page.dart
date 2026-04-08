@@ -371,8 +371,9 @@ class DealDetailPage extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            color: AppColors.brandPrimaryLight,
+            color: Colors.white,
             fontSize: 12,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
