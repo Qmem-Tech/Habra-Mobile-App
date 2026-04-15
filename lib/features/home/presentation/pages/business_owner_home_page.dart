@@ -2779,6 +2779,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   }
 
   Future<void> _deleteDeal(Deal deal) async {
+    final dashboardCubit = context.read<DashboardCubit>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -2791,7 +2792,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       ),
     );
     if (confirmed != true) return;
-    final ok = await context.read<DashboardCubit>().deleteDeal(deal.id);
+    final ok = await dashboardCubit.deleteDeal(deal.id);
     if (!mounted) return;
     if (ok) {
       await _refreshOwnerHome(context);
@@ -2807,6 +2808,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   }
 
   Future<void> _deleteJob(Job job) async {
+    final dashboardCubit = context.read<DashboardCubit>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -2819,7 +2821,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       ),
     );
     if (confirmed != true) return;
-    final ok = await context.read<DashboardCubit>().deleteJob(job.id);
+    final ok = await dashboardCubit.deleteJob(job.id);
     if (!mounted) return;
     if (ok) {
       await _refreshOwnerHome(context);

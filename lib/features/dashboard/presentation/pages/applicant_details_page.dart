@@ -118,6 +118,7 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
     BuildContext context,
     String nextStatus,
   ) async {
+    final dashboardCubit = context.read<DashboardCubit>();
     final title =
         nextStatus == 'rejected' ? 'Reject applicant?' : 'Mark as hired?';
     final body = nextStatus == 'rejected'
@@ -143,13 +144,13 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
     if (ok != true || !mounted) return;
 
     setState(() => _actionBusy = true);
-    final success = await context.read<DashboardCubit>().updateJobApplicationStatus(
+    final success = await dashboardCubit.updateJobApplicationStatus(
           applicationId: widget.applicantId,
           jobId: widget.jobId,
           status: nextStatus,
         );
-    if (mounted) setState(() => _actionBusy = false);
     if (!mounted) return;
+    setState(() => _actionBusy = false);
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(

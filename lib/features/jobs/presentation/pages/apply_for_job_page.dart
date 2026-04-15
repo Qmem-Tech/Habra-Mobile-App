@@ -772,7 +772,8 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _kExperienceJobTypeLabels.containsKey(row.employmentTypeSlug)
+              initialValue:
+                  _kExperienceJobTypeLabels.containsKey(row.employmentTypeSlug)
                   ? row.employmentTypeSlug
                   : 'full-time',
               decoration: const InputDecoration(
@@ -802,7 +803,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: row.startMonth.clamp(1, 12),
+                    initialValue: row.startMonth.clamp(1, 12),
                     decoration: const InputDecoration(
                       labelText: 'Month',
                       border: OutlineInputBorder(),
@@ -824,7 +825,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    value: row.startYear,
+                    initialValue: row.startYear,
                     decoration: const InputDecoration(
                       labelText: 'Year',
                       border: OutlineInputBorder(),
@@ -874,7 +875,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<int>(
-                      value: row.endMonth?.clamp(1, 12),
+                      initialValue: row.endMonth?.clamp(1, 12),
                       decoration: const InputDecoration(
                         labelText: 'Month',
                         border: OutlineInputBorder(),
@@ -897,7 +898,7 @@ class _ApplyForJobPageState extends State<ApplyForJobPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<int>(
-                      value: row.endYear,
+                      initialValue: row.endYear,
                       decoration: const InputDecoration(
                         labelText: 'Year',
                         border: OutlineInputBorder(),

@@ -374,6 +374,7 @@ class _BusinessOwnerNotificationPageState
   }
 
   Future<void> _deleteNotification(NotificationEntity n) async {
+    final notificationCubit = context.read<NotificationCubit>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -386,10 +387,10 @@ class _BusinessOwnerNotificationPageState
       ),
     );
     if (confirmed != true) return;
-    final ok = await context.read<NotificationCubit>().deleteNotification(n.id);
+    final ok = await notificationCubit.deleteNotification(n.id);
     if (!mounted) return;
     if (ok) {
-      await context.read<NotificationCubit>().loadNotifications(widget.userId);
+      await notificationCubit.loadNotifications(widget.userId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Notification deleted')),
@@ -402,6 +403,7 @@ class _BusinessOwnerNotificationPageState
   }
 
   Future<void> _editNotification(NotificationEntity n) async {
+    final notificationCubit = context.read<NotificationCubit>();
     final titleController = TextEditingController(text: n.title);
     final descriptionController = TextEditingController(text: n.description);
     final confirmed = await showDialog<bool>(
@@ -433,14 +435,14 @@ class _BusinessOwnerNotificationPageState
     final title = titleController.text.trim();
     final description = descriptionController.text.trim();
     if (title.isEmpty || description.isEmpty) return;
-    final ok = await context.read<NotificationCubit>().updateNotification(
+    final ok = await notificationCubit.updateNotification(
           n.id,
           title: title,
           description: description,
         );
     if (!mounted) return;
     if (ok) {
-      await context.read<NotificationCubit>().loadNotifications(widget.userId);
+      await notificationCubit.loadNotifications(widget.userId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Notification updated')),
