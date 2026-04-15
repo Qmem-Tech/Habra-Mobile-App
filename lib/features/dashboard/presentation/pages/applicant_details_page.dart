@@ -76,7 +76,7 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
 
   /// Restores [ApplicantsLoading] / [ApplicantsLoaded] before popping so the list
   /// route never observes [DashboardInitial] (which would show "No data").
-  void _popAndRestoreApplicantsList(BuildContext context) {
+  void _popAndRestoreApplicantsList() {
     context.read<DashboardCubit>().loadApplicants(
           widget.jobId,
           widget.jobTitle,
@@ -114,10 +114,7 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
     );
   }
 
-  Future<void> _confirmAndUpdateStatus(
-    BuildContext context,
-    String nextStatus,
-  ) async {
+  Future<void> _confirmAndUpdateStatus(String nextStatus) async {
     final dashboardCubit = context.read<DashboardCubit>();
     final title =
         nextStatus == 'rejected' ? 'Reject applicant?' : 'Mark as hired?';
@@ -162,7 +159,7 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
           ),
         ),
       );
-      _popAndRestoreApplicantsList(context);
+      _popAndRestoreApplicantsList();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -211,7 +208,7 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
                     children: [
                       TextButton.icon(
                         onPressed: () =>
-                            _confirmAndUpdateStatus(context, 'rejected'),
+                            _confirmAndUpdateStatus('rejected'),
                         icon: const Icon(Icons.close, size: 20, color: AppColors.error),
                         label: const Text(
                           'Reject',
@@ -224,7 +221,7 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
                       const SizedBox(width: 20),
                       TextButton.icon(
                         onPressed: () =>
-                            _confirmAndUpdateStatus(context, 'hired'),
+                            _confirmAndUpdateStatus('hired'),
                         icon: const Icon(Icons.check, size: 20, color: AppColors.success),
                         label: const Text(
                           'Mark as Hired',
@@ -250,7 +247,7 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
       canPop: false,
       onPopInvokedWithResult: (bool didPop, Object? result) {
         if (didPop) return;
-        _popAndRestoreApplicantsList(context);
+        _popAndRestoreApplicantsList();
       },
       child: Scaffold(
         backgroundColor: AppColors.backgroundWhite,
@@ -260,7 +257,7 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => _popAndRestoreApplicantsList(context),
+            onPressed: _popAndRestoreApplicantsList,
           ),
           title: const Text(
             'Applicant Details',
@@ -290,7 +287,7 @@ class _ApplicantDetailsBodyState extends State<_ApplicantDetailsBody> {
                       const SizedBox(height: 24),
                       AppButton(
                         text: 'Back',
-                        onPressed: () => _popAndRestoreApplicantsList(context),
+                        onPressed: _popAndRestoreApplicantsList,
                       ),
                     ],
                   ),
