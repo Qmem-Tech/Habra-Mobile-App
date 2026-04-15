@@ -123,13 +123,26 @@ class _BoostListingPageState extends State<BoostListingPage> {
     );
     if (!ctx.mounted) return;
     if (package == null) {
+      final allProductsByOffering = await rc.listOfferingProductIds();
+      final selectedOfferingProducts = offeringId.isEmpty
+          ? const <String>[]
+          : (allProductsByOffering[offeringId] ?? const <String>[]);
+      final availableProductsPreview = (selectedOfferingProducts.isNotEmpty
+              ? selectedOfferingProducts
+              : allProductsByOffering.values.expand((ids) => ids))
+          .take(8)
+          .join(', ');
       await LoaderHelper.hide(ctx);
       if (!ctx.mounted) return;
       _showBoostSubmitErrorDialog(
         title: 'Product not found',
         message:
             'No RevenueCat package matches store product id "$storeProductId". '
-            'Check your offering (REVENUECAT_BOOST_OFFERING_ID) and RevenueCat dashboard.',
+            'Check your offering (REVENUECAT_BOOST_OFFERING_ID) and RevenueCat dashboard.\n\n'
+            'Plan id: ${plan.id}\n'
+            'Target: $_planTarget\n'
+            'Offering filter: ${offeringId.isEmpty ? '(none)' : offeringId}\n'
+            'Available products: ${availableProductsPreview.isEmpty ? '(none)' : availableProductsPreview}',
       );
       return;
     }

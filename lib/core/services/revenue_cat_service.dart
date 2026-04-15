@@ -141,6 +141,25 @@ class RevenueCatService {
     }
   }
 
+  /// Returns a map of offering id -> store product identifiers available in that offering.
+  /// Useful for debugging boost plan/store mapping mismatches.
+  Future<Map<String, List<String>>> listOfferingProductIds() async {
+    if (!_initialized) return const {};
+    try {
+      final offerings = await Purchases.getOfferings();
+      final result = <String, List<String>>{};
+      offerings.all.forEach((offeringId, offering) {
+        result[offeringId] = offering.availablePackages
+            .map((p) => p.storeProduct.identifier)
+            .toList(growable: false);
+      });
+      return result;
+    } catch (e) {
+      debugPrint('RevenueCat listOfferingProductIds error: $e');
+      return const {};
+    }
+  }
+
   /// Completes a boost IAP without requiring an active entitlement (unlike subscriptions).
   Future<BoostIapResult> purchaseBoostPackage(Package package) async {
     if (!_initialized) {

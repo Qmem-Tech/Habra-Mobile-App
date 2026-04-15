@@ -12,6 +12,7 @@ The mobile app can charge via RevenueCat **before** calling Supabase, but a dete
 - Map the store product id to your `boost_plans.id` (same mapping as `billing_product_id` in Postgres).
 - Insert into `public.boosts` using the **service role** key (never embed service role in the app).
 - Optionally store `revenuecat_transaction_id` / `original_transaction_id` on `boosts` for support and idempotency.
+- Keep `REVENUECAT_BOOST_OFFERING_ID` aligned with the offering that contains those mapped products (or leave it empty to search all offerings).
 
 ## 3. Lock down client INSERT (optional)
 
