@@ -56,6 +56,7 @@ ios/Flutter/MapsKey.generated.xcconfig
 **/android/key.properties
 **/android/*.jks
 **/android/*.keystore
+/upload-keystore.jks
 
 # Platform-specific (we only support Android and iOS)
 /web/
