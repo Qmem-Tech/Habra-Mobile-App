@@ -60,12 +60,15 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, User>> signInWithGoogle(
-      {bool forceAccountPicker = false}) async {
+  Future<Either<Failure, User>> signInWithGoogle({
+    bool forceAccountPicker = false,
+    UserRole? oauthIntendedRole,
+  }) async {
     if (await networkInfo.isConnected) {
       try {
         final user = await remoteDataSource.signInWithGoogle(
           forceAccountPicker: forceAccountPicker,
+          oauthIntendedRole: oauthIntendedRole,
         );
         await localDataSource.cacheUser(user);
         return Right(user);
@@ -82,10 +85,12 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, User>> signInWithApple() async {
+  Future<Either<Failure, User>> signInWithApple({UserRole? oauthIntendedRole}) async {
     if (await networkInfo.isConnected) {
       try {
-        final user = await remoteDataSource.signInWithApple();
+        final user = await remoteDataSource.signInWithApple(
+          oauthIntendedRole: oauthIntendedRole,
+        );
         await localDataSource.cacheUser(user);
         return Right(user);
       } on ServerException catch (e) {

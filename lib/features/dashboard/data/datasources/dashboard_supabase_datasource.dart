@@ -210,6 +210,9 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       if (pn != null && pn.isNotEmpty) businessGroupName = pn;
     }
 
+    final approval = (parseString(row['approval_status']) ?? '').toLowerCase();
+    final verifiedFlag = parseBool(row['is_verified']) || approval == 'approved';
+
     return BusinessPresence(
       id: parseStringRequired(row['id']),
       name: parseStringRequired(row['name']),
@@ -226,7 +229,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       logoUrl: logoUrl,
       backgroundUrl: backgroundUrl,
       imageUrls: galleryUrls,
-      isVerified: parseBool(row['is_verified']),
+      isVerified: verifiedFlag,
       isOpenNow: parseBool(row['is_active']),
       rating: parseDouble(row['rating']),
       reviewCount: parseInt(row['review_count']),

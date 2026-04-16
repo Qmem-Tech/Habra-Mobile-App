@@ -47,6 +47,68 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
     return GoogleSignIn();
   }();
 
+  /// After Google/Apple OAuth, `handle_new_user` may insert `profiles` with
+  /// `customer` because OAuth does not send `raw_user_meta_data.role`.
+  /// Ensures a row exists and applies [oauthIntendedRole] when appropriate.
+  Future<void> _ensureProfileAfterOAuth(UserRole? oauthIntendedRole) async {
+    final session = _client.auth.currentSession;
+    final userId = session?.user.id;
+    if (userId == null) return;
+
+    Map<String, dynamic>? row;
+    for (var i = 0; i < 5; i++) {
+      row = await SupabaseFailureMapper.guard(
+        () => _client.from('profiles').select().eq('id', userId).maybeSingle(),
+      );
+      if (row != null) break;
+      await Future<void>.delayed(Duration(milliseconds: 150 * (i + 1)));
+    }
+
+    final email = session!.user.email;
+    final meta = session.user.userMetadata;
+    final fullName = (meta?['full_name'] ?? meta?['name'] ?? '').toString();
+
+    if (row == null) {
+      final role = oauthIntendedRole == UserRole.businessOwner
+          ? UserRole.businessOwner
+          : UserRole.customer;
+      try {
+        await SupabaseFailureMapper.guard(() async {
+          await _client.from('profiles').insert({
+            'id': userId,
+            'email': email,
+            'full_name': fullName,
+            'role': UserModel.roleToString(role),
+          });
+        });
+      } catch (_) {
+        // `handle_new_user` may have inserted concurrently; fetch again.
+      }
+      row = await SupabaseFailureMapper.guard(
+        () => _client.from('profiles').select().eq('id', userId).maybeSingle(),
+      );
+      if (row == null) {
+        throw app_errors.ServerException(
+          'Could not create or load your profile. Please try again.',
+        );
+      }
+    }
+
+    if (oauthIntendedRole == UserRole.businessOwner) {
+      final current = UserModel.fromSupabaseProfile(
+        Map<String, dynamic>.from(row!),
+      ).role;
+      if (current == UserRole.customer || current == UserRole.guest) {
+        await SupabaseFailureMapper.guard(() async {
+          await _client
+              .from('profiles')
+              .update({'role': UserModel.roleToString(UserRole.businessOwner)})
+              .eq('id', userId);
+        });
+      }
+    }
+  }
+
   Future<UserModel> _sessionToUser() async {
     final session = _client.auth.currentSession;
     final userId = session?.user.id;
@@ -120,7 +182,10 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
   }
 
   @override
-  Future<UserModel> signInWithGoogle({bool forceAccountPicker = false}) async {
+  Future<UserModel> signInWithGoogle({
+    bool forceAccountPicker = false,
+    UserRole? oauthIntendedRole,
+  }) async {
     try {
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
         if (AppConfig.googleIosClientId.isEmpty) {
@@ -154,6 +219,7 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
         accessToken:
             accessToken != null && accessToken.isNotEmpty ? accessToken : null,
       );
+      await _ensureProfileAfterOAuth(oauthIntendedRole);
       return _sessionToUser();
     } catch (e) {
       SupabaseFailureMapper.throwFromError(e);
@@ -161,7 +227,7 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
   }
 
   @override
-  Future<UserModel> signInWithApple() async {
+  Future<UserModel> signInWithApple({UserRole? oauthIntendedRole}) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
       throw app_errors.AuthException(
         'Sign in with Apple is only available on iPhone and iPad.',
@@ -191,6 +257,8 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
         idToken: idToken,
         nonce: rawNonce,
       );
+
+      await _ensureProfileAfterOAuth(oauthIntendedRole);
 
       final userId = _client.auth.currentUser?.id;
       if (userId != null) {

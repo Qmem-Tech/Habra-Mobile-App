@@ -33,6 +33,9 @@ abstract class EventsRemoteDataSource {
   });
 
   Future<EventDetailModel> createEvent(CreateEventData data);
+
+  /// Updates an existing event row (organizer-only). Ticket types are unchanged.
+  Future<EventDetailModel> updateEvent(String eventId, CreateEventData data);
 }
 
 class EventsRemoteDataSourceImpl implements EventsRemoteDataSource {
@@ -95,6 +98,13 @@ class EventsRemoteDataSourceImpl implements EventsRemoteDataSource {
   Future<EventDetailModel> createEvent(CreateEventData data) async {
     throw UnimplementedError(
       'Use EventsSupabaseDataSource; backend must handle createEvent.',
+    );
+  }
+
+  @override
+  Future<EventDetailModel> updateEvent(String eventId, CreateEventData data) async {
+    throw UnimplementedError(
+      'Use EventsSupabaseDataSource; backend must handle updateEvent.',
     );
   }
 }

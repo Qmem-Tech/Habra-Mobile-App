@@ -20,6 +20,7 @@ class BusinessOwnerDrawer extends StatelessWidget {
   final VoidCallback? onBusinessPhotosTap;
   final VoidCallback? onUpdateHoursTap;
   final VoidCallback? onBoostListingTap;
+  final VoidCallback? onCreateEventTap;
   final VoidCallback? onSettingsTap;
   /// When false (no businesses yet), hides Dashboard, edit, hours, and Boosts.
   final bool showBusinessToolsMenu;
@@ -42,6 +43,7 @@ class BusinessOwnerDrawer extends StatelessWidget {
     this.onBusinessPhotosTap,
     this.onUpdateHoursTap,
     this.onBoostListingTap,
+    this.onCreateEventTap,
     this.onSettingsTap,
     this.showBusinessToolsMenu = true,
     this.showDashboardMenuItem = true,
@@ -257,6 +259,16 @@ class BusinessOwnerDrawer extends StatelessWidget {
             onUpdateHoursTap?.call();
           },
         ),
+        if (onCreateEventTap != null)
+          _DrawerMenuItemData(
+            icon: Icons.event_available_outlined,
+            activeIcon: Icons.event_available,
+            title: 'Create Event',
+            onTap: () {
+              Navigator.pop(context);
+              onCreateEventTap!();
+            },
+          ),
         if (showBoostsMenuItem)
           _DrawerMenuItemData(
             icon: Icons.rocket_launch_outlined,

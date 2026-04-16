@@ -11,4 +11,8 @@ class StorageKeys {
   /// Owner profile: local preference for marketing/push toggles (UI only until backend exists).
   static const String ownerPushNotificationsEnabled =
       'owner_push_notifications_enabled';
+
+  /// Persisted dismissals for business-owner home info banners (per user).
+  static String ownerHomeDismissedBanners(String userId) =>
+      'owner_home_dismissed_banners_$userId';
 }

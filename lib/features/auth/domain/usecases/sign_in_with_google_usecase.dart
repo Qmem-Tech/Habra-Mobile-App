@@ -8,7 +8,13 @@ class SignInWithGoogleUseCase {
 
   SignInWithGoogleUseCase(this.repository);
 
-  Future<Either<Failure, User>> call({bool forceAccountPicker = false}) {
-    return repository.signInWithGoogle(forceAccountPicker: forceAccountPicker);
+  Future<Either<Failure, User>> call({
+    bool forceAccountPicker = false,
+    UserRole? oauthIntendedRole,
+  }) {
+    return repository.signInWithGoogle(
+      forceAccountPicker: forceAccountPicker,
+      oauthIntendedRole: oauthIntendedRole,
+    );
   }
 }

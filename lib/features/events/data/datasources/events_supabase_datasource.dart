@@ -467,6 +467,41 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
     });
   }
 
+  @override
+  Future<EventDetailModel> updateEvent(String eventId, CreateEventData data) async {
+    return SupabaseFailureMapper.guard(() async {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) throw Exception('Not authenticated');
+
+      final existing = await _client
+          .from(SupabaseTables.events)
+          .select('organizer_id')
+          .eq('id', eventId)
+          .maybeSingle();
+      if (existing == null) throw Exception('Event not found');
+      final org = parseString((existing as Map<String, dynamic>)['organizer_id']);
+      if (org != userId) {
+        throw Exception('You can only edit events you organize');
+      }
+
+      await _client.from(SupabaseTables.events).update({
+        'business_id': data.businessId,
+        'title': data.title,
+        'description': data.description,
+        'venue_name': data.venueName,
+        'venue_address': data.venueAddress,
+        'venue_lat': data.venueLat,
+        'venue_lng': data.venueLng,
+        'start_at': data.startAt.toIso8601String(),
+        'end_at': data.endAt.toIso8601String(),
+        'image_url': data.imageUrl,
+        'category': data.category.name.toLowerCase(),
+      }).eq('id', eventId);
+
+      return getEventDetail(eventId);
+    });
+  }
+
   Future<OrderModel> _fetchOrderModel(String orderId) async {
     final res = await _client.from('orders').select('*').eq('id', orderId).single();
     final row = Map<String, dynamic>.from(res as Map);

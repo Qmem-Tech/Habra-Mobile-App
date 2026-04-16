@@ -37,4 +37,9 @@ abstract class EventsRepository {
   });
 
   Future<Either<Failure, EventDetail>> createEvent(CreateEventData data);
+
+  Future<Either<Failure, EventDetail>> updateEvent(
+    String eventId,
+    CreateEventData data,
+  );
 }

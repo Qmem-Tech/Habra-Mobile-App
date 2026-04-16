@@ -8,8 +8,15 @@ abstract class AuthRemoteDataSource {
   Future<UserModel> loginAsGuest();
   /// When [forceAccountPicker] is true, clears the Google plugin's cached
   /// account first so the user sees the account chooser (e.g. business flow).
-  Future<UserModel> signInWithGoogle({bool forceAccountPicker = false});
-  Future<UserModel> signInWithApple();
+  ///
+  /// [oauthIntendedRole]: when set (e.g. [UserRole.businessOwner] from the
+  /// business sign-up screen), ensures `profiles.role` matches after OAuth,
+  /// since Google/Apple do not send signup metadata like email/password sign-up.
+  Future<UserModel> signInWithGoogle({
+    bool forceAccountPicker = false,
+    UserRole? oauthIntendedRole,
+  });
+  Future<UserModel> signInWithApple({UserRole? oauthIntendedRole});
   Future<UserModel> register(
     String email,
     String password,

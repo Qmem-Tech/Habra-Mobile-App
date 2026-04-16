@@ -54,32 +54,10 @@ class DashboardAnalyticsTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _MetricCard(
-                  label: 'Total Views',
-                  value: a.totalViewsFormatted,
-                  trend: a.viewsChangePercent,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _MetricCard(
-                  label: 'Clicks',
-                  value: a.clicksFormatted,
-                  trend: a.clicksChangePercent,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _MetricCard(
-                  label: 'Messages',
-                  value: a.messagesFormatted,
-                  trend: a.messagesChangePercent,
-                ),
-              ),
-            ],
+          _MetricCard(
+            label: 'Total Views',
+            value: a.totalViewsFormatted,
+            trend: a.viewsChangePercent,
           ),
           const SizedBox(height: 24),
           _ViewsOverTimeSection(

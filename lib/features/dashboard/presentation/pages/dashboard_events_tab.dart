@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/owner_upcoming_event.dart';
 import '../widgets/empty_state_widget.dart';
-import '../../../events/presentation/pages/event_detail_page.dart';
+import '../../../events/presentation/bloc/create_event_cubit.dart';
+import '../../../events/presentation/pages/create_event_page.dart';
+import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
+import '../bloc/dashboard_cubit.dart';
 
 /// Lists organizer events for the focused business: Active, Past, Draft.
 class DashboardEventsTab extends StatefulWidget {
@@ -235,13 +240,24 @@ class _EventRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          Navigator.push<void>(
+        onTap: () async {
+          final dashboardCubit = context.read<DashboardCubit>();
+          final homeCubit = context.read<BusinessOwnerHomeCubit>();
+          final createEventCubit = di.sl<CreateEventCubit>();
+          await Navigator.push<bool>(
             context,
-            MaterialPageRoute<void>(
-              builder: (_) => EventDetailPage(eventId: event.id),
+            MaterialPageRoute<bool>(
+              builder: (_) => MultiBlocProvider(
+                providers: [
+                  BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+                  BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+                  BlocProvider<CreateEventCubit>.value(value: createEventCubit),
+                ],
+                child: CreateEventPage(editingEventId: event.id),
+              ),
             ),
           );
+          await onRefresh?.call();
         },
         borderRadius: BorderRadius.circular(AppResources.radiusM),
         child: Container(

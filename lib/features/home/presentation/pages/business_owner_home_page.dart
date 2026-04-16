@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/constants/storage_keys.dart';
+import '../../../../core/storage/local_storage.dart';
+import '../../../../injection/injection_container.dart' as di;
+import '../../../events/presentation/bloc/create_event_cubit.dart';
+import '../../../events/presentation/pages/create_event_page.dart';
 import '../../../../core/constants/support_contact.dart';
 import '../../../../core/utils/relative_time_short.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
@@ -66,6 +71,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
 
   /// Session dismissals for home info banners (under review, legal pending, etc.).
   final Set<String> _dismissedHomeBannerKeys = <String>{};
+  final LocalStorage _localStorage = di.sl<LocalStorage>();
   int _businessesNeedingLegalDocsCount = 0;
   String? _lastCheckedPresenceId;
   bool _checkingLegalDocsForPresence = false;
@@ -77,6 +83,42 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           ownerId: widget.user.id,
           showSetupIncomplete: false,
         );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDismissedHomeBanners();
+    });
+  }
+
+  Future<void> _loadDismissedHomeBanners() async {
+    final keys = await _localStorage.getStringList(
+      StorageKeys.ownerHomeDismissedBanners(widget.user.id),
+    );
+    if (!mounted || keys == null || keys.isEmpty) return;
+    setState(() => _dismissedHomeBannerKeys.addAll(keys));
+  }
+
+  Future<void> _navigateToCreateEvent() async {
+    final dashboardCubit = context.read<DashboardCubit>();
+    final homeCubit = context.read<BusinessOwnerHomeCubit>();
+    final createEventCubit = di.sl<CreateEventCubit>();
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+            BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+            BlocProvider<CreateEventCubit>.value(value: createEventCubit),
+          ],
+          child: const CreateEventPage(),
+        ),
+      ),
+    );
+    if (result == true && mounted) {
+      await homeCubit.loadOwnerHome(
+        ownerId: widget.user.id,
+        showSetupIncomplete: false,
+      );
+    }
   }
 
   /// Shows post-login dialogs in sequence: images first, then legal documents.
@@ -403,6 +445,9 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             userName: widget.user.name,
             userEmail: widget.user.email,
             selectedBusiness: selectedPresence,
+            showBusinessToolsMenu: state is BusinessOwnerHomeLoaded
+                ? BusinessPresence.listHasApprovedBusiness(state.presences)
+                : false,
             showDashboardMenuItem:
                 BusinessOwnerNavigationWrapper.drawerShowDashboardMenu(context),
             showBoostsMenuItem:
@@ -547,6 +592,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 );
               }
             },
+            onCreateEventTap: _navigateToCreateEvent,
             onSettingsTap: () {
               Navigator.push(
                 context,
@@ -768,6 +814,8 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
 
   Widget _buildSingleBusinessView(BusinessOwnerHomeLoaded state) {
     final presence = state.selectedPresence;
+    final showOwnerTools =
+        BusinessPresence.listHasApprovedBusiness(state.presences);
 
     return RefreshIndicator(
       onRefresh: () => _refreshOwnerHome(context),
@@ -840,23 +888,25 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _buildSnapshotCards(state.snapshot),
               ),
-              Container(
-                width: double.infinity,
-                color: AppColors.backgroundWhite,
-                padding: const EdgeInsets.fromLTRB(
-                  AppResources.spacingM,
-                  20,
-                  AppResources.spacingM,
-                  12,
+              if (showOwnerTools) ...[
+                Container(
+                  width: double.infinity,
+                  color: AppColors.backgroundWhite,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    20,
+                    AppResources.spacingM,
+                    12,
+                  ),
+                  child: _buildSectionHeader('Quick Actions'),
                 ),
-                child: _buildSectionHeader('Quick Actions'),
-              ),
-              Container(
-                width: double.infinity,
-                color: AppColors.backgroundWhite,
-                padding: const EdgeInsets.only(bottom: 20),
-                child: _buildQuickActions(),
-              ),
+                Container(
+                  width: double.infinity,
+                  color: AppColors.backgroundWhite,
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: _buildQuickActions(),
+                ),
+              ],
               Container(
                 width: double.infinity,
                 color: AppColors.ownerHomeSectionBg,
@@ -947,6 +997,9 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   }
 
   Widget _buildAllBusinessesView(BusinessOwnerHomeLoaded state) {
+    final showOwnerTools =
+        BusinessPresence.listHasApprovedBusiness(state.presences);
+
     return RefreshIndicator(
       onRefresh: () => _refreshOwnerHome(context),
       child: CustomScrollView(
@@ -1026,23 +1079,25 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   onPressed: () => _openAddNewPresence(context),
                 ),
               ),
-              Container(
-                width: double.infinity,
-                color: AppColors.backgroundWhite,
-                padding: const EdgeInsets.fromLTRB(
-                  AppResources.spacingM,
-                  8,
-                  AppResources.spacingM,
-                  12,
+              if (showOwnerTools) ...[
+                Container(
+                  width: double.infinity,
+                  color: AppColors.backgroundWhite,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    8,
+                    AppResources.spacingM,
+                    12,
+                  ),
+                  child: _buildSectionHeader('Quick Actions'),
                 ),
-                child: _buildSectionHeader('Quick Actions'),
-              ),
-              Container(
-                width: double.infinity,
-                color: AppColors.backgroundWhite,
-                padding: const EdgeInsets.only(bottom: 20),
-                child: _buildQuickActions(),
-              ),
+                Container(
+                  width: double.infinity,
+                  color: AppColors.backgroundWhite,
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: _buildQuickActions(),
+                ),
+              ],
               Container(
                 width: double.infinity,
                 color: AppColors.ownerHomeSectionBg,
@@ -1726,8 +1781,13 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 minWidth: 40,
                 minHeight: 40,
               ),
-              onPressed: () =>
-                  setState(() => _dismissedHomeBannerKeys.add(dismissKey)),
+              onPressed: () async {
+                setState(() => _dismissedHomeBannerKeys.add(dismissKey));
+                await _localStorage.setStringList(
+                  StorageKeys.ownerHomeDismissedBanners(widget.user.id),
+                  _dismissedHomeBannerKeys.toList(),
+                );
+              },
             ),
           ],
         ),
@@ -2021,36 +2081,11 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   Widget _buildSnapshotCards(OwnerSnapshotMetrics snapshot) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildMetricCard(
-              label: 'Views',
-              icon: Icons.visibility_outlined,
-              value: snapshot.viewsFormatted,
-              changePercent: snapshot.viewsChangePercent,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _buildMetricCard(
-              label: 'Clicks',
-              icon: Icons.touch_app_outlined,
-              value: snapshot.clicksFormatted,
-              changePercent: snapshot.clicksChangePercent,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _buildMetricCard(
-              label: 'Msgs',
-              icon: Icons.chat_bubble_outline_rounded,
-              value: snapshot.messagesFormatted,
-              changePercent: snapshot.messagesChangePercent,
-              isNegative: snapshot.messagesChangePercent < 0,
-            ),
-          ),
-        ],
+      child: _buildMetricCard(
+        label: 'Views',
+        icon: Icons.visibility_outlined,
+        value: snapshot.viewsFormatted,
+        changePercent: snapshot.viewsChangePercent,
       ),
     );
   }
@@ -2209,6 +2244,16 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       );
     }
 
+    Future<void> createEvent() async {
+      if (!hasSpecificBusiness) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Select a business first')),
+        );
+        return;
+      }
+      await _navigateToCreateEvent();
+    }
+
     Widget action({
       required IconData icon,
       required String label,
@@ -2276,32 +2321,49 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          action(
-            icon: Icons.sell_rounded,
-            label: 'Post Deal',
-            onTap: postDeal,
-            primary: true,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              action(
+                icon: Icons.sell_rounded,
+                label: 'Post Deal',
+                onTap: postDeal,
+                primary: true,
+              ),
+              action(
+                icon: Icons.work_outline_rounded,
+                label: 'Post Job',
+                onTap: postJob,
+                primary: false,
+              ),
+              action(
+                icon: Icons.event_available_rounded,
+                label: 'Event',
+                onTap: createEvent,
+                primary: false,
+              ),
+            ],
           ),
-          action(
-            icon: Icons.work_outline_rounded,
-            label: 'Post Job',
-            onTap: postJob,
-            primary: false,
-          ),
-          action(
-            icon: Icons.campaign_outlined,
-            label: 'Promote',
-            onTap: promote,
-            primary: false,
-          ),
-          action(
-            icon: Icons.schedule_rounded,
-            label: 'Hours',
-            onTap: hours,
-            primary: false,
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              action(
+                icon: Icons.campaign_outlined,
+                label: 'Promote',
+                onTap: promote,
+                primary: false,
+              ),
+              action(
+                icon: Icons.schedule_rounded,
+                label: 'Hours',
+                onTap: hours,
+                primary: false,
+              ),
+              const Expanded(child: SizedBox()),
+            ],
           ),
         ],
       ),

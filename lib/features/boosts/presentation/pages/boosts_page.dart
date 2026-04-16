@@ -7,6 +7,7 @@ import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/notification_icon_with_badge.dart';
+import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
@@ -22,6 +23,8 @@ import '../../../dashboard/presentation/pages/edit_business_page.dart';
 import '../../../dashboard/presentation/pages/update_hours_page.dart';
 import '../../../dashboard/presentation/widgets/business_gallery_photos_dialog.dart';
 import '../../../dashboard/presentation/widgets/empty_state_widget.dart';
+import '../../../events/presentation/bloc/create_event_cubit.dart';
+import '../../../events/presentation/pages/create_event_page.dart';
 import '../../domain/entities/active_boost.dart';
 import '../../domain/entities/boost_filter.dart';
 import '../../domain/entities/boost_option.dart';
@@ -86,6 +89,9 @@ class _BoostsPageState extends State<BoostsPage> {
                 userName: widget.user.name,
                 userEmail: widget.user.email,
                 selectedBusiness: selected,
+                showBusinessToolsMenu: state is BusinessOwnerHomeLoaded
+                    ? BusinessPresence.listHasApprovedBusiness(state.presences)
+                    : false,
                 showDashboardMenuItem:
                     BusinessOwnerNavigationWrapper.drawerShowDashboardMenu(context),
                 showBoostsMenuItem:
@@ -223,6 +229,7 @@ class _BoostsPageState extends State<BoostsPage> {
                     );
                   }
                 },
+                onCreateEventTap: _navigateToCreateEvent,
                 onSettingsTap: () {
                   Navigator.push(
                     context,
@@ -371,7 +378,6 @@ class _BoostsPageState extends State<BoostsPage> {
                         onAction: () => _openBoostOptions(context),
                       ),
                     ),
-                    _buildBoostNowButton(context),
                   ],
                 );
               }
@@ -467,6 +473,31 @@ class _BoostsPageState extends State<BoostsPage> {
         );
       },
     );
+  }
+
+  Future<void> _navigateToCreateEvent() async {
+    final dashboardCubit = context.read<DashboardCubit>();
+    final homeCubit = context.read<BusinessOwnerHomeCubit>();
+    final createEventCubit = di.sl<CreateEventCubit>();
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider<DashboardCubit>.value(value: dashboardCubit),
+            BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
+            BlocProvider<CreateEventCubit>.value(value: createEventCubit),
+          ],
+          child: const CreateEventPage(),
+        ),
+      ),
+    );
+    if (result == true && mounted) {
+      await homeCubit.loadOwnerHome(
+        ownerId: widget.user.id,
+        showSetupIncomplete: false,
+      );
+    }
   }
 
   Future<void> _refreshBoostsIfPossible(BuildContext context) async {

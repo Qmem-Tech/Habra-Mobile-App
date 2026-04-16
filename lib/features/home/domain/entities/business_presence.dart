@@ -88,6 +88,13 @@ class BusinessPresence extends Equatable {
       (logoUrl != null && logoUrl!.isNotEmpty) &&
       (backgroundUrl != null && backgroundUrl!.isNotEmpty);
 
+  /// True when this listing is approved for public use (`approval_status` in DB).
+  static bool listHasApprovedBusiness(Iterable<BusinessPresence> presences) {
+    return presences
+        .where((p) => p.id != 'all')
+        .any((p) => (p.statusText ?? '').toLowerCase() == 'approved');
+  }
+
   @override
   List<Object?> get props => [
         id,

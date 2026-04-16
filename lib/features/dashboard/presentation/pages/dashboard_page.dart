@@ -116,6 +116,9 @@ class _DashboardPageState extends State<DashboardPage> {
               userName: widget.user.name,
               userEmail: widget.user.email,
               selectedBusiness: selectedPresence,
+              showBusinessToolsMenu: state is BusinessOwnerHomeLoaded
+                  ? BusinessPresence.listHasApprovedBusiness(state.presences)
+                  : false,
               showDashboardMenuItem:
                   BusinessOwnerNavigationWrapper.drawerShowDashboardMenu(context),
               showBoostsMenuItem:
@@ -254,6 +257,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   );
                 }
               },
+              onCreateEventTap: _navigateToCreateEvent,
               onSettingsTap: () {
                 Navigator.push(
                   context,

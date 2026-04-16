@@ -20,13 +20,17 @@ import '../../../../core/widgets/street_address_field.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
+import '../../domain/repositories/events_repository.dart';
 import '../../domain/entities/create_event_data.dart';
 import '../../domain/entities/event_category.dart';
 import '../bloc/create_event_cubit.dart';
 import '../bloc/create_event_state.dart';
 
 class CreateEventPage extends StatefulWidget {
-  const CreateEventPage({super.key});
+  const CreateEventPage({super.key, this.editingEventId});
+
+  /// When set, loads this event and saves via [CreateEventCubit.updateEvent].
+  final String? editingEventId;
 
   @override
   State<CreateEventPage> createState() => _CreateEventPageState();
@@ -48,6 +52,61 @@ class _CreateEventPageState extends State<CreateEventPage> {
   double? _venueLng;
 
   final List<_TicketTypeRow> _ticketTypes = [];
+  bool _loadingExisting = false;
+
+  bool get _isEditing => widget.editingEventId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.editingEventId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadExistingEvent();
+      });
+    }
+  }
+
+  Future<void> _loadExistingEvent() async {
+    final id = widget.editingEventId;
+    if (id == null) return;
+    setState(() => _loadingExisting = true);
+    final result = await di.sl<EventsRepository>().getEventDetail(id);
+    if (!mounted) return;
+    result.fold(
+      (failure) {
+        setState(() => _loadingExisting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(failure.message)),
+        );
+      },
+      (detail) {
+        final nonAllCats =
+            detail.categories.where((c) => c != EventCategory.all).toList();
+        setState(() {
+          _loadingExisting = false;
+          _titleController.text = detail.title;
+          _descriptionController.text = detail.description;
+          _venueNameController.text = detail.venue;
+          _venueAddressController.text = detail.address;
+          _startAt = detail.startDate;
+          _endAt = detail.endDate;
+          _venueLat = detail.latitude;
+          _venueLng = detail.longitude;
+          _imageUrl = detail.imageUrl;
+          if (nonAllCats.isNotEmpty) _category = nonAllCats.first;
+          _ticketTypes.clear();
+          for (final t in detail.ticketTypes) {
+            final row = _TicketTypeRow();
+            row.nameController.text = t.name;
+            row.priceController.text = t.price.toString();
+            row.quantityController.text =
+                (t.availableQuantity ?? 0).toString();
+            _ticketTypes.add(row);
+          }
+        });
+      },
+    );
+  }
 
   @override
   void dispose() {
@@ -94,7 +153,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       );
       return;
     }
-    if (_ticketTypes.isEmpty) {
+    if (!_isEditing && _ticketTypes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Add at least one ticket type')),
       );
@@ -112,19 +171,24 @@ class _CreateEventPageState extends State<CreateEventPage> {
       return;
     }
 
-    for (final row in _ticketTypes) {
-      if (row.nameController.text.trim().isEmpty ||
-          row.priceController.text.trim().isEmpty ||
-          row.quantityController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Fill in all ticket type fields')),
-        );
-        return;
+    if (!_isEditing) {
+      for (final row in _ticketTypes) {
+        if (row.nameController.text.trim().isEmpty ||
+            row.priceController.text.trim().isEmpty ||
+            row.quantityController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Fill in all ticket type fields')),
+          );
+          return;
+        }
       }
     }
 
     final ctx = context;
-    LoaderHelper.show(ctx, message: 'Creating event...');
+    LoaderHelper.show(
+      ctx,
+      message: _isEditing ? 'Saving event…' : 'Creating event…',
+    );
 
     String? imageUrl = _imageUrl;
     if (_imageFile != null) {
@@ -157,17 +221,25 @@ class _CreateEventPageState extends State<CreateEventPage> {
       imageUrl: imageUrl,
       category: _category,
       businessId: _getSelectedBusinessId(),
-      ticketTypes: _ticketTypes
-          .map((r) => CreateEventTicketType(
-                name: r.nameController.text.trim(),
-                price: double.tryParse(r.priceController.text.trim()) ?? 0,
-                quantityAvailable: int.tryParse(r.quantityController.text.trim()) ?? 0,
-              ))
-          .toList(),
+      ticketTypes: _isEditing
+          ? const <CreateEventTicketType>[]
+          : _ticketTypes
+              .map((r) => CreateEventTicketType(
+                    name: r.nameController.text.trim(),
+                    price: double.tryParse(r.priceController.text.trim()) ?? 0,
+                    quantityAvailable:
+                        int.tryParse(r.quantityController.text.trim()) ?? 0,
+                  ))
+              .toList(),
     );
 
     if (!ctx.mounted) return;
-    ctx.read<CreateEventCubit>().createEvent(data);
+    final cubit = ctx.read<CreateEventCubit>();
+    if (_isEditing) {
+      cubit.updateEvent(widget.editingEventId!, data);
+    } else {
+      cubit.createEvent(data);
+    }
   }
 
   @override
@@ -178,14 +250,26 @@ class _CreateEventPageState extends State<CreateEventPage> {
             LoaderHelper.hide(context).then((_) {
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Event created successfully!')),
+                SnackBar(
+                  content: Text(
+                    _isEditing
+                        ? 'Event updated successfully!'
+                        : 'Event created successfully!',
+                  ),
+                ),
               );
               Navigator.pop(context, true);
             });
           } else if (state is CreateEventError) {
             LoaderHelper.hide(context).then((_) {
               if (context.mounted) {
-                ErrorDisplayHelper.show(context, message: state.message, title: 'Could not create event');
+                ErrorDisplayHelper.show(
+                  context,
+                  message: state.message,
+                  title: _isEditing
+                      ? 'Could not save event'
+                      : 'Could not create event',
+                );
               }
             });
           }
@@ -199,9 +283,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
               icon: const Icon(Icons.arrow_back),
               onPressed: () => Navigator.pop(context),
             ),
-            title: const Text(
-              'Create Event',
-              style: TextStyle(
+            title: Text(
+              _isEditing ? 'Edit Event' : 'Create Event',
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -209,7 +293,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
             ),
             centerTitle: true,
           ),
-          body: SingleChildScrollView(
+          body: _loadingExisting
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
             padding: const EdgeInsets.all(AppResources.spacingM),
             child: Form(
               key: _formKey,
@@ -298,7 +384,20 @@ class _CreateEventPageState extends State<CreateEventPage> {
                               borderRadius: BorderRadius.circular(AppResources.radiusM),
                               child: Image.file(_imageFile!, fit: BoxFit.cover),
                             )
-                          : Column(
+                          : (_imageUrl != null &&
+                                  _imageUrl!.isNotEmpty &&
+                                  _imageFile == null)
+                              ? ClipRRect(
+                                  borderRadius:
+                                      BorderRadius.circular(AppResources.radiusM),
+                                  child: Image.network(
+                                    _imageUrl!,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: 160,
+                                  ),
+                                )
+                              : Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(Icons.add_photo_alternate, size: 48, color: AppColors.brandPrimary),
@@ -312,54 +411,67 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _sectionTitle('Ticket Types'),
-                      TextButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _ticketTypes.add(_TicketTypeRow());
-                          });
-                        },
-                        icon: const Icon(Icons.add, size: 20),
-                        label: const Text('Add'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ..._ticketTypes.asMap().entries.map((e) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _TicketTypeCard(
-                        row: e.value,
-                        onRemove: () => setState(() => _ticketTypes.removeAt(e.key)),
-                      ),
-                    );
-                  }),
-                  if (_ticketTypes.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.backgroundLight,
-                        borderRadius: BorderRadius.circular(AppResources.radiusM),
-                        border: Border.all(color: AppColors.backgroundGrey),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.confirmation_number_outlined, color: AppColors.textSecondary),
-                          const SizedBox(width: 8),
-                          Text(
-                            'No ticket types. Tap "Add" to add one.',
-                            style: TextStyle(color: AppColors.textSecondary),
-                          ),
-                        ],
-                      ),
+                  if (_isEditing) ...[
+                    _sectionTitle('Ticket Types'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ticket types and pricing stay as originally published. '
+                      'Contact support if you need to change them.',
+                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                     ),
+                  ] else ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _sectionTitle('Ticket Types'),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _ticketTypes.add(_TicketTypeRow());
+                            });
+                          },
+                          icon: const Icon(Icons.add, size: 20),
+                          label: const Text('Add'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ..._ticketTypes.asMap().entries.map((e) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _TicketTypeCard(
+                          row: e.value,
+                          onRemove: () =>
+                              setState(() => _ticketTypes.removeAt(e.key)),
+                        ),
+                      );
+                    }),
+                    if (_ticketTypes.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundLight,
+                          borderRadius:
+                              BorderRadius.circular(AppResources.radiusM),
+                          border: Border.all(color: AppColors.backgroundGrey),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.confirmation_number_outlined,
+                                color: AppColors.textSecondary),
+                            const SizedBox(width: 8),
+                            Text(
+                              'No ticket types. Tap "Add" to add one.',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                   const SizedBox(height: 24),
                   AppButton(
-                    text: 'Create Event',
+                    text: _isEditing ? 'Save changes' : 'Create Event',
                     onPressed: _createEvent,
                   ),
                 ],

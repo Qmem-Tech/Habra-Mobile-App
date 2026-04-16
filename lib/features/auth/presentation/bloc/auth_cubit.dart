@@ -108,10 +108,15 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  Future<void> signInWithGoogle({bool forceAccountPicker = false}) async {
+  Future<void> signInWithGoogle({
+    bool forceAccountPicker = false,
+    UserRole? oauthIntendedRole,
+  }) async {
     emit(AuthLoading());
-    final result =
-        await signInWithGoogleUseCase(forceAccountPicker: forceAccountPicker);
+    final result = await signInWithGoogleUseCase(
+      forceAccountPicker: forceAccountPicker,
+      oauthIntendedRole: oauthIntendedRole,
+    );
     result.fold(
       (failure) => emit(AuthError(failure.message)),
       (user) async {
@@ -121,9 +126,10 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  Future<void> signInWithApple() async {
+  Future<void> signInWithApple({UserRole? oauthIntendedRole}) async {
     emit(AuthLoading());
-    final result = await signInWithAppleUseCase();
+    final result =
+        await signInWithAppleUseCase(oauthIntendedRole: oauthIntendedRole);
     result.fold(
       (failure) => emit(AuthError(failure.message)),
       (user) async {

@@ -14,7 +14,6 @@ import '../../../explore/presentation/pages/business_detail_page.dart';
 import '../../../dashboard/presentation/pages/boost_listing_page.dart';
 import '../../../dashboard/presentation/pages/edit_business_details_page.dart';
 import '../../../dashboard/presentation/pages/operating_hours_page.dart';
-import '../../../dashboard/presentation/pages/business_legal_documents_hub_page.dart';
 import '../../domain/entities/business_presence.dart';
 import '../bloc/business_owner_home_cubit.dart';
 import '../bloc/business_owner_home_state.dart';
@@ -528,23 +527,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                       builder: (_) =>
                                           NotificationPreferencesPage(
                                         userId: widget.user.id,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              _OwnerMenuTile(
-                                icon: Icons.folder_shared_outlined,
-                                title: 'Legal & compliance',
-                                subtitle:
-                                    'Uploaded documents and review status',
-                                onTap: () {
-                                  Navigator.push<void>(
-                                    context,
-                                    MaterialPageRoute<void>(
-                                      builder: (_) =>
-                                          BusinessLegalDocumentsHubPage(
-                                        ownerId: widget.user.id,
                                       ),
                                     ),
                                   );

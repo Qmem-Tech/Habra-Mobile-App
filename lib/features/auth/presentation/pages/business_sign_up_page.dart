@@ -185,6 +185,8 @@ class BusinessSignUpPage extends StatelessWidget {
                                         .read<AuthCubit>()
                                         .signInWithGoogle(
                                           forceAccountPicker: true,
+                                          oauthIntendedRole:
+                                              UserRole.businessOwner,
                                         ),
                               ),
                               if (showApple)
@@ -199,7 +201,10 @@ class BusinessSignUpPage extends StatelessWidget {
                                     ? null
                                     : () => context
                                         .read<AuthCubit>()
-                                        .signInWithApple(),
+                                        .signInWithApple(
+                                          oauthIntendedRole:
+                                              UserRole.businessOwner,
+                                        ),
                               ),
                             const SizedBox(height: AppResources.spacingXL),
                           ],

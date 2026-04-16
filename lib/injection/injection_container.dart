@@ -86,6 +86,7 @@ import '../features/events/domain/usecases/get_user_tickets_usecase.dart';
 import '../features/events/domain/usecases/create_order_usecase.dart';
 import '../features/events/domain/usecases/process_payment_usecase.dart';
 import '../features/events/domain/usecases/create_event_usecase.dart';
+import '../features/events/domain/usecases/update_event_usecase.dart';
 import '../features/events/presentation/bloc/events_cubit.dart';
 import '../features/events/presentation/bloc/tickets_cubit.dart';
 import '../features/events/presentation/bloc/create_event_cubit.dart';
@@ -333,9 +334,15 @@ Future<void> init() async {
   sl.registerLazySingleton(() => CreateOrderUseCase(sl<EventsRepository>()));
   sl.registerLazySingleton(() => ProcessPaymentUseCase(sl<EventsRepository>()));
   sl.registerLazySingleton(() => CreateEventUseCase(sl<EventsRepository>()));
+  sl.registerLazySingleton(() => UpdateEventUseCase(sl<EventsRepository>()));
 
   // Cubits
-  sl.registerFactory(() => CreateEventCubit(sl<CreateEventUseCase>()));
+  sl.registerFactory(
+    () => CreateEventCubit(
+      sl<CreateEventUseCase>(),
+      sl<UpdateEventUseCase>(),
+    ),
+  );
   sl.registerFactory(() => EventsCubit(
     getEventsUseCase: sl<GetEventsUseCase>(),
     getEventDetailUseCase: sl<GetEventDetailUseCase>(),

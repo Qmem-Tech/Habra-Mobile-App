@@ -9,5 +9,6 @@ class SignInWithAppleUseCase {
 
   SignInWithAppleUseCase(this.repository);
 
-  Future<Either<Failure, User>> call() => repository.signInWithApple();
+  Future<Either<Failure, User>> call({UserRole? oauthIntendedRole}) =>
+      repository.signInWithApple(oauthIntendedRole: oauthIntendedRole);
 }
