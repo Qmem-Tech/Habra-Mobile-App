@@ -45,6 +45,20 @@ class DashboardDealsTab extends StatelessWidget {
         .length;
     final expiredCount = deals.where((d) => d.status == DashboardDealStatus.expired).length;
     final draftCount = deals.where((d) => d.status == DashboardDealStatus.draft).length;
+    final effectiveFilter = filter ?? DashboardDealStatus.active;
+    final filteredDeals = deals.where((d) {
+      switch (effectiveFilter) {
+        case DashboardDealStatus.active:
+          return d.status == DashboardDealStatus.active ||
+              d.status == DashboardDealStatus.inactive;
+        case DashboardDealStatus.expired:
+          return d.status == DashboardDealStatus.expired;
+        case DashboardDealStatus.draft:
+          return d.status == DashboardDealStatus.draft;
+        case DashboardDealStatus.inactive:
+          return d.status == DashboardDealStatus.inactive;
+      }
+    }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,19 +69,19 @@ class DashboardDealsTab extends StatelessWidget {
             children: [
               _FilterChip(
                 label: 'Active ($activeCount)',
-                selected: filter == DashboardDealStatus.active,
+                selected: effectiveFilter == DashboardDealStatus.active,
                 onTap: () => onFilterChanged(DashboardDealStatus.active),
               ),
               const SizedBox(width: 8),
               _FilterChip(
                 label: 'Expired ($expiredCount)',
-                selected: filter == DashboardDealStatus.expired,
+                selected: effectiveFilter == DashboardDealStatus.expired,
                 onTap: () => onFilterChanged(DashboardDealStatus.expired),
               ),
               const SizedBox(width: 8),
               _FilterChip(
                 label: 'Drafts ($draftCount)',
-                selected: filter == DashboardDealStatus.draft,
+                selected: effectiveFilter == DashboardDealStatus.draft,
                 onTap: () => onFilterChanged(DashboardDealStatus.draft),
               ),
             ],
@@ -75,7 +89,7 @@ class DashboardDealsTab extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Expanded(
-          child: deals.isEmpty
+          child: filteredDeals.isEmpty
               ? EmptyStateWidget(
                   illustrationPath: AppAssets.dashboardNoDeals,
                   title: 'No Deals Yet',
@@ -86,9 +100,9 @@ class DashboardDealsTab extends StatelessWidget {
                 )
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
-                  itemCount: deals.length,
+                  itemCount: filteredDeals.length,
                   itemBuilder: (context, index) {
-                    final deal = deals[index];
+                    final deal = filteredDeals[index];
                     return _DealCard(
                       deal: deal,
                       onEdit: () => onEdit?.call(deal),
@@ -154,6 +168,18 @@ class _DealCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final typeColor = DashboardDealsTab._dealTypeColor(deal.dealTypeLabel);
+    final statusLabel = switch (deal.status) {
+      DashboardDealStatus.active => 'Active',
+      DashboardDealStatus.inactive => 'Paused',
+      DashboardDealStatus.expired => 'Expired',
+      DashboardDealStatus.draft => 'Draft',
+    };
+    final statusColor = switch (deal.status) {
+      DashboardDealStatus.active => AppColors.success.withValues(alpha: 0.2),
+      DashboardDealStatus.inactive => AppColors.textTertiary.withValues(alpha: 0.2),
+      DashboardDealStatus.expired => AppColors.error.withValues(alpha: 0.15),
+      DashboardDealStatus.draft => AppColors.info.withValues(alpha: 0.2),
+    };
     return AppCard(
       margin: const EdgeInsets.only(bottom: 12),
       padding: EdgeInsets.zero,
@@ -206,22 +232,21 @@ class _DealCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (deal.status == DashboardDealStatus.inactive)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.textTertiary.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'Paused',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary,
-                                ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              statusLabel,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
                               ),
                             ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 6),

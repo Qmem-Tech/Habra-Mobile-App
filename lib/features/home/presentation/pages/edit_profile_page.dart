@@ -35,6 +35,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String _initialPhoneNumber = '';
   bool _profileLoadTriggered = false;
   bool _hasPrefilledFromProfile = false;
+  bool _photoUpdateInProgress = false;
   String? _avatarUrl;
   List<String> _selectedInterests = const [];
 
@@ -108,7 +109,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _pickAndUploadPhoto(BuildContext context) async {
     final file = await di.sl<ImagePickerService>().pickImage(context);
     if (file == null || !context.mounted) return;
+    setState(() => _photoUpdateInProgress = true);
     context.read<EditProfileCubit>().uploadPhoto(widget.user.id, file);
+  }
+
+  void _removePhoto(BuildContext context) {
+    setState(() {
+      _photoUpdateInProgress = true;
+      _avatarUrl = '';
+    });
+    context.read<EditProfileCubit>().saveProfile(
+          widget.user.id,
+          const UserProfileUpdate(avatarUrl: ''),
+        );
   }
 
   Future<void> _openLocationPicker() async {
@@ -179,15 +192,24 @@ class _EditProfilePageState extends State<EditProfilePage> {
             context.read<AuthCubit>().applyProfileEditsToSession(updated);
           }
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile updated'),
+            SnackBar(
+              content: Text(
+                _photoUpdateInProgress ? 'Profile photo updated' : 'Profile updated',
+              ),
               backgroundColor: AppColors.success,
             ),
           );
+          if (_photoUpdateInProgress) {
+            setState(() => _photoUpdateInProgress = false);
+            return;
+          }
           if (!context.mounted) return;
           Navigator.pop(context);
         }
         if (state is EditProfileSaveError) {
+          if (_photoUpdateInProgress) {
+            setState(() => _photoUpdateInProgress = false);
+          }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -287,6 +309,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
                   ),
                 ),
+                if (displayAvatarUrl != null && displayAvatarUrl.isNotEmpty) ...[
+                  const SizedBox(height: AppResources.spacingXS),
+                  Center(
+                    child: TextButton(
+                      onPressed: saving ? null : () => _removePhoto(context),
+                      child: const Text('Remove Photo'),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppResources.spacingL),
                 _LabeledField(
                   label: 'Full Name',

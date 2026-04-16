@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'app_error_card.dart';
 
@@ -34,8 +33,6 @@ class ErrorDisplayHelper {
   }) {
     final userMessage = message ?? _toUserFriendlyMessage(error);
     final userTitle = title ?? 'Something went wrong';
-    final detailText = (error != null && kDebugMode) ? error.toString() : null;
-
     showDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -44,7 +41,6 @@ class ErrorDisplayHelper {
       builder: (ctx) => AppErrorCard(
         title: userTitle,
         message: userMessage,
-        detailText: detailText,
         onRetry: onRetry,
         onDismiss: () {},
       ),

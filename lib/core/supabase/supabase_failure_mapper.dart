@@ -94,6 +94,11 @@ class SupabaseFailureMapper {
           'this build\'s SHA-1 (debug: run gradlew signingReport). Also set '
           'GOOGLE_WEB_CLIENT_ID to your Web client ID for Supabase.';
     }
+    // Some plugin/device builds surface shorthand traces like "m4.b: 10".
+    if (RegExp(r'\bm4\.b\b.*\b10\b', caseSensitive: false).hasMatch(lower)) {
+      return 'Google Sign-In failed due to Android OAuth configuration (code 10). '
+          'Verify package name/SHA-1 in Google Cloud and ensure GOOGLE_WEB_CLIENT_ID is set.';
+    }
     return _userFriendly(trimmed);
   }
 
