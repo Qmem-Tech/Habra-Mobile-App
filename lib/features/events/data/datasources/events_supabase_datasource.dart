@@ -479,7 +479,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
           .eq('id', eventId)
           .maybeSingle();
       if (existing == null) throw Exception('Event not found');
-      final org = parseString((existing as Map<String, dynamic>)['organizer_id']);
+      final org = parseString(existing['organizer_id']);
       if (org != userId) {
         throw Exception('You can only edit events you organize');
       }

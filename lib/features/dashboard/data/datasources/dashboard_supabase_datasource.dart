@@ -24,6 +24,29 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   DashboardSupabaseDataSource();
 
   SupabaseClient get _client => Supabase.instance.client;
+  static const Set<String> _validBusinessApprovalStatuses = {
+    'pending',
+    'approved',
+    'rejected',
+  };
+
+  static void _normalizeBusinessApprovalStatus(
+    Map<String, dynamic> payload, {
+    required bool setDefaultIfMissing,
+  }) {
+    final raw = parseString(payload['approval_status'])?.trim().toLowerCase();
+    if (raw == null || raw.isEmpty) {
+      payload.remove('approval_status');
+      if (setDefaultIfMissing) payload['approval_status'] = 'pending';
+      return;
+    }
+    if (_validBusinessApprovalStatuses.contains(raw)) {
+      payload['approval_status'] = raw;
+      return;
+    }
+    payload.remove('approval_status');
+    if (setDefaultIfMissing) payload['approval_status'] = 'pending';
+  }
 
   static String _formatReceivedOnLabel(DateTime dt) {
     return DateFormat.yMMMd().format(dt.toLocal());
@@ -1380,9 +1403,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       Future<String> insert(Map<String, dynamic> payload) async {
         payload['owner_id'] = ownerId;
-        if (!payload.containsKey('approval_status')) {
-          payload['approval_status'] = 'pending';
-        }
+        _normalizeBusinessApprovalStatus(payload, setDefaultIfMissing: true);
         payload['updated_at'] = DateTime.now().toIso8601String();
         final res = await _client
             .from(SupabaseTables.businesses)
@@ -1472,6 +1493,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       String businessId, Map<String, dynamic> data) async {
     return SupabaseFailureMapper.guard(() async {
       final payload = Map<String, dynamic>.from(data);
+      _normalizeBusinessApprovalStatus(payload, setDefaultIfMissing: false);
       payload['updated_at'] = DateTime.now().toIso8601String();
       await _client
           .from(SupabaseTables.businesses)

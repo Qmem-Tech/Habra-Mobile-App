@@ -96,7 +96,7 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
 
     if (oauthIntendedRole == UserRole.businessOwner) {
       final current = UserModel.fromSupabaseProfile(
-        Map<String, dynamic>.from(row!),
+        Map<String, dynamic>.from(row),
       ).role;
       if (current == UserRole.customer || current == UserRole.guest) {
         await SupabaseFailureMapper.guard(() async {

@@ -211,6 +211,7 @@ class _DashboardEventsTabState extends State<DashboardEventsTab>
           event: e,
           subtitle: subtitleFor(e),
           showDraftBadge: showDraftBadge,
+          onRefresh: widget.onRefresh,
         );
       },
     );
@@ -224,11 +225,13 @@ class _EventRow extends StatelessWidget {
     required this.event,
     required this.subtitle,
     required this.showDraftBadge,
+    this.onRefresh,
   });
 
   final OwnerUpcomingEvent event;
   final String subtitle;
   final bool showDraftBadge;
+  final Future<void> Function()? onRefresh;
 
   static const double _thumb = 56;
 

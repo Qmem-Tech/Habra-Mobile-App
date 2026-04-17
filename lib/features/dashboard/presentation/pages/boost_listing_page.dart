@@ -114,14 +114,13 @@ class _BoostListingPageState extends State<BoostListingPage> {
       return;
     }
 
-    final ctx = context;
-    LoaderHelper.show(ctx, message: 'Processing payment…');
+    LoaderHelper.show(context, message: 'Processing payment…');
     final offeringId = AppConfig.revenueCatBoostOfferingId.trim();
     final package = await rc.findPackageByStoreProductId(
       storeProductId,
       offeringIdentifier: offeringId.isEmpty ? null : offeringId,
     );
-    if (!ctx.mounted) return;
+    if (!mounted) return;
     if (package == null) {
       final allProductsByOffering = await rc.listOfferingProductIds();
       final selectedOfferingProducts = offeringId.isEmpty
@@ -132,8 +131,8 @@ class _BoostListingPageState extends State<BoostListingPage> {
               : allProductsByOffering.values.expand((ids) => ids))
           .take(8)
           .join(', ');
-      await LoaderHelper.hide(ctx);
-      if (!ctx.mounted) return;
+      await LoaderHelper.hide(context);
+      if (!mounted) return;
       _showBoostSubmitErrorDialog(
         title: 'Product not found',
         message:
@@ -148,14 +147,14 @@ class _BoostListingPageState extends State<BoostListingPage> {
     }
 
     final iap = await rc.purchaseBoostPackage(package);
-    if (!ctx.mounted) return;
+    if (!mounted) return;
     if (iap.userCancelled) {
-      await LoaderHelper.hide(ctx);
+      await LoaderHelper.hide(context);
       return;
     }
     if (!iap.completed) {
-      await LoaderHelper.hide(ctx);
-      if (!ctx.mounted) return;
+      await LoaderHelper.hide(context);
+      if (!mounted) return;
       _showBoostSubmitErrorDialog(
         title: 'Purchase failed',
         message: iap.errorMessage ?? 'The store could not complete the purchase.',
@@ -163,9 +162,9 @@ class _BoostListingPageState extends State<BoostListingPage> {
       return;
     }
 
-    await LoaderHelper.hide(ctx);
-    if (!ctx.mounted) return;
-    LoaderHelper.show(ctx, message: 'Activating boost…');
+    await LoaderHelper.hide(context);
+    if (!mounted) return;
+    LoaderHelper.show(context, message: 'Activating boost…');
     try {
       await sl<BoostsRepository>().submitBoostOrder(
         businessId: businessId,
@@ -178,9 +177,9 @@ class _BoostListingPageState extends State<BoostListingPage> {
     } catch (e, st) {
       debugPrint('submitBoostOrder failed: $e');
       debugPrintStack(stackTrace: st);
-      if (!ctx.mounted) return;
-      await LoaderHelper.hide(ctx);
-      if (!ctx.mounted) return;
+      if (!mounted) return;
+      await LoaderHelper.hide(context);
+      if (!mounted) return;
       _showBoostSubmitErrorDialog(
         title: 'Boost activation failed',
         message:
@@ -189,13 +188,13 @@ class _BoostListingPageState extends State<BoostListingPage> {
       );
       return;
     }
-    if (!ctx.mounted) return;
-    await LoaderHelper.hide(ctx);
-    if (!ctx.mounted) return;
+    if (!mounted) return;
+    await LoaderHelper.hide(context);
+    if (!mounted) return;
 
     if (widget.boostType != null) {
       Navigator.pushReplacement(
-        ctx,
+        context,
         MaterialPageRoute(
           builder: (_) => OrderConfirmationPage(
             dealTitle: widget.selectedTitle,
@@ -209,7 +208,7 @@ class _BoostListingPageState extends State<BoostListingPage> {
         ),
       );
     } else {
-      Navigator.pop(ctx, true);
+      Navigator.pop(context, true);
     }
   }
 
