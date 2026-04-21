@@ -133,7 +133,7 @@ class _SavedItemsPageState extends State<SavedItemsPage> {
                           return _SavedItemCard(
                             item: item,
                             onOpen: () => _openSavedItemDetail(context, item),
-                            onUnsave: () async {
+                            onDelete: () async {
                               final err = await context
                                   .read<SavedItemsCubit>()
                                   .removeItem(item);
