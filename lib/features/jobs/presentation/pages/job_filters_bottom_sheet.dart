@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/job_filters.dart';
 import '../../domain/job_quick_filter_options.dart';
+import '../../domain/usecases/get_job_categories_usecase.dart';
 
 class JobFiltersBottomSheet extends StatefulWidget {
   final JobFilters? initialFilters;
@@ -18,13 +20,16 @@ class JobFiltersBottomSheet extends StatefulWidget {
 
 class _JobFiltersBottomSheetState extends State<JobFiltersBottomSheet> {
   late JobFilters _filters;
-  final List<String> _categories = [
+  late final Future<List<String>> _categoriesFuture;
+
+  static const List<String> _fallbackCategories = [
     'Homecare',
     'Trucking',
     'Retail',
     'Construction',
     'Healthcare',
   ];
+
   final List<String> _jobTypes = List<String>.from(kJobsQuickFilterJobTypes);
   final List<String> _dateRanges = [
     'Today',
@@ -37,6 +42,15 @@ class _JobFiltersBottomSheetState extends State<JobFiltersBottomSheet> {
   void initState() {
     super.initState();
     _filters = widget.initialFilters ?? const JobFilters();
+    _categoriesFuture = _loadCategories();
+  }
+
+  Future<List<String>> _loadCategories() async {
+    final result = await di.sl<GetJobCategoriesUseCase>()();
+    return result.fold(
+      (_) => _fallbackCategories,
+      (cats) => cats.isNotEmpty ? cats : _fallbackCategories,
+    );
   }
 
   void _toggleCategory(String category) {
@@ -196,50 +210,67 @@ class _JobFiltersBottomSheetState extends State<JobFiltersBottomSheet> {
           ),
         ),
         const SizedBox(height: 12),
-        ..._categories.map((category) {
-          final isSelected = _filters.categories.contains(category);
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: GestureDetector(
-              onTap: () => _toggleCategory(category),
-              child: Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.brandPrimary
-                          : Colors.transparent,
-                      border: Border.all(
-                        color: isSelected
-                            ? AppColors.brandPrimary
-                            : AppColors.backgroundGrey,
-                        width: 2,
-                      ),
-                      borderRadius: BorderRadius.circular(4),
+        FutureBuilder<List<String>>(
+          future: _categoriesFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: LinearProgressIndicator(minHeight: 2),
+              );
+            }
+            final categories = (snapshot.hasData && snapshot.data!.isNotEmpty)
+                ? snapshot.data!
+                : _fallbackCategories;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: categories.map((category) {
+                final isSelected = _filters.categories.contains(category);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: GestureDetector(
+                    onTap: () => _toggleCategory(category),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.brandPrimary
+                                : Colors.transparent,
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.brandPrimary
+                                  : AppColors.backgroundGrey,
+                              width: 2,
+                            ),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: isSelected
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          category,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
                     ),
-                    child: isSelected
-                        ? const Icon(
-                            Icons.check,
-                            size: 16,
-                            color: Colors.white,
-                          )
-                        : null,
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    category,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
+                );
+              }).toList(),
+            );
+          },
+        ),
       ],
     );
   }

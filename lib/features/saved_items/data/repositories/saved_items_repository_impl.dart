@@ -19,6 +19,7 @@ class SavedItemsRepositoryImpl implements SavedItemsRepository {
         SavedItemType.deal => 'deal',
         SavedItemType.event => 'event',
         SavedItemType.job => 'job',
+        SavedItemType.business => 'business',
       };
       final list = await remoteDataSource.getSavedItems(filterType: typeStr);
       return Right(list);
@@ -40,6 +41,7 @@ class SavedItemsRepositoryImpl implements SavedItemsRepository {
         SavedItemType.deal => 'deal',
         SavedItemType.event => 'event',
         SavedItemType.job => 'job',
+        SavedItemType.business => 'business',
       };
       await remoteDataSource.saveItem(
         itemType: typeStr,

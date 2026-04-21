@@ -15,6 +15,45 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
 
   SupabaseClient get _client => Supabase.instance.client;
 
+  /// Strips `%` and trims so PostgREST `ilike` patterns stay predictable.
+  static String _sanitizeIlike(String? raw) {
+    if (raw == null) return '';
+    return raw.replaceAll('%', '').trim();
+  }
+
+  static DateTime _startOfLocalDay(DateTime d) =>
+      DateTime(d.year, d.month, d.day);
+
+  /// Lower bound on `posted_at` for filter sheet date options ([JobFilters.dateRange]).
+  static DateTime? _postedAtLowerBound(String? dateRange) {
+    if (dateRange == null || dateRange.isEmpty) return null;
+    if (dateRange == 'Anytime') return null;
+    final now = DateTime.now();
+    switch (dateRange) {
+      case 'Today':
+        return _startOfLocalDay(now);
+      case 'Past 3 Days':
+        return now.subtract(const Duration(days: 3));
+      case 'Past Week':
+        return now.subtract(const Duration(days: 7));
+      default:
+        return null;
+    }
+  }
+
+  /// UI sends display labels (e.g. `Full-time`); DB stores slugs (`full-time`).
+  static List<String> _jobTypeSlugsForFilter(List<String> labels) {
+    final out = <String>{};
+    for (final label in labels) {
+      final slug = jobTypeNormalizeSlug(label);
+      out.add(slug);
+      if (slug == 'temporary') {
+        out.add('internship');
+      }
+    }
+    return out.toList();
+  }
+
   @override
   Future<List<JobListing>> getJobs({
     String? location,
@@ -50,8 +89,11 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
 
       if (featuredOnly) query = query.eq('is_featured', true);
       // TODO: Add location filter when ready (filter by businesses in address_city/address_state)
-      if (searchQuery != null && searchQuery.isNotEmpty) {
-        query = query.or('title.ilike.%$searchQuery%,description.ilike.%$searchQuery%');
+      final q = _sanitizeIlike(searchQuery);
+      if (q.isNotEmpty) {
+        query = query.or(
+          'title.ilike.%$q%,description.ilike.%$q%,location.ilike.%$q%,job_type.ilike.%$q%',
+        );
       }
       final categories = filters?.categories;
       if (categories != null && categories.isNotEmpty) {
@@ -59,7 +101,11 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
       }
       final jobTypes = filters?.jobTypes;
       if (jobTypes != null && jobTypes.isNotEmpty) {
-        query = query.inFilter('job_type', jobTypes);
+        query = query.inFilter('job_type', _jobTypeSlugsForFilter(jobTypes));
+      }
+      final postedFrom = _postedAtLowerBound(filters?.dateRange);
+      if (postedFrom != null) {
+        query = query.gte('posted_at', postedFrom.toIso8601String());
       }
 
       final res = await query.order('posted_at', ascending: false);

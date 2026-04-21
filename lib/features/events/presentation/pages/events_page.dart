@@ -79,12 +79,17 @@ class _EventsPageState extends State<EventsPage> {
     return sheet;
   }
 
+  String? _trimmedSearchQueryOrNull() {
+    final q = _searchController.text.trim();
+    return q.isEmpty ? null : q;
+  }
+
   void _loadEvents(BuildContext context) {
     final effective = _effectiveFilters();
     context.read<EventsCubit>().loadEvents(
           location: _currentLocation,
           filters: effective,
-          searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
+          searchQuery: _trimmedSearchQueryOrNull(),
         );
   }
 
@@ -151,7 +156,7 @@ class _EventsPageState extends State<EventsPage> {
           cubit.loadEvents(
             location: loc,
             filters: _effectiveFilters(),
-            searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
+            searchQuery: _trimmedSearchQueryOrNull(),
           );
         });
         return cubit;

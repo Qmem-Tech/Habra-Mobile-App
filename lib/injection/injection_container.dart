@@ -142,7 +142,10 @@ import '../features/feedback/data/datasources/feedback_supabase_datasource.dart'
 import '../features/feedback/data/repositories/feedback_repository_impl.dart';
 import '../features/feedback/domain/repositories/feedback_repository.dart';
 import '../features/feedback/domain/usecases/submit_feedback_usecase.dart';
+import '../features/feedback/domain/usecases/list_feedback_for_admin_usecase.dart';
+import '../features/feedback/domain/usecases/update_admin_feedback_usecase.dart';
 import '../features/feedback/presentation/bloc/feedback_cubit.dart';
+import '../features/feedback/presentation/bloc/admin_feedback_cubit.dart';
 import '../features/profile/data/datasources/profile_remote_datasource.dart';
 import '../features/profile/data/datasources/profile_supabase_datasource.dart';
 import '../features/profile/data/repositories/profile_repository_impl.dart';
@@ -460,7 +463,19 @@ Future<void> init() async {
     () => FeedbackRepositoryImpl(remoteDataSource: sl<FeedbackRemoteDataSource>()),
   );
   sl.registerLazySingleton(() => SubmitFeedbackUseCase(sl<FeedbackRepository>()));
+  sl.registerLazySingleton(
+    () => ListFeedbackForAdminUseCase(sl<FeedbackRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => UpdateAdminFeedbackUseCase(sl<FeedbackRepository>()),
+  );
   sl.registerFactory(() => FeedbackCubit(submitFeedbackUseCase: sl<SubmitFeedbackUseCase>()));
+  sl.registerFactory(
+    () => AdminFeedbackCubit(
+      listUseCase: sl<ListFeedbackForAdminUseCase>(),
+      updateUseCase: sl<UpdateAdminFeedbackUseCase>(),
+    ),
+  );
 
   // Features - Profile
   sl.registerLazySingleton<ProfileRemoteDataSource>(

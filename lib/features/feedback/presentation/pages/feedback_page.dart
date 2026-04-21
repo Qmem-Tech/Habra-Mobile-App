@@ -34,12 +34,23 @@ class _FeedbackPageState extends State<FeedbackPage> {
         elevation: 0,
       ),
       body: BlocConsumer<FeedbackCubit, FeedbackState>(
-        listener: (context, state) {
+        listener: (context, state) async {
           if (state is FeedbackSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Thank you! Your feedback has been sent.'),
-                backgroundColor: AppColors.success,
+            if (!context.mounted) return;
+            await showDialog<void>(
+              context: context,
+              barrierDismissible: false,
+              builder: (dialogContext) => AlertDialog(
+                title: const Text('Thanks!'),
+                content: const Text(
+                  'Your feedback has been sent. We appreciate you taking the time.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('OK'),
+                  ),
+                ],
               ),
             );
             if (!context.mounted) return;

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -10,6 +10,8 @@ import '../../../../core/utils/app_share.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../../saved_items/domain/entities/saved_item.dart';
+import '../../../saved_items/domain/usecases/save_item_usecase.dart';
 import '../../domain/entities/business_detail.dart';
 import '../../domain/entities/review.dart';
 import '../../domain/repositories/businesses_repository.dart';
@@ -110,7 +112,40 @@ class BusinessDetailPage extends StatelessWidget {
         ),
         IconButton(
           icon: const Icon(Icons.bookmark_border, color: Colors.white),
-          onPressed: () => _saveBusiness(context, business),
+          onPressed: () async {
+            if (Supabase.instance.client.auth.currentUser == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Sign in to save businesses')),
+              );
+              return;
+            }
+            final meta = _categoryAndPriceLine(business);
+            final addr = business.fullAddress.trim();
+            final subtitleParts = <String>[
+              if (meta.isNotEmpty) meta,
+              if (addr.isNotEmpty && addr != 'Address not available') addr,
+            ];
+            final subtitleStr =
+                subtitleParts.isEmpty ? null : subtitleParts.join(' · ');
+            final result = await di.sl<SaveItemUseCase>()(
+              itemType: SavedItemType.business,
+              referenceId: business.id,
+              title: business.name.trim(),
+              subtitle: subtitleStr,
+              imageUrl: business.imageUrls.isNotEmpty
+                  ? business.imageUrls.first
+                  : null,
+            );
+            if (!context.mounted) return;
+            result.fold(
+              (f) => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(f.message)),
+              ),
+              (_) => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Business saved to your list')),
+              ),
+            );
+          },
         ),
       ],
     );
@@ -860,34 +895,14 @@ class BusinessDetailPage extends StatelessWidget {
   ) async {
     final name = business.name.trim();
     final address = business.fullAddress.trim();
-    final text = address.isNotEmpty ? '$name\n$address' : name;
+    final body = address.isNotEmpty ? '$name\n$address' : name;
+    final text = '$body\n\nBusiness on Habra';
     try {
       await shareText(text, subject: name);
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open share sheet')),
-      );
-    }
-  }
-
-  static Future<void> _saveBusiness(
-    BuildContext context,
-    BusinessDetail business,
-  ) async {
-    final name = business.name.trim();
-    final address = business.fullAddress.trim();
-    final payload = address.isNotEmpty ? '$name\n$address' : name;
-    try {
-      await Clipboard.setData(ClipboardData(text: payload));
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Business details copied')),
-      );
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save business details')),
       );
     }
   }

@@ -45,6 +45,12 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
     return TicketStatus.available;
   }
 
+  /// Strips `%` and trims so PostgREST `ilike` patterns stay predictable.
+  static String _sanitizeIlike(String? raw) {
+    if (raw == null) return '';
+    return raw.replaceAll('%', '').trim();
+  }
+
   @override
   Future<List<EventListItemModel>> getEvents({
     String? location,
@@ -59,8 +65,11 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
           .gte('start_at', DateTime.now().toIso8601String());
 
       // TODO: Add location filter when ready: query.or('venue_name.ilike.%$location%,venue_address.ilike.%$location%')
-      if (searchQuery != null && searchQuery.isNotEmpty) {
-        query = query.or('title.ilike.%$searchQuery%,description.ilike.%$searchQuery%');
+      final q = _sanitizeIlike(searchQuery);
+      if (q.isNotEmpty) {
+        query = query.or(
+          'title.ilike.%$q%,description.ilike.%$q%,venue_name.ilike.%$q%,venue_address.ilike.%$q%',
+        );
       }
       final startDate = filters?.startDate;
       if (startDate != null) {

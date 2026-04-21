@@ -73,6 +73,11 @@ class _JobsPageState extends State<JobsPage> {
     super.dispose();
   }
 
+  String? _trimmedSearchQueryOrNull() {
+    final q = _searchController.text.trim();
+    return q.isEmpty ? null : q;
+  }
+
   void _loadJobs(BuildContext? context, JobsCubit? cubit) {
     final ctx = context ?? this.context;
     final jobsCubit = cubit ?? ctx.read<JobsCubit>();
@@ -82,9 +87,7 @@ class _JobsPageState extends State<JobsPage> {
     jobsCubit.loadJobs(
       location: loc,
       filters: _activeFilters,
-      searchQuery: _searchController.text.isEmpty
-          ? null
-          : _searchController.text,
+      searchQuery: _trimmedSearchQueryOrNull(),
     );
   }
 
@@ -202,9 +205,7 @@ class _JobsPageState extends State<JobsPage> {
           cubit.loadJobs(
             location: loc,
             filters: _activeFilters,
-            searchQuery: _searchController.text.isEmpty
-                ? null
-                : _searchController.text,
+            searchQuery: _trimmedSearchQueryOrNull(),
           );
         });
         return cubit;
@@ -410,9 +411,7 @@ class _JobsPageState extends State<JobsPage> {
               cubit.loadJobs(
                 location: loc,
                 filters: _activeFilters,
-                searchQuery: _searchController.text.isEmpty
-                    ? null
-                    : _searchController.text,
+                searchQuery: _trimmedSearchQueryOrNull(),
               );
             },
           );

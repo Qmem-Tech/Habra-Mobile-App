@@ -24,7 +24,10 @@ class JobsCubit extends Cubit<JobsState> {
     JobFilters? filters,
     String? searchQuery,
   }) async {
-    emit(JobsLoading());
+    // Keep Featured/Recent visible while debounced search reloads (no full-screen flash).
+    if (state is! JobsLoaded) {
+      emit(JobsLoading());
+    }
 
     final result = await getJobsUseCase(
       location: location,

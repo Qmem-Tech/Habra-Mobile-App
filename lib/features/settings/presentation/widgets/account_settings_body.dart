@@ -23,9 +23,11 @@ import '../../../../core/localization/localization_cubit.dart' as loc;
 import '../pages/about_us_page.dart';
 import '../pages/community_guidelines_page.dart';
 import '../pages/language_page.dart';
-import '../pages/privacy_hub_page.dart';
 import '../pages/privacy_policy_page.dart';
 import '../pages/terms_of_service_page.dart';
+
+/// Set to `true` when the profile language picker is ready to ship.
+const bool _showLanguageSettingOnProfile = false;
 
 /// Account / settings layout matching the Habra settings design mock.
 class AccountSettingsBody extends StatefulWidget {
@@ -164,27 +166,29 @@ class _AccountSettingsBodyState extends State<AccountSettingsBody> {
           const SizedBox(height: AppResources.spacingL),
         ],
         _SectionTitle(title: 'Preferences'),
-        _SettingsCard(
-          child: _ChevronTile(
-            icon: Icons.public_rounded,
-            title: l10n.language,
-            trailing: BlocBuilder<loc.LocalizationCubit, loc.LocalizationState>(
-              builder: (context, state) {
-                return Text(
-                  _languageName(state.locale.languageCode),
-                  style: AppFonts.bodySmall(color: AppColors.textSecondary),
+        if (_showLanguageSettingOnProfile) ...[
+          _SettingsCard(
+            child: _ChevronTile(
+              icon: Icons.public_rounded,
+              title: l10n.language,
+              trailing: BlocBuilder<loc.LocalizationCubit, loc.LocalizationState>(
+                builder: (context, state) {
+                  return Text(
+                    _languageName(state.locale.languageCode),
+                    style: AppFonts.bodySmall(color: AppColors.textSecondary),
+                  );
+                },
+              ),
+              onTap: () {
+                Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(builder: (_) => const LanguagePage()),
                 );
               },
             ),
-            onTap: () {
-              Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(builder: (_) => const LanguagePage()),
-              );
-            },
           ),
-        ),
-        const SizedBox(height: AppResources.spacingS),
+          const SizedBox(height: AppResources.spacingS),
+        ],
         _SettingsCard(
           child: _ChevronTile(
             icon: Icons.location_on_outlined,
@@ -266,19 +270,6 @@ class _AccountSettingsBodyState extends State<AccountSettingsBody> {
         _SettingsCard(
           child: Column(
             children: [
-              _ChevronTile(
-                icon: Icons.lock_outline_rounded,
-                title: 'Privacy',
-                showDividerBelow: true,
-                onTap: () {
-                  Navigator.push<void>(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => const PrivacyHubPage(),
-                    ),
-                  );
-                },
-              ),
               _ChevronTile(
                 icon: Icons.feedback_outlined,
                 title: 'Feedback',
