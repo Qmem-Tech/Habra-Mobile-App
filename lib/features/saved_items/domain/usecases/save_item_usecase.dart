@@ -11,7 +11,16 @@ class SaveItemUseCase {
   Future<Either<Failure, void>> call({
     required SavedItemType itemType,
     required String referenceId,
+    String? title,
+    String? subtitle,
+    String? imageUrl,
   }) {
-    return repository.saveItem(itemType: itemType, referenceId: referenceId);
+    return repository.saveItem(
+      itemType: itemType,
+      referenceId: referenceId,
+      title: title,
+      subtitle: subtitle,
+      imageUrl: imageUrl,
+    );
   }
 }

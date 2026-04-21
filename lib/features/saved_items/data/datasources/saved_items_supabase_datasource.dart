@@ -57,18 +57,28 @@ class SavedItemsSupabaseDataSource implements SavedItemsRemoteDataSource {
   }
 
   @override
-  Future<void> saveItem(
-      {required String itemType, required String referenceId}) async {
+  Future<void> saveItem({
+    required String itemType,
+    required String referenceId,
+    String? title,
+    String? subtitle,
+    String? imageUrl,
+  }) async {
     return SupabaseFailureMapper.guard(() async {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('Not authenticated');
 
+      final row = <String, dynamic>{
+        'user_id': userId,
+        'item_type': itemType,
+        'reference_id': referenceId,
+      };
+      if (title != null && title.isNotEmpty) row['title'] = title;
+      if (subtitle != null && subtitle.isNotEmpty) row['subtitle'] = subtitle;
+      if (imageUrl != null && imageUrl.isNotEmpty) row['image_url'] = imageUrl;
+
       await _client.from(SupabaseTables.savedItems).upsert(
-            {
-              'user_id': userId,
-              'item_type': itemType,
-              'reference_id': referenceId,
-            },
+            row,
             onConflict: 'user_id,item_type,reference_id',
           );
     });

@@ -205,6 +205,27 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
   }
 
   @override
+  Future<Map<String, DateTime>> getBookmarkedJobSavedAtByJobId() async {
+    return SupabaseFailureMapper.guard(() async {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return <String, DateTime>{};
+      final res = await _client
+          .from('job_bookmarks')
+          .select('job_id, created_at')
+          .eq('user_id', userId);
+      final map = <String, DateTime>{};
+      for (final e in res as List) {
+        final row = e as Map;
+        final id = row['job_id']?.toString() ?? '';
+        if (id.isEmpty) continue;
+        final at = parseTimestamp(row['created_at']);
+        if (at != null) map[id] = at;
+      }
+      return map;
+    });
+  }
+
+  @override
   Future<void> toggleBookmark(String jobId, bool isBookmarked) async {
     return SupabaseFailureMapper.guard(() async {
       final userId = _client.auth.currentUser?.id;

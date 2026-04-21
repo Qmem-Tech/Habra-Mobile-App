@@ -144,6 +144,11 @@ class EventDetailPage extends StatelessWidget {
             final result = await di.sl<SaveItemUseCase>()(
               itemType: SavedItemType.event,
               referenceId: event.id,
+              title: event.title,
+              subtitle:
+                  '${event.venue} · ${DateFormat('EEE, MMM d').format(event.startDate)}',
+              imageUrl:
+                  event.imageUrl.isNotEmpty ? event.imageUrl : null,
             );
             if (!context.mounted) return;
             result.fold(

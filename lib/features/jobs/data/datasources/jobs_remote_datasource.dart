@@ -19,6 +19,9 @@ abstract class JobsRemoteDataSource {
   /// Bookmarked job IDs for the current user (from backend when using Supabase).
   Future<List<String>> getBookmarkedJobIds();
 
+  /// Bookmark creation time per job id (when `job_bookmarks.created_at` exists).
+  Future<Map<String, DateTime>> getBookmarkedJobSavedAtByJobId();
+
   Future<void> toggleBookmark(String jobId, bool isBookmarked);
 }
 
@@ -52,6 +55,9 @@ class JobsRemoteDataSourceImpl implements JobsRemoteDataSource {
 
   @override
   Future<List<String>> getBookmarkedJobIds() async => [];
+
+  @override
+  Future<Map<String, DateTime>> getBookmarkedJobSavedAtByJobId() async => {};
 
   @override
   Future<void> toggleBookmark(String jobId, bool isBookmarked) async {}

@@ -84,6 +84,16 @@ class JobsRepositoryImpl implements JobsRepository {
   }
 
   @override
+  Future<Either<Failure, Map<String, DateTime>>> getBookmarkedJobSavedAtByJobId() async {
+    try {
+      final map = await remoteDataSource.getBookmarkedJobSavedAtByJobId();
+      return Right(map);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, List<JobListing>>> getBookmarkedJobs() async {
     try {
       final bookmarkedIds = await remoteDataSource.getBookmarkedJobIds();

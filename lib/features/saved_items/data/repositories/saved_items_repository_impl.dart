@@ -31,6 +31,9 @@ class SavedItemsRepositoryImpl implements SavedItemsRepository {
   Future<Either<Failure, void>> saveItem({
     required SavedItemType itemType,
     required String referenceId,
+    String? title,
+    String? subtitle,
+    String? imageUrl,
   }) async {
     try {
       final typeStr = switch (itemType) {
@@ -41,6 +44,9 @@ class SavedItemsRepositoryImpl implements SavedItemsRepository {
       await remoteDataSource.saveItem(
         itemType: typeStr,
         referenceId: referenceId,
+        title: title,
+        subtitle: subtitle,
+        imageUrl: imageUrl,
       );
       return const Right(null);
     } catch (e) {

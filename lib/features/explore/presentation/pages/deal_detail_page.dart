@@ -153,6 +153,10 @@ class DealDetailPage extends StatelessWidget {
             final result = await di.sl<SaveItemUseCase>()(
               itemType: SavedItemType.deal,
               referenceId: deal.id,
+              title: deal.title,
+              subtitle: '${deal.business.name} · ${deal.displayPrice}',
+              imageUrl:
+                  deal.imageUrl.isNotEmpty ? deal.imageUrl : null,
             );
             if (!context.mounted) return;
             result.fold(

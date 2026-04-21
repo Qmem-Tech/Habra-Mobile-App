@@ -4,9 +4,35 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../../core/resources/app_assets.dart';
+import '../../../events/presentation/pages/event_detail_page.dart';
+import '../../../explore/presentation/pages/deal_detail_page.dart';
+import '../../../jobs/presentation/pages/job_detail_page.dart';
 import '../../domain/entities/saved_item.dart';
 import '../bloc/saved_items_cubit.dart';
 import '../bloc/saved_items_state.dart';
+
+void _openSavedItemDetail(BuildContext context, SavedItem item) {
+  switch (item.itemType) {
+    case SavedItemType.event:
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => EventDetailPage(eventId: item.referenceId),
+        ),
+      );
+    case SavedItemType.deal:
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => DealDetailPage(dealId: item.referenceId),
+        ),
+      );
+    case SavedItemType.job:
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => JobDetailPage(jobId: item.referenceId),
+        ),
+      );
+  }
+}
 
 enum SavedItemsFilter { all, events, deals, jobs }
 
@@ -106,9 +132,18 @@ class _SavedItemsPageState extends State<SavedItemsPage> {
                           final item = state.items[index];
                           return _SavedItemCard(
                             item: item,
-                            onUnsave: () => context
-                                .read<SavedItemsCubit>()
-                                .removeItem(item),
+                            onOpen: () => _openSavedItemDetail(context, item),
+                            onUnsave: () async {
+                              final err = await context
+                                  .read<SavedItemsCubit>()
+                                  .removeItem(item);
+                              if (!context.mounted) return;
+                              if (err != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(err)),
+                                );
+                              }
+                            },
                           );
                         },
                       ),
@@ -126,10 +161,12 @@ class _SavedItemsPageState extends State<SavedItemsPage> {
 
 class _SavedItemCard extends StatelessWidget {
   final SavedItem item;
-  final VoidCallback onUnsave;
+  final VoidCallback onOpen;
+  final Future<void> Function() onUnsave;
 
   const _SavedItemCard({
     required this.item,
+    required this.onOpen,
     required this.onUnsave,
   });
 
@@ -137,59 +174,98 @@ class _SavedItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: AppResources.spacingM),
-      padding: const EdgeInsets.all(AppResources.spacingM),
       decoration: BoxDecoration(
         color: AppColors.backgroundLight,
         borderRadius: BorderRadius.circular(AppResources.radiusL),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppResources.radiusM),
-            child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                ? Image.network(
-                    item.imageUrl!,
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _placeholder(),
-                  )
-                : _placeholder(),
-          ),
-          const SizedBox(width: AppResources.spacingM),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title ??
-                      switch (item.itemType) {
-                        SavedItemType.event => 'Event',
-                        SavedItemType.deal => 'Deal',
-                        SavedItemType.job => 'Job',
-                      },
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+            child: InkWell(
+              onTap: onOpen,
+              borderRadius: BorderRadius.circular(AppResources.radiusL),
+              child: Padding(
+                padding: const EdgeInsets.all(AppResources.spacingM),
+                child: Row(
+                  children: [
+                    _buildThumbnail(),
+                    const SizedBox(width: AppResources.spacingM),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title ??
+                                switch (item.itemType) {
+                                  SavedItemType.event => 'Event',
+                                  SavedItemType.deal => 'Deal',
+                                  SavedItemType.job => 'Job',
+                                },
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                          ),
+                          if (item.subtitle != null &&
+                              item.subtitle!.trim().isNotEmpty)
+                            Text(
+                              item.subtitle!,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
                       ),
+                    ),
+                  ],
                 ),
-                if (item.subtitle != null)
-                  Text(
-                    item.subtitle!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
+              ),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.bookmark, color: AppColors.brandSecondary),
-            onPressed: onUnsave,
+            onPressed: () => onUnsave(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildThumbnail() {
+    final url = item.imageUrl;
+    if (url == null || url.isEmpty) {
+      return _placeholder();
+    }
+    final borderRadius = BorderRadius.circular(AppResources.radiusM);
+    if (url.startsWith('assets/')) {
+      return ClipRRect(
+        borderRadius: borderRadius,
+        child: Image.asset(
+          url,
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _placeholder(),
+        ),
+      );
+    }
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: Image.network(
+        url,
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholder(),
       ),
     );
   }

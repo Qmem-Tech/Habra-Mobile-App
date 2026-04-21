@@ -28,36 +28,52 @@ class SavedItemsCubit extends Cubit<SavedItemsState> {
   ToggleBookmarkUseCase get toggleBookmarkUseCase =>
       _toggleBookmarkUseCase ?? di.sl<ToggleBookmarkUseCase>();
 
-  static SavedItem _jobListingToSavedItem(JobListing job) {
+  static SavedItem _jobListingToSavedItem(
+    JobListing job, {
+    DateTime? bookmarkedAt,
+  }) {
     final subtitleParts = <String>[
       job.companyName,
       if (job.location != null && job.location!.trim().isNotEmpty) job.location!,
     ];
+    final savedAt = bookmarkedAt ??
+        job.postedDate ??
+        DateTime.fromMillisecondsSinceEpoch(0);
     return SavedItem(
       id: job.id,
       userId: '',
       itemType: SavedItemType.job,
       referenceId: job.id,
-      savedAt: job.postedDate ?? DateTime.fromMillisecondsSinceEpoch(0),
+      savedAt: savedAt,
       title: job.title,
       subtitle: subtitleParts.join(' · '),
       imageUrl: job.companyLogoUrl,
     );
   }
 
+  Future<Map<String, DateTime>> _bookmarkSavedAtByJobId() async {
+    final r = await jobsRepository.getBookmarkedJobSavedAtByJobId();
+    return r.fold((_) => <String, DateTime>{}, (m) => m);
+  }
+
   Future<void> loadSavedItems({SavedItemType? filterType}) async {
     emit(SavedItemsLoading());
 
     if (filterType == SavedItemType.job) {
+      final bookmarks = await _bookmarkSavedAtByJobId();
       final result = await jobsRepository.getBookmarkedJobs();
       result.fold(
         (failure) => emit(SavedItemsError(failure.message)),
-        (jobs) => emit(
-          SavedItemsLoaded(
-            items: jobs.map(_jobListingToSavedItem).toList(),
-            filterType: filterType,
-          ),
-        ),
+        (jobs) {
+          final items = jobs
+              .map((j) => _jobListingToSavedItem(
+                    j,
+                    bookmarkedAt: bookmarks[j.id],
+                  ))
+              .toList()
+            ..sort((a, b) => b.savedAt.compareTo(a.savedAt));
+          emit(SavedItemsLoaded(items: items, filterType: filterType));
+        },
       );
       return;
     }
@@ -65,6 +81,7 @@ class SavedItemsCubit extends Cubit<SavedItemsState> {
     if (filterType == null) {
       final savedResult = await getSavedItemsUseCase(filterType: null);
       final jobsResult = await jobsRepository.getBookmarkedJobs();
+      final bookmarks = await _bookmarkSavedAtByJobId();
 
       String? err;
       List<SavedItem> savedItems = [];
@@ -81,7 +98,12 @@ class SavedItemsCubit extends Cubit<SavedItemsState> {
         return;
       }
 
-      final jobItems = jobs.map(_jobListingToSavedItem).toList();
+      final jobItems = jobs
+          .map((j) => _jobListingToSavedItem(
+                j,
+                bookmarkedAt: bookmarks[j.id],
+              ))
+          .toList();
       final merged = [...savedItems, ...jobItems]
         ..sort((a, b) => b.savedAt.compareTo(a.savedAt));
       emit(SavedItemsLoaded(items: merged, filterType: null));
@@ -95,35 +117,40 @@ class SavedItemsCubit extends Cubit<SavedItemsState> {
     );
   }
 
-  Future<void> removeItem(SavedItem item) async {
+  /// Returns `null` on success, or an error message to show the user.
+  Future<String?> removeItem(SavedItem item) async {
     final current = state;
-    if (current is! SavedItemsLoaded) return;
+    if (current is! SavedItemsLoaded) {
+      return 'Unable to update the list. Try again.';
+    }
 
     if (item.itemType == SavedItemType.job) {
       final result = await toggleBookmarkUseCase(item.referenceId, false);
-      result.fold(
-        (_) => {},
+      return result.fold(
+        (f) => f.message,
         (_) {
-          final updated =
-              current.items.where((i) => i.referenceId != item.referenceId).toList();
+          final updated = current.items
+              .where((i) => i.referenceId != item.referenceId)
+              .toList();
           emit(SavedItemsLoaded(
             items: updated,
             filterType: current.filterType,
           ));
+          return null;
         },
       );
-      return;
     }
 
     final result = await removeSavedItemUseCase(item.id);
-    result.fold(
-      (_) => {},
+    return result.fold(
+      (f) => f.message,
       (_) {
         final updated = current.items.where((i) => i.id != item.id).toList();
         emit(SavedItemsLoaded(
           items: updated,
           filterType: current.filterType,
         ));
+        return null;
       },
     );
   }

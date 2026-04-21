@@ -22,6 +22,9 @@ abstract class JobsRepository {
   /// Get bookmarked jobs
   Future<Either<Failure, List<JobListing>>> getBookmarkedJobs();
 
+  /// Map of job id → when the user bookmarked it (if available from backend).
+  Future<Either<Failure, Map<String, DateTime>>> getBookmarkedJobSavedAtByJobId();
+
   /// Get available job categories
   Future<Either<Failure, List<String>>> getJobCategories();
 
