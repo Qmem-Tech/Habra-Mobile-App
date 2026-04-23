@@ -4,15 +4,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/config/business_subscription_config.dart';
 import '../../../../core/services/revenue_cat_service.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 
 class BusinessOwnerSubscriptionState extends Equatable {
   const BusinessOwnerSubscriptionState({
     this.isLoading = true,
     this.hasActiveSubscription = false,
+    this.currentTier = BusinessSubscriptionTier.basic,
   });
 
   final bool isLoading;
   final bool hasActiveSubscription;
+  final BusinessSubscriptionTier currentTier;
 
   bool get shouldShowSubscribeBanner =>
       BusinessSubscriptionConfig.gatesPaidBusinessTabs &&
@@ -22,16 +25,18 @@ class BusinessOwnerSubscriptionState extends Equatable {
   BusinessOwnerSubscriptionState copyWith({
     bool? isLoading,
     bool? hasActiveSubscription,
+    BusinessSubscriptionTier? currentTier,
   }) {
     return BusinessOwnerSubscriptionState(
       isLoading: isLoading ?? this.isLoading,
       hasActiveSubscription:
           hasActiveSubscription ?? this.hasActiveSubscription,
+      currentTier: currentTier ?? this.currentTier,
     );
   }
 
   @override
-  List<Object?> get props => [isLoading, hasActiveSubscription];
+  List<Object?> get props => [isLoading, hasActiveSubscription, currentTier];
 }
 
 /// Resolves whether business-owner paid tabs (Dash, Boosts) are allowed.
@@ -43,47 +48,57 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
 
   Future<void> refresh(String userId) async {
     emit(state.copyWith(isLoading: true));
-    final active = await _resolveActive(userId);
+    final (active, tier) = await _resolveState(userId);
     emit(BusinessOwnerSubscriptionState(
       isLoading: false,
       hasActiveSubscription: active,
+      currentTier: tier,
     ));
   }
 
-  Future<bool> _resolveActive(String userId) async {
+  Future<(bool, BusinessSubscriptionTier)> _resolveState(String userId) async {
     switch (BusinessSubscriptionConfig.mode) {
       case BusinessOwnerSubscriptionMode.off:
-        return true;
+        return (true, BusinessSubscriptionTier.premium);
       case BusinessOwnerSubscriptionMode.stubLocked:
-        return false;
+        return (false, BusinessSubscriptionTier.basic);
       case BusinessOwnerSubscriptionMode.revenuecat:
         if (!_revenueCat.isInitialized) {
-          return false;
+          return (false, BusinessSubscriptionTier.basic);
         }
-        return await _revenueCat.hasEntitlement(
+        final active = await _revenueCat.hasEntitlement(
           BusinessSubscriptionConfig.revenueCatEntitlementId,
         );
+        if (!active) return (false, BusinessSubscriptionTier.basic);
+        final tier = await _revenueCat.resolveCurrentTier();
+        return (true, tier);
       case BusinessOwnerSubscriptionMode.profile:
-        return _profileSubscriptionActive(userId);
+        return _profileSubscriptionState(userId);
     }
   }
 
   /// Backend sync: optional boolean on `profiles`. If the column is absent or RLS blocks
   /// the read, we default to **true** so production without a migration stays usable.
-  Future<bool> _profileSubscriptionActive(String userId) async {
+  Future<(bool, BusinessSubscriptionTier)> _profileSubscriptionState(
+    String userId,
+  ) async {
     try {
       final row = await Supabase.instance.client
           .from('profiles')
-          .select('owner_tools_subscription_active')
+          .select('owner_tools_subscription_active, owner_tools_subscription_tier')
           .eq('id', userId)
           .maybeSingle();
-      if (row is! Map<String, dynamic>) return true;
+      if (row is! Map<String, dynamic>) {
+        return (true, BusinessSubscriptionTier.pro);
+      }
       final v = row['owner_tools_subscription_active'];
-      if (v == null) return true;
-      if (v is bool) return v;
-      return true;
+      final tier =
+          businessTierFromRaw(row['owner_tools_subscription_tier'] as String?);
+      if (v == null) return (true, tier);
+      if (v is bool) return (v, v ? tier : BusinessSubscriptionTier.basic);
+      return (true, tier);
     } catch (_) {
-      return true;
+      return (true, BusinessSubscriptionTier.pro);
     }
   }
 }

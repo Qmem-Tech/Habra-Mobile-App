@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../auth/domain/entities/user.dart';
@@ -336,8 +337,19 @@ class _DashboardPageState extends State<DashboardPage> {
                   }
                   switch (_tabIndex) {
                     case 0:
+                      final homeState = context.read<BusinessOwnerHomeCubit>().state;
+                      var analyticsLocked = false;
+                      if (homeState is BusinessOwnerHomeLoaded &&
+                          homeState.selectedPresence != null &&
+                          homeState.selectedPresence!.id != 'all') {
+                        analyticsLocked = !BusinessSubscriptionPolicy
+                            .canAccessAnalytics(
+                          homeState.selectedPresence!.subscriptionTier,
+                        );
+                      }
                       return DashboardAnalyticsTab(
                         analytics: state.analytics,
+                        analyticsLocked: analyticsLocked,
                         onQuickStatTap: (type) {
                           switch (type) {
                             case 'reviews':

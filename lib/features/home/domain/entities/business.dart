@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 
 class Business extends Equatable {
   final String id;
@@ -18,6 +19,8 @@ class Business extends Equatable {
   final String? phoneNumber;
   final double? latitude;
   final double? longitude;
+  final BusinessSubscriptionTier subscriptionTier;
+  final BusinessSubscriptionStatus subscriptionStatus;
 
   const Business({
     required this.id,
@@ -35,6 +38,8 @@ class Business extends Equatable {
     this.phoneNumber,
     this.latitude,
     this.longitude,
+    this.subscriptionTier = BusinessSubscriptionTier.basic,
+    this.subscriptionStatus = BusinessSubscriptionStatus.unknown,
   });
 
   @override
@@ -54,5 +59,7 @@ class Business extends Equatable {
         phoneNumber,
         latitude,
         longitude,
+        subscriptionTier,
+        subscriptionStatus,
       ];
 }

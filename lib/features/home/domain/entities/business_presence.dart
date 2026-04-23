@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 
 /// A single business or location managed by the owner (for selector and list).
 class BusinessPresence extends Equatable {
@@ -32,6 +33,8 @@ class BusinessPresence extends Equatable {
   final String? locationLabel;
   /// Denormalized monthly views when present (`businesses.monthly_profile_views`).
   final int? monthlyProfileViews;
+  final BusinessSubscriptionTier subscriptionTier;
+  final BusinessSubscriptionStatus subscriptionStatus;
 
   const BusinessPresence({
     required this.id,
@@ -59,6 +62,8 @@ class BusinessPresence extends Equatable {
     this.parentBusinessId,
     this.locationLabel,
     this.monthlyProfileViews,
+    this.subscriptionTier = BusinessSubscriptionTier.basic,
+    this.subscriptionStatus = BusinessSubscriptionStatus.unknown,
   });
 
   String get displayName => locationName != null ? '$name - $locationName' : name;
@@ -122,5 +127,7 @@ class BusinessPresence extends Equatable {
         parentBusinessId,
         locationLabel,
         monthlyProfileViews,
+        subscriptionTier,
+        subscriptionStatus,
       ];
 }

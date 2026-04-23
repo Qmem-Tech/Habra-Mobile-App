@@ -19,16 +19,53 @@ class DashboardAnalyticsTab extends StatelessWidget {
   const DashboardAnalyticsTab({
     super.key,
     this.analytics,
+    this.analyticsLocked = false,
     this.onQuickStatTap,
     this.onRefresh,
   });
 
   final DashboardAnalytics? analytics;
+  final bool analyticsLocked;
   final void Function(String type)? onQuickStatTap;
   final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
+    if (analyticsLocked) {
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          AppResources.spacingM,
+          12,
+          AppResources.spacingM,
+          24,
+        ),
+        child: AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'Analytics is available on Pro and Premium.',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Upgrade your business plan to unlock views trends, quick stats, and performance insights.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (analytics == null) {
       return EmptyStateWidget(
         illustrationPath: AppAssets.dashboardNoAnalytics,

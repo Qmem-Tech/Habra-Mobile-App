@@ -5,6 +5,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import '../../../../core/config/business_subscription_config.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/services/revenue_cat_service.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/error_display_helper.dart';
@@ -164,7 +165,7 @@ class _BusinessOwnerSubscriptionPageState
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Business tools',
+          'Grow Your Business',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -203,7 +204,7 @@ class _BusinessOwnerSubscriptionPageState
 
   Widget _buildHeadline() {
     return const Text(
-      'Unlock the full owner dashboard',
+      'Get More Customers With Premium',
       style: TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.bold,
@@ -215,9 +216,9 @@ class _BusinessOwnerSubscriptionPageState
 
   Widget _buildBenefits() {
     const items = [
-      'Analytics, deals, jobs, and reviews in one place',
-      'Create and manage listings faster',
-      'Same subscription works across your devices',
+      'More views',
+      'More calls',
+      'More customers',
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,7 +271,38 @@ class _BusinessOwnerSubscriptionPageState
           ),
         ];
       case BusinessOwnerSubscriptionMode.profile:
+        final currentTier = context
+            .read<BusinessOwnerSubscriptionCubit>()
+            .state
+            .currentTier;
         return [
+          _PlanTile(
+            name: 'Premium',
+            description:
+                'Featured in top search, deals/events promotions, verified badge, advanced analytics.',
+            priceLabel: '\$29.99 / month',
+            highlighted: true,
+            current: currentTier == BusinessSubscriptionTier.premium,
+            onTap: _onRefreshStatus,
+          ),
+          const SizedBox(height: 10),
+          _PlanTile(
+            name: 'Pro',
+            description:
+                'Deals/events promotions, verified badge, basic analytics.',
+            priceLabel: '\$14.99 / month',
+            current: currentTier == BusinessSubscriptionTier.pro,
+            onTap: _onRefreshStatus,
+          ),
+          const SizedBox(height: 10),
+          _PlanTile(
+            name: 'Basic',
+            description: 'Business listing, reviews, and basic insights.',
+            priceLabel: 'Free',
+            current: currentTier == BusinessSubscriptionTier.basic,
+            onTap: null,
+          ),
+          const SizedBox(height: 16),
           Text(
             'Your plan is tied to your Habra account. If you subscribed on the web or through support, refresh after payment clears.',
             style: TextStyle(
@@ -407,6 +439,10 @@ class _PackageCard extends StatelessWidget {
     final title = product.title;
     final price = product.priceString;
     final desc = product.description;
+    final lower = title.toLowerCase();
+    final tierLabel = lower.contains('premium')
+        ? 'Premium'
+        : (lower.contains('pro') ? 'Pro' : title);
 
     return Material(
       color: Colors.transparent,
@@ -427,7 +463,7 @@ class _PackageCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      tierLabel,
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
@@ -462,6 +498,90 @@ class _PackageCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PlanTile extends StatelessWidget {
+  const _PlanTile({
+    required this.name,
+    required this.description,
+    required this.priceLabel,
+    this.highlighted = false,
+    this.current = false,
+    this.onTap,
+  });
+
+  final String name;
+  final String description;
+  final String priceLabel;
+  final bool highlighted;
+  final bool current;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        border: Border.all(
+          color: highlighted ? AppColors.brandPrimary : AppColors.backgroundGrey,
+          width: highlighted ? 1.5 : 1,
+        ),
+      ),
+      padding: const EdgeInsets.all(AppResources.spacingM),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                priceLabel,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              AppOutlinedButton(
+                text: current ? 'Current Plan' : 'Choose Plan',
+                onPressed: current ? null : onTap,
+                textColor:
+                    current ? AppColors.textSecondary : AppColors.brandPrimary,
+                borderColor:
+                    current ? AppColors.backgroundGrey : AppColors.brandPrimary,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

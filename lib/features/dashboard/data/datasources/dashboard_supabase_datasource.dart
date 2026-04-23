@@ -5,6 +5,8 @@ import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/utils/job_type_format.dart';
 import '../../../../core/utils/relative_time_short.dart';
 import '../../../../core/models/legal_document_upload_result.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../../home/domain/entities/business_presence.dart';
@@ -234,7 +236,12 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     }
 
     final approval = (parseString(row['approval_status']) ?? '').toLowerCase();
-    final verifiedFlag = parseBool(row['is_verified']) || approval == 'approved';
+    final tier = businessTierFromRaw(parseString(row['subscription_tier']));
+    final subStatus = businessSubscriptionStatusFromRaw(
+      parseString(row['subscription_status']),
+    );
+    final verifiedFlag = (parseBool(row['is_verified']) || approval == 'approved') &&
+        BusinessSubscriptionPolicy.canUseVerifiedBadge(tier);
 
     return BusinessPresence(
       id: parseStringRequired(row['id']),
@@ -261,6 +268,8 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       parentBusinessId: parseString(row['parent_business_id']),
       locationLabel: parseString(row['location_label']),
       monthlyProfileViews: parseInt(row['monthly_profile_views']),
+      subscriptionTier: tier,
+      subscriptionStatus: subStatus,
     );
   }
 

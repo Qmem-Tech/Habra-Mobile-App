@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import '../subscription/business_subscription_tier.dart';
 
 /// Outcome of a one-time boost purchase (consumable / non-entitlement IAP).
 class BoostIapResult {
@@ -237,6 +238,26 @@ class RevenueCatService {
       await Purchases.logOut();
     } catch (e) {
       debugPrint('RevenueCat logout error: $e');
+    }
+  }
+
+  Future<BusinessSubscriptionTier> resolveCurrentTier() async {
+    if (!_initialized) return BusinessSubscriptionTier.basic;
+    try {
+      final info = await Purchases.getCustomerInfo();
+      final ids = <String>[
+        ...info.activeSubscriptions,
+        ...info.entitlements.active.keys,
+      ].map((e) => e.toLowerCase()).toList();
+      if (ids.any((e) => e.contains('premium'))) {
+        return BusinessSubscriptionTier.premium;
+      }
+      if (ids.any((e) => e.contains('pro'))) {
+        return BusinessSubscriptionTier.pro;
+      }
+      return BusinessSubscriptionTier.basic;
+    } catch (_) {
+      return BusinessSubscriptionTier.basic;
     }
   }
 }

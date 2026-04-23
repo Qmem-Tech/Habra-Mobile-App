@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart' show AppButton, AppOutlinedButton;
@@ -157,6 +159,33 @@ class _CreateDealPageState extends State<CreateDealPage> {
     return [];
   }
 
+  BusinessSubscriptionTier _selectedBusinessTier() {
+    final selectedId = _getSelectedBusinessId();
+    if (selectedId == null) return BusinessSubscriptionTier.basic;
+    final businesses = _getBusinesses();
+    for (final b in businesses) {
+      if (b.id == selectedId) return b.subscriptionTier;
+    }
+    return BusinessSubscriptionTier.basic;
+  }
+
+  Future<String?> _checkDealLimit() async {
+    final bizId = _getSelectedBusinessId();
+    if (bizId == null) return null;
+    final tier = _selectedBusinessTier();
+    final maxAllowed = BusinessSubscriptionPolicy.maxActiveDeals(tier);
+    final existing = await Supabase.instance.client
+        .from(SupabaseTables.deals)
+        .select('id')
+        .eq('business_id', bizId)
+        .eq('status', 'active');
+    final count = (existing as List).length;
+    if (count >= maxAllowed) {
+      return 'Your ${tier.name.toUpperCase()} plan allows up to $maxAllowed active deal(s).';
+    }
+    return null;
+  }
+
   bool get _needsBusinessPicker {
     if (_isEditing) return false;
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
@@ -303,6 +332,16 @@ class _CreateDealPageState extends State<CreateDealPage> {
       return;
     }
     final deal = widget.dealToEdit!;
+    if (publish && deal.status != DashboardDealStatus.active) {
+      final limitError = await _checkDealLimit();
+      if (limitError != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(limitError)),
+        );
+        return;
+      }
+    }
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Saving...');
     try {
@@ -346,6 +385,14 @@ class _CreateDealPageState extends State<CreateDealPage> {
       return;
     }
     final bizId = _getSelectedBusinessId()!;
+    final limitError = await _checkDealLimit();
+    if (limitError != null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(limitError)),
+      );
+      return;
+    }
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Publishing...');
     try {

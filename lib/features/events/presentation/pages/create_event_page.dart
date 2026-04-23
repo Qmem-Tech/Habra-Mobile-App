@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/services/image_picker_service.dart';
@@ -132,6 +134,36 @@ class _CreateEventPageState extends State<CreateEventPage> {
     return null;
   }
 
+  BusinessSubscriptionTier _selectedBusinessTier() {
+    final selectedId = _getSelectedBusinessId();
+    if (selectedId == null) return BusinessSubscriptionTier.basic;
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is BusinessOwnerHomeLoaded) {
+      for (final p in homeState.presences) {
+        if (p.id == selectedId) return p.subscriptionTier;
+      }
+    }
+    return BusinessSubscriptionTier.basic;
+  }
+
+  Future<String?> _checkEventLimit() async {
+    final bizId = _getSelectedBusinessId();
+    if (bizId == null) return null;
+    final tier = _selectedBusinessTier();
+    final maxAllowed = BusinessSubscriptionPolicy.maxActiveEvents(tier);
+    final existing = await Supabase.instance.client
+        .from(SupabaseTables.events)
+        .select('id')
+        .eq('business_id', bizId)
+        .eq('is_active', true)
+        .gte('end_at', DateTime.now().toIso8601String());
+    final count = (existing as List).length;
+    if (count >= maxAllowed) {
+      return 'Your ${tier.name.toUpperCase()} plan allows up to $maxAllowed active event(s).';
+    }
+    return null;
+  }
+
   Future<void> _pickImage() async {
     final file = await di.sl<ImagePickerService>().pickImage(context);
     if (file != null && mounted) {
@@ -169,6 +201,16 @@ class _CreateEventPageState extends State<CreateEventPage> {
         ),
       );
       return;
+    }
+    if (!_isEditing) {
+      final limitError = await _checkEventLimit();
+      if (limitError != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(limitError)),
+        );
+        return;
+      }
     }
 
     if (!_isEditing) {

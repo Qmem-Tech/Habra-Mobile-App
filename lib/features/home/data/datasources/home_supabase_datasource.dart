@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/location/user_geo_for_feed.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/supabase/nearby_feed_rpc_helper.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/location/geo_distance_miles.dart';
@@ -164,6 +166,10 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
             'https://placehold.co/400x300?text=Business';
         final lat = parseDouble(row['latitude']);
         final lng = parseDouble(row['longitude']);
+        final tier = businessTierFromRaw(parseString(row['subscription_tier']));
+        final subStatus = businessSubscriptionStatusFromRaw(
+          parseString(row['subscription_status']),
+        );
         final dist =
             distanceMilesFromGeo(location.geo, lat, lng) ?? 0.0;
         return BusinessModel(
@@ -178,14 +184,27 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
           distance: dist,
           priceRange: parseString(row['price_range']) ?? '\$',
           status: null,
-          isVerified: parseBool(row['is_verified']),
+          isVerified: parseBool(row['is_verified']) &&
+              BusinessSubscriptionPolicy.canUseVerifiedBadge(tier),
           coverImageUrl: cover,
           logoUrl: logo,
           phoneNumber: parseString(row['phone_number']),
           latitude: lat,
           longitude: lng,
+          subscriptionTier: tier,
+          subscriptionStatus: subStatus,
         );
-      }).toList();
+      }).toList()
+        ..sort((a, b) {
+          final weightB = BusinessSubscriptionPolicy.feedBoostWeight(
+            b.subscriptionTier,
+          );
+          final weightA = BusinessSubscriptionPolicy.feedBoostWeight(
+            a.subscriptionTier,
+          );
+          if (weightB != weightA) return weightB.compareTo(weightA);
+          return b.rating.compareTo(a.rating);
+        });
     });
   }
 

@@ -1,4 +1,5 @@
 import '../../domain/entities/business.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 
 class BusinessModel extends Business {
   const BusinessModel({
@@ -17,6 +18,8 @@ class BusinessModel extends Business {
     super.phoneNumber,
     super.latitude,
     super.longitude,
+    super.subscriptionTier,
+    super.subscriptionStatus,
   });
 
   factory BusinessModel.fromJson(Map<String, dynamic> json) {
@@ -36,6 +39,11 @@ class BusinessModel extends Business {
       phoneNumber: json['phoneNumber'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
+      subscriptionTier:
+          businessTierFromRaw(json['subscriptionTier'] as String?),
+      subscriptionStatus: businessSubscriptionStatusFromRaw(
+        json['subscriptionStatus'] as String?,
+      ),
     );
   }
 
@@ -56,6 +64,8 @@ class BusinessModel extends Business {
       'phoneNumber': phoneNumber,
       'latitude': latitude,
       'longitude': longitude,
+      'subscriptionTier': subscriptionTier.name,
+      'subscriptionStatus': subscriptionStatus.name,
     };
   }
 }
