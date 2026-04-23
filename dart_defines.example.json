@@ -13,5 +13,9 @@
   "REVENUECAT_BOOST_OFFERING_ID": "",
   "STRIPE_PUBLISHABLE_KEY": "",
   "STRIPE_MERCHANT_ID": "",
-  "STRIPE_PAYMENT_INTENT_FUNCTION": "create-event-payment-intent"
+  "STRIPE_PAYMENT_INTENT_FUNCTION": "create-event-payment-intent",
+  "STRIPE_BUSINESS_SUBSCRIPTION_CHECKOUT_FUNCTION": "create-business-subscription-checkout",
+  "STRIPE_BUSINESS_SUBSCRIPTION_PORTAL_FUNCTION": "create-business-subscription-portal",
+  "STRIPE_BUSINESS_SUBSCRIPTION_SUCCESS_URL": "https://example.com/subscription/success",
+  "STRIPE_BUSINESS_SUBSCRIPTION_CANCEL_URL": "https://example.com/subscription/cancel"
 }

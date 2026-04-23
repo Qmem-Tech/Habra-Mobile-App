@@ -97,6 +97,26 @@ class AppConfig {
     'STRIPE_PAYMENT_INTENT_FUNCTION',
     defaultValue: 'create-event-payment-intent',
   );
+  static const String stripeBusinessSubscriptionCheckoutFunction =
+      String.fromEnvironment(
+    'STRIPE_BUSINESS_SUBSCRIPTION_CHECKOUT_FUNCTION',
+    defaultValue: 'create-business-subscription-checkout',
+  );
+  static const String stripeBusinessSubscriptionPortalFunction =
+      String.fromEnvironment(
+    'STRIPE_BUSINESS_SUBSCRIPTION_PORTAL_FUNCTION',
+    defaultValue: 'create-business-subscription-portal',
+  );
+  static const String stripeBusinessSubscriptionSuccessUrl =
+      String.fromEnvironment(
+    'STRIPE_BUSINESS_SUBSCRIPTION_SUCCESS_URL',
+    defaultValue: 'https://example.com/subscription/success',
+  );
+  static const String stripeBusinessSubscriptionCancelUrl =
+      String.fromEnvironment(
+    'STRIPE_BUSINESS_SUBSCRIPTION_CANCEL_URL',
+    defaultValue: 'https://example.com/subscription/cancel',
+  );
 
   static const String stripeMerchantCountry = String.fromEnvironment(
     'STRIPE_MERCHANT_COUNTRY',

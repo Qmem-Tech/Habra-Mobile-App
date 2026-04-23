@@ -4,6 +4,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '../../../../core/config/business_subscription_config.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/services/business_subscription_checkout_service.dart';
 import '../../../../core/services/revenue_cat_service.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -31,6 +32,7 @@ class _BusinessOwnerSubscriptionPageState
   bool _loadingPackages = true;
   String? _packagesError;
   bool _purchasing = false;
+  bool _openingHostedCheckout = false;
 
   @override
   void initState() {
@@ -150,6 +152,40 @@ class _BusinessOwnerSubscriptionPageState
         ),
       );
     }
+  }
+
+  Future<void> _onChooseProfileTier(BusinessSubscriptionTier tier) async {
+    if (_openingHostedCheckout) return;
+    if (tier == BusinessSubscriptionTier.basic) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Basic is your free default plan.'),
+        ),
+      );
+      return;
+    }
+    setState(() => _openingHostedCheckout = true);
+    final ok = await di.sl<BusinessSubscriptionCheckoutService>().openCheckout(
+      tier,
+    );
+    if (!mounted) return;
+    setState(() => _openingHostedCheckout = false);
+    if (!ok) {
+      ErrorDisplayHelper.show(
+        context,
+        title: 'Checkout unavailable',
+        message:
+            'Could not open hosted checkout. Please verify Stripe checkout function deployment.',
+      );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Complete payment in browser, then tap "Refresh subscription status".',
+        ),
+      ),
+    );
   }
 
   @override
@@ -283,7 +319,9 @@ class _BusinessOwnerSubscriptionPageState
             priceLabel: '\$29.99 / month',
             highlighted: true,
             current: currentTier == BusinessSubscriptionTier.premium,
-            onTap: _onRefreshStatus,
+            onTap: _openingHostedCheckout
+                ? null
+                : () => _onChooseProfileTier(BusinessSubscriptionTier.premium),
           ),
           const SizedBox(height: 10),
           _PlanTile(
@@ -292,7 +330,9 @@ class _BusinessOwnerSubscriptionPageState
                 'Deals/events promotions, verified badge, basic analytics.',
             priceLabel: '\$14.99 / month',
             current: currentTier == BusinessSubscriptionTier.pro,
-            onTap: _onRefreshStatus,
+            onTap: _openingHostedCheckout
+                ? null
+                : () => _onChooseProfileTier(BusinessSubscriptionTier.pro),
           ),
           const SizedBox(height: 10),
           _PlanTile(

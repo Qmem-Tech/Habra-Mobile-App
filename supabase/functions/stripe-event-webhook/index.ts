@@ -50,6 +50,15 @@ serve(async (req) => {
     } else if (event.type === "charge.refunded") {
       const charge = event.data.object as Stripe.Charge;
       await handleRefunded(adminClient, charge);
+    } else if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      await handleCheckoutSessionCompleted(adminClient, stripe, session);
+    } else if (event.type === "customer.subscription.updated") {
+      const subscription = event.data.object as Stripe.Subscription;
+      await handleCustomerSubscriptionChanged(adminClient, subscription);
+    } else if (event.type === "customer.subscription.deleted") {
+      const subscription = event.data.object as Stripe.Subscription;
+      await handleCustomerSubscriptionChanged(adminClient, subscription);
     }
 
     return new Response(JSON.stringify({ received: true }), {
@@ -158,4 +167,87 @@ async function handleRefunded(adminClient: ReturnType<typeof createClient>, char
     .from("event_ticket_purchases")
     .update({ status: "refunded" })
     .eq("order_id", order.id);
+}
+
+function tierFromSubscriptionPrice(priceId: string): string | null {
+  const proPriceId = Deno.env.get("STRIPE_BUSINESS_PRO_PRICE_ID") ?? "";
+  const premiumPriceId = Deno.env.get("STRIPE_BUSINESS_PREMIUM_PRICE_ID") ?? "";
+  if (priceId === premiumPriceId) return "premium";
+  if (priceId === proPriceId) return "pro";
+  return null;
+}
+
+function normalizeSubscriptionStatus(status?: string): {
+  active: boolean;
+  dbStatus: string;
+} {
+  const s = (status ?? "").toLowerCase();
+  switch (s) {
+    case "active":
+      return { active: true, dbStatus: "active" };
+    case "trialing":
+      return { active: true, dbStatus: "trialing" };
+    case "past_due":
+      return { active: false, dbStatus: "past_due" };
+    case "canceled":
+      return { active: false, dbStatus: "canceled" };
+    case "unpaid":
+      return { active: false, dbStatus: "inactive" };
+    default:
+      return { active: false, dbStatus: "inactive" };
+  }
+}
+
+async function handleCheckoutSessionCompleted(
+  adminClient: ReturnType<typeof createClient>,
+  stripe: Stripe,
+  session: Stripe.Checkout.Session,
+) {
+  if (session.mode !== "subscription") return;
+  const userId = String(session.metadata?.user_id ?? "").trim();
+  const subscriptionId = String(session.subscription ?? "").trim();
+  const customerId = String(session.customer ?? "").trim();
+  if (!userId || !subscriptionId) return;
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  await applyBusinessSubscriptionProfile(adminClient, userId, customerId, subscription);
+}
+
+async function handleCustomerSubscriptionChanged(
+  adminClient: ReturnType<typeof createClient>,
+  subscription: Stripe.Subscription,
+) {
+  const userId = String(subscription.metadata?.user_id ?? "").trim();
+  const customerId = String(subscription.customer ?? "").trim();
+  if (!userId || !customerId) return;
+  await applyBusinessSubscriptionProfile(adminClient, userId, customerId, subscription);
+}
+
+async function applyBusinessSubscriptionProfile(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  customerId: string,
+  subscription: Stripe.Subscription,
+) {
+  const firstItem = subscription.items.data[0];
+  const priceId = String(firstItem?.price?.id ?? "");
+  const tier = tierFromSubscriptionPrice(priceId) ?? "basic";
+  const status = normalizeSubscriptionStatus(subscription.status);
+  let payload: Record<string, unknown> = {
+    stripe_customer_id: customerId,
+    owner_tools_subscription_active: status.active,
+    owner_tools_subscription_tier: tier,
+    owner_tools_subscription_status: status.dbStatus,
+    owner_tools_subscription_updated_at: new Date().toISOString(),
+  };
+  try {
+    await adminClient.from("profiles").update(payload).eq("id", userId);
+  } catch (_) {
+    // Backward-compatible fallback for schemas that only have active/tier columns.
+    payload = {
+      stripe_customer_id: customerId,
+      owner_tools_subscription_active: status.active,
+      owner_tools_subscription_tier: tier,
+    };
+    await adminClient.from("profiles").update(payload).eq("id", userId);
+  }
 }
