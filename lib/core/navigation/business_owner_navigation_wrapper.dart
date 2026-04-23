@@ -387,11 +387,11 @@ class _BusinessOwnerNavigationWrapperState
     messenger.showSnackBar(
       SnackBar(
         content: const Text(
-          'An active business subscription is required for the Dashboard.',
+          'You are not on an active subscription. Upgrade to open Dashboard.',
         ),
         duration: const Duration(seconds: 6),
         action: SnackBarAction(
-          label: 'Subscribe',
+          label: 'Upgrade now',
           onPressed: () {
             BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
               context,

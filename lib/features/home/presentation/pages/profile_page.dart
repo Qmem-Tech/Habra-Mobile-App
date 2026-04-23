@@ -17,6 +17,7 @@ import '../../../dashboard/presentation/pages/operating_hours_page.dart';
 import '../../domain/entities/business_presence.dart';
 import '../bloc/business_owner_home_cubit.dart';
 import '../bloc/business_owner_home_state.dart';
+import '../bloc/business_owner_subscription_cubit.dart';
 import '../../../profile/domain/entities/user_profile.dart';
 import '../../../profile/domain/usecases/get_profile_usecase.dart';
 import '../../../profile/presentation/bloc/edit_profile_cubit.dart';
@@ -506,12 +507,26 @@ class _ProfilePageState extends State<ProfilePage> {
                                 title: 'Subscription & billing',
                                 subtitle: 'Plans and receipts',
                                 onTap: () {
+                                  BusinessOwnerSubscriptionCubit? existingSubCubit;
+                                  try {
+                                    existingSubCubit = context.read<
+                                        BusinessOwnerSubscriptionCubit>();
+                                  } catch (_) {
+                                    existingSubCubit = null;
+                                  }
                                   Navigator.push<void>(
                                     context,
                                     MaterialPageRoute<void>(
-                                      builder: (_) => SubscriptionBillingPage(
-                                        user: widget.user,
-                                      ),
+                                      builder: (_) => existingSubCubit != null
+                                          ? BlocProvider.value(
+                                              value: existingSubCubit,
+                                              child: SubscriptionBillingPage(
+                                                user: widget.user,
+                                              ),
+                                            )
+                                          : SubscriptionBillingPage(
+                                              user: widget.user,
+                                            ),
                                     ),
                                   );
                                 },
