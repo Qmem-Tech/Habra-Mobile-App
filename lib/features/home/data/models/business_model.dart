@@ -12,6 +12,11 @@ class BusinessModel extends Business {
     required super.priceRange,
     super.status,
     super.isVerified,
+    super.coverImageUrl,
+    super.logoUrl,
+    super.phoneNumber,
+    super.latitude,
+    super.longitude,
   });
 
   factory BusinessModel.fromJson(Map<String, dynamic> json) {
@@ -26,6 +31,11 @@ class BusinessModel extends Business {
       priceRange: json['priceRange'] as String,
       status: json['status'] as String?,
       isVerified: json['isVerified'] as bool? ?? false,
+      coverImageUrl: json['coverImageUrl'] as String?,
+      logoUrl: json['logoUrl'] as String?,
+      phoneNumber: json['phoneNumber'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
     );
   }
 
@@ -41,6 +51,11 @@ class BusinessModel extends Business {
       'priceRange': priceRange,
       'status': status,
       'isVerified': isVerified,
+      'coverImageUrl': coverImageUrl,
+      'logoUrl': logoUrl,
+      'phoneNumber': phoneNumber,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 }

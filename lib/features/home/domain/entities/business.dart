@@ -11,6 +11,13 @@ class Business extends Equatable {
   final String priceRange; // e.g., "$", "$$", "$$$"
   final String? status; // e.g., "Fresh spices arrived today"
   final bool isVerified;
+  /// Large hero image for card layouts; UI may fall back to [imageUrl] when null.
+  final String? coverImageUrl;
+  /// Rounded logo; UI may fall back to [imageUrl] when null.
+  final String? logoUrl;
+  final String? phoneNumber;
+  final double? latitude;
+  final double? longitude;
 
   const Business({
     required this.id,
@@ -23,6 +30,11 @@ class Business extends Equatable {
     required this.priceRange,
     this.status,
     this.isVerified = false,
+    this.coverImageUrl,
+    this.logoUrl,
+    this.phoneNumber,
+    this.latitude,
+    this.longitude,
   });
 
   @override
@@ -37,5 +49,10 @@ class Business extends Equatable {
         priceRange,
         status,
         isVerified,
+        coverImageUrl,
+        logoUrl,
+        phoneNumber,
+        latitude,
+        longitude,
       ];
 }

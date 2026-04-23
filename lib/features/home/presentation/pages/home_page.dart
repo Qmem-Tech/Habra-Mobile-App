@@ -17,7 +17,8 @@ import '../bloc/home_cubit.dart';
 import '../bloc/home_state.dart';
 import '../widgets/event_card.dart';
 import '../widgets/deal_card.dart';
-import '../widgets/business_card.dart';
+import '../widgets/featured_business_card.dart';
+import '../widgets/home_category_chips.dart';
 import '../widgets/job_card.dart';
 import 'search_page.dart';
 import 'location_selection_page.dart';
@@ -220,12 +221,18 @@ class _HomePageState extends State<HomePage> {
           _buildHeader(),
           _buildGreetingSection(),
           _buildSearchSection(),
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.only(top: 4, bottom: 4),
+              child: HomeCategoryChips(),
+            ),
+          ),
           if (_hasSectionIssues(state)) _buildIssuesBanner(state),
           if (fullyQuiet)
             SliverToBoxAdapter(child: _buildRegionalEmptyCard())
           else ...[
-            _buildEventsSection(state.events, state.eventsError),
             _buildDealsSection(state.deals, state.dealsError),
+            _buildEventsSection(state.events, state.eventsError),
             _buildBusinessesSection(state.businesses, state.businessesError),
             _buildJobsSection(state.jobs, state.jobsError),
           ],
@@ -351,10 +358,10 @@ class _HomePageState extends State<HomePage> {
       title: GestureDetector(
         onTap: _onLocationChipTapped,
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 220),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          constraints: const BoxConstraints(maxWidth: 240),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: AppColors.customerLocationPillBg,
+            color: AppColors.customerHomePrimary,
             borderRadius: BorderRadius.circular(24),
           ),
           child: Row(
@@ -363,16 +370,16 @@ class _HomePageState extends State<HomePage> {
               const Icon(
                 Icons.location_on,
                 size: 18,
-                color: AppColors.customerHomePrimary,
+                color: Colors.white,
               ),
               const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   _locationChipLabel(context),
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.customerHomePrimary,
+                    color: Colors.white,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -380,7 +387,7 @@ class _HomePageState extends State<HomePage> {
               const Icon(
                 Icons.keyboard_arrow_down,
                 size: 20,
-                color: AppColors.customerHomePrimary,
+                color: Colors.white,
               ),
             ],
           ),
@@ -433,46 +440,69 @@ class _HomePageState extends State<HomePage> {
   Widget _buildSearchSection() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-        child: GestureDetector(
-          onTap: () async {
-            await Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => SearchPage(
-                  location: _locationQueryString(context),
-                ),
-              ),
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.backgroundLight,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.backgroundGrey.withValues(alpha: 0.35),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.search,
-                  color: AppColors.textTertiary,
-                  size: 22,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Find business, event...',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: AppColors.textSecondary.withValues(alpha: 0.85),
-                    fontWeight: FontWeight.w400,
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () async {
+                  await Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => SearchPage(
+                        location: _locationQueryString(context),
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.backgroundGrey.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.search,
+                        color: AppColors.textTertiary,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Find businesses, events, deals...',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: AppColors.textSecondary.withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: 4),
+            Material(
+              color: AppColors.backgroundLight,
+              borderRadius: BorderRadius.circular(12),
+              child: IconButton(
+                onPressed: () {
+                  MainNavigationWrapper.navigateToTab(context, 2);
+                },
+                icon: const Icon(
+                  Icons.tune_rounded,
+                  color: AppColors.customerHomePrimary,
+                ),
+                tooltip: 'Explore filters',
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -590,7 +620,7 @@ class _HomePageState extends State<HomePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitleRow(
-            title: 'Happening This Week',
+            title: 'Events This Week 🎉',
             actionLabel: 'View All >',
             onAction: () {
               MainNavigationWrapper.navigateToTab(context, 1);
@@ -610,7 +640,7 @@ class _HomePageState extends State<HomePage> {
             )
           else
             SizedBox(
-              height: 176,
+              height: 360,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -620,6 +650,14 @@ class _HomePageState extends State<HomePage> {
                   return EventCard(
                     event: event,
                     onTap: () async {
+                      await Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => EventDetailPage(eventId: event.id),
+                        ),
+                      );
+                    },
+                    onGetTicket: () async {
                       await Navigator.push<void>(
                         context,
                         MaterialPageRoute<void>(
@@ -638,13 +676,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildDealsSection(List<Deal> deals, String? error) {
-    final topDeals = deals.take(4).toList();
+    final topDeals = deals.take(8).toList();
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitleRow(
-            title: 'Hot Deals Near You',
+            title: 'Hot Deals Near You 🔥',
             actionLabel: 'View All >',
             onAction: () async {
               await Navigator.push<void>(
@@ -667,7 +705,7 @@ class _HomePageState extends State<HomePage> {
             )
           else
             SizedBox(
-              height: 110,
+              height: 260,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -694,13 +732,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildBusinessesSection(List<Business> businesses, String? error) {
-    final topBusinesses = businesses.take(4).toList();
+    final topBusinesses = businesses.take(8).toList();
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitleRow(
-            title: 'Popular Businesses',
+            title: 'Featured Businesses ⭐',
             actionLabel: 'View All >',
             onAction: () async {
               await Navigator.push<void>(
@@ -728,17 +766,17 @@ class _HomePageState extends State<HomePage> {
               ),
             )
           else
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            SizedBox(
+              height: 360,
               child: ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: topBusinesses.length,
                 itemBuilder: (context, index) {
                   final b = topBusinesses[index];
-                  return BusinessCard(
+                  return FeaturedBusinessCard(
                     business: b,
-                    onTap: () async {
+                    onOpenDetail: () async {
                       await Navigator.push<void>(
                         context,
                         MaterialPageRoute<void>(

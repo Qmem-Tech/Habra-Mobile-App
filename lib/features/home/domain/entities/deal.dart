@@ -9,6 +9,8 @@ class Deal extends Equatable {
   final String imageUrl;
   final String businessName;
   final String businessId;
+  /// Business logo for deal cards (e.g. small circle over hero image).
+  final String? businessLogoUrl;
   final double discountPercent;
   final String? promoCode;
   final DateTime? expiryDate;
@@ -21,6 +23,7 @@ class Deal extends Equatable {
     required this.imageUrl,
     required this.businessName,
     required this.businessId,
+    this.businessLogoUrl,
     required this.discountPercent,
     this.promoCode,
     this.expiryDate,
@@ -35,6 +38,7 @@ class Deal extends Equatable {
         imageUrl,
         businessName,
         businessId,
+        businessLogoUrl,
         discountPercent,
         promoCode,
         expiryDate,

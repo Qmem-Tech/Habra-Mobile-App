@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/location/user_geo_for_feed.dart';
 import '../../../../core/supabase/nearby_feed_rpc_helper.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
+import '../../../../core/location/geo_distance_miles.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../../../core/utils/job_type_format.dart';
 import '../../domain/home_feed_location.dart';
@@ -97,7 +98,7 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
 
       var query = _client
           .from('deals')
-          .select('*, businesses!deals_business_id_fkey(id, name)')
+          .select('*, businesses!deals_business_id_fkey(id, name, logo_url)')
           .eq('status', 'active')
           .gte('valid_until', DateTime.now().toIso8601String())
           .inFilter('business_id', approvedIds);
@@ -107,8 +108,10 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
         final biz = row['businesses'];
         String businessName = '';
         String businessId = parseStringRequired(row['business_id']);
+        String? businessLogoUrl;
         if (biz is Map<String, dynamic>) {
           businessName = parseStringRequired(biz['name']);
+          businessLogoUrl = parseString(biz['logo_url']);
         }
         final discountPct = parseInt(row['discount_percentage']) ?? 0;
         return DealModel(
@@ -119,6 +122,7 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
               'https://placehold.co/400x300?text=Deal',
           businessName: businessName,
           businessId: businessId,
+          businessLogoUrl: businessLogoUrl,
           discountPercent: discountPct.toDouble(),
           promoCode: null,
           expiryDate: parseTimestamp(row['valid_until']),
@@ -150,22 +154,36 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
         final category = parseString(row['description']) ??
             parseString(row['address_city']) ??
             'Business';
+        final imageUrls = parseStringList(row['image_urls']);
+        final logo = parseString(row['logo_url']);
+        final cover = imageUrls.isNotEmpty
+            ? imageUrls.first
+            : parseString(row['cover_image_url']);
+        final listImage = logo ??
+            (imageUrls.isNotEmpty ? imageUrls.first : null) ??
+            'https://placehold.co/400x300?text=Business';
+        final lat = parseDouble(row['latitude']);
+        final lng = parseDouble(row['longitude']);
+        final dist =
+            distanceMilesFromGeo(location.geo, lat, lng) ?? 0.0;
         return BusinessModel(
           id: parseStringRequired(row['id']),
           name: parseStringRequired(row['name']),
           category: category.length > 30
               ? '${category.substring(0, 30)}...'
               : category,
-          imageUrl: parseString(row['logo_url']) ??
-              (parseStringList(row['image_urls']).isNotEmpty
-                  ? parseStringList(row['image_urls']).first
-                  : 'https://placehold.co/400x300?text=Business'),
+          imageUrl: listImage,
           rating: parseDouble(row['rating']) ?? 0.0,
           reviewCount: parseInt(row['review_count']) ?? 0,
-          distance: 0,
+          distance: dist,
           priceRange: parseString(row['price_range']) ?? '\$',
           status: null,
           isVerified: parseBool(row['is_verified']),
+          coverImageUrl: cover,
+          logoUrl: logo,
+          phoneNumber: parseString(row['phone_number']),
+          latitude: lat,
+          longitude: lng,
         );
       }).toList();
     });
