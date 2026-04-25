@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/domain/normalized_location.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../domain/entities/business_category.dart';
@@ -84,14 +85,15 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
   }
 
   BusinessListItem _rowToBusinessListItem(Map<String, dynamic> row) {
+    final location = NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
     final id = parseStringRequired(row['id']);
     final name = parseStringRequired(row['name']);
     final logoUrl = parseString(row['logo_url']);
     final imageUrls = parseStringList(row['image_urls']);
     final imageUrl = logoUrl ?? (imageUrls.isNotEmpty ? imageUrls.first : '');
-    final address = parseStringRequired(row['address_street']);
-    final city = parseStringRequired(row['address_city']);
-    final state = parseStringRequired(row['address_state']);
+    final address = location?.addressLine1 ?? parseStringRequired(row['address_street']);
+    final city = location?.city ?? parseStringRequired(row['address_city']);
+    final state = location?.state ?? parseStringRequired(row['address_state']);
     final rating = parseDouble(row['rating']) ?? 0.0;
     final reviewCount = parseInt(row['review_count']) ?? 0;
     final priceRange = parseString(row['price_range']);
@@ -131,20 +133,40 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
     bool featuredOnly = false,
   }) async {
     return SupabaseFailureMapper.guard(() async {
-      var query = _client
-          .from('businesses')
-          .select('*, business_categories(categories(id, name, slug))')
-          .eq('approval_status', 'approved')
-          .eq('is_active', true);
+      final selectWithLocation =
+          '*, ${SupabaseTables.locations}(*), business_categories(categories(id, name, slug))';
+      const selectLegacy = '*, business_categories(categories(id, name, slug))';
 
-      if (featuredOnly) query = query.eq('is_featured', true);
-      // TODO: Add location filter when ready: query.or('address_city.ilike.%$location%,address_state.ilike.%$location%')
-      if (searchQuery != null && searchQuery.isNotEmpty) {
-        query = query.or('name.ilike.%$searchQuery%,description.ilike.%$searchQuery%');
+      Future<List<Map<String, dynamic>>> fetch(String select) async {
+        var query = _client
+            .from('businesses')
+            .select(select)
+            .eq('approval_status', 'approved')
+            .eq('is_active', true);
+
+        if (featuredOnly) query = query.eq('is_featured', true);
+        // TODO: Add location filter when ready: query.or('address_city.ilike.%$location%,address_state.ilike.%$location%')
+        if (searchQuery != null && searchQuery.isNotEmpty) {
+          query = query.or('name.ilike.%$searchQuery%,description.ilike.%$searchQuery%');
+        }
+
+        final res = await query.order('created_at', ascending: false);
+        return (res as List).cast<Map<String, dynamic>>();
       }
 
-      final res = await query.order('created_at', ascending: false);
-      final list = (res as List).cast<Map<String, dynamic>>();
+      late final List<Map<String, dynamic>> list;
+      try {
+        list = await fetch(selectWithLocation);
+      } on PostgrestException catch (e) {
+        if (e.code == 'PGRST200' ||
+            e.message.contains('could not find') ||
+            e.message.contains('relationship') ||
+            e.message.contains('locations')) {
+          list = await fetch(selectLegacy);
+        } else {
+          rethrow;
+        }
+      }
 
       var items = list.map(_rowToBusinessListItem).toList();
 
@@ -179,14 +201,32 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
   @override
   Future<BusinessDetail> getBusinessDetail(String businessId) async {
     return SupabaseFailureMapper.guard(() async {
-      final res = await _client
+      Future<dynamic> fetch(String select) => _client
           .from('businesses')
-          .select('*, business_categories(categories(id, name, slug))')
+          .select(select)
           .eq('id', businessId)
           .maybeSingle();
+
+      dynamic res;
+      try {
+        res = await fetch(
+          '*, ${SupabaseTables.locations}(*), business_categories(categories(id, name, slug))',
+        );
+      } on PostgrestException catch (e) {
+        if (e.code == 'PGRST200' ||
+            e.message.contains('could not find') ||
+            e.message.contains('relationship') ||
+            e.message.contains('locations')) {
+          res = await fetch('*, business_categories(categories(id, name, slug))');
+        } else {
+          rethrow;
+        }
+      }
       if (res == null) throw Exception('Business not found');
 
       final row = Map<String, dynamic>.from(res as Map);
+      final location =
+          NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
       final listItem = _rowToBusinessListItem(row);
 
       final dealsRes = await _client
@@ -241,9 +281,9 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
         address: listItem.address,
         city: listItem.city,
         state: listItem.state,
-        zipCode: parseString(row['address_zip']) ?? '',
-        latitude: parseDouble(row['latitude']) ?? 0,
-        longitude: parseDouble(row['longitude']) ?? 0,
+        zipCode: location?.postalCode ?? parseString(row['address_zip']) ?? '',
+        latitude: location?.latitude ?? parseDouble(row['latitude']) ?? 0,
+        longitude: location?.longitude ?? parseDouble(row['longitude']) ?? 0,
         phoneNumber: parseString(row['phone']),
         website: parseString(row['website']),
         rating: listItem.rating,

@@ -20,6 +20,8 @@ class EventDetail extends Equatable {
   final double? minPrice;
   final double? maxPrice;
   final String? organizer;
+  final bool isOnline;
+  final String? onlineUrl;
   final List<TicketType> ticketTypes;
   final bool isBookmarked;
   final List<String>? policies;
@@ -42,6 +44,8 @@ class EventDetail extends Equatable {
     this.minPrice,
     this.maxPrice,
     this.organizer,
+    this.isOnline = false,
+    this.onlineUrl,
     required this.ticketTypes,
     this.isBookmarked = false,
     this.policies,
@@ -76,6 +80,8 @@ class EventDetail extends Equatable {
         minPrice,
         maxPrice,
         organizer,
+        isOnline,
+        onlineUrl,
         ticketTypes,
         isBookmarked,
         policies,

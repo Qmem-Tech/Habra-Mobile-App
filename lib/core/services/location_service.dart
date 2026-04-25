@@ -1,14 +1,18 @@
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../config/app_config.dart';
 import '../domain/business_address_data.dart';
 import '../error/failures.dart';
 import '../../features/home/domain/entities/location_entity.dart';
 
 /// Service for device location and geocoding.
 class LocationService {
-  LocationService();
+  LocationService({Dio? dio}) : _dio = dio ?? Dio();
+
+  final Dio _dio;
 
   /// Check if location services are enabled.
   Future<bool> isLocationServiceEnabled() =>
@@ -265,6 +269,11 @@ class LocationService {
     if (q.length < 4) {
       return const Right([]);
     }
+    if (AppConfig.isGoogleMapsConfigured) {
+      final places = await _lookupGooglePlaces(q, maxResults: maxResults);
+      final hasPlaces = places.fold((_) => false, (list) => list.isNotEmpty);
+      if (hasPlaces) return places;
+    }
     try {
       final locations = await locationFromAddress(q);
       if (locations.isEmpty) {
@@ -306,6 +315,117 @@ class LocationService {
         return revResult;
       },
     );
+  }
+
+  Future<Either<Failure, List<BusinessAddressData>>> _lookupGooglePlaces(
+    String query, {
+    required int maxResults,
+  }) async {
+    try {
+      final autocomplete = await _dio.get<Map<String, dynamic>>(
+        'https://maps.googleapis.com/maps/api/place/autocomplete/json',
+        queryParameters: {
+          'input': query,
+          'types': 'address',
+          'components': 'country:us',
+          'key': AppConfig.effectiveGoogleMapsApiKey,
+        },
+      );
+      final data = autocomplete.data ?? const <String, dynamic>{};
+      final status = data['status']?.toString();
+      if (status != 'OK' && status != 'ZERO_RESULTS') {
+        return const Right([]);
+      }
+      final predictions = data['predictions'];
+      if (predictions is! List || predictions.isEmpty) return const Right([]);
+
+      final out = <BusinessAddressData>[];
+      for (final prediction in predictions.take(maxResults)) {
+        if (prediction is! Map) continue;
+        final placeId = prediction['place_id']?.toString();
+        if (placeId == null || placeId.isEmpty) continue;
+        final details = await _googlePlaceDetails(placeId);
+        details.fold((_) {}, out.add);
+      }
+      return Right(out);
+    } catch (_) {
+      return const Right([]);
+    }
+  }
+
+  Future<Either<Failure, BusinessAddressData>> _googlePlaceDetails(String placeId) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'https://maps.googleapis.com/maps/api/place/details/json',
+        queryParameters: {
+          'place_id': placeId,
+          'fields':
+              'name,formatted_address,address_component,geometry,place_id,url',
+          'key': AppConfig.effectiveGoogleMapsApiKey,
+        },
+      );
+      final data = response.data ?? const <String, dynamic>{};
+      if (data['status']?.toString() != 'OK') {
+        return const Left(LocationFailure('Place details unavailable.'));
+      }
+      final result = data['result'];
+      if (result is! Map) {
+        return const Left(LocationFailure('Place details unavailable.'));
+      }
+
+      final components = <String, String>{};
+      final rawComponents = result['address_components'];
+      if (rawComponents is List) {
+        for (final item in rawComponents) {
+          if (item is! Map) continue;
+          final types = item['types'];
+          if (types is! List) continue;
+          for (final type in types) {
+            final key = type.toString();
+            components[key] = item['short_name']?.toString() ??
+                item['long_name']?.toString() ??
+                '';
+          }
+        }
+      }
+
+      final geometry = result['geometry'];
+      final geoLocation = geometry is Map ? geometry['location'] : null;
+      final lat = geoLocation is Map ? _toDouble(geoLocation['lat']) : null;
+      final lng = geoLocation is Map ? _toDouble(geoLocation['lng']) : null;
+      final streetNumber = components['street_number'];
+      final route = components['route'];
+      final street = [
+        if (streetNumber != null && streetNumber.isNotEmpty) streetNumber,
+        if (route != null && route.isNotEmpty) route,
+      ].join(' ');
+
+      return Right(
+        BusinessAddressData(
+          name: result['name']?.toString(),
+          street: street.isEmpty ? null : street,
+          city: components['locality'] ??
+              components['postal_town'] ??
+              components['administrative_area_level_2'],
+          state: components['administrative_area_level_1'],
+          country: components['country'],
+          zipCode: components['postal_code'],
+          latitude: lat,
+          longitude: lng,
+          placeId: result['place_id']?.toString() ?? placeId,
+          formattedAddress: result['formatted_address']?.toString(),
+          googleMapsUrl: result['url']?.toString(),
+        ),
+      );
+    } catch (e) {
+      return Left(LocationFailure('Place details unavailable: $e'));
+    }
+  }
+
+  static double? _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 
   /// Get [Position] only (for map centering).

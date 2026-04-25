@@ -42,6 +42,8 @@ class _AddLocationPageState extends State<AddLocationPage> {
   bool _isLoading = false;
   double? _latitude;
   double? _longitude;
+  String? _placeId;
+  String? _googleMapsUrl;
 
   void _onAddressApplied(BusinessAddressData data) {
     setState(() {
@@ -49,6 +51,8 @@ class _AddLocationPageState extends State<AddLocationPage> {
         _latitude = data.latitude;
         _longitude = data.longitude;
       }
+      _placeId = data.placeId;
+      _googleMapsUrl = data.googleMapsUrl;
     });
   }
 
@@ -286,6 +290,8 @@ class _AddLocationPageState extends State<AddLocationPage> {
         if (locationLabel != null) 'location_label': locationLabel,
         if (_latitude != null && _longitude != null) 'latitude': _latitude,
         if (_latitude != null && _longitude != null) 'longitude': _longitude,
+        if (_placeId != null) 'place_id': _placeId,
+        if (_googleMapsUrl != null) 'google_maps_url': _googleMapsUrl,
       };
       // Additional locations inherit parent approval; only brand-new businesses
       // use default pending in [DashboardSupabaseDataSource.createBusiness].

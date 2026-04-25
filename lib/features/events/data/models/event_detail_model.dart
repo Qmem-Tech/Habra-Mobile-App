@@ -21,6 +21,8 @@ class EventDetailModel extends EventDetail {
     super.minPrice,
     super.maxPrice,
     super.organizer,
+    super.isOnline,
+    super.onlineUrl,
     required super.ticketTypes,
     super.isBookmarked,
     super.policies,
@@ -50,6 +52,8 @@ class EventDetailModel extends EventDetail {
       minPrice: json['minPrice'] != null ? (json['minPrice'] as num).toDouble() : null,
       maxPrice: json['maxPrice'] != null ? (json['maxPrice'] as num).toDouble() : null,
       organizer: json['organizer'] as String?,
+      isOnline: json['isOnline'] as bool? ?? false,
+      onlineUrl: json['onlineUrl'] as String?,
       ticketTypes: (json['ticketTypes'] as List<dynamic>)
           .map((e) => TicketTypeModel.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -79,6 +83,8 @@ class EventDetailModel extends EventDetail {
       'minPrice': minPrice,
       'maxPrice': maxPrice,
       'organizer': organizer,
+      'isOnline': isOnline,
+      'onlineUrl': onlineUrl,
       'ticketTypes': ticketTypes.map((tt) {
         return tt is TicketTypeModel
             ? tt.toJson()
@@ -114,6 +120,8 @@ class EventDetailModel extends EventDetail {
       minPrice: entity.minPrice,
       maxPrice: entity.maxPrice,
       organizer: entity.organizer,
+      isOnline: entity.isOnline,
+      onlineUrl: entity.onlineUrl,
       ticketTypes: ticketTypeModels,
       isBookmarked: entity.isBookmarked,
       policies: entity.policies,

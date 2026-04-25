@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/domain/normalized_location.dart';
+import '../../../../core/supabase/location_write_helper.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../domain/entities/create_event_data.dart';
@@ -51,6 +53,15 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
     return raw.replaceAll('%', '').trim();
   }
 
+  static bool _isMissingLocationsRelationship(PostgrestException e) {
+    final message = e.message.toLowerCase();
+    return e.code == 'PGRST200' ||
+        (message.contains('locations') &&
+            (message.contains('schema cache') ||
+                message.contains('could not find') ||
+                message.contains('relationship')));
+  }
+
   @override
   Future<List<EventListItemModel>> getEvents({
     String? location,
@@ -58,48 +69,71 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
     String? searchQuery,
   }) async {
     return SupabaseFailureMapper.guard(() async {
-      var query = _client
-          .from('events')
-          .select('*')
-          .eq('is_active', true)
-          .gte('start_at', DateTime.now().toIso8601String());
+      Future<List<Map<String, dynamic>>> fetch(String select) async {
+        var query = _client
+            .from('events')
+            .select(select)
+            .eq('is_active', true)
+            .gte('start_at', DateTime.now().toIso8601String());
 
-      // TODO: Add location filter when ready: query.or('venue_name.ilike.%$location%,venue_address.ilike.%$location%')
-      final q = _sanitizeIlike(searchQuery);
-      if (q.isNotEmpty) {
-        query = query.or(
-          'title.ilike.%$q%,description.ilike.%$q%,venue_name.ilike.%$q%,venue_address.ilike.%$q%',
-        );
-      }
-      final startDate = filters?.startDate;
-      if (startDate != null) {
-        query = query.gte('start_at', startDate.toIso8601String());
-      }
-      final endDate = filters?.endDate;
-      if (endDate != null) {
-        query = query.lte('end_at', endDate.toIso8601String());
-      }
-      if (filters?.eventTypes.isNotEmpty == true) {
-        final types = filters!.eventTypes.map((e) => e.name).toList();
-        query = query.inFilter('category', types);
+        // TODO: Add location filter when ready: query.or('venue_name.ilike.%$location%,venue_address.ilike.%$location%')
+        final q = _sanitizeIlike(searchQuery);
+        if (q.isNotEmpty) {
+          query = query.or(
+            'title.ilike.%$q%,description.ilike.%$q%,venue_name.ilike.%$q%,venue_address.ilike.%$q%',
+          );
+        }
+        final startDate = filters?.startDate;
+        if (startDate != null) {
+          query = query.gte('start_at', startDate.toIso8601String());
+        }
+        final endDate = filters?.endDate;
+        if (endDate != null) {
+          query = query.lte('end_at', endDate.toIso8601String());
+        }
+        if (filters?.eventTypes.isNotEmpty == true) {
+          final types = filters!.eventTypes.map((e) => e.name).toList();
+          query = query.inFilter('category', types);
+        }
+
+        final res = await query.order('start_at', ascending: true);
+        return (res as List).cast<Map<String, dynamic>>();
       }
 
-      final res = await query.order('start_at', ascending: true);
-      final list = (res as List).cast<Map<String, dynamic>>();
+      late final List<Map<String, dynamic>> list;
+      try {
+        list = await fetch('*, ${SupabaseTables.locations}(*)');
+      } on PostgrestException catch (e) {
+        if (_isMissingLocationsRelationship(e)) {
+          list = await fetch('*');
+        } else {
+          rethrow;
+        }
+      }
       return list.map(_rowToEventListItem).toList();
     });
   }
 
   EventListItemModel _rowToEventListItem(Map<String, dynamic> row) {
+    final normalizedLocation =
+        NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
+    final isOnline = parseBool(row['is_online']);
     final id = parseStringRequired(row['id']);
     final title = parseStringRequired(row['title']);
     final imageUrl = parseString(row['image_url']) ?? 'https://placehold.co/400x300?text=Event';
     final category = parseString(row['category']);
     final categories = [ _categoryFromString(category) ];
     final startAt = parseTimestampRequired(row['start_at']);
-    final venue = parseStringRequired(row['venue_name'], 'Venue');
-    final venueAddress = parseString(row['venue_address']);
-    final location = venueAddress ?? venue;
+    final venue = isOnline
+        ? 'Online'
+        : (normalizedLocation?.name ??
+            parseStringRequired(row['venue_name'], 'Venue'));
+    final venueAddress = isOnline
+        ? parseString(row['online_url'])
+        : (normalizedLocation?.displayAddress.isNotEmpty == true
+            ? normalizedLocation!.displayAddress
+            : parseString(row['venue_address']));
+    final locationLabel = venueAddress ?? venue;
     return EventListItemModel(
       id: id,
       title: title,
@@ -107,7 +141,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       categories: categories,
       dateTime: startAt,
       venue: venue,
-      location: location,
+      location: locationLabel,
       price: null,
       priceRange: null,
       isBookmarked: false,
@@ -117,7 +151,23 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
   @override
   Future<EventDetailModel> getEventDetail(String eventId) async {
     return SupabaseFailureMapper.guard(() async {
-      final eventRes = await _client.from('events').select('*').eq('id', eventId).maybeSingle();
+      dynamic eventRes;
+      try {
+        eventRes = await _client
+            .from('events')
+            .select('*, ${SupabaseTables.locations}(*)')
+            .eq('id', eventId)
+            .maybeSingle();
+      } on PostgrestException catch (e) {
+        if (e.code == 'PGRST200' ||
+            e.message.contains('could not find') ||
+            e.message.contains('relationship') ||
+            e.message.contains('locations')) {
+          eventRes = await _client.from('events').select('*').eq('id', eventId).maybeSingle();
+        } else {
+          rethrow;
+        }
+      }
       if (eventRes == null) throw Exception('Event not found');
       final row = Map<String, dynamic>.from(eventRes as Map);
 
@@ -138,6 +188,8 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       }).toList();
 
       final category = parseString(row['category']);
+      final location = NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
+      final isOnline = parseBool(row['is_online']);
       final minPrice = ticketTypes.isEmpty ? null : ticketTypes.map((e) => e.price).reduce((a, b) => a < b ? a : b);
       final maxPrice = ticketTypes.isEmpty ? null : ticketTypes.map((e) => e.price).reduce((a, b) => a > b ? a : b);
 
@@ -149,16 +201,22 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         categories: [ _categoryFromString(category) ],
         startDate: parseTimestampRequired(row['start_at']),
         endDate: parseTimestampRequired(row['end_at']),
-        venue: parseStringRequired(row['venue_name'], 'Venue'),
-        address: parseStringRequired(row['venue_address']),
-        city: '',
-        state: '',
-        zipCode: null,
-        latitude: parseDouble(row['venue_lat']),
-        longitude: parseDouble(row['venue_lng']),
+        venue: isOnline
+            ? 'Online'
+            : (location?.name ?? parseStringRequired(row['venue_name'], 'Venue')),
+        address: isOnline
+            ? parseStringRequired(row['online_url'])
+            : (location?.addressLine1 ?? parseStringRequired(row['venue_address'])),
+        city: isOnline ? '' : (location?.city ?? ''),
+        state: isOnline ? '' : (location?.state ?? ''),
+        zipCode: isOnline ? null : location?.postalCode,
+        latitude: isOnline ? null : (location?.latitude ?? parseDouble(row['venue_lat'])),
+        longitude: isOnline ? null : (location?.longitude ?? parseDouble(row['venue_lng'])),
         minPrice: minPrice,
         maxPrice: maxPrice,
         organizer: null,
+        isOnline: isOnline,
+        onlineUrl: parseString(row['online_url']),
         ticketTypes: ticketTypes,
         isBookmarked: false,
         policies: null,
@@ -444,7 +502,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         throw Exception('Add at least one ticket type');
       }
 
-      final eventRes = await _client.from(SupabaseTables.events).insert({
+      final payload = <String, dynamic>{
         'organizer_id': userId,
         'business_id': data.businessId,
         'title': data.title,
@@ -453,12 +511,24 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         'venue_address': data.venueAddress,
         'venue_lat': data.venueLat,
         'venue_lng': data.venueLng,
+        'location_name': data.locationName,
+        'location_city': data.locationCity,
+        'location_state': data.locationState,
+        'location_country': data.locationCountry,
+        'location_postal_code': data.locationPostalCode,
+        'place_id': data.placeId,
+        'google_maps_url': data.googleMapsUrl,
+        'is_online': data.isOnline,
+        'online_url': data.onlineUrl,
         'start_at': data.startAt.toIso8601String(),
         'end_at': data.endAt.toIso8601String(),
         'image_url': data.imageUrl,
         'category': data.category.name.toLowerCase(),
         'is_active': true,
-      }).select('id').single();
+      };
+      await LocationWriteHelper(_client).attachEventLocation(payload);
+
+      final eventRes = await _client.from(SupabaseTables.events).insert(payload).select('id').single();
 
       final eventId = (eventRes as Map)['id'] as String;
 
@@ -493,7 +563,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         throw Exception('You can only edit events you organize');
       }
 
-      await _client.from(SupabaseTables.events).update({
+      final payload = <String, dynamic>{
         'business_id': data.businessId,
         'title': data.title,
         'description': data.description,
@@ -501,11 +571,23 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         'venue_address': data.venueAddress,
         'venue_lat': data.venueLat,
         'venue_lng': data.venueLng,
+        'location_name': data.locationName,
+        'location_city': data.locationCity,
+        'location_state': data.locationState,
+        'location_country': data.locationCountry,
+        'location_postal_code': data.locationPostalCode,
+        'place_id': data.placeId,
+        'google_maps_url': data.googleMapsUrl,
+        'is_online': data.isOnline,
+        'online_url': data.onlineUrl,
         'start_at': data.startAt.toIso8601String(),
         'end_at': data.endAt.toIso8601String(),
         'image_url': data.imageUrl,
         'category': data.category.name.toLowerCase(),
-      }).eq('id', eventId);
+      };
+      await LocationWriteHelper(_client).attachEventLocation(payload);
+
+      await _client.from(SupabaseTables.events).update(payload).eq('id', eventId);
 
       return getEventDetail(eventId);
     });

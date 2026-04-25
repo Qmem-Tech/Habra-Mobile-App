@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/domain/business_address_data.dart';
 import '../../../../core/validation/business_onboarding_validators.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/business_address_input.dart';
@@ -30,6 +31,7 @@ class _BusinessLocationStep2PageState extends State<BusinessLocationStep2Page> {
   final _stateController = TextEditingController(text: 'AL');
   final _zipController = TextEditingController();
   bool _isLoading = false;
+  BusinessAddressData? _selectedAddress;
 
   @override
   void dispose() {
@@ -100,6 +102,9 @@ class _BusinessLocationStep2PageState extends State<BusinessLocationStep2Page> {
                   cityValidator: BusinessOnboardingValidators.city,
                   stateValidator: BusinessOnboardingValidators.stateUsAbbrev,
                   zipValidator: BusinessOnboardingValidators.zipUs,
+                  onAddressApplied: (data) {
+                    _selectedAddress = data;
+                  },
                 ),
                 const SizedBox(height: 48),
               ],
@@ -139,6 +144,11 @@ class _BusinessLocationStep2PageState extends State<BusinessLocationStep2Page> {
       'address_city': _cityController.text.trim(),
       'address_state': stateAbbrev,
       'address_zip': _zipController.text.trim(),
+      if (_selectedAddress?.latitude != null) 'latitude': '${_selectedAddress!.latitude}',
+      if (_selectedAddress?.longitude != null) 'longitude': '${_selectedAddress!.longitude}',
+      if (_selectedAddress?.placeId?.isNotEmpty == true) 'place_id': _selectedAddress!.placeId!,
+      if (_selectedAddress?.googleMapsUrl?.isNotEmpty == true)
+        'google_maps_url': _selectedAddress!.googleMapsUrl!,
     };
     Navigator.push(
       context,

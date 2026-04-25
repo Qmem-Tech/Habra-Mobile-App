@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/domain/normalized_location.dart';
 import '../../../../core/location/user_geo_for_feed.dart';
 import '../../../../core/subscription/business_subscription_policy.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
@@ -21,6 +23,15 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
   HomeSupabaseDataSource();
 
   SupabaseClient get _client => Supabase.instance.client;
+
+  static bool _isMissingLocationsRelationship(PostgrestException e) {
+    final message = e.message.toLowerCase();
+    return e.code == 'PGRST200' ||
+        (message.contains('locations') &&
+            (message.contains('schema cache') ||
+                message.contains('could not find') ||
+                message.contains('relationship')));
+  }
 
   /// When [geo] is set, intersect with `habra_feed_nearby_business_ids` when possible.
   /// If RPC fails or returns empty, keeps full approved list (fallback).
@@ -50,23 +61,37 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final now = DateTime.now();
       final endOfWeek = now.add(const Duration(days: 7));
-      var query = _client
-          .from('events')
-          .select('*')
-          .eq('is_active', true)
-          .gte('start_at', now.toIso8601String())
-          .lte('start_at', endOfWeek.toIso8601String());
 
-      final geo = location.geo;
-      if (geo != null) {
-        final eventIds = await NearbyFeedRpcHelper(_client).nearbyEventIds(geo);
-        if (eventIds != null && eventIds.isNotEmpty) {
-          query = query.inFilter('id', eventIds);
+      Future<List<Map<String, dynamic>>> fetch(String select) async {
+        var query = _client
+            .from('events')
+            .select(select)
+            .eq('is_active', true)
+            .gte('start_at', now.toIso8601String())
+            .lte('start_at', endOfWeek.toIso8601String());
+
+        final geo = location.geo;
+        if (geo != null) {
+          final eventIds = await NearbyFeedRpcHelper(_client).nearbyEventIds(geo);
+          if (eventIds != null && eventIds.isNotEmpty) {
+            query = query.inFilter('id', eventIds);
+          }
         }
+
+        final res = await query.order('start_at', ascending: true).limit(10);
+        return (res as List).cast<Map<String, dynamic>>();
       }
 
-      final res = await query.order('start_at', ascending: true).limit(10);
-      final list = (res as List).cast<Map<String, dynamic>>();
+      late final List<Map<String, dynamic>> list;
+      try {
+        list = await fetch('*, ${SupabaseTables.locations}(*)');
+      } on PostgrestException catch (e) {
+        if (_isMissingLocationsRelationship(e)) {
+          list = await fetch('*');
+        } else {
+          rethrow;
+        }
+      }
       return list.map((row) {
         final id = parseStringRequired(row['id']);
         final title = parseStringRequired(row['title']);
@@ -74,8 +99,17 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
         final imageUrl = parseString(row['image_url']) ??
             'https://placehold.co/400x300?text=Event';
         final startAt = parseTimestampRequired(row['start_at']);
-        final venue = parseString(row['venue_name']);
-        final venueAddress = parseString(row['venue_address']);
+        final normalizedLocation =
+            NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
+        final isOnline = parseBool(row['is_online']);
+        final venue = isOnline
+            ? 'Online'
+            : (normalizedLocation?.name ?? parseString(row['venue_name']));
+        final venueAddress = isOnline
+            ? parseString(row['online_url'])
+            : (normalizedLocation?.displayAddress.isNotEmpty == true
+                ? normalizedLocation!.displayAddress
+                : parseString(row['venue_address']));
         final locationStr = venueAddress ?? venue ?? '';
         return EventModel(
           id: id,
@@ -136,24 +170,40 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
   @override
   Future<List<BusinessModel>> getPopularBusinesses(HomeFeedLocation location) async {
     return SupabaseFailureMapper.guard(() async {
-      var query = _client
-          .from('businesses')
-          .select('*')
-          .eq('approval_status', 'approved')
-          .eq('is_active', true);
+      Future<List<Map<String, dynamic>>> fetch(String select) async {
+        var query = _client
+            .from('businesses')
+            .select(select)
+            .eq('approval_status', 'approved')
+            .eq('is_active', true);
 
-      final geo = location.geo;
-      if (geo != null) {
-        final nearby = await NearbyFeedRpcHelper(_client).nearbyBusinessIds(geo);
-        if (nearby != null && nearby.isNotEmpty) {
-          query = query.inFilter('id', nearby);
+        final geo = location.geo;
+        if (geo != null) {
+          final nearby = await NearbyFeedRpcHelper(_client).nearbyBusinessIds(geo);
+          if (nearby != null && nearby.isNotEmpty) {
+            query = query.inFilter('id', nearby);
+          }
         }
+
+        final res = await query.order('rating', ascending: false).limit(10);
+        return (res as List).cast<Map<String, dynamic>>();
       }
 
-      final res = await query.order('rating', ascending: false).limit(10);
-      final list = (res as List).cast<Map<String, dynamic>>();
+      late final List<Map<String, dynamic>> list;
+      try {
+        list = await fetch('*, ${SupabaseTables.locations}(*)');
+      } on PostgrestException catch (e) {
+        if (_isMissingLocationsRelationship(e)) {
+          list = await fetch('*');
+        } else {
+          rethrow;
+        }
+      }
       return list.map((row) {
+        final normalizedLocation =
+            NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
         final category = parseString(row['description']) ??
+            normalizedLocation?.city ??
             parseString(row['address_city']) ??
             'Business';
         final imageUrls = parseStringList(row['image_urls']);
@@ -164,8 +214,8 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
         final listImage = logo ??
             (imageUrls.isNotEmpty ? imageUrls.first : null) ??
             'https://placehold.co/400x300?text=Business';
-        final lat = parseDouble(row['latitude']);
-        final lng = parseDouble(row['longitude']);
+        final lat = normalizedLocation?.latitude ?? parseDouble(row['latitude']);
+        final lng = normalizedLocation?.longitude ?? parseDouble(row['longitude']);
         final tier = businessTierFromRaw(parseString(row['subscription_tier']));
         final subStatus = businessSubscriptionStatusFromRaw(
           parseString(row['subscription_status']),

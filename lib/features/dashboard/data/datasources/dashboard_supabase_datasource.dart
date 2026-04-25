@@ -5,8 +5,10 @@ import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/utils/job_type_format.dart';
 import '../../../../core/utils/relative_time_short.dart';
 import '../../../../core/models/legal_document_upload_result.dart';
+import '../../../../core/domain/normalized_location.dart';
 import '../../../../core/subscription/business_subscription_policy.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
+import '../../../../core/supabase/location_write_helper.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../../home/domain/entities/business_presence.dart';
@@ -181,8 +183,12 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       final categoriesEmbed =
           '${SupabaseTables.businessCategories}(${SupabaseTables.categories}(name))';
       final withParent =
+          '*, ${SupabaseTables.locations}(*), parent_business:businesses!$_businessesParentFkHint(name), $categoriesEmbed';
+      final withoutParent =
+          '*, ${SupabaseTables.locations}(*), $categoriesEmbed';
+      final legacyWithParent =
           '*, parent_business:businesses!$_businessesParentFkHint(name), $categoriesEmbed';
-      final withoutParent = '*, $categoriesEmbed';
+      final legacyWithoutParent = '*, $categoriesEmbed';
 
       List<dynamic> res;
       try {
@@ -195,13 +201,36 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         if (e.code == 'PGRST200' ||
             e.message.contains('could not find') ||
             e.message.contains('relationship')) {
-          res = await _client
-              .from(SupabaseTables.businesses)
-              .select(withoutParent)
-              .eq('owner_id', ownerId)
-              .order('created_at', ascending: false);
+          try {
+            res = await _client
+                .from(SupabaseTables.businesses)
+                .select(withoutParent)
+                .eq('owner_id', ownerId)
+                .order('created_at', ascending: false);
+          } on PostgrestException catch (fallbackError) {
+            if (fallbackError.code == 'PGRST200' ||
+                fallbackError.message.contains('could not find') ||
+                fallbackError.message.contains('relationship') ||
+                fallbackError.message.contains('locations')) {
+              res = await _client
+                  .from(SupabaseTables.businesses)
+                  .select(legacyWithoutParent)
+                  .eq('owner_id', ownerId)
+                  .order('created_at', ascending: false);
+            } else {
+              rethrow;
+            }
+          }
         } else {
-          rethrow;
+          if (e.message.contains('locations')) {
+            res = await _client
+                .from(SupabaseTables.businesses)
+                .select(legacyWithParent)
+                .eq('owner_id', ownerId)
+                .order('created_at', ascending: false);
+          } else {
+            rethrow;
+          }
         }
       }
       final rows = List<Map<String, dynamic>>.from(res);
@@ -210,6 +239,8 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   }
 
   BusinessPresence _rowToPresence(Map<String, dynamic> row) {
+    final normalizedLocation =
+        NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
     final logoUrl = parseString(row['logo_url']);
     final backgroundUrl = parseString(row['background_url']);
     final galleryUrls = parseStringList(row['image_urls']);
@@ -246,12 +277,12 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return BusinessPresence(
       id: parseStringRequired(row['id']),
       name: parseStringRequired(row['name']),
-      locationName: parseString(row['address_street']),
+      locationName: normalizedLocation?.addressLine1 ?? parseString(row['address_street']),
       category: category,
-      city: parseString(row['address_city']),
-      state: parseString(row['address_state']),
-      latitude: parseDouble(row['latitude']),
-      longitude: parseDouble(row['longitude']),
+      city: normalizedLocation?.city ?? parseString(row['address_city']),
+      state: normalizedLocation?.state ?? parseString(row['address_state']),
+      latitude: normalizedLocation?.latitude ?? parseDouble(row['latitude']),
+      longitude: normalizedLocation?.longitude ?? parseDouble(row['longitude']),
       phone: parseString(row['phone']),
       email: parseString(row['email']),
       website: parseString(row['website']),
@@ -1413,6 +1444,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       Future<String> insert(Map<String, dynamic> payload) async {
         payload['owner_id'] = ownerId;
         _normalizeBusinessApprovalStatus(payload, setDefaultIfMissing: true);
+        await LocationWriteHelper(_client).attachBusinessLocation(payload);
         payload['updated_at'] = DateTime.now().toIso8601String();
         final res = await _client
             .from(SupabaseTables.businesses)
@@ -1431,6 +1463,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         const branchKeys = [
           'parent_business_id',
           'location_label',
+          'location_id',
           'monthly_profile_views',
         ];
         final mentionsBranch = branchKeys.any(
@@ -1503,11 +1536,27 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     return SupabaseFailureMapper.guard(() async {
       final payload = Map<String, dynamic>.from(data);
       _normalizeBusinessApprovalStatus(payload, setDefaultIfMissing: false);
+      await LocationWriteHelper(_client).attachBusinessLocation(payload);
       payload['updated_at'] = DateTime.now().toIso8601String();
-      await _client
-          .from(SupabaseTables.businesses)
-          .update(payload)
-          .eq('id', businessId);
+      try {
+        await _client
+            .from(SupabaseTables.businesses)
+            .update(payload)
+            .eq('id', businessId);
+      } on PostgrestException catch (e) {
+        if (payload.containsKey('location_id') &&
+            (e.message.contains('location_id') ||
+                e.message.contains('schema cache') ||
+                e.message.contains('column'))) {
+          final retry = Map<String, dynamic>.from(payload)..remove('location_id');
+          await _client
+              .from(SupabaseTables.businesses)
+              .update(retry)
+              .eq('id', businessId);
+        } else {
+          rethrow;
+        }
+      }
     });
   }
 

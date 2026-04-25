@@ -638,6 +638,14 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
         'address_zip': widget.step3Data['address_zip']?.isNotEmpty == true
             ? widget.step3Data['address_zip']
             : null,
+        'latitude': double.tryParse(widget.step3Data['latitude'] ?? ''),
+        'longitude': double.tryParse(widget.step3Data['longitude'] ?? ''),
+        'place_id': widget.step3Data['place_id']?.isNotEmpty == true
+            ? widget.step3Data['place_id']
+            : null,
+        'google_maps_url': widget.step3Data['google_maps_url']?.isNotEmpty == true
+            ? widget.step3Data['google_maps_url']
+            : null,
         'opening_time': widget.step3Data['opening_time'],
         'closing_time': widget.step3Data['closing_time'],
         'logo_url': logoUrl,

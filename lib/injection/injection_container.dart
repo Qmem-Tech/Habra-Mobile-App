@@ -186,7 +186,7 @@ Future<void> init() async {
   sl.registerFactory(() => LocalizationCubit(localStorage: sl<LocalStorage>()));
 
   // Services
-  sl.registerLazySingleton<LocationService>(() => LocationService());
+  sl.registerLazySingleton<LocationService>(() => LocationService(dio: sl<Dio>()));
   sl.registerLazySingleton<ImagePickerService>(() => ImagePickerService());
   sl.registerLazySingleton<PermissionService>(() => PermissionService());
   sl.registerLazySingleton<StorageService>(() => StorageService());

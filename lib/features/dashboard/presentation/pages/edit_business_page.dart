@@ -49,6 +49,8 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
   bool _showValidation = false;
   double? _latitude;
   double? _longitude;
+  String? _placeId;
+  String? _googleMapsUrl;
 
   static final RegExp _emailRe = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
 
@@ -98,6 +100,8 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
         _latitude = data.latitude;
         _longitude = data.longitude;
       }
+      _placeId = data.placeId;
+      _googleMapsUrl = data.googleMapsUrl;
     });
   }
 
@@ -205,6 +209,8 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
         'address_zip': _zipController.text.trim().isNotEmpty ? _zipController.text.trim() : null,
         if (_latitude != null && _longitude != null) 'latitude': _latitude,
         if (_latitude != null && _longitude != null) 'longitude': _longitude,
+        if (_placeId != null) 'place_id': _placeId,
+        if (_googleMapsUrl != null) 'google_maps_url': _googleMapsUrl,
         if (widget.business.parentBusinessId != null)
           'location_label': () {
             final t = _locationLabelController.text.trim();

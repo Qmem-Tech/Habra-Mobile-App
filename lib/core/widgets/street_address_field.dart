@@ -10,6 +10,9 @@ import '../theme/app_colors.dart';
 import '../../injection/injection_container.dart' as di;
 
 String _formatAddressLine(BusinessAddressData d) {
+  if (d.formattedAddress != null && d.formattedAddress!.isNotEmpty) {
+    return d.formattedAddress!;
+  }
   final parts = <String>[
     if (d.street != null && d.street!.isNotEmpty) d.street!,
     if (d.city != null && d.city!.isNotEmpty) d.city!,

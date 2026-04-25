@@ -11,6 +11,8 @@
 -- After running, complete configuration in Dashboard: see HABRA_SUPABASE_CONFIG.md
 -- =============================================================================
 
+CREATE EXTENSION IF NOT EXISTS postgis;
+
 -- -----------------------------------------------------------------------------
 -- 1. ENUMS
 -- -----------------------------------------------------------------------------
@@ -43,6 +45,33 @@ CREATE TABLE public.profiles (
 -- -----------------------------------------------------------------------------
 -- 3. BUSINESSES
 -- -----------------------------------------------------------------------------
+CREATE TABLE public.locations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT,
+  address_line1 TEXT,
+  address_line2 TEXT,
+  city TEXT,
+  state TEXT,
+  country TEXT DEFAULT 'US',
+  postal_code TEXT,
+  latitude NUMERIC,
+  longitude NUMERIC,
+  place_id TEXT,
+  timezone TEXT,
+  is_verified BOOLEAN NOT NULL DEFAULT false,
+  google_maps_url TEXT,
+  location GEOGRAPHY(Point, 4326)
+    GENERATED ALWAYS AS (
+      CASE
+        WHEN latitude IS NOT NULL AND longitude IS NOT NULL
+        THEN ST_SetSRID(ST_MakePoint(longitude::double precision, latitude::double precision), 4326)::geography
+        ELSE NULL
+      END
+    ) STORED,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE public.businesses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -59,6 +88,7 @@ CREATE TABLE public.businesses (
   address_country TEXT DEFAULT 'US',
   latitude NUMERIC,
   longitude NUMERIC,
+  location_id UUID REFERENCES public.locations(id) ON DELETE SET NULL,
   logo_url TEXT,
   image_urls TEXT[] DEFAULT '{}',
   rating NUMERIC(3,2) DEFAULT 0,
@@ -122,6 +152,9 @@ CREATE TABLE public.events (
   venue_address TEXT,
   venue_lat NUMERIC,
   venue_lng NUMERIC,
+  location_id UUID REFERENCES public.locations(id) ON DELETE SET NULL,
+  is_online BOOLEAN NOT NULL DEFAULT false,
+  online_url TEXT,
   start_at TIMESTAMPTZ NOT NULL,
   end_at TIMESTAMPTZ NOT NULL,
   image_url TEXT,
@@ -305,11 +338,18 @@ CREATE TABLE public.app_settings (
 -- 5. INDEXES
 -- -----------------------------------------------------------------------------
 CREATE INDEX idx_profiles_role ON public.profiles(role);
+CREATE INDEX idx_locations_place_id ON public.locations(place_id) WHERE place_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_locations_unique_place_id ON public.locations(place_id) WHERE place_id IS NOT NULL;
+CREATE INDEX idx_locations_city_state ON public.locations(city, state);
+CREATE INDEX idx_locations_location_gist ON public.locations USING GIST(location);
 CREATE INDEX idx_businesses_owner ON public.businesses(owner_id);
+CREATE INDEX idx_businesses_location_id ON public.businesses(location_id);
 CREATE INDEX idx_businesses_city_active ON public.businesses(address_city, is_active);
 CREATE INDEX idx_businesses_approval_status ON public.businesses(approval_status) WHERE approval_status = 'pending';
 CREATE INDEX idx_deals_business_valid ON public.deals(business_id, valid_until) WHERE status = 'active';
 CREATE INDEX idx_events_start ON public.events(start_at) WHERE is_active;
+CREATE INDEX idx_events_location_id ON public.events(location_id);
+CREATE INDEX idx_events_online ON public.events(is_online);
 CREATE INDEX idx_jobs_business_posted ON public.jobs(business_id, posted_at DESC);
 CREATE INDEX idx_reviews_business ON public.reviews(business_id);
 CREATE INDEX idx_orders_user ON public.orders(user_id);
@@ -336,6 +376,70 @@ STABLE
 SET search_path = public
 AS $$
   SELECT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin');
+$$;
+
+CREATE OR REPLACE FUNCTION public.habra_feed_nearby_business_ids(
+  p_lat double precision,
+  p_lng double precision,
+  p_radius_km double precision DEFAULT 80,
+  p_limit integer DEFAULT 400
+)
+RETURNS TABLE (business_id uuid, dist_km double precision)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    b.id AS business_id,
+    (ST_Distance(
+      l.location,
+      ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography
+    ) / 1000.0)::double precision AS dist_km
+  FROM public.businesses b
+  JOIN public.locations l ON l.id = b.location_id
+  WHERE b.approval_status = 'approved'::business_approval_status
+    AND b.is_active = true
+    AND l.location IS NOT NULL
+    AND ST_DWithin(
+      l.location,
+      ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography,
+      p_radius_km * 1000.0
+    )
+  ORDER BY dist_km ASC
+  LIMIT p_limit;
+$$;
+
+CREATE OR REPLACE FUNCTION public.habra_feed_nearby_event_ids(
+  p_lat double precision,
+  p_lng double precision,
+  p_radius_km double precision DEFAULT 80,
+  p_limit integer DEFAULT 200
+)
+RETURNS TABLE (event_id uuid, dist_km double precision)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    e.id AS event_id,
+    (ST_Distance(
+      l.location,
+      ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography
+    ) / 1000.0)::double precision AS dist_km
+  FROM public.events e
+  JOIN public.locations l ON l.id = e.location_id
+  WHERE e.is_active = true
+    AND COALESCE(e.is_online, false) = false
+    AND e.start_at >= now()
+    AND e.start_at <= now() + interval '7 days'
+    AND l.location IS NOT NULL
+    AND ST_DWithin(
+      l.location,
+      ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography,
+      p_radius_km * 1000.0
+    )
+  ORDER BY dist_km ASC, e.start_at ASC
+  LIMIT p_limit;
 $$;
 
 -- -----------------------------------------------------------------------------
@@ -385,6 +489,8 @@ $$;
 
 DROP TRIGGER IF EXISTS tr_profiles_updated_at ON public.profiles;
 CREATE TRIGGER tr_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+DROP TRIGGER IF EXISTS tr_locations_updated_at ON public.locations;
+CREATE TRIGGER tr_locations_updated_at BEFORE UPDATE ON public.locations FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 DROP TRIGGER IF EXISTS tr_businesses_updated_at ON public.businesses;
 CREATE TRIGGER tr_businesses_updated_at BEFORE UPDATE ON public.businesses FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 DROP TRIGGER IF EXISTS tr_deals_updated_at ON public.deals;
@@ -444,6 +550,16 @@ CREATE POLICY "profiles_insert_own" ON public.profiles FOR INSERT WITH CHECK (au
 CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "profiles_delete_own" ON public.profiles FOR DELETE USING (auth.uid() = id);
 CREATE POLICY "profiles_admin_update" ON public.profiles FOR UPDATE USING (public.is_admin());
+
+-- Locations
+ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "locations_select" ON public.locations FOR SELECT USING (true);
+CREATE POLICY "locations_insert_authenticated" ON public.locations FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "locations_update_business_owner" ON public.locations FOR UPDATE TO authenticated USING (
+  public.is_admin()
+  OR EXISTS (SELECT 1 FROM public.businesses b WHERE b.location_id = locations.id AND b.owner_id = auth.uid())
+  OR EXISTS (SELECT 1 FROM public.events e WHERE e.location_id = locations.id AND e.organizer_id = auth.uid())
+) WITH CHECK (true);
 
 -- Businesses
 ALTER TABLE public.businesses ENABLE ROW LEVEL SECURITY;
@@ -587,6 +703,7 @@ CREATE POLICY "app_settings_admin" ON public.app_settings FOR ALL USING (public.
 -- 11. ADMIN OVERRIDE POLICIES (super admin full access)
 -- -----------------------------------------------------------------------------
 CREATE POLICY "admin_businesses" ON public.businesses FOR ALL USING (public.is_admin());
+CREATE POLICY "admin_locations" ON public.locations FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
 CREATE POLICY "admin_deals" ON public.deals FOR ALL USING (public.is_admin());
 CREATE POLICY "admin_events" ON public.events FOR ALL USING (public.is_admin());
 CREATE POLICY "admin_event_tickets" ON public.event_tickets FOR ALL USING (public.is_admin());
@@ -599,6 +716,9 @@ CREATE POLICY "admin_notifications_select" ON public.notifications FOR SELECT US
 CREATE POLICY "admin_job_applications" ON public.job_applications FOR ALL USING (public.is_admin());
 CREATE POLICY "admin_saved_items" ON public.saved_items FOR ALL USING (public.is_admin());
 CREATE POLICY "admin_boosts" ON public.boosts FOR ALL USING (public.is_admin());
+
+GRANT EXECUTE ON FUNCTION public.habra_feed_nearby_business_ids(double precision, double precision, double precision, integer) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.habra_feed_nearby_event_ids(double precision, double precision, double precision, integer) TO anon, authenticated;
 
 -- =============================================================================
 -- END OF SCHEMA. Next: run HABRA_SUPABASE_CONFIG.md steps in Dashboard.

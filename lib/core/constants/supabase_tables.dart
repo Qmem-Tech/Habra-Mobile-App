@@ -4,6 +4,7 @@ class SupabaseTables {
   SupabaseTables._();
 
   static const String profiles = 'profiles';
+  static const String locations = 'locations';
   static const String businesses = 'businesses';
   static const String deals = 'deals';
   static const String jobs = 'jobs';

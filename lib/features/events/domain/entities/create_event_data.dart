@@ -10,6 +10,15 @@ class CreateEventData extends Equatable {
     required this.venueAddress,
     this.venueLat,
     this.venueLng,
+    this.locationName,
+    this.locationCity,
+    this.locationState,
+    this.locationCountry,
+    this.locationPostalCode,
+    this.placeId,
+    this.googleMapsUrl,
+    this.isOnline = false,
+    this.onlineUrl,
     required this.startAt,
     required this.endAt,
     this.imageUrl,
@@ -24,6 +33,15 @@ class CreateEventData extends Equatable {
   final String venueAddress;
   final double? venueLat;
   final double? venueLng;
+  final String? locationName;
+  final String? locationCity;
+  final String? locationState;
+  final String? locationCountry;
+  final String? locationPostalCode;
+  final String? placeId;
+  final String? googleMapsUrl;
+  final bool isOnline;
+  final String? onlineUrl;
   final DateTime startAt;
   final DateTime endAt;
   final String? imageUrl;
@@ -39,6 +57,15 @@ class CreateEventData extends Equatable {
         venueAddress,
         venueLat,
         venueLng,
+        locationName,
+        locationCity,
+        locationState,
+        locationCountry,
+        locationPostalCode,
+        placeId,
+        googleMapsUrl,
+        isOnline,
+        onlineUrl,
         startAt,
         endAt,
         imageUrl,
