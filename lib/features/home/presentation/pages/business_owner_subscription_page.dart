@@ -210,7 +210,7 @@ class _BusinessOwnerSubscriptionPageState
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -233,6 +233,10 @@ class _BusinessOwnerSubscriptionPageState
               BusinessSubscriptionConfig.mode == BusinessOwnerSubscriptionMode.off) {
             return _buildActiveBody();
           }
+          if (BusinessSubscriptionConfig.mode ==
+              BusinessOwnerSubscriptionMode.profile) {
+            return _buildProfileModeBody(subState.currentTier);
+          }
           return SingleChildScrollView(
             padding: const EdgeInsets.all(AppResources.spacingM),
             child: Column(
@@ -248,6 +252,261 @@ class _BusinessOwnerSubscriptionPageState
           );
         },
       ),
+    );
+  }
+
+  Widget _buildProfileModeBody(BusinessSubscriptionTier currentTier) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppResources.spacingM,
+        vertical: AppResources.spacingS,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildPromoHeroCard(),
+          const SizedBox(height: 18),
+          _buildChoosePlanHeader(),
+          const SizedBox(height: 12),
+          _PlanTile(
+            name: 'Premium',
+            subtitle: 'Best for growing businesses',
+            icon: Icons.workspace_premium_rounded,
+            features: const [
+              'Featured in top of search results',
+              'Show deals & promotions',
+              'Post events',
+              'Verified badge',
+              'Advanced analytics (views, calls, clicks)',
+            ],
+            monthlyPrice: '\$29.99',
+            highlighted: true,
+            popular: true,
+            current: currentTier == BusinessSubscriptionTier.premium,
+            onTap: _openingHostedCheckout
+                ? null
+                : () => _onChooseProfileTier(BusinessSubscriptionTier.premium),
+          ),
+          const SizedBox(height: 10),
+          _PlanTile(
+            name: 'Pro',
+            subtitle: 'Great for small businesses',
+            icon: Icons.stars_rounded,
+            features: const [
+              'Show deals & promotions',
+              'Post events',
+              'Verified badge',
+              'Basic analytics (views & calls)',
+            ],
+            monthlyPrice: '\$14.99',
+            current: currentTier == BusinessSubscriptionTier.pro,
+            onTap: _openingHostedCheckout
+                ? null
+                : () => _onChooseProfileTier(BusinessSubscriptionTier.pro),
+          ),
+          const SizedBox(height: 10),
+          _PlanTile(
+            name: 'Basic',
+            subtitle: 'Get started with essentials',
+            icon: Icons.storefront_rounded,
+            features: const [
+              'Business listing',
+              'Customer reviews',
+              'Basic insights',
+            ],
+            monthlyPrice: 'Free',
+            billingSuffix: '/ forever',
+            current: currentTier == BusinessSubscriptionTier.basic,
+          ),
+          const SizedBox(height: 14),
+          _buildWhyUpgradeSection(),
+          const SizedBox(height: 12),
+          _buildLegalFooter(),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton(
+              onPressed: _onRefreshStatus,
+              child: const Text('Refresh subscription status'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPromoHeroCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF0E5D42),
+            Color(0xFF0F6C4A),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.workspace_premium_rounded, size: 14, color: Color(0xFFFFD466)),
+                SizedBox(width: 6),
+                Text(
+                  'Unlock More Visibility',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Get More Customers\nWith Premium',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.w700,
+              height: 1.08,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Stand out. Get seen. Grow faster.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.92),
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Row(
+            children: [
+              _HeroStat(icon: Icons.visibility_outlined, label: 'More Views'),
+              _HeroStat(icon: Icons.call_outlined, label: 'More Calls'),
+              _HeroStat(icon: Icons.groups_outlined, label: 'More Customers'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChoosePlanHeader() {
+    return const Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Choose Your Plan',
+            style: TextStyle(
+              fontSize: 29,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        Icon(Icons.verified_user_outlined, size: 16, color: AppColors.textSecondary),
+        SizedBox(width: 4),
+        Text(
+          'Cancel Anytime',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWhyUpgradeSection() {
+    Widget item(IconData icon, String text) {
+      return Expanded(
+        child: Column(
+          children: [
+            Icon(icon, size: 20, color: AppColors.brandPrimary),
+            const SizedBox(height: 6),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+                height: 1.25,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F7F7),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Why Upgrade?',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              item(Icons.people_outline_rounded, 'Reach more\nlocal customers'),
+              item(Icons.trending_up_rounded, 'Get more calls\nand visits'),
+              item(Icons.verified_outlined, 'Build trust with\nverified badge'),
+              item(Icons.campaign_outlined, 'Promote deals\nand events'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegalFooter() {
+    return Text.rich(
+      TextSpan(
+        text: 'By continuing, you agree to our ',
+        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        children: [
+          TextSpan(
+            text: 'Terms of Service',
+            style: TextStyle(
+              color: AppColors.brandPrimary,
+              decoration: TextDecoration.underline,
+            ),
+          ),
+          const TextSpan(text: ' and '),
+          TextSpan(
+            text: 'Privacy Policy.',
+            style: TextStyle(
+              color: AppColors.brandPrimary,
+              decoration: TextDecoration.underline,
+            ),
+          ),
+        ],
+      ),
+      textAlign: TextAlign.center,
     );
   }
 
@@ -320,17 +579,21 @@ class _BusinessOwnerSubscriptionPageState
           ),
         ];
       case BusinessOwnerSubscriptionMode.profile:
-        final currentTier = context
-            .read<BusinessOwnerSubscriptionCubit>()
-            .state
-            .currentTier;
+        final currentTier = context.read<BusinessOwnerSubscriptionCubit>().state.currentTier;
         return [
           _PlanTile(
             name: 'Premium',
-            description:
-                'Featured in top search, deals/events promotions, verified badge, advanced analytics.',
-            priceLabel: '\$29.99 / month',
+            subtitle: 'Best for growing businesses',
+            icon: Icons.workspace_premium_rounded,
+            features: const [
+              'Featured in top search',
+              'Deals/events promotions',
+              'Verified badge',
+              'Advanced analytics',
+            ],
+            monthlyPrice: '\$29.99',
             highlighted: true,
+            popular: true,
             current: currentTier == BusinessSubscriptionTier.premium,
             onTap: _openingHostedCheckout
                 ? null
@@ -339,9 +602,14 @@ class _BusinessOwnerSubscriptionPageState
           const SizedBox(height: 10),
           _PlanTile(
             name: 'Pro',
-            description:
-                'Deals/events promotions, verified badge, basic analytics.',
-            priceLabel: '\$14.99 / month',
+            subtitle: 'Great for small businesses',
+            icon: Icons.stars_rounded,
+            features: const [
+              'Deals/events promotions',
+              'Verified badge',
+              'Basic analytics',
+            ],
+            monthlyPrice: '\$14.99',
             current: currentTier == BusinessSubscriptionTier.pro,
             onTap: _openingHostedCheckout
                 ? null
@@ -350,8 +618,11 @@ class _BusinessOwnerSubscriptionPageState
           const SizedBox(height: 10),
           _PlanTile(
             name: 'Basic',
-            description: 'Business listing, reviews, and basic insights.',
-            priceLabel: 'Free',
+            subtitle: 'Get started with essentials',
+            icon: Icons.storefront_rounded,
+            features: const ['Business listing', 'Customer reviews', 'Basic insights'],
+            monthlyPrice: 'Free',
+            billingSuffix: '/ forever',
             current: currentTier == BusinessSubscriptionTier.basic,
             onTap: null,
           ),
@@ -574,17 +845,25 @@ class _PackageCard extends StatelessWidget {
 class _PlanTile extends StatelessWidget {
   const _PlanTile({
     required this.name,
-    required this.description,
-    required this.priceLabel,
+    required this.subtitle,
+    required this.icon,
+    required this.features,
+    required this.monthlyPrice,
+    this.billingSuffix = '/ month',
     this.highlighted = false,
+    this.popular = false,
     this.current = false,
     this.onTap,
   });
 
   final String name;
-  final String description;
-  final String priceLabel;
+  final String subtitle;
+  final IconData icon;
+  final List<String> features;
+  final String monthlyPrice;
+  final String billingSuffix;
   final bool highlighted;
+  final bool popular;
   final bool current;
   final VoidCallback? onTap;
 
@@ -594,60 +873,167 @@ class _PlanTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppResources.radiusM),
-        border: Border.all(
-          color: highlighted ? AppColors.brandPrimary : AppColors.backgroundGrey,
-          width: highlighted ? 1.5 : 1,
-        ),
+        border: Border.all(color: highlighted ? AppColors.brandPrimary : const Color(0xFFD9D9D9), width: highlighted ? 1.5 : 1),
       ),
-      padding: const EdgeInsets.all(AppResources.spacingM),
+      padding: const EdgeInsets.all(14),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: highlighted
+                            ? AppColors.brandPrimary.withValues(alpha: 0.12)
+                            : const Color(0xFFF4F4F4),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(icon, color: AppColors.brandPrimary, size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            subtitle,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (popular)
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE6F3EA),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Text(
+                          'Most Popular',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.brandPrimary,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                    height: 1.3,
+                const SizedBox(height: 10),
+                ...features.map(
+                  (feature) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.check, size: 15, color: Color(0xFF4E4E4E)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            feature,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF454545),
+                              height: 1.25,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                priceLabel,
+                monthlyPrice,
                 style: const TextStyle(
-                  fontSize: 17,
+                  fontSize: 33,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 10),
-              AppOutlinedButton(
-                text: current ? 'Current Plan' : 'Choose Plan',
-                onPressed: current ? null : onTap,
-                textColor:
-                    current ? AppColors.textSecondary : AppColors.brandPrimary,
-                borderColor:
-                    current ? AppColors.backgroundGrey : AppColors.brandPrimary,
+              Text(
+                billingSuffix,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: 116,
+                height: 38,
+                child: current
+                    ? AppOutlinedButton(
+                        text: 'Current Plan',
+                        onPressed: null,
+                        textColor: AppColors.textSecondary,
+                        borderColor: AppColors.backgroundGrey,
+                      )
+                    : AppButton(
+                        text: 'Choose Plan',
+                        onPressed: onTap,
+                        backgroundColor: AppColors.brandPrimary,
+                        textColor: Colors.white,
+                        height: 38,
+                      ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroStat extends StatelessWidget {
+  const _HeroStat({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Row(
+        children: [
+          Icon(icon, size: 17, color: Colors.white.withValues(alpha: 0.88)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.88),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
