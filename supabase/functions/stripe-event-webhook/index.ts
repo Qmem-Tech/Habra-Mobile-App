@@ -7,6 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
 };
 
+type SupabaseAdminClient = ReturnType<typeof createClient>;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -44,21 +46,133 @@ serve(async (req) => {
     if (event.type === "payment_intent.succeeded") {
       const intent = event.data.object as Stripe.PaymentIntent;
       await handlePaymentSuccess(adminClient, intent);
+      await logStripeInvoiceEvent(adminClient, {
+        stripeEventId: event.id,
+        eventType: event.type,
+        stripeCustomerId: asString(intent.customer),
+        amountCents: intent.amount_received ?? intent.amount ?? null,
+        currency: intent.currency ?? null,
+        status: intent.status ?? null,
+      });
     } else if (event.type === "payment_intent.payment_failed") {
       const intent = event.data.object as Stripe.PaymentIntent;
       await handlePaymentFailed(adminClient, intent);
+      await logStripeInvoiceEvent(adminClient, {
+        stripeEventId: event.id,
+        eventType: event.type,
+        stripeCustomerId: asString(intent.customer),
+        amountCents: intent.amount ?? null,
+        currency: intent.currency ?? null,
+        status: intent.status ?? null,
+      });
     } else if (event.type === "charge.refunded") {
       const charge = event.data.object as Stripe.Charge;
       await handleRefunded(adminClient, charge);
+      await logStripeInvoiceEvent(adminClient, {
+        stripeEventId: event.id,
+        eventType: event.type,
+        stripeCustomerId: asString(charge.customer),
+        stripeInvoiceId: asString(charge.invoice),
+        amountCents: charge.amount_refunded ?? null,
+        currency: charge.currency ?? null,
+        status: "refunded",
+      });
     } else if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       await handleCheckoutSessionCompleted(adminClient, stripe, session);
+      if (session.mode === "subscription") {
+        await logStripeSubscriptionEvent(adminClient, {
+          stripeEventId: event.id,
+          eventType: event.type,
+          userId: asString(session.metadata?.user_id),
+          stripeCustomerId: asString(session.customer),
+          stripeSubscriptionId: asString(session.subscription),
+          tier: asString(session.metadata?.tier),
+          status: "active",
+          source: "stripe",
+        });
+      }
+    } else if (event.type === "checkout.session.expired") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      if (session.mode === "subscription") {
+        await logStripeSubscriptionEvent(adminClient, {
+          stripeEventId: event.id,
+          eventType: event.type,
+          userId: asString(session.metadata?.user_id),
+          stripeCustomerId: asString(session.customer),
+          stripeSubscriptionId: asString(session.subscription),
+          tier: asString(session.metadata?.tier),
+          status: "incomplete_expired",
+          source: "stripe",
+        });
+      }
+    } else if (event.type === "customer.subscription.created") {
+      const subscription = event.data.object as Stripe.Subscription;
+      await handleCustomerSubscriptionChanged(adminClient, subscription);
+      await logStripeSubscriptionEvent(adminClient, {
+        stripeEventId: event.id,
+        eventType: event.type,
+        userId: asString(subscription.metadata?.user_id),
+        stripeCustomerId: asString(subscription.customer),
+        stripeSubscriptionId: subscription.id,
+        tier: tierFromSubscriptionPrice(asString(subscription.items.data[0]?.price?.id)),
+        status: normalizeSubscriptionStatus(subscription.status).dbStatus,
+        source: "stripe",
+      });
     } else if (event.type === "customer.subscription.updated") {
       const subscription = event.data.object as Stripe.Subscription;
       await handleCustomerSubscriptionChanged(adminClient, subscription);
+      await logStripeSubscriptionEvent(adminClient, {
+        stripeEventId: event.id,
+        eventType: event.type,
+        userId: asString(subscription.metadata?.user_id),
+        stripeCustomerId: asString(subscription.customer),
+        stripeSubscriptionId: subscription.id,
+        tier: tierFromSubscriptionPrice(asString(subscription.items.data[0]?.price?.id)),
+        status: normalizeSubscriptionStatus(subscription.status).dbStatus,
+        source: "stripe",
+      });
     } else if (event.type === "customer.subscription.deleted") {
       const subscription = event.data.object as Stripe.Subscription;
       await handleCustomerSubscriptionChanged(adminClient, subscription);
+      await logStripeSubscriptionEvent(adminClient, {
+        stripeEventId: event.id,
+        eventType: event.type,
+        userId: asString(subscription.metadata?.user_id),
+        stripeCustomerId: asString(subscription.customer),
+        stripeSubscriptionId: subscription.id,
+        tier: tierFromSubscriptionPrice(asString(subscription.items.data[0]?.price?.id)),
+        status: normalizeSubscriptionStatus(subscription.status).dbStatus,
+        source: "stripe",
+      });
+    } else if (event.type === "invoice.payment_succeeded") {
+      const invoice = event.data.object as Stripe.Invoice;
+      await handleInvoicePaymentEvent(adminClient, invoice, true);
+      await logStripeInvoiceEvent(adminClient, {
+        stripeEventId: event.id,
+        eventType: event.type,
+        userId: asString(invoice.metadata?.user_id),
+        stripeCustomerId: asString(invoice.customer),
+        stripeSubscriptionId: asString(invoice.subscription),
+        stripeInvoiceId: invoice.id,
+        amountCents: invoice.amount_paid ?? null,
+        currency: invoice.currency ?? null,
+        status: invoice.status ?? "paid",
+      });
+    } else if (event.type === "invoice.payment_failed") {
+      const invoice = event.data.object as Stripe.Invoice;
+      await handleInvoicePaymentEvent(adminClient, invoice, false);
+      await logStripeInvoiceEvent(adminClient, {
+        stripeEventId: event.id,
+        eventType: event.type,
+        userId: asString(invoice.metadata?.user_id),
+        stripeCustomerId: asString(invoice.customer),
+        stripeSubscriptionId: asString(invoice.subscription),
+        stripeInvoiceId: invoice.id,
+        amountCents: invoice.amount_due ?? null,
+        currency: invoice.currency ?? null,
+        status: invoice.status ?? "open",
+      });
     }
 
     return new Response(JSON.stringify({ received: true }), {
@@ -73,7 +187,7 @@ serve(async (req) => {
   }
 });
 
-async function handlePaymentSuccess(adminClient: ReturnType<typeof createClient>, intent: Stripe.PaymentIntent) {
+async function handlePaymentSuccess(adminClient: SupabaseAdminClient, intent: Stripe.PaymentIntent) {
   const orderId = String(intent.metadata?.order_id ?? "");
   if (!orderId) return;
 
@@ -129,7 +243,7 @@ async function handlePaymentSuccess(adminClient: ReturnType<typeof createClient>
   }
 }
 
-async function handlePaymentFailed(adminClient: ReturnType<typeof createClient>, intent: Stripe.PaymentIntent) {
+async function handlePaymentFailed(adminClient: SupabaseAdminClient, intent: Stripe.PaymentIntent) {
   const orderId = String(intent.metadata?.order_id ?? "");
   if (!orderId) return;
   await adminClient.rpc("finalize_event_order_payment", {
@@ -142,7 +256,7 @@ async function handlePaymentFailed(adminClient: ReturnType<typeof createClient>,
   });
 }
 
-async function handleRefunded(adminClient: ReturnType<typeof createClient>, charge: Stripe.Charge) {
+async function handleRefunded(adminClient: SupabaseAdminClient, charge: Stripe.Charge) {
   const paymentIntentId = String(charge.payment_intent ?? "");
   if (!paymentIntentId) return;
 
@@ -199,7 +313,7 @@ function normalizeSubscriptionStatus(status?: string): {
 }
 
 async function handleCheckoutSessionCompleted(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseAdminClient,
   stripe: Stripe,
   session: Stripe.Checkout.Session,
 ) {
@@ -213,7 +327,7 @@ async function handleCheckoutSessionCompleted(
 }
 
 async function handleCustomerSubscriptionChanged(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseAdminClient,
   subscription: Stripe.Subscription,
 ) {
   const userId = String(subscription.metadata?.user_id ?? "").trim();
@@ -223,7 +337,7 @@ async function handleCustomerSubscriptionChanged(
 }
 
 async function applyBusinessSubscriptionProfile(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseAdminClient,
   userId: string,
   customerId: string,
   subscription: Stripe.Subscription,
@@ -238,6 +352,8 @@ async function applyBusinessSubscriptionProfile(
     owner_tools_subscription_tier: tier,
     owner_tools_subscription_status: status.dbStatus,
     owner_tools_subscription_updated_at: new Date().toISOString(),
+    owner_tools_subscription_source: "stripe",
+    owner_tools_subscription_origin_id: subscription.id,
   };
   try {
     await adminClient.from("profiles").update(payload).eq("id", userId);
@@ -247,7 +363,117 @@ async function applyBusinessSubscriptionProfile(
       stripe_customer_id: customerId,
       owner_tools_subscription_active: status.active,
       owner_tools_subscription_tier: tier,
+      owner_tools_subscription_source: "stripe",
+      owner_tools_subscription_origin_id: subscription.id,
     };
     await adminClient.from("profiles").update(payload).eq("id", userId);
+  }
+}
+
+async function handleInvoicePaymentEvent(
+  adminClient: SupabaseAdminClient,
+  invoice: Stripe.Invoice,
+  paid: boolean,
+) {
+  const userId = asString(invoice.metadata?.user_id);
+  const customerId = asString(invoice.customer);
+  const subscriptionId = asString(invoice.subscription);
+  if (!userId || !customerId || !subscriptionId) return;
+
+  const status = paid
+    ? { active: true, dbStatus: "active" }
+    : { active: false, dbStatus: "past_due" };
+  const payload: Record<string, unknown> = {
+    stripe_customer_id: customerId,
+    owner_tools_subscription_active: status.active,
+    owner_tools_subscription_status: status.dbStatus,
+    owner_tools_subscription_updated_at: new Date().toISOString(),
+    owner_tools_subscription_source: "stripe",
+    owner_tools_subscription_origin_id: subscriptionId,
+  };
+  try {
+    await adminClient.from("profiles").update(payload).eq("id", userId);
+  } catch (_) {
+    await adminClient
+      .from("profiles")
+      .update({
+        stripe_customer_id: customerId,
+        owner_tools_subscription_active: status.active,
+      })
+      .eq("id", userId);
+  }
+}
+
+function asString(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
+async function logStripeSubscriptionEvent(
+  adminClient: SupabaseAdminClient,
+  payload: {
+    stripeEventId: string;
+    eventType: string;
+    userId?: string | null;
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId?: string | null;
+    tier?: string | null;
+    status?: string | null;
+    source?: string | null;
+  },
+) {
+  const row = {
+    stripe_event_id: payload.stripeEventId,
+    event_type: payload.eventType,
+    user_id: payload.userId || null,
+    stripe_customer_id: payload.stripeCustomerId || null,
+    stripe_subscription_id: payload.stripeSubscriptionId || null,
+    tier: payload.tier || "basic",
+    status: payload.status || "inactive",
+    source: payload.source || "stripe",
+    payload_json: payload,
+  };
+  try {
+    await adminClient
+      .from("billing_subscription_events")
+      .upsert(row, { onConflict: "stripe_event_id" });
+  } catch (_) {
+    // Backward compatibility: do not fail webhook processing if ledger tables
+    // are not deployed yet in the target environment.
+  }
+}
+
+async function logStripeInvoiceEvent(
+  adminClient: SupabaseAdminClient,
+  payload: {
+    stripeEventId: string;
+    eventType: string;
+    userId?: string | null;
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId?: string | null;
+    stripeInvoiceId?: string | null;
+    amountCents?: number | null;
+    currency?: string | null;
+    status?: string | null;
+  },
+) {
+  const row = {
+    stripe_event_id: payload.stripeEventId,
+    event_type: payload.eventType,
+    user_id: payload.userId || null,
+    stripe_customer_id: payload.stripeCustomerId || null,
+    stripe_subscription_id: payload.stripeSubscriptionId || null,
+    stripe_invoice_id: payload.stripeInvoiceId || null,
+    amount_cents: payload.amountCents ?? null,
+    currency: payload.currency || null,
+    status: payload.status || null,
+    payload_json: payload,
+  };
+  try {
+    await adminClient
+      .from("billing_invoice_events")
+      .upsert(row, { onConflict: "stripe_event_id" });
+  } catch (_) {
+    // Backward compatibility: do not fail webhook processing if ledger tables
+    // are not deployed yet in the target environment.
   }
 }

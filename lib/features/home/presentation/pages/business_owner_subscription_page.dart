@@ -154,6 +154,19 @@ class _BusinessOwnerSubscriptionPageState
     }
   }
 
+  Future<void> _onManagePlan() async {
+    final ok = await di.sl<BusinessSubscriptionCheckoutService>().openPortal();
+    if (!mounted) return;
+    if (!ok) {
+      ErrorDisplayHelper.show(
+        context,
+        title: 'Billing portal unavailable',
+        message:
+            'Could not open Stripe billing portal. Verify portal function deployment and customer portal settings in Stripe.',
+      );
+    }
+  }
+
   Future<void> _onChooseProfileTier(BusinessSubscriptionTier tier) async {
     if (_openingHostedCheckout) return;
     if (tier == BusinessSubscriptionTier.basic) {
@@ -420,6 +433,14 @@ class _BusinessOwnerSubscriptionPageState
   }
 
   Widget _buildActiveBody() {
+    final isProfileMode =
+        BusinessSubscriptionConfig.mode == BusinessOwnerSubscriptionMode.profile;
+    final message = BusinessSubscriptionConfig.mode ==
+            BusinessOwnerSubscriptionMode.off
+        ? 'Subscription gating is turned off for this build.'
+        : (isProfileMode
+            ? 'Your subscription is managed via Habra billing. You can manage or cancel your plan in the billing portal.'
+            : 'You can use the Dashboard tab. Manage or cancel your plan in the App Store or Google Play subscriptions.');
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppResources.spacingL),
@@ -440,9 +461,7 @@ class _BusinessOwnerSubscriptionPageState
             ),
             const SizedBox(height: 12),
             Text(
-              BusinessSubscriptionConfig.mode == BusinessOwnerSubscriptionMode.off
-                  ? 'Subscription gating is turned off for this build.'
-                  : 'You can use the Dashboard tab. Manage or cancel your plan in the App Store or Google Play subscriptions.',
+              message,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
@@ -450,6 +469,15 @@ class _BusinessOwnerSubscriptionPageState
                 height: 1.4,
               ),
             ),
+            if (isProfileMode) ...[
+              const SizedBox(height: 16),
+              AppOutlinedButton(
+                text: 'Manage plan',
+                onPressed: _onManagePlan,
+                textColor: AppColors.brandPrimary,
+                borderColor: AppColors.brandPrimary,
+              ),
+            ],
             const SizedBox(height: 28),
             AppButton(
               text: 'Done',
