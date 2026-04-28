@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/config/business_subscription_config.dart';
 import '../../../../core/services/revenue_cat_service.dart';
@@ -72,33 +71,6 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
         if (!active) return (false, BusinessSubscriptionTier.basic);
         final tier = await _revenueCat.resolveCurrentTier();
         return (true, tier);
-      case BusinessOwnerSubscriptionMode.profile:
-        return _profileSubscriptionState(userId);
-    }
-  }
-
-  /// Backend sync: optional boolean on `profiles`. If the column is absent or RLS blocks
-  /// the read, we default to **true** so production without a migration stays usable.
-  Future<(bool, BusinessSubscriptionTier)> _profileSubscriptionState(
-    String userId,
-  ) async {
-    try {
-      final row = await Supabase.instance.client
-          .from('profiles')
-          .select('owner_tools_subscription_active, owner_tools_subscription_tier')
-          .eq('id', userId)
-          .maybeSingle();
-      if (row is! Map<String, dynamic>) {
-        return (true, BusinessSubscriptionTier.pro);
-      }
-      final v = row['owner_tools_subscription_active'];
-      final tier =
-          businessTierFromRaw(row['owner_tools_subscription_tier'] as String?);
-      if (v == null) return (true, tier);
-      if (v is bool) return (v, v ? tier : BusinessSubscriptionTier.basic);
-      return (true, tier);
-    } catch (_) {
-      return (true, BusinessSubscriptionTier.pro);
     }
   }
 }

@@ -4,7 +4,6 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '../../../../core/config/business_subscription_config.dart';
 import '../../../../core/resources/app_resources.dart';
-import '../../../../core/services/business_subscription_checkout_service.dart';
 import '../../../../core/services/revenue_cat_service.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -32,7 +31,6 @@ class _BusinessOwnerSubscriptionPageState
   bool _loadingPackages = true;
   String? _packagesError;
   bool _purchasing = false;
-  bool _openingHostedCheckout = false;
 
   @override
   void initState() {
@@ -41,8 +39,7 @@ class _BusinessOwnerSubscriptionPageState
   }
 
   Future<void> _loadPackages() async {
-    if (BusinessSubscriptionConfig.mode !=
-        BusinessOwnerSubscriptionMode.revenuecat) {
+    if (BusinessSubscriptionConfig.mode == BusinessOwnerSubscriptionMode.off) {
       if (mounted) {
         setState(() {
           _loadingPackages = false;
@@ -154,21 +151,7 @@ class _BusinessOwnerSubscriptionPageState
     }
   }
 
-  Future<void> _onManagePlan() async {
-    final ok = await di.sl<BusinessSubscriptionCheckoutService>().openPortal();
-    if (!mounted) return;
-    if (!ok) {
-      ErrorDisplayHelper.show(
-        context,
-        title: 'Billing portal unavailable',
-        message:
-            'Could not open Stripe billing portal. Verify portal function deployment and customer portal settings in Stripe.',
-      );
-    }
-  }
-
-  Future<void> _onChooseProfileTier(BusinessSubscriptionTier tier) async {
-    if (_openingHostedCheckout) return;
+  Future<void> _onChooseTier(BusinessSubscriptionTier tier) async {
     if (tier == BusinessSubscriptionTier.basic) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -177,28 +160,42 @@ class _BusinessOwnerSubscriptionPageState
       );
       return;
     }
-    setState(() => _openingHostedCheckout = true);
-    final ok = await di.sl<BusinessSubscriptionCheckoutService>().openCheckout(
-      tier,
-    );
-    if (!mounted) return;
-    setState(() => _openingHostedCheckout = false);
-    if (!ok) {
+    if (_purchasing) return;
+    final package = _findPackageForTier(tier);
+    if (package == null) {
       ErrorDisplayHelper.show(
         context,
-        title: 'Checkout unavailable',
+        title: 'Plan unavailable',
         message:
-            'Could not open hosted checkout. Please verify Stripe checkout function deployment.',
+            'This plan is not available in your current RevenueCat offering. Please check store product mapping.',
       );
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Complete payment in browser, then tap "Refresh subscription status".',
-        ),
-      ),
-    );
+    await _onPurchase(package);
+  }
+
+  Package? _findPackageForTier(BusinessSubscriptionTier tier) {
+    bool match(Package p) {
+      final title = p.storeProduct.title.toLowerCase();
+      final id = p.storeProduct.identifier.toLowerCase();
+      final packageId = p.identifier.toLowerCase();
+      if (tier == BusinessSubscriptionTier.premium) {
+        return title.contains('premium') ||
+            id.contains('premium') ||
+            packageId.contains('premium');
+      }
+      if (tier == BusinessSubscriptionTier.pro) {
+        return title.contains('pro') ||
+            id.contains('_pro') ||
+            id.endsWith('.pro') ||
+            packageId.contains('pro');
+      }
+      return false;
+    }
+
+    final matched = _packages.where(match).toList(growable: false);
+    if (matched.isEmpty) return null;
+    return matched.first;
   }
 
   @override
@@ -233,29 +230,29 @@ class _BusinessOwnerSubscriptionPageState
               BusinessSubscriptionConfig.mode == BusinessOwnerSubscriptionMode.off) {
             return _buildActiveBody();
           }
-          if (BusinessSubscriptionConfig.mode ==
-              BusinessOwnerSubscriptionMode.profile) {
-            return _buildProfileModeBody(subState.currentTier);
-          }
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(AppResources.spacingM),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildHeadline(),
-                const SizedBox(height: AppResources.spacingL),
-                _buildBenefits(),
-                const SizedBox(height: AppResources.spacingL),
-                ..._buildModeSection(context),
-              ],
-            ),
-          );
+          return _buildRevenueCatBody(subState.currentTier);
         },
       ),
     );
   }
 
-  Widget _buildProfileModeBody(BusinessSubscriptionTier currentTier) {
+  Widget _buildRevenueCatBody(BusinessSubscriptionTier currentTier) {
+    if (!di.sl<RevenueCatService>().isInitialized) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppResources.spacingL),
+          child: Text(
+            'In-app billing is not configured in this build (add RevenueCat API keys).',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+        ),
+      );
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(
         horizontal: AppResources.spacingM,
@@ -283,9 +280,8 @@ class _BusinessOwnerSubscriptionPageState
             highlighted: true,
             popular: true,
             current: currentTier == BusinessSubscriptionTier.premium,
-            onTap: _openingHostedCheckout
-                ? null
-                : () => _onChooseProfileTier(BusinessSubscriptionTier.premium),
+            onTap:
+                _purchasing ? null : () => _onChooseTier(BusinessSubscriptionTier.premium),
           ),
           const SizedBox(height: 10),
           _PlanTile(
@@ -300,9 +296,7 @@ class _BusinessOwnerSubscriptionPageState
             ],
             monthlyPrice: '\$14.99',
             current: currentTier == BusinessSubscriptionTier.pro,
-            onTap: _openingHostedCheckout
-                ? null
-                : () => _onChooseProfileTier(BusinessSubscriptionTier.pro),
+            onTap: _purchasing ? null : () => _onChooseTier(BusinessSubscriptionTier.pro),
           ),
           const SizedBox(height: 10),
           _PlanTile(
@@ -321,6 +315,51 @@ class _BusinessOwnerSubscriptionPageState
           const SizedBox(height: 14),
           _buildWhyUpgradeSection(),
           const SizedBox(height: 12),
+          if (_loadingPackages)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          if (_packagesError != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                _packagesError!,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          if (!_loadingPackages && _packages.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${_packages.length} plan package(s) loaded from RevenueCat.',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _loadPackages,
+                    child: const Text('Reload plans'),
+                  ),
+                ],
+              ),
+            ),
+          if (!_loadingPackages && _packages.isNotEmpty)
+            AppOutlinedButton(
+              text: 'Restore purchases',
+              onPressed: _purchasing ? null : _onRestore,
+              textColor: AppColors.brandPrimary,
+              borderColor: AppColors.brandPrimary,
+            ),
+          const SizedBox(height: 8),
           _buildLegalFooter(),
           const SizedBox(height: 10),
           Align(
@@ -510,208 +549,11 @@ class _BusinessOwnerSubscriptionPageState
     );
   }
 
-  Widget _buildHeadline() {
-    return const Text(
-      'Get More Customers With Premium',
-      style: TextStyle(
-        fontSize: 24,
-        fontWeight: FontWeight.bold,
-        color: AppColors.textPrimary,
-        height: 1.2,
-      ),
-    );
-  }
-
-  Widget _buildBenefits() {
-    const items = [
-      'More views',
-      'More calls',
-      'More customers',
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Included',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.brandPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...items.map(
-          (t) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.check_circle,
-                    size: 22, color: AppColors.brandSecondary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    t,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: AppColors.textPrimary,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  List<Widget> _buildModeSection(BuildContext context) {
-    switch (BusinessSubscriptionConfig.mode) {
-      case BusinessOwnerSubscriptionMode.off:
-        return [];
-      case BusinessOwnerSubscriptionMode.stubLocked:
-        return [
-          Text(
-            'This build uses stub subscription mode (always locked) for testing the paywall UI.',
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-          ),
-        ];
-      case BusinessOwnerSubscriptionMode.profile:
-        final currentTier = context.read<BusinessOwnerSubscriptionCubit>().state.currentTier;
-        return [
-          _PlanTile(
-            name: 'Premium',
-            subtitle: 'Best for growing businesses',
-            icon: Icons.workspace_premium_rounded,
-            features: const [
-              'Featured in top search',
-              'Deals/events promotions',
-              'Verified badge',
-              'Advanced analytics',
-            ],
-            monthlyPrice: '\$29.99',
-            highlighted: true,
-            popular: true,
-            current: currentTier == BusinessSubscriptionTier.premium,
-            onTap: _openingHostedCheckout
-                ? null
-                : () => _onChooseProfileTier(BusinessSubscriptionTier.premium),
-          ),
-          const SizedBox(height: 10),
-          _PlanTile(
-            name: 'Pro',
-            subtitle: 'Great for small businesses',
-            icon: Icons.stars_rounded,
-            features: const [
-              'Deals/events promotions',
-              'Verified badge',
-              'Basic analytics',
-            ],
-            monthlyPrice: '\$14.99',
-            current: currentTier == BusinessSubscriptionTier.pro,
-            onTap: _openingHostedCheckout
-                ? null
-                : () => _onChooseProfileTier(BusinessSubscriptionTier.pro),
-          ),
-          const SizedBox(height: 10),
-          _PlanTile(
-            name: 'Basic',
-            subtitle: 'Get started with essentials',
-            icon: Icons.storefront_rounded,
-            features: const ['Business listing', 'Customer reviews', 'Basic insights'],
-            monthlyPrice: 'Free',
-            billingSuffix: '/ forever',
-            current: currentTier == BusinessSubscriptionTier.basic,
-            onTap: null,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Your plan is tied to your Habra account. If you subscribed on the web or through support, refresh after payment clears.',
-            style: TextStyle(
-              fontSize: 15,
-              color: AppColors.textSecondary,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 20),
-          AppButton(
-            text: 'Refresh subscription status',
-            onPressed: _onRefreshStatus,
-          ),
-        ];
-      case BusinessOwnerSubscriptionMode.revenuecat:
-        if (!di.sl<RevenueCatService>().isInitialized) {
-          return [
-            Text(
-              'In-app billing is not configured in this build (add RevenueCat API keys).',
-              style: TextStyle(
-                fontSize: 15,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-          ];
-        }
-        if (_loadingPackages) {
-          return [
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-          ];
-        }
-        if (_packagesError != null && _packages.isEmpty) {
-          return [
-            Text(
-              _packagesError!,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: _loadPackages,
-              child: const Text('Retry'),
-            ),
-          ];
-        }
-        return [
-          ..._packages.map(
-            (p) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _PackageCard(
-                package: p,
-                busy: _purchasing,
-                onTap: () => _onPurchase(p),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          AppOutlinedButton(
-            text: 'Restore purchases',
-            onPressed: _purchasing ? null : _onRestore,
-            textColor: AppColors.brandPrimary,
-            borderColor: AppColors.brandPrimary,
-          ),
-        ];
-    }
-  }
-
   Widget _buildActiveBody() {
-    final isProfileMode =
-        BusinessSubscriptionConfig.mode == BusinessOwnerSubscriptionMode.profile;
     final message = BusinessSubscriptionConfig.mode ==
             BusinessOwnerSubscriptionMode.off
         ? 'Subscription gating is turned off for this build.'
-        : (isProfileMode
-            ? 'Your subscription is managed via Habra billing. You can manage or cancel your plan in the billing portal.'
-            : 'You can use the Dashboard tab. Manage or cancel your plan in the App Store or Google Play subscriptions.');
+        : 'You can use the Dashboard tab. Manage or cancel your plan from your App Store or Google Play subscriptions.';
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppResources.spacingL),
@@ -740,15 +582,6 @@ class _BusinessOwnerSubscriptionPageState
                 height: 1.4,
               ),
             ),
-            if (isProfileMode) ...[
-              const SizedBox(height: 16),
-              AppOutlinedButton(
-                text: 'Manage plan',
-                onPressed: _onManagePlan,
-                textColor: AppColors.brandPrimary,
-                borderColor: AppColors.brandPrimary,
-              ),
-            ],
             const SizedBox(height: 28),
             AppButton(
               text: 'Done',

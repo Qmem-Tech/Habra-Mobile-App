@@ -2,7 +2,9 @@
 
 > **Integration overview:** [INTEGRATION_DOCUMENT.md](./INTEGRATION_DOCUMENT.md).
 
-Habra uses RevenueCat for in-app purchases (boost listings, event tickets). This project now reads RevenueCat keys from `--dart-define` values.
+Habra uses RevenueCat for in-app purchases (boost listings, event tickets, and
+business-owner Pro/Premium subscriptions). This project reads RevenueCat keys
+from `--dart-define` values.
 
 ## 1) RevenueCat project and products
 
@@ -51,7 +53,30 @@ Notes:
    - `entitlements.active` contains expected entitlement.
 6. Logout/login and verify entitlement state is restored.
 
-## 5) Validation checklist
+## 5) RevenueCat webhook authority for owner subscriptions
+
+Owner subscription state is backend-authoritative via:
+
+- `supabase/functions/revenuecat-subscription-webhook/index.ts`
+
+Configure RevenueCat webhook to call that function URL and set:
+
+- `REVENUECAT_WEBHOOK_AUTH` secret in Supabase
+- Same value as Bearer token in RevenueCat webhook Authorization header
+
+Webhook updates profile snapshot fields:
+
+- `owner_tools_subscription_active`
+- `owner_tools_subscription_tier`
+- `owner_tools_subscription_status`
+- `owner_tools_subscription_updated_at`
+- `owner_tools_subscription_source = revenuecat`
+- `owner_tools_subscription_origin_id`
+
+It also writes timeline rows to `billing_subscription_events` using provider
+idempotency (`provider + provider_event_id`).
+
+## 6) Validation checklist
 
 - Offerings load successfully.
 - Purchase success path works.
@@ -59,8 +84,9 @@ Notes:
 - Failed purchase path is handled.
 - Entitlements are correct after relaunch.
 - RevenueCat customer identity matches app user id.
+- Webhook updates profile fields after purchase/cancel/renew.
 
-## 6) Troubleshooting
+## 7) Troubleshooting
 
 - **7243 / “Secret API keys should not be used in your app”:** You configured the **secret** key. Replace with the **public** Android/iOS SDK key from the same API keys page.
 - No offerings: check product IDs and offerings in RevenueCat.

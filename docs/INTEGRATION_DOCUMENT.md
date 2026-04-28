@@ -26,7 +26,7 @@ Single reference for **third-party services**: how keys reach the app, what to c
 |-------------|----------------|
 | **Supabase** | Auth, database, Edge Functions — required for a normal run |
 | **Google Sign-In** | Optional OAuth via Supabase |
-| **RevenueCat** | IAP (boosts, tickets, optional business-owner gate) |
+| **RevenueCat** | IAP (boosts, tickets, business-owner Pro/Premium subscriptions) |
 | **Stripe** | PaymentSheet for event checkout (client + server function) |
 | **Firebase / FCM** | Optional; push is stubbed until you wire FCM |
 
@@ -64,7 +64,7 @@ flutter build apk --release --dart-define-from-file=dart_defines.json
 | `GOOGLE_WEB_CLIENT_ID` | No (recommended Android) | Web OAuth client → `GoogleSignIn(serverClientId: …)` | `lib/features/auth/data/datasources/auth_supabase_remote_datasource.dart` |
 | `REVENUECAT_ANDROID_API_KEY` | For IAP on Android | RevenueCat SDK | `lib/main.dart` → `RevenueCatService` |
 | `REVENUECAT_IOS_API_KEY` | For IAP on iOS | RevenueCat SDK | same |
-| `BUSINESS_OWNER_SUBSCRIPTION_MODE` | No | `off` (default), `revenuecat`, `profile`, `stub_locked` | `lib/core/config/business_subscription_config.dart` |
+| `BUSINESS_OWNER_SUBSCRIPTION_MODE` | No | `revenuecat` (default), `off`, `stub_locked` | `lib/core/config/business_subscription_config.dart` |
 | `REVENUECAT_BUSINESS_ENTITLEMENT_ID` | If mode = `revenuecat` | Entitlement id | same (default `business_owner_tools`) |
 | `STRIPE_PUBLISHABLE_KEY` | For Stripe UI | `pk_test_…` / `pk_live_…` | `lib/main.dart` → `StripePaymentService` |
 | `STRIPE_MERCHANT_ID` | Apple Pay on iOS | Merchant identifier | same |
@@ -114,9 +114,9 @@ flutter build apk --release --dart-define-from-file=dart_defines.json
 
 | | |
 |--|--|
-| **Purpose** | In-app purchases (boosts, tickets; optional business-owner subscription gate) |
+| **Purpose** | In-app purchases (boosts, tickets, and owner Pro/Premium subscriptions) |
 | **In the app** | `purchases_flutter` + `RevenueCatService` |
-| **Keys** | `REVENUECAT_ANDROID_API_KEY`, `REVENUECAT_IOS_API_KEY`; optional `BUSINESS_OWNER_SUBSCRIPTION_MODE`, `REVENUECAT_BUSINESS_ENTITLEMENT_ID` |
+| **Keys** | `REVENUECAT_ANDROID_API_KEY`, `REVENUECAT_IOS_API_KEY`, `REVENUECAT_BUSINESS_ENTITLEMENT_ID`; optional `REVENUECAT_BUSINESS_OFFERING_ID` |
 
 **Configure (external)**
 
@@ -132,7 +132,7 @@ flutter build apk --release --dart-define-from-file=dart_defines.json
 
 ---
 
-## 7. Stripe (event checkout)
+## 7. Stripe (event checkout only)
 
 | | |
 |--|--|
@@ -143,11 +143,12 @@ flutter build apk --release --dart-define-from-file=dart_defines.json
 **Configure (external)**
 
 1. Stripe Dashboard → publishable key → `dart_defines.json`.
-2. Deploy Supabase Edge Functions:
+2. Deploy Supabase Edge Functions for tickets:
    - `create-event-payment-intent` (creates/reuses PaymentIntent, returns PaymentSheet session)
    - `stripe-event-webhook` (Stripe webhook: finalizes order states)
    - `refund-event-order` (support/admin initiated refunds)
-3. **Never** ship secret keys or webhook secrets in the mobile app.
+3. Owner subscriptions are **not** handled by Stripe anymore (RevenueCat-first).
+4. **Never** ship secret keys or webhook secrets in the mobile app.
 
 **Behavior if publishable key empty:** Stripe uninitialized; checkout fails until configured.
 
@@ -207,6 +208,8 @@ Release builds must use the **same** defines as debug so Supabase and payments p
 |--------|-----------|
 | Google Sign-In detail | [GOOGLE_SIGNIN_SETUP.md](./GOOGLE_SIGNIN_SETUP.md) |
 | RevenueCat sandbox & troubleshooting | [REVENUECAT_SETUP.md](./REVENUECAT_SETUP.md) |
+| RevenueCat owner-subscription setup | [REVENUECAT_SETUP.md](./REVENUECAT_SETUP.md) |
+| Owner tier allowed/not-allowed matrix | [BUSINESS_OWNER_SUBSCRIPTION_CHECKLIST.md](./BUSINESS_OWNER_SUBSCRIPTION_CHECKLIST.md) |
 | FCM, SQL, payloads | [PUSH_NOTIFICATIONS_SETUP.md](./PUSH_NOTIFICATIONS_SETUP.md) |
 | QA / release defines | [QA_V2_RELEASE_NOTES.md](./QA_V2_RELEASE_NOTES.md) |
 | APK distribution & defines | [ANDROID_APK_DISTRIBUTION.md](./ANDROID_APK_DISTRIBUTION.md) |

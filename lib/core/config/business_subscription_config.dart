@@ -4,15 +4,12 @@ import 'app_config.dart';
 ///
 /// Set via `--dart-define=BUSINESS_OWNER_SUBSCRIPTION_MODE=...` ([AppConfig]).
 ///
-/// - **off** (default): No subscription gate (previous behavior).
+/// - **off**: No subscription gate (legacy fallback).
 /// - **revenuecat**: Gate on RevenueCat entitlement [revenueCatEntitlementId].
-/// - **profile**: Gate on `profiles.owner_tools_subscription_active` (nullable column;
-///   missing column or fetch error → treat as **active** so unmigrated backends keep working).
 /// - **stub_locked**: Always locked (QA / UI testing).
 enum BusinessOwnerSubscriptionMode {
   off,
   revenuecat,
-  profile,
   stubLocked,
 }
 
@@ -25,11 +22,12 @@ class BusinessSubscriptionConfig {
       case 'revenuecat':
         return BusinessOwnerSubscriptionMode.revenuecat;
       case 'profile':
-        return BusinessOwnerSubscriptionMode.profile;
+        // Backward compatibility for old sandbox configs.
+        return BusinessOwnerSubscriptionMode.revenuecat;
       case 'stub_locked':
         return BusinessOwnerSubscriptionMode.stubLocked;
       default:
-        return BusinessOwnerSubscriptionMode.off;
+        return BusinessOwnerSubscriptionMode.revenuecat;
     }
   }
 

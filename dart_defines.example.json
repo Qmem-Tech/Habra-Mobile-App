@@ -7,15 +7,13 @@
   "GOOGLE_MAPS_API_KEY": "",
   "REVENUECAT_ANDROID_API_KEY": "",
   "REVENUECAT_IOS_API_KEY": "",
-  "BUSINESS_OWNER_SUBSCRIPTION_MODE": "off",
+  "BUSINESS_OWNER_SUBSCRIPTION_MODE": "revenuecat",
   "REVENUECAT_BUSINESS_ENTITLEMENT_ID": "business_owner_tools",
   "REVENUECAT_BUSINESS_OFFERING_ID": "",
   "REVENUECAT_BOOST_OFFERING_ID": "",
   "STRIPE_PUBLISHABLE_KEY": "",
   "STRIPE_MERCHANT_ID": "",
   "STRIPE_PAYMENT_INTENT_FUNCTION": "create-event-payment-intent",
-  "STRIPE_BUSINESS_SUBSCRIPTION_CHECKOUT_FUNCTION": "create-business-subscription-checkout",
-  "STRIPE_BUSINESS_SUBSCRIPTION_PORTAL_FUNCTION": "create-business-subscription-portal",
   "STRIPE_BUSINESS_SUBSCRIPTION_SUCCESS_URL": "https://example.com/subscription/success",
   "STRIPE_BUSINESS_SUBSCRIPTION_CANCEL_URL": "https://example.com/subscription/cancel"
 }
