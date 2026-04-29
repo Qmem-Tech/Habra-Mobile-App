@@ -56,7 +56,11 @@ class AuthCubit extends Cubit<AuthState> {
         }
       },
       (user) async {
-        await revenueCatService.identifyUser(user.id, email: user.email);
+        await revenueCatService.identifyUser(
+          user.id,
+          email: user.email,
+          displayName: user.name,
+        );
         emit(AuthAuthenticated(user));
       },
     );
@@ -79,7 +83,11 @@ class AuthCubit extends Cubit<AuthState> {
         }
       },
       (user) async {
-        await revenueCatService.identifyUser(user.id, email: user.email);
+        await revenueCatService.identifyUser(
+          user.id,
+          email: user.email,
+          displayName: user.name,
+        );
         emit(AuthAuthenticated(user));
       },
     );
@@ -102,7 +110,11 @@ class AuthCubit extends Cubit<AuthState> {
     result.fold(
       (failure) => emit(AuthError(failure.message)),
       (user) async {
-        await revenueCatService.identifyUser(user.id, email: user.email);
+        await revenueCatService.identifyUser(
+          user.id,
+          email: user.email,
+          displayName: user.name,
+        );
         emit(AuthAuthenticated(user));
       },
     );
@@ -120,7 +132,11 @@ class AuthCubit extends Cubit<AuthState> {
     result.fold(
       (failure) => emit(AuthError(failure.message)),
       (user) async {
-        await revenueCatService.identifyUser(user.id, email: user.email);
+        await revenueCatService.identifyUser(
+          user.id,
+          email: user.email,
+          displayName: user.name,
+        );
         emit(AuthAuthenticated(user));
       },
     );
@@ -133,7 +149,11 @@ class AuthCubit extends Cubit<AuthState> {
     result.fold(
       (failure) => emit(AuthError(failure.message)),
       (user) async {
-        await revenueCatService.identifyUser(user.id, email: user.email);
+        await revenueCatService.identifyUser(
+          user.id,
+          email: user.email,
+          displayName: user.name,
+        );
         emit(AuthAuthenticated(user));
       },
     );
@@ -179,6 +199,7 @@ class AuthCubit extends Cubit<AuthState> {
           await pushNotificationService.clearTokenForUser(previousUid);
         }
         await logoutUseCase();
+        await revenueCatService.logout();
         emit(AuthUnauthenticated());
       },
     );
@@ -186,8 +207,12 @@ class AuthCubit extends Cubit<AuthState> {
 
   /// Restores auth state from a cached/session user (e.g. after app cold start).
   /// Keeps the app in sync so the user stays signed in without being asked again.
-  void restoreUser(User user) {
-    revenueCatService.identifyUser(user.id, email: user.email);
+  Future<void> restoreUser(User user) async {
+    await revenueCatService.identifyUser(
+      user.id,
+      email: user.email,
+      displayName: user.name,
+    );
     emit(AuthAuthenticated(user));
   }
 
@@ -210,7 +235,11 @@ class AuthCubit extends Cubit<AuthState> {
     result.fold(
       (_) {},
       (user) async {
-        await revenueCatService.identifyUser(user.id, email: user.email);
+        await revenueCatService.identifyUser(
+          user.id,
+          email: user.email,
+          displayName: user.name,
+        );
         emit(AuthAuthenticated(user));
       },
     );

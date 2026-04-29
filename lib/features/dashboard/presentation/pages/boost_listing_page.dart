@@ -97,7 +97,7 @@ class _BoostListingPageState extends State<BoostListingPage> {
         title: 'Billing unavailable',
         message:
             'In-app purchases are not configured (RevenueCat API keys). '
-            'Add REVENUECAT_ANDROID_API_KEY / REVENUECAT_IOS_API_KEY to your build.',
+            'Add your public SDK keys in lib/core/config/revenue_cat_sdk_keys.dart.',
       );
       return;
     }

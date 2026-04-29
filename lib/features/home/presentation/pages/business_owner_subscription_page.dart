@@ -151,52 +151,95 @@ class _BusinessOwnerSubscriptionPageState
     }
   }
 
-  Future<void> _onChooseTier(BusinessSubscriptionTier tier) async {
-    if (tier == BusinessSubscriptionTier.basic) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Basic is your free default plan.'),
-        ),
-      );
-      return;
+  BusinessSubscriptionTier _tierForPackage(Package p) {
+    final title = p.storeProduct.title.toLowerCase();
+    final id = p.storeProduct.identifier.toLowerCase();
+    final packageId = p.identifier.toLowerCase();
+    if (title.contains('premium') ||
+        id.contains('premium') ||
+        packageId.contains('premium')) {
+      return BusinessSubscriptionTier.premium;
     }
-    if (_purchasing) return;
-    final package = _findPackageForTier(tier);
-    if (package == null) {
-      ErrorDisplayHelper.show(
-        context,
-        title: 'Plan unavailable',
-        message:
-            'This plan is not available in your current RevenueCat offering. Please check store product mapping.',
-      );
-      return;
+    if (title.contains('pro') ||
+        id.contains('_pro') ||
+        id.endsWith('.pro') ||
+        packageId.contains('pro')) {
+      return BusinessSubscriptionTier.pro;
     }
-    await _onPurchase(package);
+    return BusinessSubscriptionTier.basic;
   }
 
-  Package? _findPackageForTier(BusinessSubscriptionTier tier) {
-    bool match(Package p) {
-      final title = p.storeProduct.title.toLowerCase();
-      final id = p.storeProduct.identifier.toLowerCase();
-      final packageId = p.identifier.toLowerCase();
-      if (tier == BusinessSubscriptionTier.premium) {
-        return title.contains('premium') ||
-            id.contains('premium') ||
-            packageId.contains('premium');
-      }
-      if (tier == BusinessSubscriptionTier.pro) {
-        return title.contains('pro') ||
-            id.contains('_pro') ||
-            id.endsWith('.pro') ||
-            packageId.contains('pro');
-      }
-      return false;
-    }
+  List<String> _paragraphs(String s) => s
+      .trim()
+      .split(RegExp(r'[\r\n]+'))
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toList();
 
-    final matched = _packages.where(match).toList(growable: false);
-    if (matched.isEmpty) return null;
-    return matched.first;
+  List<String> _featureLinesForPackage(Package p) {
+    final desc = p.storeProduct.description.trim();
+    if (desc.isEmpty) {
+      return const [
+        'Unlock paid business-owner tools in the app.',
+        'Billing is handled securely by the App Store or Google Play.',
+      ];
+    }
+    final paras = _paragraphs(desc);
+    if (paras.length >= 2) return paras.sublist(1);
+    final bullets = desc
+        .split('•')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (bullets.length >= 2) return bullets;
+    return [paras.first];
   }
+
+  String _subtitleForPackage(Package p) {
+    final desc = p.storeProduct.description.trim();
+    if (desc.isEmpty) return 'Subscription';
+    final paras = _paragraphs(desc);
+    if (paras.length >= 2) return paras.first;
+    return 'Grow with Habra business tools';
+  }
+
+  String _billingSuffix(Package pkg) {
+    switch (pkg.packageType) {
+      case PackageType.monthly:
+        return '/ month';
+      case PackageType.annual:
+        return '/ year';
+      case PackageType.weekly:
+        return '/ week';
+      case PackageType.lifetime:
+        return '';
+      case PackageType.sixMonth:
+      case PackageType.threeMonth:
+      case PackageType.twoMonth:
+        return '/ period';
+      case PackageType.custom:
+      case PackageType.unknown:
+        return '/ period';
+    }
+  }
+
+  IconData _iconForPackage(Package p) {
+    switch (_tierForPackage(p)) {
+      case BusinessSubscriptionTier.premium:
+        return Icons.workspace_premium_rounded;
+      case BusinessSubscriptionTier.pro:
+        return Icons.stars_rounded;
+      case BusinessSubscriptionTier.basic:
+        return Icons.card_membership_rounded;
+    }
+  }
+
+  bool _isPopular(Package p, int indexInOffering) {
+    if (_tierForPackage(p) == BusinessSubscriptionTier.premium) return true;
+    return indexInOffering == 0 && _packages.length == 1;
+  }
+
+  bool _highlighted(Package p, int indexInOffering) => _isPopular(p, indexInOffering);
 
   @override
   Widget build(BuildContext context) {
@@ -265,80 +308,66 @@ class _BusinessOwnerSubscriptionPageState
           const SizedBox(height: 18),
           _buildChoosePlanHeader(),
           const SizedBox(height: 12),
-          _PlanTile(
-            name: 'Premium',
-            subtitle: 'Best for growing businesses',
-            icon: Icons.workspace_premium_rounded,
-            features: const [
-              'Featured in top of search results',
-              'Show deals & promotions',
-              'Post events',
-              'Verified badge',
-              'Advanced analytics (views, calls, clicks)',
+          if (_loadingPackages)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else ...[
+            if (_packagesError != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  _packagesError!,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            for (var i = 0; i < _packages.length; i++) ...[
+              _RevenueCatPlanTile(
+                package: _packages[i],
+                planTitle: _packages[i].storeProduct.title,
+                subtitle: _subtitleForPackage(_packages[i]),
+                icon: _iconForPackage(_packages[i]),
+                features: _featureLinesForPackage(_packages[i]),
+                priceLabel: _packages[i].storeProduct.priceString,
+                billingSuffix: _billingSuffix(_packages[i]),
+                highlighted: _highlighted(_packages[i], i),
+                popular: _isPopular(_packages[i], i),
+                current: currentTier == _tierForPackage(_packages[i]),
+                onTap: _purchasing ? null : () => _onPurchase(_packages[i]),
+              ),
+              const SizedBox(height: 10),
             ],
-            monthlyPrice: '\$29.99',
-            highlighted: true,
-            popular: true,
-            current: currentTier == BusinessSubscriptionTier.premium,
-            onTap:
-                _purchasing ? null : () => _onChooseTier(BusinessSubscriptionTier.premium),
-          ),
-          const SizedBox(height: 10),
-          _PlanTile(
-            name: 'Pro',
-            subtitle: 'Great for small businesses',
-            icon: Icons.stars_rounded,
-            features: const [
-              'Show deals & promotions',
-              'Post events',
-              'Verified badge',
-              'Basic analytics (views & calls)',
-            ],
-            monthlyPrice: '\$14.99',
-            current: currentTier == BusinessSubscriptionTier.pro,
-            onTap: _purchasing ? null : () => _onChooseTier(BusinessSubscriptionTier.pro),
-          ),
-          const SizedBox(height: 10),
-          _PlanTile(
-            name: 'Basic',
-            subtitle: 'Get started with essentials',
-            icon: Icons.storefront_rounded,
-            features: const [
-              'Business listing',
-              'Customer reviews',
-              'Basic insights',
-            ],
-            monthlyPrice: 'Free',
-            billingSuffix: '/ forever',
-            current: currentTier == BusinessSubscriptionTier.basic,
-          ),
+            _PlanTile(
+              name: 'Basic',
+              subtitle: 'Get started with essentials',
+              icon: Icons.storefront_rounded,
+              features: const [
+                'Business listing',
+                'Customer reviews',
+                'Basic insights',
+              ],
+              monthlyPrice: 'Free',
+              billingSuffix: '/ forever',
+              current: currentTier == BusinessSubscriptionTier.basic,
+            ),
+          ],
           const SizedBox(height: 14),
           _buildWhyUpgradeSection(),
           const SizedBox(height: 12),
-          if (_loadingPackages)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          if (_packagesError != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                _packagesError!,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-          if (!_loadingPackages && _packages.isNotEmpty)
+          if (!_loadingPackages && (_packages.isNotEmpty || _packagesError != null))
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
-                      '${_packages.length} plan package(s) loaded from RevenueCat.',
+                      _packages.isEmpty
+                          ? 'No paid packages in this offering.'
+                          : '${_packages.length} plan(s) from RevenueCat.',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -352,7 +381,7 @@ class _BusinessOwnerSubscriptionPageState
                 ],
               ),
             ),
-          if (!_loadingPackages && _packages.isNotEmpty)
+          if (!_loadingPackages && di.sl<RevenueCatService>().isInitialized)
             AppOutlinedButton(
               text: 'Restore purchases',
               onPressed: _purchasing ? null : _onRestore,
@@ -594,106 +623,28 @@ class _BusinessOwnerSubscriptionPageState
   }
 }
 
-class _PackageCard extends StatelessWidget {
-  const _PackageCard({
+/// Paywall row built from a RevenueCat [Package] (store title, description → bullets, local price).
+class _RevenueCatPlanTile extends StatelessWidget {
+  const _RevenueCatPlanTile({
     required this.package,
-    required this.onTap,
-    required this.busy,
-  });
-
-  final Package package;
-  final VoidCallback onTap;
-  final bool busy;
-
-  @override
-  Widget build(BuildContext context) {
-    final product = package.storeProduct;
-    final title = product.title;
-    final price = product.priceString;
-    final desc = product.description;
-    final lower = title.toLowerCase();
-    final tierLabel = lower.contains('premium')
-        ? 'Premium'
-        : (lower.contains('pro') ? 'Pro' : title);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: busy ? null : onTap,
-        borderRadius: BorderRadius.circular(AppResources.radiusM),
-        child: Container(
-          padding: const EdgeInsets.all(AppResources.spacingM),
-          decoration: BoxDecoration(
-            border: Border.all(color: AppColors.brandPrimary.withValues(alpha: 0.35)),
-            borderRadius: BorderRadius.circular(AppResources.radiusM),
-            color: AppColors.brandPrimary.withValues(alpha: 0.06),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tierLabel,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    if (desc.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        desc,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                price,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.brandPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PlanTile extends StatelessWidget {
-  const _PlanTile({
-    required this.name,
+    required this.planTitle,
     required this.subtitle,
     required this.icon,
     required this.features,
-    required this.monthlyPrice,
-    this.billingSuffix = '/ month',
+    required this.priceLabel,
+    required this.billingSuffix,
     this.highlighted = false,
     this.popular = false,
     this.current = false,
     this.onTap,
   });
 
-  final String name;
+  final Package package;
+  final String planTitle;
   final String subtitle;
   final IconData icon;
   final List<String> features;
-  final String monthlyPrice;
+  final String priceLabel;
   final String billingSuffix;
   final bool highlighted;
   final bool popular;
@@ -703,10 +654,14 @@ class _PlanTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      key: ValueKey<String>(package.identifier),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppResources.radiusM),
-        border: Border.all(color: highlighted ? AppColors.brandPrimary : const Color(0xFFD9D9D9), width: highlighted ? 1.5 : 1),
+        border: Border.all(
+          color: highlighted ? AppColors.brandPrimary : const Color(0xFFD9D9D9),
+          width: highlighted ? 1.5 : 1,
+        ),
       ),
       padding: const EdgeInsets.all(14),
       child: Row(
@@ -717,6 +672,7 @@ class _PlanTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       width: 34,
@@ -735,9 +691,9 @@ class _PlanTile extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            name,
+                            planTitle,
                             style: const TextStyle(
-                              fontSize: 28,
+                              fontSize: 22,
                               fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary,
                             ),
@@ -802,6 +758,151 @@ class _PlanTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
+                priceLabel,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              if (billingSuffix.isNotEmpty)
+                Text(
+                  billingSuffix,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: 116,
+                height: 38,
+                child: current
+                    ? AppOutlinedButton(
+                        text: 'Current Plan',
+                        onPressed: null,
+                        textColor: AppColors.textSecondary,
+                        borderColor: AppColors.backgroundGrey,
+                      )
+                    : AppButton(
+                        text: 'Choose Plan',
+                        onPressed: onTap,
+                        backgroundColor: AppColors.brandPrimary,
+                        textColor: Colors.white,
+                        height: 38,
+                      ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanTile extends StatelessWidget {
+  const _PlanTile({
+    required this.name,
+    required this.subtitle,
+    required this.icon,
+    required this.features,
+    required this.monthlyPrice,
+    this.billingSuffix = '/ month',
+    required this.current,
+  });
+
+  final String name;
+  final String subtitle;
+  final IconData icon;
+  final List<String> features;
+  final String monthlyPrice;
+  final String billingSuffix;
+  final bool current;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        border: Border.all(color: const Color(0xFFD9D9D9), width: 1),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4F4F4),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(icon, color: AppColors.brandPrimary, size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            subtitle,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ...features.map(
+                  (feature) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.check, size: 15, color: Color(0xFF4E4E4E)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            feature,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF454545),
+                              height: 1.25,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
                 monthlyPrice,
                 style: const TextStyle(
                   fontSize: 33,
@@ -830,7 +931,7 @@ class _PlanTile extends StatelessWidget {
                       )
                     : AppButton(
                         text: 'Choose Plan',
-                        onPressed: onTap,
+                        onPressed: null,
                         backgroundColor: AppColors.brandPrimary,
                         textColor: Colors.white,
                         height: 38,

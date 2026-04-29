@@ -8,6 +8,7 @@ import '../../firebase_options.dart';
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (!DefaultFirebaseOptions.isConfigured) return;
   try {
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(

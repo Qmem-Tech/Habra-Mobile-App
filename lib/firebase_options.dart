@@ -9,6 +9,32 @@ import 'package:flutter/foundation.dart'
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 class DefaultFirebaseOptions {
+  /// Whether [currentPlatform] has real values (not template placeholders).
+  ///
+  /// When `false`, skip [Firebase.initializeApp] so iOS/Android do not crash:
+  /// native Firebase requires a 39-character Web API key, not placeholders like
+  /// `AIzaSyReplaceWithIosKeyFromConsole`.
+  static bool get isConfigured {
+    if (kIsWeb) return false;
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return _firebaseOptionsLookValid(android);
+      case TargetPlatform.iOS:
+        return _firebaseOptionsLookValid(ios);
+      default:
+        return false;
+    }
+  }
+
+  static bool _firebaseOptionsLookValid(FirebaseOptions o) {
+    final key = o.apiKey.trim();
+    if (key.length != 39 || !key.startsWith('AIzaSy')) return false;
+    if (o.projectId == 'habra-replace-me') return false;
+    if (o.messagingSenderId == '000000000000') return false;
+    if (o.appId.contains('000000000000')) return false;
+    return true;
+  }
+
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
       throw UnsupportedError(

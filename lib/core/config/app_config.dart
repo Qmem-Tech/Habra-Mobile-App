@@ -1,3 +1,5 @@
+import 'revenue_cat_sdk_keys.dart';
+
 /// Single place for **app-side** secrets and build-time tunables.
 ///
 /// Values come from `--dart-define=KEY=value` or, for local dev, one JSON file:
@@ -18,6 +20,8 @@
 /// Cloud Console for your bundle ID). `pod install` writes
 /// `ios/Flutter/GoogleSignInIos.generated.xcconfig` for `GIDClientID` and the
 /// reversed URL scheme in Info.plist. Keep `GOOGLE_WEB_CLIENT_ID` for Supabase.
+///
+/// **RevenueCat:** Public SDK keys live in [RevenueCatSdkKeys] (`lib/core/config/revenue_cat_sdk_keys.dart`).
 class AppConfig {
   AppConfig._();
 
@@ -71,16 +75,10 @@ class AppConfig {
 
   static bool get isGoogleMapsConfigured => effectiveGoogleMapsApiKey.isNotEmpty;
 
-  // --- RevenueCat ---
-  static const String revenueCatAndroidApiKey = String.fromEnvironment(
-    'REVENUECAT_ANDROID_API_KEY',
-    defaultValue: '',
-  );
+  // --- RevenueCat (in-source keys; see [RevenueCatSdkKeys]) ---
+  static String get revenueCatAndroidApiKey => RevenueCatSdkKeys.android;
 
-  static const String revenueCatIosApiKey = String.fromEnvironment(
-    'REVENUECAT_IOS_API_KEY',
-    defaultValue: '',
-  );
+  static String get revenueCatIosApiKey => RevenueCatSdkKeys.ios;
 
   // --- Stripe (PaymentSheet / event tickets) ---
   static const String stripePublishableKey = String.fromEnvironment(

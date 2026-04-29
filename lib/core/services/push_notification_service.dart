@@ -51,6 +51,14 @@ class PushNotificationService {
 
     if (kIsWeb) return;
 
+    if (!DefaultFirebaseOptions.isConfigured) {
+      _log.w(
+        'Firebase not configured (placeholder firebase_options.dart). '
+        'Push is disabled. Run: dart pub global activate flutterfire_cli && flutterfire configure',
+      );
+      return;
+    }
+
     try {
       if (Firebase.apps.isEmpty) {
         await Firebase.initializeApp(

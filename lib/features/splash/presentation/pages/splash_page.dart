@@ -114,7 +114,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       final status = state.status;
 
       // Wait for splash duration before navigating
-      Future.delayed(AppResources.splashScreenDuration, () {
+      Future.delayed(AppResources.splashScreenDuration, () async {
         if (!mounted) return;
 
         if (!status.hasCompletedOnboarding) {
@@ -130,8 +130,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             );
             return;
           }
-          // Restore auth state so the app sees the user as signed in (persisted session).
-          context.read<AuthCubit>().restoreUser(user);
+          // Restore auth + RevenueCat identity (subscriber attributes + store sync).
+          await context.read<AuthCubit>().restoreUser(user);
+          if (!mounted) return;
           final Widget destination;
           switch (user.role) {
             case UserRole.businessOwner:
