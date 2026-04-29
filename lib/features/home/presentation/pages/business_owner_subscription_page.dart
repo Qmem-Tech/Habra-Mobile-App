@@ -14,6 +14,36 @@ import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
 import '../bloc/business_owner_subscription_cubit.dart';
 
+class _LocalPlanConfig {
+  const _LocalPlanConfig({
+    required this.tier,
+    required this.shortLabel,
+  });
+
+  final BusinessSubscriptionTier tier;
+  final String shortLabel;
+}
+
+/// Local mapping by stable store product id (recommended).
+const Map<String, _LocalPlanConfig> kProductIdToPlanConfig = {
+  'habra_standard_monthly': _LocalPlanConfig(
+    tier: BusinessSubscriptionTier.pro,
+    shortLabel: 'Standard (Monthly)',
+  ),
+  'habra_standard_yearly': _LocalPlanConfig(
+    tier: BusinessSubscriptionTier.pro,
+    shortLabel: 'Standard (Yearly)',
+  ),
+  'habra_premium_monthly': _LocalPlanConfig(
+    tier: BusinessSubscriptionTier.premium,
+    shortLabel: 'Premium (Monthly)',
+  ),
+  'habra_premium_yearly': _LocalPlanConfig(
+    tier: BusinessSubscriptionTier.premium,
+    shortLabel: 'Premium (Yearly)',
+  ),
+};
+
 /// Paywall / status screen for business-owner tools subscription (Dashboard gate).
 class BusinessOwnerSubscriptionPage extends StatefulWidget {
   const BusinessOwnerSubscriptionPage({super.key, required this.user});
@@ -153,20 +183,34 @@ class _BusinessOwnerSubscriptionPageState
 
   BusinessSubscriptionTier _tierForPackage(Package p) {
     final title = p.storeProduct.title.toLowerCase();
-    final id = p.storeProduct.identifier.toLowerCase();
+    final productId = p.storeProduct.identifier.toLowerCase();
     final packageId = p.identifier.toLowerCase();
+    final localConfig = kProductIdToPlanConfig[productId];
+    if (localConfig != null) return localConfig.tier;
+
     if (title.contains('premium') ||
-        id.contains('premium') ||
+        productId.contains('premium') ||
         packageId.contains('premium')) {
       return BusinessSubscriptionTier.premium;
     }
     if (title.contains('pro') ||
-        id.contains('_pro') ||
-        id.endsWith('.pro') ||
+        productId.contains('standard') ||
+        productId.contains('_pro') ||
+        productId.endsWith('.pro') ||
         packageId.contains('pro')) {
       return BusinessSubscriptionTier.pro;
     }
     return BusinessSubscriptionTier.basic;
+  }
+
+  String _shortLabelForPackage(Package p) {
+    final productId = p.storeProduct.identifier.toLowerCase();
+    final localConfig = kProductIdToPlanConfig[productId];
+    if (localConfig != null) return localConfig.shortLabel;
+
+    // Fallback: remove marketplace suffix like "(com.app (unreviewed))".
+    final compact = p.storeProduct.title.replaceAll(RegExp(r'\s*\(.*\)\s*$'), '');
+    return compact.trim().isEmpty ? p.storeProduct.title : compact.trim();
   }
 
   List<String> _paragraphs(String s) => s
@@ -328,7 +372,7 @@ class _BusinessOwnerSubscriptionPageState
             for (var i = 0; i < _packages.length; i++) ...[
               _RevenueCatPlanTile(
                 package: _packages[i],
-                planTitle: _packages[i].storeProduct.title,
+                planTitle: _shortLabelForPackage(_packages[i]),
                 subtitle: _subtitleForPackage(_packages[i]),
                 icon: _iconForPackage(_packages[i]),
                 features: _featureLinesForPackage(_packages[i]),
@@ -693,7 +737,7 @@ class _RevenueCatPlanTile extends StatelessWidget {
                           Text(
                             planTitle,
                             style: const TextStyle(
-                              fontSize: 22,
+                              fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary,
                             ),
@@ -708,7 +752,7 @@ class _RevenueCatPlanTile extends StatelessWidget {
                         ],
                       ),
                     ),
-                    if (popular)
+                    if (false)
                       Container(
                         padding:
                             const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
