@@ -606,61 +606,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            BlocBuilder<BusinessOwnerSubscriptionCubit,
-                BusinessOwnerSubscriptionState>(
-              builder: (context, subState) {
-                if (!subState.shouldShowSubscribeBanner) {
-                  return const SizedBox.shrink();
-                }
-                return Material(
-                  color: AppColors.brandPrimary.withValues(alpha: 0.12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppResources.spacingM,
-                      vertical: AppResources.spacingS,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Subscribe to unlock the Dashboard and analytics.',
-                            style:
-                                AppFonts.bodySmall(color: AppColors.textPrimary),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
-                            context,
-                            widget.user,
-                          ),
-                          child: Text(
-                            'Subscribe',
-                            style: AppFonts.bodySmall(
-                              color: AppColors.brandPrimary,
-                            ).copyWith(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              BusinessOwnerNavigationWrapper.navigateToTab(
-                            context,
-                            2,
-                          ),
-                          child: Text(
-                            'Boosts',
-                            style: AppFonts.bodySmall(
-                              color: AppColors.brandPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
             Expanded(
               child: BlocBuilder<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
                 builder: (context, state) {
@@ -863,6 +808,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   dismissKey: 'legal_approved_${presence.id}',
                   presence: presence,
                 ),
+              _buildSubscriptionUpgradePrompt(),
               Container(
                 width: double.infinity,
                 color: AppColors.ownerHomeSectionBg,
@@ -1043,6 +989,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   singleBusiness: false,
                   dismissKey: 'legal_required_all',
                 ),
+              _buildSubscriptionUpgradePrompt(),
               Container(
                 width: double.infinity,
                 color: AppColors.backgroundWhite,
@@ -1741,6 +1688,102 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             ),
           ),
       ],
+    );
+  }
+
+  /// Optional upgrade CTA when paid owner tools are gated and user has no plan.
+  /// Dismissible (persisted) — unlike the old pinned strip, this scrolls with the page.
+  Widget _buildSubscriptionUpgradePrompt() {
+    return BlocBuilder<BusinessOwnerSubscriptionCubit,
+        BusinessOwnerSubscriptionState>(
+      builder: (context, subState) {
+        if (!subState.shouldShowSubscribeBanner) {
+          return const SizedBox.shrink();
+        }
+        if (_dismissedHomeBannerKeys.contains('subscription_prompt')) {
+          return const SizedBox.shrink();
+        }
+        return _buildDismissibleHomeBanner(
+          dismissKey: 'subscription_prompt',
+          backgroundColor: AppColors.ownerHomeMintPill.withValues(alpha: 0.65),
+          borderColor: AppColors.ownerHomePrimary.withValues(alpha: 0.35),
+          outerPadding: const EdgeInsets.fromLTRB(
+            AppResources.spacingM,
+            12,
+            AppResources.spacingM,
+            8,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.insights_outlined,
+                    size: 22,
+                    color: AppColors.ownerHomePrimary,
+                  ),
+                  const SizedBox(width: AppResources.spacingS),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Grow faster with Habra Pro',
+                          style: AppFonts.body(color: AppColors.textPrimary)
+                              .copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: AppResources.spacingXS),
+                        Text(
+                          'Unlock live analytics, full dashboard controls, and boosts—'
+                          'everything you need to reach more customers in one simple plan.',
+                          style: AppFonts.bodySmall(
+                            color: AppColors.textSecondary,
+                          ).copyWith(height: 1.45),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppResources.spacingS),
+              Wrap(
+                spacing: AppResources.spacingS,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () =>
+                        BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
+                      context,
+                      widget.user,
+                    ),
+                    child: Text(
+                      'See plans',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ownerHomePrimary,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
+                    child: Text(
+                      'Explore boosts',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ownerHomePrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

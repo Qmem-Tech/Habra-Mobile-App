@@ -382,26 +382,134 @@ class _BusinessOwnerNavigationWrapperState
     if (cubit.state.hasActiveSubscription) {
       return true;
     }
+    _showSubscriptionRequiredSnackBar();
+    return false;
+  }
+
+  /// Friendly, dismissible prompt when Dashboard requires Habra Pro (not the default dark SnackBar strip).
+  void _showSubscriptionRequiredSnackBar() {
     final messenger = ScaffoldMessenger.of(context);
+    final bottomInset =
+        MediaQuery.paddingOf(context).bottom + kBottomNavigationBarHeight;
+
     messenger.clearSnackBars();
     messenger.showSnackBar(
       SnackBar(
-        content: const Text(
-          'You are not on an active subscription. Upgrade to open Dashboard.',
-        ),
-        duration: const Duration(seconds: 6),
-        action: SnackBarAction(
-          label: 'Upgrade now',
-          onPressed: () {
-            BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
-              context,
-              widget.user,
-            );
-          },
+        behavior: SnackBarBehavior.floating,
+        // Sit closer to the bottom nav (was bottomInset + 8).
+        margin: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 2),
+        duration: const Duration(seconds: 4),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        padding: EdgeInsets.zero,
+        dismissDirection: DismissDirection.down,
+        content: Material(
+          color: AppColors.ownerHomeMintPill,
+          elevation: 3,
+          shadowColor: Colors.black26,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(
+              color: AppColors.ownerHomePrimary.withValues(alpha: 0.28),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    Icons.workspace_premium_outlined,
+                    size: 26,
+                    color: AppColors.ownerHomePrimary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Unlock your dashboard',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Habra Pro gives you analytics, deals, jobs, and boosts in one place. Choose a plan when you’re ready.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 0,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              foregroundColor: AppColors.ownerHomePrimary,
+                            ),
+                            onPressed: () {
+                              messenger.hideCurrentSnackBar();
+                              BusinessOwnerNavigationWrapper
+                                  .openBusinessOwnerSubscription(
+                                context,
+                                widget.user,
+                              );
+                            },
+                            child: const Text(
+                              'See plans',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              foregroundColor: AppColors.textSecondary,
+                            ),
+                            onPressed: () => messenger.hideCurrentSnackBar(),
+                            child: const Text('Maybe later'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 22),
+                  color: AppColors.textSecondary,
+                  tooltip: 'Dismiss',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
+                  onPressed: () => messenger.hideCurrentSnackBar(),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
-    return false;
   }
 
   Future<void> navigateToTab(int index, {int? dashboardTab}) async {

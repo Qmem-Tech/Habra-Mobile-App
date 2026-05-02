@@ -19,6 +19,8 @@ class BusinessSubscriptionConfig {
   static BusinessOwnerSubscriptionMode get mode {
     final raw = AppConfig.businessOwnerSubscriptionMode;
     switch (raw) {
+      case 'off':
+        return BusinessOwnerSubscriptionMode.off;
       case 'revenuecat':
         return BusinessOwnerSubscriptionMode.revenuecat;
       case 'profile':

@@ -12,7 +12,6 @@ import '../../../auth/domain/entities/user.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
-import '../../../home/presentation/bloc/business_owner_subscription_cubit.dart';
 import '../../../home/presentation/pages/my_businesses_page.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
 import '../../../home/presentation/widgets/business_owner_drawer.dart';
@@ -243,45 +242,6 @@ class _BoostsPageState extends State<BoostsPage> {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              BlocBuilder<BusinessOwnerSubscriptionCubit,
-                  BusinessOwnerSubscriptionState>(
-                builder: (context, subState) {
-                  if (!subState.shouldShowSubscribeBanner) {
-                    return const SizedBox.shrink();
-                  }
-                  return Material(
-                    color: AppColors.brandPrimary.withValues(alpha: 0.1),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppResources.spacingM,
-                        vertical: AppResources.spacingS,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Subscribe to unlock the Dashboard.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () =>
-                                BusinessOwnerNavigationWrapper
-                                    .openBusinessOwnerSubscription(
-                              context,
-                              widget.user,
-                            ),
-                            child: const Text('Subscribe'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
               Expanded(
                 child: BlocBuilder<BoostsCubit, BoostsState>(
             builder: (context, state) {
