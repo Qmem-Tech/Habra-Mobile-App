@@ -770,23 +770,27 @@ class _HomePageState extends State<HomePage> {
             )
           else
             SizedBox(
-              height: 360,
+              height: 310,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: topBusinesses.length,
                 itemBuilder: (context, index) {
                   final b = topBusinesses[index];
-                  return FeaturedBusinessCard(
-                    business: b,
-                    onOpenDetail: () async {
-                      await Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => BusinessDetailPage(businessId: b.id),
-                        ),
-                      );
-                    },
+                  return Align(
+                    alignment: Alignment.topCenter,
+                    child: FeaturedBusinessCard(
+                      business: b,
+                      onOpenDetail: () async {
+                        await Navigator.push<void>(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                BusinessDetailPage(businessId: b.id),
+                          ),
+                        );
+                      },
+                    ),
                   );
                 },
               ),

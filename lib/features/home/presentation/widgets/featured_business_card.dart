@@ -175,7 +175,7 @@ class _FeaturedBusinessCardState extends State<FeaturedBusinessCard> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 4),
                 child: Text(
                   _categoryDistanceLine(b),
                   style: TextStyle(
@@ -188,7 +188,7 @@ class _FeaturedBusinessCardState extends State<FeaturedBusinessCard> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
+                padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
                 child: Row(
                   children: [
                     Expanded(
