@@ -4,8 +4,8 @@ import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
 import '../../../auth/domain/entities/user.dart';
-import '../../../auth/presentation/pages/sign_up_options_page.dart';
 import '../../../auth/presentation/pages/business_sign_in_page.dart';
+import '../../../auth/presentation/pages/sign_in_page.dart';
 import '../bloc/choose_path_cubit.dart';
 
 class ChoosePathPage extends StatelessWidget {
@@ -45,8 +45,8 @@ class _ChoosePathViewState extends State<_ChoosePathView> {
       );
     } else {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => SignUpOptionsPage(selectedRole: role),
+        MaterialPageRoute<void>(
+          builder: (_) => const SignInPage(),
         ),
       );
     }

@@ -12,7 +12,6 @@ import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
 import 'email_sign_up_page.dart';
-import 'phone_sign_up_page.dart';
 import 'sign_in_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import '../widgets/social_auth_widgets.dart';
@@ -173,20 +172,6 @@ class SignUpOptionsPage extends StatelessWidget {
                               );
                             },
                     ),
-                    const SizedBox(height: AppResources.spacingM),
-                    _OutlinedSignUpButton(
-                      icon: Icons.phone_android_rounded,
-                      label: 'Continue with Phone',
-                      onPressed: isLoading
-                          ? null
-                          : () {
-                              Navigator.of(context).push<void>(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const PhoneSignUpPage(),
-                                ),
-                              );
-                            },
-                    ),
 
                     if (hasSocial) ...[
                       const SizedBox(height: AppResources.spacingL),
@@ -303,57 +288,6 @@ class _PrimarySignUpButton extends StatelessWidget {
             Text(
               label,
               style: AppFonts.button(color: AppColors.textOnPrimary).copyWith(
-                fontWeight: FontWeight.w600,
-                height: 1.0,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _OutlinedSignUpButton extends StatelessWidget {
-  const _OutlinedSignUpButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: AppResources.buttonHeightL,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.customerHomePrimary,
-          backgroundColor: AppColors.customerLocationPillBg.withValues(
-            alpha: 0.45,
-          ),
-          side: const BorderSide(
-            color: AppColors.customerHomePrimary,
-            width: 1.2,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppResources.radiusL),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 22, color: AppColors.customerHomePrimary),
-            const SizedBox(width: AppResources.spacingM),
-            Text(
-              label,
-              style:
-                  AppFonts.button(color: AppColors.customerHomePrimary).copyWith(
                 fontWeight: FontWeight.w600,
                 height: 1.0,
               ),
