@@ -640,31 +640,34 @@ class _HomePageState extends State<HomePage> {
             )
           else
             SizedBox(
-              height: 360,
+              height: 310,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: events.length,
                 itemBuilder: (context, index) {
                   final event = events[index];
-                  return EventCard(
-                    event: event,
-                    onTap: () async {
-                      await Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => EventDetailPage(eventId: event.id),
-                        ),
-                      );
-                    },
-                    onGetTicket: () async {
-                      await Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => EventDetailPage(eventId: event.id),
-                        ),
-                      );
-                    },
+                  return Align(
+                    alignment: Alignment.topCenter,
+                    child: EventCard(
+                      event: event,
+                      onTap: () async {
+                        await Navigator.push<void>(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => EventDetailPage(eventId: event.id),
+                          ),
+                        );
+                      },
+                      onGetTicket: () async {
+                        await Navigator.push<void>(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => EventDetailPage(eventId: event.id),
+                          ),
+                        );
+                      },
+                    ),
                   );
                 },
               ),

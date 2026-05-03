@@ -43,6 +43,12 @@ class StripePaymentService {
     if (merchantIdentifier != null && merchantIdentifier.isNotEmpty) {
       Stripe.merchantIdentifier = merchantIdentifier;
     }
+    try {
+      await Stripe.instance.applySettings();
+    } catch (e, st) {
+      debugPrint('Stripe: applySettings failed: $e\n$st');
+      return;
+    }
     _initialized = true;
   }
 

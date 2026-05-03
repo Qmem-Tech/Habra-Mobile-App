@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_share.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -15,6 +16,26 @@ import '../widgets/event_list_card.dart';
 import '../widgets/event_map_preview.dart';
 import 'select_tickets_page.dart';
 import 'package:intl/intl.dart';
+
+/// Raw URL from API (may omit scheme). Used for display and launching.
+String? _onlineDisplayUrl(EventDetail event) {
+  final raw = (event.onlineUrl ?? event.address).trim();
+  return raw.isEmpty ? null : raw;
+}
+
+Uri? _onlineLaunchUri(String displayUrl) {
+  final t = displayUrl.trim();
+  if (t.isEmpty) return null;
+  final parsed = Uri.tryParse(t);
+  if (parsed != null &&
+      parsed.hasScheme &&
+      (parsed.scheme == 'http' || parsed.scheme == 'https')) {
+    return parsed;
+  }
+  final prefixed = Uri.tryParse('https://$t');
+  if (prefixed != null && prefixed.host.isNotEmpty) return prefixed;
+  return null;
+}
 
 class EventDetailPage extends StatelessWidget {
   final String eventId;
@@ -58,7 +79,7 @@ class EventDetailPage extends StatelessWidget {
             children: [
               _buildEventInfo(context, event),
               _buildAboutSection(event),
-              _buildLocationSection(event),
+              _buildLocationSection(context, event),
               _buildPriceSection(context, event),
               if (state.similarEvents.isNotEmpty) _buildSimilarEvents(context, state.similarEvents),
               const SizedBox(height: 24),
@@ -198,14 +219,205 @@ class EventDetailPage extends StatelessWidget {
             '${DateFormat('h:mm a').format(event.startDate)} - ${DateFormat('h:mm a').format(event.endDate)}',
           ),
           const SizedBox(height: 16),
-          _buildInfoRow(
-            Icons.location_on,
-            event.venue,
-            event.fullAddress,
-          ),
+          if (event.isOnline)
+            _buildOnlineVenueRow(context, event)
+          else
+            _buildInfoRow(
+              Icons.location_on,
+              event.venue,
+              event.fullAddress,
+            ),
         ],
       ),
     );
+  }
+
+  Widget _buildOnlineVenueRow(BuildContext context, EventDetail event) {
+    final linkText = _onlineDisplayUrl(event) ?? 'Link not available';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.brandPrimary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(Icons.link_rounded, color: AppColors.brandPrimary, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                event.venue,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              InkWell(
+                onTap: linkText == 'Link not available'
+                    ? null
+                    : () => _showOnlineLinkBottomSheet(context, event),
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          linkText,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: linkText == 'Link not available'
+                                ? AppColors.textSecondary
+                                : AppColors.brandPrimary,
+                            decoration: linkText == 'Link not available'
+                                ? TextDecoration.none
+                                : TextDecoration.underline,
+                            decorationColor: AppColors.brandPrimary,
+                          ),
+                        ),
+                      ),
+                      if (linkText != 'Link not available') ...[
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.open_in_new_rounded,
+                          size: 18,
+                          color: AppColors.brandPrimary,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showOnlineLinkBottomSheet(BuildContext context, EventDetail event) async {
+    final displayUrl = _onlineDisplayUrl(event);
+    if (displayUrl == null) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(20, 16, 8, 8),
+                        child: Text(
+                          'Online event link',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(sheetContext),
+                      tooltip: 'Close',
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'Tap below to open this URL in your browser (Zoom, Meet, etc.).',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SelectableText(
+                    displayUrl,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: AppColors.textPrimary,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      await _openOnlineUrlInBrowser(sheetContext, displayUrl);
+                    },
+                    icon: const Icon(Icons.open_in_browser_rounded),
+                    label: const Text('Open in browser'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.brandPrimary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openOnlineUrlInBrowser(BuildContext context, String displayUrl) async {
+    final uri = _onlineLaunchUri(displayUrl);
+    if (uri == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This link could not be opened.')),
+        );
+      }
+      return;
+    }
+    try {
+      final launched =
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open link')),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open link')),
+        );
+      }
+    }
   }
 
   Widget _buildInfoRow(IconData icon, String title, String subtitle) {
@@ -277,7 +489,91 @@ class EventDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildLocationSection(EventDetail event) {
+  Widget _buildLocationSection(BuildContext context, EventDetail event) {
+    if (event.isOnline) {
+      final url = _onlineDisplayUrl(event);
+      return Container(
+        padding: const EdgeInsets.all(20),
+        color: Colors.white,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Join online',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (url == null)
+              Text(
+                'No meeting link was provided for this event.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
+              )
+            else
+              Material(
+                color: AppColors.backgroundLight,
+                borderRadius: BorderRadius.circular(12),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => _showOnlineLinkBottomSheet(context, event),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.video_camera_front_outlined,
+                          color: AppColors.brandPrimary,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Meeting link',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                url,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.brandPrimary,
+                                  height: 1.25,
+                                ),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppColors.textSecondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       color: Colors.white,

@@ -1,14 +1,15 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+import '../../../../core/services/location_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/event_detail.dart';
 import '../pages/event_map_page.dart';
+import '../utils/event_geocode_query.dart';
 
-/// Small map preview for event location. Shows map when lat/lng available.
-class EventMapPreview extends StatelessWidget {
+/// Small map preview: uses DB coordinates when present; otherwise forward-geocodes the venue address.
+class EventMapPreview extends StatefulWidget {
   const EventMapPreview({
     super.key,
     required this.event,
@@ -20,35 +21,100 @@ class EventMapPreview extends StatelessWidget {
   final double height;
   final bool showDirectionsButton;
 
-  bool get _hasLocation =>
-      event.latitude != null && event.longitude != null;
+  @override
+  State<EventMapPreview> createState() => _EventMapPreviewState();
+}
 
-  LatLng get _position =>
-      LatLng(event.latitude!, event.longitude!);
+class _EventMapPreviewState extends State<EventMapPreview> {
+  LatLng? _position;
+  bool _loading = true;
+  String? _geocodeError;
 
-  Future<void> _openInMaps(BuildContext context) async {
-    final lat = event.latitude!;
-    final lng = event.longitude!;
-    final Uri url;
-    if (Platform.isIOS) {
-      url = Uri.parse('https://maps.apple.com/?daddr=$lat,$lng&dirflg=d');
+  double? get _resolvedLat => _position?.latitude;
+  double? get _resolvedLng => _position?.longitude;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.event;
+    if (e.latitude != null && e.longitude != null) {
+      _position = LatLng(e.latitude!, e.longitude!);
+      _loading = false;
+    } else if (!e.isOnline) {
+      final q = geocodeQueryForEvent(e);
+      if (q != null && q.trim().isNotEmpty) {
+        _resolveGeocode(q.trim());
+      } else {
+        _loading = false;
+        _geocodeError = null;
+      }
     } else {
-      url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
+      _loading = false;
     }
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open maps')),
-      );
-    }
+  }
+
+  Future<void> _resolveGeocode(String query) async {
+    final result = await di.sl<LocationService>().geocodeAddress(query);
+    if (!mounted) return;
+    result.fold(
+      (failure) {
+        setState(() {
+          _loading = false;
+          _geocodeError = failure.message;
+        });
+      },
+      (coords) {
+        setState(() {
+          _loading = false;
+          _position = LatLng(coords.lat, coords.lng);
+        });
+      },
+    );
+  }
+
+  Future<void> _openInMaps(BuildContext context) {
+    return launchEventInExternalMaps(
+      context,
+      widget.event,
+      latitude: _resolvedLat,
+      longitude: _resolvedLng,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_hasLocation) {
+    final e = widget.event;
+
+    if (_loading) {
       return Container(
-        height: height,
+        height: widget.height,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.backgroundLight,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.backgroundGrey),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Loading map…',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_position == null) {
+      return Container(
+        height: widget.height,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.backgroundLight,
@@ -58,55 +124,87 @@ class EventMapPreview extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.location_off, size: 40, color: AppColors.textSecondary),
+            Icon(Icons.map_outlined, size: 40, color: AppColors.textSecondary),
             const SizedBox(height: 8),
             Text(
-              event.fullAddress,
+              e.fullAddress.trim().isEmpty
+                  ? 'Location details unavailable.'
+                  : e.fullAddress,
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
+            if (_geocodeError != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _geocodeError!,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary.withValues(alpha: 0.9),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _openInMaps(context),
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: const Text('Open in Maps'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.brandPrimary,
+                side: BorderSide(color: AppColors.brandPrimary),
+              ),
+            ),
           ],
         ),
       );
     }
+
+    final position = _position!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GestureDetector(
           onTap: () {
-            Navigator.push(
+            Navigator.push<void>(
               context,
-              MaterialPageRoute(
-                builder: (_) => EventMapPage(event: event),
+              MaterialPageRoute<void>(
+                builder: (_) => EventMapPage(
+                  event: e,
+                  resolvedLatitude: _resolvedLat,
+                  resolvedLongitude: _resolvedLng,
+                ),
               ),
             );
           },
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SizedBox(
-              height: height,
+              height: widget.height,
               child: Stack(
                 children: [
                   GoogleMap(
                     initialCameraPosition: CameraPosition(
-                      target: _position,
+                      target: position,
                       zoom: 15,
                     ),
+                    mapType: MapType.normal,
+                    compassEnabled: true,
+                    buildingsEnabled: true,
                     markers: {
                       Marker(
-                        markerId: MarkerId(event.id),
-                        position: _position,
+                        markerId: MarkerId(e.id),
+                        position: position,
                         infoWindow: InfoWindow(
-                          title: event.venue,
-                          snippet: event.fullAddress,
+                          title: e.venue,
+                          snippet: e.fullAddress,
                         ),
                       ),
                     },
-                    myLocationEnabled: true,
+                    myLocationEnabled: false,
                     zoomControlsEnabled: false,
                     mapToolbarEnabled: false,
                     liteModeEnabled: false,
@@ -120,20 +218,31 @@ class EventMapPreview extends StatelessWidget {
                       elevation: 2,
                       child: InkWell(
                         onTap: () {
-                          Navigator.push(
+                          Navigator.push<void>(
                             context,
-                            MaterialPageRoute(
-                              builder: (_) => EventMapPage(event: event),
+                            MaterialPageRoute<void>(
+                              builder: (_) => EventMapPage(
+                                event: e,
+                                resolvedLatitude: _resolvedLat,
+                                resolvedLongitude: _resolvedLng,
+                              ),
                             ),
                           );
                         },
                         borderRadius: BorderRadius.circular(8),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.fullscreen, size: 18, color: AppColors.brandPrimary),
+                              Icon(
+                                Icons.fullscreen,
+                                size: 18,
+                                color: AppColors.brandPrimary,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 'View on map',
@@ -154,7 +263,7 @@ class EventMapPreview extends StatelessWidget {
             ),
           ),
         ),
-        if (showDirectionsButton) ...[
+        if (widget.showDirectionsButton) ...[
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,

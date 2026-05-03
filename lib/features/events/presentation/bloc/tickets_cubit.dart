@@ -138,6 +138,9 @@ class TicketsCubit extends Cubit<TicketsState> {
         return;
       }
 
+      // Let the frame finish so the Stripe sheet can present reliably (esp. Android).
+      await Future<void>.delayed(Duration.zero);
+
       final paid = await stripePaymentService.presentPaymentSheet(
         paymentIntentClientSecret: session.clientSecret,
         customerId: session.customerId,

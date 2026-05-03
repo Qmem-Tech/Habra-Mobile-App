@@ -12,16 +12,18 @@ This document describes how to implement event ticket purchases in the Habra mob
 
 Ensure the table exists (from `add_notifications_and_ticket_purchases.sql`):
 
-| Column           | Type         | Description                                      |
-|------------------|--------------|--------------------------------------------------|
-| `id`             | uuid         | PK, auto-generated                               |
-| `event_id`       | uuid         | FK to `events` — **required**                    |
-| `event_ticket_id`| uuid         | FK to `event_tickets` — **recommended** for per-ticket stats |
-| `buyer_id`       | uuid         | FK to `auth.users` — current signed-in user      |
-| `quantity`       | integer      | Number of tickets purchased                      |
-| `total_cents`    | integer      | Optional: total paid in cents                    |
-| `status`         | text         | `'completed'` (default), `'pending'`, `'refunded'` |
-| `created_at`     | timestamptz  | Auto-set                                         |
+
+| Column            | Type        | Description                                                  |
+| ----------------- | ----------- | ------------------------------------------------------------ |
+| `id`              | uuid        | PK, auto-generated                                           |
+| `event_id`        | uuid        | FK to `events` — **required**                                |
+| `event_ticket_id` | uuid        | FK to `event_tickets` — **recommended** for per-ticket stats |
+| `buyer_id`        | uuid        | FK to `auth.users` — current signed-in user                  |
+| `quantity`        | integer     | Number of tickets purchased                                  |
+| `total_cents`     | integer     | Optional: total paid in cents                                |
+| `status`          | text        | `'completed'` (default), `'pending'`, `'refunded'`           |
+| `created_at`      | timestamptz | Auto-set                                                     |
+
 
 ---
 
@@ -103,11 +105,11 @@ Ensure the mobile app user is **signed in** when inserting. Anonymous purchases 
 2. User selects ticket type and quantity.
 3. (Optional) Payment flow.
 4. Insert into `event_ticket_purchases` with:
-   - `event_id`
-   - `event_ticket_id` (from selected ticket)
-   - `buyer_id` (current user)
-   - `quantity`
-   - `status: 'completed'`
+  - `event_id`
+  - `event_ticket_id` (from selected ticket)
+  - `buyer_id` (current user)
+  - `quantity`
+  - `status: 'completed'`
 5. Show success and optionally navigate to "My Tickets" or event details.
 
 ---
@@ -146,14 +148,16 @@ Implement this in your mobile app if you want to block over-selling.
 
 ## 9. Summary Checklist
 
-| Step | Action |
-|------|--------|
-| 1 | Run `add_notifications_and_ticket_purchases.sql` in Supabase (if not done) |
-| 2 | On purchase completion, insert into `event_ticket_purchases` |
-| 3 | Include `event_ticket_id` when the user selects a specific ticket type |
-| 4 | Use `buyer_id` = current authenticated user |
-| 5 | Set `status` = `'completed'` |
-| 6 | Ensure user is signed in (RLS requires auth for INSERT) |
+
+| Step | Action                                                                     |
+| ---- | -------------------------------------------------------------------------- |
+| 1    | Run `add_notifications_and_ticket_purchases.sql` in Supabase (if not done) |
+| 2    | On purchase completion, insert into `event_ticket_purchases`               |
+| 3    | Include `event_ticket_id` when the user selects a specific ticket type     |
+| 4    | Use `buyer_id` = current authenticated user                                |
+| 5    | Set `status` = `'completed'`                                               |
+| 6    | Ensure user is signed in (RLS requires auth for INSERT)                    |
+
 
 ---
 
@@ -161,9 +165,9 @@ Implement this in your mobile app if you want to block over-selling.
 
 The mobile app no longer finalizes orders or inserts `event_ticket_purchases` directly.
 
-- **Where:** `lib/features/events/presentation/bloc/tickets_cubit.dart` and `lib/features/events/data/datasources/events_supabase_datasource.dart`
+- **Where:** `lib/features/events/presentation/bloc/tickets_cubit.dart` and `lib/features/events/data/datasources/events_supabase_datasource.dart` 
 - **When:** after PaymentSheet success, app marks the order as `processing` and polls for webhook-confirmed status
-- **Source of truth:** `stripe-event-webhook` Edge Function + DB function `finalize_event_order_payment`
+- **Source of truth:** `stripe-event-webhook` Edge Function + DB function `finalize_event_order_payment` 
 - **Migration:** run `docs/supabase/migrations/add_event_payment_hardening.sql`
 
 ---

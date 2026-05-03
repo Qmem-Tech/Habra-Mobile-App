@@ -63,7 +63,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ],
       child: BlocListener<TicketsCubit, TicketsState>(
         listener: (context, state) {
-          if (state is PaymentSuccess) {
+          if (state is OrderError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.message)),
+            );
+          } else if (state is PaymentSuccess) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute<void>(
@@ -111,6 +115,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return SingleChildScrollView(
       child: Form(
         key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -441,9 +446,20 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 onPressed: isLoading || !canPay
                     ? null
                     : () {
-                        if (_formKey.currentState!.validate()) {
-                          _processPayment(context);
+                        final valid =
+                            _formKey.currentState?.validate() ?? false;
+                        if (!valid) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Please enter a valid email and phone number.',
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
                         }
+                        _processPayment(context);
                       },
               ),
               const SizedBox(height: 8),
