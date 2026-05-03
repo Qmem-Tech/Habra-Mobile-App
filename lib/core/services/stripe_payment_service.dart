@@ -7,6 +7,7 @@ import '../config/app_config.dart';
 
 /// Stripe PaymentSheet for **event tickets** (card, Apple Pay, Google Pay when enabled).
 ///
+
 /// Requires:
 /// - [publishableKey] (pk_test_… / pk_live_…) via `--dart-define=STRIPE_PUBLISHABLE_KEY=...`
 /// - A Supabase Edge Function (or other backend) that creates a PaymentIntent and returns `clientSecret`.
