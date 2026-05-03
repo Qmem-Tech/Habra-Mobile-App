@@ -80,10 +80,17 @@ class PaymentFailed extends TicketsState {
   final String message;
   final events.Order? order;
 
-  const PaymentFailed(this.message, {this.order});
+  /// Payment succeeded in Stripe but order is still `processing`/`pending` (webhook delay).
+  final bool awaitingConfirmation;
+
+  const PaymentFailed(
+    this.message, {
+    this.order,
+    this.awaitingConfirmation = false,
+  });
 
   @override
-  List<Object?> get props => [message, order];
+  List<Object?> get props => [message, order, awaitingConfirmation];
 }
 
 class OrderError extends TicketsState {

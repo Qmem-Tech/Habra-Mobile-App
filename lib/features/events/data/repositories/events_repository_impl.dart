@@ -38,6 +38,22 @@ class EventsRepositoryImpl implements EventsRepository {
   }
 
   @override
+  Future<Either<Failure, List<EventListItem>>> getEventsByBusinessId(
+    String businessId,
+  ) async {
+    try {
+      final events = await remoteDataSource.getEventsByBusinessId(businessId);
+      return Right(events);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, EventDetail>> getEventDetail(String eventId) async {
     try {
       final event = await remoteDataSource.getEventDetail(eventId);

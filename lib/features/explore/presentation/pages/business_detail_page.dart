@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/error/failures.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_share.dart';
@@ -12,6 +14,10 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../saved_items/domain/entities/saved_item.dart';
 import '../../../saved_items/domain/usecases/save_item_usecase.dart';
+import '../../../events/domain/entities/event_list_item.dart';
+import '../../../events/domain/usecases/get_events_by_business_usecase.dart';
+import '../../../events/presentation/pages/event_detail_page.dart';
+import '../../../events/presentation/widgets/event_list_card.dart';
 import '../../domain/entities/business_detail.dart';
 import '../../domain/entities/review.dart';
 import '../../domain/repositories/businesses_repository.dart';
@@ -78,6 +84,7 @@ class BusinessDetailPage extends StatelessWidget {
               _buildHeader(business),
               _buildActionButtons(context, business),
               if (business.currentDeals.isNotEmpty) _buildCurrentDeals(business),
+              BusinessHostedEventsSection(businessId: business.id),
               _buildAbout(business),
               _buildLocation(context, business),
               _buildPhotos(business),
@@ -929,6 +936,93 @@ class BusinessDetailPage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Upcoming events linked to this business listing (`events.business_id`).
+class BusinessHostedEventsSection extends StatefulWidget {
+  final String businessId;
+
+  const BusinessHostedEventsSection({super.key, required this.businessId});
+
+  @override
+  State<BusinessHostedEventsSection> createState() =>
+      _BusinessHostedEventsSectionState();
+}
+
+class _BusinessHostedEventsSectionState extends State<BusinessHostedEventsSection> {
+  late final Future<Either<Failure, List<EventListItem>>> _loadFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFuture = di.sl<GetEventsByBusinessUseCase>()(widget.businessId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Either<Failure, List<EventListItem>>>(
+      future: _loadFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+        final data = snapshot.data;
+        if (data == null) return const SizedBox.shrink();
+
+        return data.fold(
+          (_) => const SizedBox.shrink(),
+          (events) {
+            if (events.isEmpty) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.event_available, color: AppColors.brandPrimary, size: 22),
+                      SizedBox(width: 8),
+                      Text(
+                        'Events from this business',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ...events.map(
+                    (e) => EventListCard(
+                      event: e,
+                      onTap: () {
+                        Navigator.push<void>(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => EventDetailPage(eventId: e.id),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

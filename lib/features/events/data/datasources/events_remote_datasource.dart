@@ -12,6 +12,9 @@ abstract class EventsRemoteDataSource {
     String? searchQuery,
   });
 
+  /// Public listings linked to a business listing (`events.business_id`).
+  Future<List<EventListItemModel>> getEventsByBusinessId(String businessId);
+
   Future<EventDetailModel> getEventDetail(String eventId);
 
   Future<List<EventListItemModel>> getSimilarEvents(String eventId);
@@ -45,6 +48,11 @@ class EventsRemoteDataSourceImpl implements EventsRemoteDataSource {
     EventFilters? filters,
     String? searchQuery,
   }) async {
+    return [];
+  }
+
+  @override
+  Future<List<EventListItemModel>> getEventsByBusinessId(String businessId) async {
     return [];
   }
 

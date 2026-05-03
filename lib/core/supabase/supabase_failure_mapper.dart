@@ -116,7 +116,11 @@ class SupabaseFailureMapper {
 
   static String _userFriendly(String raw) {
     if (raw.isEmpty) return 'Something went wrong. Please try again.';
-    final lower = raw.toLowerCase();
+    var cleaned = raw.trim();
+    if (cleaned.toLowerCase().startsWith('exception:')) {
+      cleaned = cleaned.substring(cleaned.indexOf(':') + 1).trim();
+    }
+    final lower = cleaned.toLowerCase();
     if (lower.contains('too many requests') ||
         lower.contains('over_email_send_rate_limit') ||
         lower.contains('email rate limit') ||
@@ -127,7 +131,7 @@ class SupabaseFailureMapper {
     if (lower.contains('email not confirmed')) {
       return 'Please check your inbox and verify your email before continuing.';
     }
-    return raw.length > 200 ? '${raw.substring(0, 200)}...' : raw;
+    return cleaned.length > 200 ? '${cleaned.substring(0, 200)}...' : cleaned;
   }
 
   /// Maps GoTrue / OAuth messages to clearer copy for sign-in UI.

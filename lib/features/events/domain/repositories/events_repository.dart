@@ -14,6 +14,11 @@ abstract class EventsRepository {
     String? searchQuery,
   });
 
+  /// Events hosted by this business listing (`events.business_id`).
+  Future<Either<Failure, List<EventListItem>>> getEventsByBusinessId(
+    String businessId,
+  );
+
   Future<Either<Failure, EventDetail>> getEventDetail(String eventId);
 
   Future<Either<Failure, List<EventListItem>>> getSimilarEvents(String eventId);

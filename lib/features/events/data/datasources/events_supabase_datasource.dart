@@ -114,6 +114,37 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
     });
   }
 
+  @override
+  Future<List<EventListItemModel>> getEventsByBusinessId(String businessId) async {
+    return SupabaseFailureMapper.guard(() async {
+      if (businessId.isEmpty) return <EventListItemModel>[];
+
+      Future<List<Map<String, dynamic>>> fetch(String select) async {
+        final res = await _client
+            .from('events')
+            .select(select)
+            .eq('is_active', true)
+            .eq('business_id', businessId)
+            .gte('start_at', DateTime.now().toIso8601String())
+            .order('start_at', ascending: true)
+            .limit(50);
+        return (res as List).cast<Map<String, dynamic>>();
+      }
+
+      late final List<Map<String, dynamic>> list;
+      try {
+        list = await fetch('*, ${SupabaseTables.locations}(*)');
+      } on PostgrestException catch (e) {
+        if (_isMissingLocationsRelationship(e)) {
+          list = await fetch('*');
+        } else {
+          rethrow;
+        }
+      }
+      return list.map(_rowToEventListItem).toList();
+    });
+  }
+
   EventListItemModel _rowToEventListItem(Map<String, dynamic> row) {
     final normalizedLocation =
         NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
@@ -486,9 +517,9 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         await Future<void>.delayed(const Duration(seconds: 2));
       }
 
-      throw Exception(
-        'Payment is still being confirmed. Please check your tickets in a moment.',
-      );
+      // Do not throw: payment may have succeeded but webhook/DB is still catching up.
+      // Return latest order so the app can show a "confirming" experience instead of a raw error.
+      return await _fetchOrderModel(orderId);
     });
   }
 

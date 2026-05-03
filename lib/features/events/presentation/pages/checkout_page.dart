@@ -81,6 +81,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 builder: (_) => PaymentFailedPage(
                   message: state.message,
                   order: state.order,
+                  awaitingConfirmation: state.awaitingConfirmation,
                 ),
               ),
             );

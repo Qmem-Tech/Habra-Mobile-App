@@ -173,8 +173,9 @@ class TicketsCubit extends Cubit<TicketsState> {
           } else if (completedOrder.status == events.OrderStatus.processing ||
               completedOrder.status == events.OrderStatus.pending) {
             emit(PaymentFailed(
-              'Payment confirmation is still processing. Your charge may still complete shortly.',
+              'Your payment went through. We’re confirming your order — check My Tickets in a moment.',
               order: completedOrder,
+              awaitingConfirmation: true,
             ));
           } else {
             emit(PaymentFailed(

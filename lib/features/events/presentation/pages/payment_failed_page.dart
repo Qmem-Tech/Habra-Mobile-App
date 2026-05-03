@@ -8,10 +8,20 @@ class PaymentFailedPage extends StatelessWidget {
   final String message;
   final events.Order? order;
 
-  const PaymentFailedPage({super.key, required this.message, this.order});
+  /// True when Stripe succeeded but the order is still `processing` (webhook / DB lag).
+  final bool awaitingConfirmation;
+
+  const PaymentFailedPage({
+    super.key,
+    required this.message,
+    this.order,
+    this.awaitingConfirmation = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final title = awaitingConfirmation ? 'Confirming your order' : 'Payment Failed';
+    final leadIcon = awaitingConfirmation ? Icons.hourglass_top : Icons.wallet;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Checkout'),
@@ -34,15 +44,15 @@ class PaymentFailedPage extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  Icons.wallet,
+                  leadIcon,
                   size: 64,
-                  color: AppColors.textSecondary,
+                  color: awaitingConfirmation ? AppColors.brandPrimary : AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 32),
-              const Text(
-                'Payment Failed',
-                style: TextStyle(
+              Text(
+                title,
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
@@ -57,31 +67,50 @@ class PaymentFailedPage extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
-              AppButton(
-                text: 'Try Again',
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
-              const SizedBox(height: 16),
-              AppOutlinedButton(
-                text: 'Use Different Card',
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
-              const SizedBox(height: 16),
-              AppOutlinedButton(
-                text: 'Check My Tickets',
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const MyTicketsPage(initialUpcoming: false),
-                    ),
-                  );
-                },
-              ),
+              if (awaitingConfirmation) ...[
+                AppButton(
+                  text: 'Check My Tickets',
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => const MyTicketsPage(initialUpcoming: false),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                AppOutlinedButton(
+                  text: 'Close',
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ] else ...[
+                AppButton(
+                  text: 'Try Again',
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+                const SizedBox(height: 16),
+                AppOutlinedButton(
+                  text: 'Use Different Card',
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+                const SizedBox(height: 16),
+                AppOutlinedButton(
+                  text: 'Check My Tickets',
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MyTicketsPage(initialUpcoming: false),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ],
           ),
         ),

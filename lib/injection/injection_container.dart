@@ -80,6 +80,7 @@ import '../features/events/data/datasources/events_supabase_datasource.dart';
 import '../features/events/data/datasources/ticket_resale_datasource.dart';
 import '../features/events/data/repositories/events_repository_impl.dart';
 import '../features/events/domain/repositories/events_repository.dart';
+import '../features/events/domain/usecases/get_events_by_business_usecase.dart';
 import '../features/events/domain/usecases/get_events_usecase.dart';
 import '../features/events/domain/usecases/get_event_detail_usecase.dart';
 import '../features/events/domain/usecases/get_user_tickets_usecase.dart';
@@ -332,6 +333,9 @@ Future<void> init() async {
 
   // Use cases
   sl.registerLazySingleton(() => GetEventsUseCase(sl<EventsRepository>()));
+  sl.registerLazySingleton(
+    () => GetEventsByBusinessUseCase(sl<EventsRepository>()),
+  );
   sl.registerLazySingleton(() => GetEventDetailUseCase(sl<EventsRepository>()));
   sl.registerLazySingleton(() => GetUserTicketsUseCase(sl<EventsRepository>()));
   sl.registerLazySingleton(() => CreateOrderUseCase(sl<EventsRepository>()));
