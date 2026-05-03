@@ -4,6 +4,7 @@ import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
+import '../../domain/entities/order.dart' show OrderStatus;
 import '../../domain/entities/ticket.dart';
 import '../bloc/tickets_cubit.dart';
 import '../bloc/tickets_state.dart';
@@ -131,7 +132,12 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
   Widget _buildTicketsList(List<Ticket> tickets) {
     final groupedTickets = _groupTicketsByMonth(tickets);
 
-    return ListView.builder(
+    return RefreshIndicator(
+      color: AppColors.customerHomePrimary,
+      onRefresh: () async {
+        await context.read<TicketsCubit>().loadUserTickets(upcomingOnly: _isUpcoming);
+      },
+      child: ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: groupedTickets.length,
       itemBuilder: (context, index) {
@@ -152,7 +158,25 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
           ],
         );
       },
+    ),
     );
+  }
+
+  static String _orderStatusLabel(OrderStatus status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return 'Payment pending';
+      case OrderStatus.processing:
+        return 'Confirming payment';
+      case OrderStatus.completed:
+        return '';
+      case OrderStatus.failed:
+        return 'Payment failed';
+      case OrderStatus.cancelled:
+        return 'Cancelled';
+      case OrderStatus.refunded:
+        return 'Refunded';
+    }
   }
 
   Widget _buildTicketCard(Ticket ticket) {
@@ -223,6 +247,29 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (!ticket.isPaymentConfirmed) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Chip(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      avatar: Icon(
+                        Icons.schedule,
+                        size: 18,
+                        color: AppColors.warning,
+                      ),
+                      label: Text(
+                        _orderStatusLabel(ticket.orderPaymentStatus),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      backgroundColor: AppColors.warning.withValues(alpha: 0.12),
+                      side: BorderSide.none,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -270,24 +317,29 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => TicketDetailPage(ticketId: ticket.ticketId),
-                            ),
-                          );
-                        },
+                        onPressed: ticket.isPaymentConfirmed
+                            ? () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        TicketDetailPage(ticketId: ticket.ticketId),
+                                  ),
+                                );
+                              }
+                            : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.brandPrimary,
                           foregroundColor: Colors.white,
+                          disabledBackgroundColor: AppColors.backgroundGrey,
+                          disabledForegroundColor: AppColors.textTertiary,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                         child: Text(
-                          'View Ticket',
+                          ticket.isPaymentConfirmed ? 'View Ticket' : 'Confirming…',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w400,
@@ -297,21 +349,25 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                     ),
                     const SizedBox(width: 8),
                     OutlinedButton(
-                      onPressed: () {
-                        final ctx = context;
-                        showModalBottomSheet(
-                          context: ctx,
-                          builder: (_) => ListTicketSheet(
-                            ticketId: ticket.ticketId,
-                            ticketTypeName: ticket.ticketTypeName,
-                            eventTitle: ticket.event.title,
-                          ),
-                        ).then((result) {
-                          if (result == true && ctx.mounted) {
-                            ctx.read<TicketsCubit>().loadUserTickets(upcomingOnly: _isUpcoming);
-                          }
-                        });
-                      },
+                      onPressed: ticket.isPaymentConfirmed
+                          ? () {
+                              final ctx = context;
+                              showModalBottomSheet(
+                                context: ctx,
+                                builder: (_) => ListTicketSheet(
+                                  ticketId: ticket.ticketId,
+                                  ticketTypeName: ticket.ticketTypeName,
+                                  eventTitle: ticket.event.title,
+                                ),
+                              ).then((result) {
+                                if (result == true && ctx.mounted) {
+                                  ctx
+                                      .read<TicketsCubit>()
+                                      .loadUserTickets(upcomingOnly: _isUpcoming);
+                                }
+                              });
+                            }
+                          : null,
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: AppColors.brandPrimary),
                         foregroundColor: AppColors.brandPrimary,

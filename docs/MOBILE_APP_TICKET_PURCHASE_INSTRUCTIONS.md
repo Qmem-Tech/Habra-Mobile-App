@@ -166,8 +166,8 @@ Implement this in your mobile app if you want to block over-selling.
 The mobile app no longer finalizes orders or inserts `event_ticket_purchases` directly.
 
 - **Where:** `lib/features/events/presentation/bloc/tickets_cubit.dart` and `lib/features/events/data/datasources/events_supabase_datasource.dart` 
-- **When:** after PaymentSheet success, app marks the order as `processing` and polls for webhook-confirmed status
-- **Source of truth:** `stripe-event-webhook` Edge Function + DB function `finalize_event_order_payment` 
+- **When:** after PaymentSheet success, app marks the order as `processing`, invokes **`sync-event-order-payment`** (fast Stripe→DB finalize, same writes as the webhook), then polls briefly for terminal status
+- **Source of truth:** `stripe-event-webhook` Edge Function + DB function `finalize_event_order_payment` (deploy **`sync-event-order-payment`** alongside `create-event-payment-intent` / webhook so checkout completes without waiting on webhook latency)
 - **Migration:** run `docs/supabase/migrations/add_event_payment_hardening.sql`
 
 ---

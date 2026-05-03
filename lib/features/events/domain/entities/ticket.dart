@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'event_detail.dart';
+import 'order.dart';
 
 class Ticket extends Equatable {
   final String id;
@@ -11,6 +12,9 @@ class Ticket extends Equatable {
   final bool isVerified;
   final String? qrCode;
 
+  /// Parent order payment lifecycle (`orders.status`).
+  final OrderStatus orderPaymentStatus;
+
   const Ticket({
     required this.id,
     required this.ticketId,
@@ -20,7 +24,10 @@ class Ticket extends Equatable {
     required this.purchaseDate,
     this.isVerified = false,
     this.qrCode,
+    this.orderPaymentStatus = OrderStatus.completed,
   });
+
+  bool get isPaymentConfirmed => orderPaymentStatus == OrderStatus.completed;
 
   @override
   List<Object?> get props => [
@@ -32,5 +39,6 @@ class Ticket extends Equatable {
         purchaseDate,
         isVerified,
         qrCode,
+        orderPaymentStatus,
       ];
 }

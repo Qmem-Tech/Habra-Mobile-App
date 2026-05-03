@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/domain/normalized_location.dart';
 import '../../../../core/supabase/location_write_helper.dart';
@@ -281,34 +282,22 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return <TicketModel>[];
 
-      final purchasesRes = await _client
-          .from('event_ticket_purchases')
-          .select('order_id')
-          .eq('buyer_id', userId)
-          .eq('status', 'completed');
-
-      final purchaseRows = (purchasesRes as List).cast<Map<String, dynamic>>();
-      final orderIds = purchaseRows
-          .map((row) => parseString(row['order_id']))
-          .whereType<String>()
-          .toSet()
-          .toList();
-      if (orderIds.isEmpty) return <TicketModel>[];
-
       final ordersRes = await _client
           .from('orders')
           .select('*')
-          .inFilter('id', orderIds)
           .eq('user_id', userId)
           .eq('type', 'event')
-          .eq('status', 'completed');
-      final ordersList = ordersRes as List;
+          .inFilter('status', ['pending', 'processing', 'completed'])
+          .order('created_at', ascending: false);
+
+      final ordersList = (ordersRes as List).cast<Map<String, dynamic>>();
       if (ordersList.isEmpty) return <TicketModel>[];
 
       final tickets = <TicketModel>[];
       final now = DateTime.now();
       for (final orderRow in ordersList) {
-        final orderMap = Map<String, dynamic>.from(orderRow as Map);
+        final orderMap = Map<String, dynamic>.from(orderRow);
+        final orderPaymentStatus = _parseOrderStatus(parseString(orderMap['status']));
         final eventId = parseString(orderMap['event_id']);
         if (eventId == null) continue;
 
@@ -327,6 +316,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
 
         if (ticketsRes.isEmpty) continue;
 
+        final paid = orderPaymentStatus == events_domain.OrderStatus.completed;
         for (final t in ticketsRes) {
           final tm = Map<String, dynamic>.from(t as Map);
           final etId = parseString(tm['event_ticket_id']);
@@ -343,8 +333,9 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
             ticketTypeName: name,
             price: price,
             purchaseDate: parseTimestampRequired(orderMap['created_at']),
-            isVerified: true,
+            isVerified: paid,
             qrCode: null,
+            orderPaymentStatus: orderPaymentStatus,
           ));
         }
       }
@@ -371,8 +362,11 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
           : null;
       if (order == null) throw Exception('Ticket order not found');
       if (parseString(order['user_id']) != userId) throw Exception('Ticket not found');
-      if ((parseString(order['status']) ?? '').toLowerCase() != 'completed') {
-        throw Exception('Ticket is not active');
+
+      final orderPaymentStatus = _parseOrderStatus(parseString(order['status']));
+      if (orderPaymentStatus == events_domain.OrderStatus.failed ||
+          orderPaymentStatus == events_domain.OrderStatus.cancelled) {
+        throw Exception('This order is no longer valid.');
       }
 
       final eventId = parseString(order['event_id']);
@@ -381,6 +375,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       final et = row['event_tickets'];
       final price = et is Map<String, dynamic> ? parseDouble(et['price']) ?? 0.0 : 0.0;
       final name = et is Map<String, dynamic> ? parseStringRequired(et['name']) : 'Ticket';
+      final paid = orderPaymentStatus == events_domain.OrderStatus.completed;
       return TicketModel(
         id: parseStringRequired(row['id']),
         ticketId: parseStringRequired(row['id']),
@@ -388,8 +383,9 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         ticketTypeName: name,
         price: price,
         purchaseDate: parseTimestampRequired(row['created_at']),
-        isVerified: true,
+        isVerified: paid,
         qrCode: null,
+        orderPaymentStatus: orderPaymentStatus,
       );
     });
   }
@@ -505,6 +501,16 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         }).eq('id', orderId);
       }
 
+      // Fast path: finalize from Stripe in Edge Function (same as webhook) without waiting for Stripe→Supabase webhook delivery.
+      try {
+        await _client.functions.invoke(
+          AppConfig.stripeSyncOrderPaymentFunction,
+          body: {'order_id': orderId},
+        );
+      } catch (_) {
+        // Webhook `stripe-event-webhook` can still complete the order.
+      }
+
       final deadline = DateTime.now().add(const Duration(seconds: 45));
       while (DateTime.now().isBefore(deadline)) {
         final order = await _fetchOrderModel(orderId);
@@ -514,7 +520,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
             order.status == events_domain.OrderStatus.refunded) {
           return order;
         }
-        await Future<void>.delayed(const Duration(seconds: 2));
+        await Future<void>.delayed(const Duration(milliseconds: 900));
       }
 
       // Do not throw: payment may have succeeded but webhook/DB is still catching up.

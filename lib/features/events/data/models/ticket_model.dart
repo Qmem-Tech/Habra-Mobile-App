@@ -11,6 +11,7 @@ class TicketModel extends Ticket {
     required super.purchaseDate,
     super.isVerified,
     super.qrCode,
+    super.orderPaymentStatus,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> json) {
@@ -55,6 +56,7 @@ class TicketModel extends Ticket {
       purchaseDate: entity.purchaseDate,
       isVerified: entity.isVerified,
       qrCode: entity.qrCode,
+      orderPaymentStatus: entity.orderPaymentStatus,
     );
   }
 }

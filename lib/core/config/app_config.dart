@@ -95,6 +95,12 @@ class AppConfig {
     'STRIPE_PAYMENT_INTENT_FUNCTION',
     defaultValue: 'create-event-payment-intent',
   );
+
+  /// Edge Function: finalize order from Stripe immediately after Payment Sheet (fast path).
+  static const String stripeSyncOrderPaymentFunction = String.fromEnvironment(
+    'STRIPE_SYNC_ORDER_PAYMENT_FUNCTION',
+    defaultValue: 'sync-event-order-payment',
+  );
   static const String stripeBusinessSubscriptionCheckoutFunction =
       String.fromEnvironment(
     'STRIPE_BUSINESS_SUBSCRIPTION_CHECKOUT_FUNCTION',
