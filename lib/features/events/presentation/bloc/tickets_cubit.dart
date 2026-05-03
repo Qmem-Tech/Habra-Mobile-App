@@ -128,11 +128,13 @@ class TicketsCubit extends Cubit<TicketsState> {
     emit(PaymentProcessing(order));
 
     if (stripePaymentService.isConfigured) {
-      final session = await stripePaymentService.fetchPaymentSheetSession(order.id);
+      final fetch = await stripePaymentService.fetchPaymentSheetSession(order.id);
+      final session = fetch.session;
       if (session == null || session.clientSecret.isEmpty) {
         emit(PaymentFailed(
-          'Could not start card payment. Deploy a Supabase function that returns '
-          'clientSecret (see docs/PAYMENTS_AND_SSO_SETUP.md).',
+          fetch.errorMessage ??
+              'Could not start card payment. Deploy the payment Edge Function and set '
+              'STRIPE_SECRET_KEY (sk_…) in Supabase secrets — not the publishable pk_ key.',
           order: order,
         ));
         return;

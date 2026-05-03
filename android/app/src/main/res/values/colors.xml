@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Required so Stripe / ThemeEnforcement.isAppCompatTheme() sees colorPrimary on the Activity theme. -->
+    <color name="habra_brand_primary">#FF1F563F</color>
+    <color name="habra_brand_primary_dark">#FF16402F</color>
+</resources>

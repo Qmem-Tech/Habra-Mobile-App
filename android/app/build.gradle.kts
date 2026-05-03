@@ -100,4 +100,7 @@ flutter {
 dependencies {
     // App uses Supabase for backend; no Firebase dependencies.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Stripe Payment Sheet: Theme.MaterialComponents + ThemeEnforcement (colorPrimary on activity theme).
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.google.android.material:material:1.12.0")
 }

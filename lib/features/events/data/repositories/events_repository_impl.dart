@@ -28,6 +28,8 @@ class EventsRepositoryImpl implements EventsRepository {
         searchQuery: searchQuery,
       );
       return Right(events);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {
@@ -40,6 +42,8 @@ class EventsRepositoryImpl implements EventsRepository {
     try {
       final event = await remoteDataSource.getEventDetail(eventId);
       return Right(event);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {
@@ -52,6 +56,8 @@ class EventsRepositoryImpl implements EventsRepository {
     try {
       final events = await remoteDataSource.getSimilarEvents(eventId);
       return Right(events);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {
@@ -64,6 +70,8 @@ class EventsRepositoryImpl implements EventsRepository {
     try {
       final tickets = await remoteDataSource.getUserTickets(upcomingOnly: upcomingOnly);
       return Right(tickets);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {
@@ -76,6 +84,8 @@ class EventsRepositoryImpl implements EventsRepository {
     try {
       final ticket = await remoteDataSource.getTicketDetail(ticketId);
       return Right(ticket);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {
@@ -96,6 +106,8 @@ class EventsRepositoryImpl implements EventsRepository {
         contactInfo: contactInfo,
       );
       return Right(order);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {
@@ -116,6 +128,8 @@ class EventsRepositoryImpl implements EventsRepository {
         promoCode: promoCode,
       );
       return Right(order);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {
@@ -128,6 +142,8 @@ class EventsRepositoryImpl implements EventsRepository {
     try {
       final event = await remoteDataSource.createEvent(data);
       return Right(event);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {
@@ -143,6 +159,8 @@ class EventsRepositoryImpl implements EventsRepository {
     try {
       final event = await remoteDataSource.updateEvent(eventId, data);
       return Right(event);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {
