@@ -7,7 +7,9 @@
 class RevenueCatSdkKeys {
   RevenueCatSdkKeys._();
 
+  // static const String android = 'test_BFouWfPhlfrdJuMYNDYJFNqXgHG';
   static const String android = 'goog_eyaxJQGStKwWdjNMEmDGGHVlzDX';
 
-  static const String ios = 'test_BFouWfPhlfrdJuMYNDYJFNqXgHG';
+  // static const String ios = 'test_BFouWfPhlfrdJuMYNDYJFNqXgHG';
+  static const String ios = 'appl_KZMUwRipaJcODnyyLhcqLycQnuP';
 }

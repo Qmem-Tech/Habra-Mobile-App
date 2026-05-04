@@ -72,6 +72,12 @@ android {
     }
 
     buildTypes {
+        // Use upload/release keystore for debug so Play Billing sees the same signing as your Play builds.
+        debug {
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
         release {
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
