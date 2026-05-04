@@ -86,6 +86,7 @@ import '../features/events/domain/usecases/get_event_detail_usecase.dart';
 import '../features/events/domain/usecases/get_user_tickets_usecase.dart';
 import '../features/events/domain/usecases/create_order_usecase.dart';
 import '../features/events/domain/usecases/process_payment_usecase.dart';
+import '../features/events/domain/usecases/cancel_unpaid_event_order_usecase.dart';
 import '../features/events/domain/usecases/create_event_usecase.dart';
 import '../features/events/domain/usecases/update_event_usecase.dart';
 import '../features/events/presentation/bloc/events_cubit.dart';
@@ -340,6 +341,9 @@ Future<void> init() async {
   sl.registerLazySingleton(() => GetUserTicketsUseCase(sl<EventsRepository>()));
   sl.registerLazySingleton(() => CreateOrderUseCase(sl<EventsRepository>()));
   sl.registerLazySingleton(() => ProcessPaymentUseCase(sl<EventsRepository>()));
+  sl.registerLazySingleton(
+    () => CancelUnpaidEventOrderUseCase(sl<EventsRepository>()),
+  );
   sl.registerLazySingleton(() => CreateEventUseCase(sl<EventsRepository>()));
   sl.registerLazySingleton(() => UpdateEventUseCase(sl<EventsRepository>()));
 
@@ -358,6 +362,7 @@ Future<void> init() async {
     getUserTicketsUseCase: sl<GetUserTicketsUseCase>(),
     createOrderUseCase: sl<CreateOrderUseCase>(),
     processPaymentUseCase: sl<ProcessPaymentUseCase>(),
+    cancelUnpaidEventOrderUseCase: sl<CancelUnpaidEventOrderUseCase>(),
     stripePaymentService: sl<StripePaymentService>(),
   ));
 

@@ -154,6 +154,20 @@ class EventsRepositoryImpl implements EventsRepository {
   }
 
   @override
+  Future<Either<Failure, Unit>> cancelUnpaidEventOrder(String orderId) async {
+    try {
+      await remoteDataSource.cancelUnpaidEventOrder(orderId);
+      return const Right(unit);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, EventDetail>> createEvent(CreateEventData data) async {
     try {
       final event = await remoteDataSource.createEvent(data);

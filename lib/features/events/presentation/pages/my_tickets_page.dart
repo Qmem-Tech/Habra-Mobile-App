@@ -41,47 +41,51 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
         });
         return cubit;
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('My Tickets'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
-        body: Column(
-          children: [
-            _buildTabBar(),
-            Expanded(
-              child: BlocBuilder<TicketsCubit, TicketsState>(
-                builder: (context, state) {
-                  if (state is TicketsLoading) {
-                    return const HabraCircularLoader(fullScreen: true);
-                  }
-
-                  if (state is TicketsError) {
-                    return Center(child: Text('Error: ${state.message}'));
-                  }
-
-                  if (state is TicketsEmpty) {
-                    return _buildEmptyState();
-                  }
-
-                  if (state is TicketsLoaded) {
-                    return _buildTicketsList(state.tickets);
-                  }
-
-                  return const SizedBox.shrink();
-                },
+      child: Builder(
+        builder: (blocContext) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('My Tickets'),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                onPressed: () => Navigator.pop(context),
               ),
             ),
-          ],
-        ),
+            body: Column(
+              children: [
+                _buildTabBar(blocContext),
+                Expanded(
+                  child: BlocBuilder<TicketsCubit, TicketsState>(
+                    builder: (context, state) {
+                      if (state is TicketsLoading) {
+                        return const HabraCircularLoader(fullScreen: true);
+                      }
+
+                      if (state is TicketsError) {
+                        return Center(child: Text('Error: ${state.message}'));
+                      }
+
+                      if (state is TicketsEmpty) {
+                        return _buildEmptyState();
+                      }
+
+                      if (state is TicketsLoaded) {
+                        return _buildTicketsList(state.tickets);
+                      }
+
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildTabBar() {
+  Widget _buildTabBar(BuildContext blocContext) {
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -91,24 +95,24 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
       child: Row(
         children: [
           Expanded(
-            child: _buildTab('Upcoming', true),
+            child: _buildTab(blocContext, 'Upcoming', true),
           ),
           Expanded(
-            child: _buildTab('Past', false),
+            child: _buildTab(blocContext, 'Past', false),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTab(String label, bool isUpcoming) {
+  Widget _buildTab(BuildContext blocContext, String label, bool isUpcoming) {
     final isSelected = _isUpcoming == isUpcoming;
     return GestureDetector(
       onTap: () {
         setState(() {
           _isUpcoming = isUpcoming;
         });
-        context.read<TicketsCubit>().loadUserTickets(upcomingOnly: isUpcoming);
+        blocContext.read<TicketsCubit>().loadUserTickets(upcomingOnly: isUpcoming);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -317,7 +321,8 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: ticket.isPaymentConfirmed
+                        onPressed: ticket.isPaymentConfirmed &&
+                                !ticket.isSyntheticOrderRow
                             ? () {
                                 Navigator.push(
                                   context,
@@ -339,7 +344,11 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                           ),
                         ),
                         child: Text(
-                          ticket.isPaymentConfirmed ? 'View Ticket' : 'Confirming…',
+                          !ticket.isPaymentConfirmed
+                              ? 'Confirming…'
+                              : (ticket.isSyntheticOrderRow
+                                  ? 'Details soon'
+                                  : 'View Ticket'),
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w400,
@@ -349,7 +358,8 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                     ),
                     const SizedBox(width: 8),
                     OutlinedButton(
-                      onPressed: ticket.isPaymentConfirmed
+                      onPressed: ticket.isPaymentConfirmed &&
+                              !ticket.isSyntheticOrderRow
                           ? () {
                               final ctx = context;
                               showModalBottomSheet(

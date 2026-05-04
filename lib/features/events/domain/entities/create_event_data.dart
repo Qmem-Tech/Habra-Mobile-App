@@ -24,6 +24,7 @@ class CreateEventData extends Equatable {
     this.imageUrl,
     this.category = EventCategory.community,
     this.businessId,
+    this.eventPolicy,
     required this.ticketTypes,
   });
 
@@ -47,6 +48,8 @@ class CreateEventData extends Equatable {
   final String? imageUrl;
   final EventCategory category;
   final String? businessId;
+  /// Shown on attendee ticket detail; newlines become separate bullets.
+  final String? eventPolicy;
   final List<CreateEventTicketType> ticketTypes;
 
   @override
@@ -71,6 +74,7 @@ class CreateEventData extends Equatable {
         imageUrl,
         category,
         businessId,
+        eventPolicy,
         ticketTypes,
       ];
 }

@@ -35,6 +35,9 @@ abstract class EventsRemoteDataSource {
     String? promoCode,
   });
 
+  /// User abandons checkout: `pending` or `failed` orders only.
+  Future<void> cancelUnpaidEventOrder(String orderId);
+
   Future<EventDetailModel> createEvent(CreateEventData data);
 
   /// Updates an existing event row (organizer-only). Ticket types are unchanged.
@@ -99,6 +102,13 @@ class EventsRemoteDataSourceImpl implements EventsRemoteDataSource {
   }) async {
     throw UnimplementedError(
       'Use EventsSupabaseDataSource; backend must handle processPayment.',
+    );
+  }
+
+  @override
+  Future<void> cancelUnpaidEventOrder(String orderId) async {
+    throw UnimplementedError(
+      'Use EventsSupabaseDataSource; backend must handle cancelUnpaidEventOrder.',
     );
   }
 

@@ -50,6 +50,8 @@ dependencies:
   geocoding: ^2.1.1
   url_launcher: ^6.2.0
   share_plus: ^10.1.4
+  pdf: ^3.11.1
+  path_provider: ^2.1.5
   open_mail_launcher: ^0.1.2
 
   # Photos & Files
@@ -73,6 +75,7 @@ dependencies:
   firebase_core: ^3.8.1
   firebase_messaging: ^15.1.5
   flutter_local_notifications: ^18.0.1
+  app_links: ^7.0.0
 
 dev_dependencies:
   flutter_test:

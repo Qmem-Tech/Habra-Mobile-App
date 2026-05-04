@@ -41,6 +41,8 @@ abstract class EventsRepository {
     String? promoCode,
   });
 
+  Future<Either<Failure, Unit>> cancelUnpaidEventOrder(String orderId);
+
   Future<Either<Failure, EventDetail>> createEvent(CreateEventData data);
 
   Future<Either<Failure, EventDetail>> updateEvent(

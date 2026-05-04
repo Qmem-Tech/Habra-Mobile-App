@@ -15,6 +15,12 @@ class Ticket extends Equatable {
   /// Parent order payment lifecycle (`orders.status`).
   final OrderStatus orderPaymentStatus;
 
+  /// True when this row represents the whole order (no per-ticket rows yet in DB).
+  final bool isSyntheticOrderRow;
+
+  /// Parent event order id (`orders.id`) — used for retry payment / cancel unpaid order.
+  final String orderId;
+
   const Ticket({
     required this.id,
     required this.ticketId,
@@ -22,9 +28,11 @@ class Ticket extends Equatable {
     required this.ticketTypeName,
     required this.price,
     required this.purchaseDate,
+    required this.orderId,
     this.isVerified = false,
     this.qrCode,
     this.orderPaymentStatus = OrderStatus.completed,
+    this.isSyntheticOrderRow = false,
   });
 
   bool get isPaymentConfirmed => orderPaymentStatus == OrderStatus.completed;
@@ -40,5 +48,7 @@ class Ticket extends Equatable {
         isVerified,
         qrCode,
         orderPaymentStatus,
+        isSyntheticOrderRow,
+        orderId,
       ];
 }

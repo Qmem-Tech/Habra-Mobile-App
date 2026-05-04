@@ -45,6 +45,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   final _venueNameController = TextEditingController();
   final _venueAddressController = TextEditingController();
   final _onlineUrlController = TextEditingController();
+  final _eventPolicyController = TextEditingController();
 
   DateTime? _startAt;
   DateTime? _endAt;
@@ -110,6 +111,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 (t.availableQuantity ?? 0).toString();
             _ticketTypes.add(row);
           }
+          _eventPolicyController.text =
+              (detail.policies ?? []).join('\n');
         });
       },
     );
@@ -122,6 +125,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     _venueNameController.dispose();
     _venueAddressController.dispose();
     _onlineUrlController.dispose();
+    _eventPolicyController.dispose();
     for (final row in _ticketTypes) {
       row.nameController.dispose();
       row.priceController.dispose();
@@ -284,6 +288,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
       imageUrl: imageUrl,
       category: _category,
       businessId: _getSelectedBusinessId(),
+      eventPolicy: _eventPolicyController.text.trim().isEmpty
+          ? null
+          : _eventPolicyController.text.trim(),
       ticketTypes: _isEditing
           ? const <CreateEventTicketType>[]
           : _ticketTypes
@@ -428,6 +435,20 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  _sectionTitle('Event policy (optional)'),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Shown on attendee ticket details (refunds, dress code, age limits). '
+                    'Use a new line for each bullet.',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTextField(
+                    'Policy',
+                    controller: _eventPolicyController,
+                    maxLines: 6,
                   ),
                   const SizedBox(height: 16),
                   _sectionTitle('Category'),

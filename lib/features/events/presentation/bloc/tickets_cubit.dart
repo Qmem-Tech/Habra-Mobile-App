@@ -3,6 +3,7 @@ import '../../../../core/services/stripe_payment_service.dart';
 import '../../domain/usecases/get_user_tickets_usecase.dart';
 import '../../domain/usecases/create_order_usecase.dart';
 import '../../domain/usecases/process_payment_usecase.dart';
+import '../../domain/usecases/cancel_unpaid_event_order_usecase.dart';
 import '../../domain/entities/order.dart' as events;
 import 'tickets_state.dart';
 
@@ -10,17 +11,22 @@ class TicketsCubit extends Cubit<TicketsState> {
   final GetUserTicketsUseCase getUserTicketsUseCase;
   final CreateOrderUseCase createOrderUseCase;
   final ProcessPaymentUseCase processPaymentUseCase;
+  final CancelUnpaidEventOrderUseCase cancelUnpaidEventOrderUseCase;
   final StripePaymentService stripePaymentService;
 
   TicketsCubit({
     required this.getUserTicketsUseCase,
     required this.createOrderUseCase,
     required this.processPaymentUseCase,
+    required this.cancelUnpaidEventOrderUseCase,
     required this.stripePaymentService,
   }) : super(TicketsInitial());
 
-  Future<void> loadUserTickets({bool upcomingOnly = true}) async {
-    emit(TicketsLoading());
+  Future<void> loadUserTickets({
+    bool upcomingOnly = true,
+    bool showLoading = true,
+  }) async {
+    if (showLoading) emit(TicketsLoading());
 
     final result = await getUserTicketsUseCase(upcomingOnly: upcomingOnly);
 
@@ -34,6 +40,104 @@ class TicketsCubit extends Cubit<TicketsState> {
         }
       },
     );
+  }
+
+  /// Retry Stripe PaymentSheet for an existing unpaid order (My Tickets).
+  /// Returns an error message on failure, or null on success / user-cancelled sheet.
+  Future<String?> retryOrderPayment(String orderId) async {
+    final prev = state;
+    var upcoming = true;
+    if (prev is TicketsLoaded) {
+      upcoming = prev.isUpcoming;
+      emit(TicketsLoaded(
+        tickets: prev.tickets,
+        isUpcoming: upcoming,
+        pendingOrderActionId: orderId,
+      ));
+    }
+
+    if (!stripePaymentService.isConfigured) {
+      if (prev is TicketsLoaded) {
+        emit(TicketsLoaded(tickets: prev.tickets, isUpcoming: upcoming));
+      }
+      return 'Card payments are not configured.';
+    }
+
+    try {
+      final fetch = await stripePaymentService.fetchPaymentSheetSession(orderId);
+      final session = fetch.session;
+      if (session == null || session.clientSecret.isEmpty) {
+        if (prev is TicketsLoaded) {
+          emit(TicketsLoaded(tickets: prev.tickets, isUpcoming: upcoming));
+        }
+        return fetch.errorMessage ??
+            'Could not start payment. Check your connection and try again.';
+      }
+
+      await Future<void>.delayed(Duration.zero);
+
+      final paid = await stripePaymentService.presentPaymentSheet(
+        paymentIntentClientSecret: session.clientSecret,
+        customerId: session.customerId,
+        customerEphemeralKeySecret: session.customerEphemeralKeySecret,
+      );
+      if (!paid) {
+        if (prev is TicketsLoaded) {
+          emit(TicketsLoaded(tickets: prev.tickets, isUpcoming: upcoming));
+        }
+        return null;
+      }
+
+      final processResult = await processPaymentUseCase(
+        orderId: orderId,
+        paymentMethod: {
+          'type': 'stripe',
+          'id': 'stripe_payment_sheet_v2',
+          'payment_intent_id': session.paymentIntentId,
+          'customer_id': session.customerId,
+        },
+      );
+
+      String? message;
+      processResult.fold(
+        (f) => message = f.message,
+        (order) {
+          if (order.status == events.OrderStatus.processing ||
+              order.status == events.OrderStatus.pending) {
+            message =
+                'Payment received — confirming your order. Pull to refresh in a moment.';
+          }
+        },
+      );
+
+      await loadUserTickets(upcomingOnly: upcoming, showLoading: false);
+      return message;
+    } catch (e) {
+      if (prev is TicketsLoaded) {
+        emit(TicketsLoaded(tickets: prev.tickets, isUpcoming: upcoming));
+      }
+      return e.toString();
+    }
+  }
+
+  Future<String?> cancelUnpaidOrder(String orderId) async {
+    final prev = state;
+    var upcoming = true;
+    if (prev is TicketsLoaded) {
+      upcoming = prev.isUpcoming;
+      emit(TicketsLoaded(
+        tickets: prev.tickets,
+        isUpcoming: upcoming,
+        pendingOrderActionId: orderId,
+      ));
+    }
+
+    final result = await cancelUnpaidEventOrderUseCase(orderId);
+    await loadUserTickets(upcomingOnly: upcoming, showLoading: false);
+
+    String? err;
+    result.fold((f) => err = f.message, (_) {});
+    return err;
   }
 
   Future<void> createOrder({

@@ -251,9 +251,25 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         onlineUrl: parseString(row['online_url']),
         ticketTypes: ticketTypes,
         isBookmarked: false,
-        policies: null,
+        policies: _eventPoliciesFromRow(row),
       );
     });
+  }
+
+  String? _trimmedOrNull(String? s) {
+    if (s == null) return null;
+    final t = s.trim();
+    return t.isEmpty ? null : t;
+  }
+
+  List<String>? _eventPoliciesFromRow(Map<String, dynamic> row) {
+    final raw = parseString(row['event_policy']);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return raw
+        .split(RegExp(r'\r?\n'))
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
   }
 
   @override
@@ -287,7 +303,14 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
           .select('*')
           .eq('user_id', userId)
           .eq('type', 'event')
-          .inFilter('status', ['pending', 'processing', 'completed'])
+          .inFilter('status', [
+            'pending',
+            'processing',
+            'completed',
+            'failed',
+            'cancelled',
+            'refunded',
+          ])
           .order('created_at', ascending: false);
 
       final ordersList = (ordersRes as List).cast<Map<String, dynamic>>();
@@ -308,15 +331,25 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         final orderId = parseString(orderMap['id']);
         if (orderId == null) continue;
 
+        // Include every ticket row for this order (not only `valid`), so resale /
+        // edge statuses still appear with the correct order payment chip.
         final ticketsRes = await _client
             .from('tickets')
             .select('*')
-            .eq('order_id', orderId)
-            .eq('status', 'valid');
-
-        if (ticketsRes.isEmpty) continue;
+            .eq('order_id', orderId);
 
         final paid = orderPaymentStatus == events_domain.OrderStatus.completed;
+
+        if (ticketsRes.isEmpty) {
+          tickets.add(_syntheticTicketForOrder(
+            orderId: orderId,
+            orderMap: orderMap,
+            eventDetail: eventDetail,
+            orderPaymentStatus: orderPaymentStatus,
+          ));
+          continue;
+        }
+
         for (final t in ticketsRes) {
           final tm = Map<String, dynamic>.from(t as Map);
           final etId = parseString(tm['event_ticket_id']);
@@ -333,6 +366,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
             ticketTypeName: name,
             price: price,
             purchaseDate: parseTimestampRequired(orderMap['created_at']),
+            orderId: orderId,
             isVerified: paid,
             qrCode: null,
             orderPaymentStatus: orderPaymentStatus,
@@ -376,6 +410,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       final price = et is Map<String, dynamic> ? parseDouble(et['price']) ?? 0.0 : 0.0;
       final name = et is Map<String, dynamic> ? parseStringRequired(et['name']) : 'Ticket';
       final paid = orderPaymentStatus == events_domain.OrderStatus.completed;
+      final ordId = parseString(order['id']);
       return TicketModel(
         id: parseStringRequired(row['id']),
         ticketId: parseStringRequired(row['id']),
@@ -383,6 +418,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         ticketTypeName: name,
         price: price,
         purchaseDate: parseTimestampRequired(row['created_at']),
+        orderId: ordId ?? '',
         isVerified: paid,
         qrCode: null,
         orderPaymentStatus: orderPaymentStatus,
@@ -562,6 +598,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         'image_url': data.imageUrl,
         'category': data.category.name.toLowerCase(),
         'is_active': true,
+        'event_policy': _trimmedOrNull(data.eventPolicy),
       };
       await LocationWriteHelper(_client).attachEventLocation(payload);
 
@@ -621,6 +658,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         'end_at': data.endAt.toIso8601String(),
         'image_url': data.imageUrl,
         'category': data.category.name.toLowerCase(),
+        'event_policy': _trimmedOrNull(data.eventPolicy),
       };
       await LocationWriteHelper(_client).attachEventLocation(payload);
 
@@ -683,5 +721,47 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       default:
         return events_domain.OrderStatus.pending;
     }
+  }
+
+  /// One list row when `tickets` rows are missing (e.g. lag before inserts or RLS),
+  /// so pending/processing orders still show on My Tickets.
+  TicketModel _syntheticTicketForOrder({
+    required String orderId,
+    required Map<String, dynamic> orderMap,
+    required EventDetailModel eventDetail,
+    required events_domain.OrderStatus orderPaymentStatus,
+  }) {
+    final total = parseDouble(orderMap['total_amount']) ?? 0.0;
+    final syntheticId = 'order-summary-$orderId';
+    final paid = orderPaymentStatus == events_domain.OrderStatus.completed;
+    return TicketModel(
+      id: syntheticId,
+      ticketId: syntheticId,
+      event: eventDetail,
+      ticketTypeName: 'Ticket order',
+      price: total,
+      purchaseDate: parseTimestampRequired(orderMap['created_at']),
+      orderId: orderId,
+      isVerified: paid,
+      qrCode: null,
+      orderPaymentStatus: orderPaymentStatus,
+      isSyntheticOrderRow: true,
+    );
+  }
+
+  /// Cancels an event order that was never completed (safe release for user abandon flow).
+  @override
+  Future<void> cancelUnpaidEventOrder(String orderId) async {
+    return SupabaseFailureMapper.guard(() async {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) throw Exception('Not authenticated');
+
+      await _client
+          .from('orders')
+          .update({'status': 'cancelled'})
+          .eq('id', orderId)
+          .eq('user_id', userId)
+          .inFilter('status', ['pending', 'failed']);
+    });
   }
 }

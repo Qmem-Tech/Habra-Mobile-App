@@ -17,13 +17,17 @@ class TicketsLoaded extends TicketsState {
   final List<Ticket> tickets;
   final bool isUpcoming;
 
+  /// Inline spinner on My Tickets for retry/cancel on this order.
+  final String? pendingOrderActionId;
+
   const TicketsLoaded({
     required this.tickets,
     this.isUpcoming = true,
+    this.pendingOrderActionId,
   });
 
   @override
-  List<Object?> get props => [tickets, isUpcoming];
+  List<Object?> get props => [tickets, isUpcoming, pendingOrderActionId];
 }
 
 class TicketsError extends TicketsState {

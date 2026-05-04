@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/ticket.dart';
 import '../../domain/repositories/events_repository.dart';
+import '../utils/ticket_export_utils.dart';
+import '../widgets/habra_ticket_card.dart';
 
 class TicketDetailPage extends StatefulWidget {
   final String ticketId;
@@ -31,8 +31,12 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
-        title: const Text('My Ticket Detail'),
+        elevation: 0,
+        backgroundColor: AppColors.backgroundLight,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('My ticket'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
@@ -82,11 +86,8 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
           return SingleChildScrollView(
             child: Column(
               children: [
-                _buildEventSummary(ticket),
-                _buildTicketNavigation(),
-                _buildQRCode(ticket),
-                _buildEventDetails(ticket),
-                _buildActionButtons(),
+                HabraTicketCard(ticket: ticket),
+                _buildActionButtons(ticket),
                 _buildEventPolicies(ticket),
               ],
             ),
@@ -101,323 +102,73 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
     return result.fold((_) => null, (ticket) => ticket);
   }
 
-  Widget _buildEventSummary(Ticket ticket) {
-    final event = ticket.event;
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.backgroundGrey),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: event.imageUrl.startsWith('assets/')
-                ? Image.asset(
-                    event.imageUrl,
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 80,
-                        height: 80,
-                        color: AppColors.backgroundGrey,
-                        child: const Icon(Icons.event, color: AppColors.textSecondary),
-                      );
-                    },
-                  )
-                : Image.network(
-                    event.imageUrl,
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 80,
-                        height: 80,
-                        color: AppColors.backgroundGrey,
-                        child: const Icon(Icons.event, color: AppColors.textSecondary),
-                      );
-                    },
-                  ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  event.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      DateFormat('EEE, MMM d • h:mm a').format(event.startDate),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+  Widget _buildActionButtons(Ticket ticket) {
+    final physical = !ticket.event.isOnline;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.backgroundWhite,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.backgroundGrey.withValues(alpha: 0.6)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            if (physical)
+              ListTile(
+                leading: const Icon(Icons.directions, color: AppColors.brandPrimary),
+                title: const Text('Directions'),
+                subtitle: const Text('Open in Google Maps'),
+                onTap: () async {
+                  final ok = await TicketExportUtils.openDirections(ticket);
+                  if (!context.mounted) return;
+                  if (!ok) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Could not open maps. Check that a venue is set.'),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.location_on, size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        '${event.venue}, ${event.address}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTicketNavigation() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left, color: AppColors.textPrimary),
-            onPressed: () {},
-          ),
-          const Text(
-            'Ticket 1 of 2',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right, color: AppColors.textPrimary),
-            onPressed: () {},
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQRCode(Ticket ticket) {
-    final qrData = ticket.qrCode?.isNotEmpty == true ? ticket.qrCode! : ticket.ticketId;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          QrImageView(
-            data: qrData,
-            version: QrVersions.auto,
-            size: 280,
-            backgroundColor: Colors.white,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Scan at entrance',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEventDetails(Ticket ticket) {
-    final event = ticket.event;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _buildDetailItem(
-                  'Date',
-                  Icons.calendar_today,
-                  DateFormat('MMM d, yyyy').format(event.startDate),
-                ),
+                    );
+                  }
+                },
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildDetailItem(
-                  'Time',
-                  Icons.access_time,
-                  DateFormat('h:mm a').format(event.startDate),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildDetailItem(
-            'Location',
-            Icons.location_on,
-            '${event.venue}, ${event.address}',
-            fullWidth: true,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailItem(String label, IconData icon, String value, {bool fullWidth = false}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.backgroundGrey),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: AppColors.brandSecondary),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.brandSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+            ListTile(
+              leading: const Icon(Icons.qr_code_2, color: AppColors.brandPrimary),
+              title: const Text('Share QR code'),
+              subtitle: const Text('Send the check-in image'),
+              onTap: () async {
+                try {
+                  await TicketExportUtils.shareQrImage(ticket);
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not share: $e')),
+                  );
+                }
+              },
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildActionButton(
-              'Add to Wallet',
-              Icons.account_balance_wallet,
-              AppColors.brandPrimary,
-              Colors.white,
-              isPrimary: true,
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf, color: AppColors.brandPrimary),
+              title: const Text('Save or share PDF'),
+              subtitle: const Text('Ticket summary with QR and policy'),
+              onTap: () async {
+                try {
+                  await TicketExportUtils.saveAndSharePdf(ticket);
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not create PDF: $e')),
+                  );
+                }
+              },
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildActionButton(
-              'Directions',
-              Icons.directions,
-              AppColors.brandSecondary,
-              AppColors.textPrimary,
-              isPrimary: false,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildActionButton(
-              'Save PDF',
-              Icons.download,
-              AppColors.brandSecondary,
-              AppColors.textPrimary,
-              isPrimary: false,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildActionButton(
-              'Share',
-              Icons.share,
-              AppColors.brandSecondary,
-              AppColors.textPrimary,
-              isPrimary: false,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton(
-    String label,
-    IconData icon,
-    Color bgColor,
-    Color textColor, {
-    bool isPrimary = false,
-  }) {
-    return Container(
-      height: 80,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {},
-          borderRadius: BorderRadius.circular(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 22,
-                color: isPrimary ? Colors.white : AppColors.textPrimary,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: isPrimary ? Colors.white : AppColors.textPrimary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -425,13 +176,23 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
 
   Widget _buildEventPolicies(Ticket ticket) {
     final policies = ticket.event.policies ?? [];
+    if (policies.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.backgroundGrey),
+        color: AppColors.backgroundWhite,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.backgroundGrey.withValues(alpha: 0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [

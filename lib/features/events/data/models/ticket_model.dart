@@ -9,9 +9,11 @@ class TicketModel extends Ticket {
     required super.ticketTypeName,
     required super.price,
     required super.purchaseDate,
+    required super.orderId,
     super.isVerified,
     super.qrCode,
     super.orderPaymentStatus,
+    super.isSyntheticOrderRow,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> json) {
@@ -22,6 +24,7 @@ class TicketModel extends Ticket {
       ticketTypeName: json['ticketTypeName'] as String,
       price: (json['price'] as num).toDouble(),
       purchaseDate: DateTime.parse(json['purchaseDate'] as String),
+      orderId: json['orderId'] as String? ?? '',
       isVerified: json['isVerified'] as bool? ?? false,
       qrCode: json['qrCode'] as String?,
     );
@@ -37,6 +40,7 @@ class TicketModel extends Ticket {
       'ticketTypeName': ticketTypeName,
       'price': price,
       'purchaseDate': purchaseDate.toIso8601String(),
+      'orderId': orderId,
       'isVerified': isVerified,
       'qrCode': qrCode,
     };
@@ -54,9 +58,11 @@ class TicketModel extends Ticket {
       ticketTypeName: entity.ticketTypeName,
       price: entity.price,
       purchaseDate: entity.purchaseDate,
+      orderId: entity.orderId,
       isVerified: entity.isVerified,
       qrCode: entity.qrCode,
       orderPaymentStatus: entity.orderPaymentStatus,
+      isSyntheticOrderRow: entity.isSyntheticOrderRow,
     );
   }
 }
