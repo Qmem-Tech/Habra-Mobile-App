@@ -572,9 +572,15 @@ class _BoostsPageState extends State<BoostsPage> {
     await Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
-        builder: (_) => BlocProvider.value(
-          value: context.read<BoostsCubit>(),
-          child: BoostOptionsPage(preselectFlowForType: reboostType),
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider.value(value: context.read<BoostsCubit>()),
+            BlocProvider.value(value: context.read<BusinessOwnerHomeCubit>()),
+          ],
+          child: BoostOptionsPage(
+            user: widget.user,
+            preselectFlowForType: reboostType,
+          ),
         ),
       ),
     );

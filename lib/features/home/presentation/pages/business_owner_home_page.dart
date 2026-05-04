@@ -1,7 +1,11 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -97,6 +101,19 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   }
 
   Future<void> _navigateToCreateEvent() async {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    final tier = homeState is BusinessOwnerHomeLoaded &&
+            homeState.selectedPresence != null &&
+            homeState.selectedPresence!.id != 'all'
+        ? homeState.selectedPresence!.subscriptionTier
+        : BusinessSubscriptionTier.basic;
+    if (!BusinessSubscriptionPolicy.canPostDealsEventsJobs(tier)) {
+      await BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
+        context,
+        widget.user,
+      );
+      return;
+    }
     final dashboardCubit = context.read<DashboardCubit>();
     final homeCubit = context.read<BusinessOwnerHomeCubit>();
     final createEventCubit = di.sl<CreateEventCubit>();
@@ -735,6 +752,156 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         );
   }
 
+  /// True when engagement metrics (reports, activity, deals/jobs on Home) should be blurred for Free-only listings.
+  bool _shouldBlurFreeTierEngagement(BusinessOwnerHomeLoaded state) {
+    final sel = state.selectedPresence;
+    if (sel != null && sel.id != 'all') {
+      return BusinessSubscriptionPolicy.isFreeListingOnlyTier(sel.subscriptionTier);
+    }
+    final businesses = state.presences.where((p) => p.id != 'all').toList();
+    if (businesses.isEmpty) return false;
+    return businesses.every(
+      (p) => BusinessSubscriptionPolicy.isFreeListingOnlyTier(p.subscriptionTier),
+    );
+  }
+
+  Widget _wrapFreeTierEngagementBlur(BuildContext context, {required Widget child}) {
+    return ClipRect(
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.hardEdge,
+        children: [
+          IgnorePointer(
+            ignoring: true,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: child,
+            ),
+          ),
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final maxH = constraints.maxHeight;
+                final maxW = constraints.maxWidth;
+                final tight = maxH.isFinite && maxH < 112;
+
+                void openPlans() {
+                  BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
+                    context,
+                    widget.user,
+                  );
+                }
+
+                /// Scales down on small targets (e.g. posting row) so nothing overflows.
+                Widget fullMessage() {
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        size: 32,
+                        color: AppColors.brandPrimary.withValues(alpha: 0.85),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Standard or Premium',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Unlock reports, recent activity, deals, and job tools.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'View plans',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.brandPrimary,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                Widget overlayBody;
+                if (tight) {
+                  overlayBody = Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          size: 20,
+                          color: AppColors.brandPrimary.withValues(alpha: 0.9),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Upgrade for deals & events',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.brandPrimary,
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                } else {
+                  overlayBody = Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: maxW < 320 ? 12 : 20,
+                      vertical: maxH.isFinite && maxH < 200 ? 8 : 16,
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: maxW.isFinite ? maxW - 24 : 400,
+                        ),
+                        child: fullMessage(),
+                      ),
+                    ),
+                  );
+                }
+
+                return Material(
+                  color: Colors.white.withValues(alpha: 0.52),
+                  child: InkWell(
+                    onTap: openPlans,
+                    child: Center(
+                      child: overlayBody,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openDashboardManageTab(int tabIndex) async {
     await Navigator.push<void>(
       context,
@@ -761,6 +928,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     final presence = state.selectedPresence;
     final showOwnerTools =
         BusinessPresence.listHasApprovedBusiness(state.presences);
+    final blurEngagement = _shouldBlurFreeTierEngagement(state);
 
     return RefreshIndicator(
       onRefresh: () => _refreshOwnerHome(context),
@@ -784,8 +952,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   ],
                 ),
               ),
-              if (presence != null && presence.isPendingApproval)
-                _buildUnderReviewNotice('under_review_${presence.id}'),
               if (_selectedBusinessLegalRejected && presence != null)
                 _buildLegalDocsRejectedNotice(
                   dismissKey: 'legal_rejected_${presence.id}',
@@ -796,44 +962,71 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   singleBusiness: true,
                   dismissKey: 'legal_required_${presence.id}',
                 ),
-              if (!_selectedBusinessMissingLegalDocs &&
-                  !_selectedBusinessLegalRejected &&
-                  _selectedBusinessLegalAwaitingReview &&
-                  presence != null)
-                _buildLegalDocsPendingReviewNotice(
-                  'legal_pending_${presence.id}',
-                ),
               if (_selectedBusinessLegalDocsApproved && presence != null)
                 _buildLegalAndListingApprovedNotice(
                   dismissKey: 'legal_approved_${presence.id}',
                   presence: presence,
                 ),
               _buildSubscriptionUpgradePrompt(),
-              Container(
-                width: double.infinity,
-                color: AppColors.ownerHomeSectionBg,
-                padding: const EdgeInsets.fromLTRB(
-                  AppResources.spacingM,
-                  20,
-                  AppResources.spacingM,
-                  16,
-                ),
-                child: _buildSectionHeader(
-                  'Today\'s Snapshot',
-                  actionLabel: 'View Reports',
-                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
+              if (blurEngagement)
+                Container(
+                  width: double.infinity,
+                  color: AppColors.ownerHomeSectionBg,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    20,
+                    AppResources.spacingM,
+                    8,
+                  ),
+                  child: _wrapFreeTierEngagementBlur(
                     context,
-                    1,
-                    dashboardTab: 0,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader(
+                          'Today\'s Snapshot',
+                          actionLabel: 'View Reports',
+                          onActionTap: () =>
+                              BusinessOwnerNavigationWrapper.navigateToTab(
+                            context,
+                            1,
+                            dashboardTab: 0,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildSnapshotCards(state.snapshot),
+                      ],
+                    ),
+                  ),
+                )
+              else ...[
+                Container(
+                  width: double.infinity,
+                  color: AppColors.ownerHomeSectionBg,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    20,
+                    AppResources.spacingM,
+                    16,
+                  ),
+                  child: _buildSectionHeader(
+                    'Today\'s Snapshot',
+                    actionLabel: 'View Reports',
+                    onActionTap: () =>
+                        BusinessOwnerNavigationWrapper.navigateToTab(
+                      context,
+                      1,
+                      dashboardTab: 0,
+                    ),
                   ),
                 ),
-              ),
-              Container(
-                width: double.infinity,
-                color: AppColors.ownerHomeSectionBg,
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _buildSnapshotCards(state.snapshot),
-              ),
+                Container(
+                  width: double.infinity,
+                  color: AppColors.ownerHomeSectionBg,
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _buildSnapshotCards(state.snapshot),
+                ),
+              ],
               if (showOwnerTools) ...[
                 Container(
                   width: double.infinity,
@@ -853,86 +1046,187 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   child: _buildQuickActions(),
                 ),
               ],
-              Container(
-                width: double.infinity,
-                color: AppColors.ownerHomeSectionBg,
-                padding: const EdgeInsets.fromLTRB(
-                  AppResources.spacingM,
-                  8,
-                  AppResources.spacingM,
-                  12,
-                ),
-                child: _buildSectionHeader(
-                  'Recent Activity',
-                  actionLabel: 'View All',
-                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
+              if (blurEngagement)
+                Container(
+                  width: double.infinity,
+                  color: AppColors.ownerHomeSectionBg,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    8,
+                    AppResources.spacingM,
+                    20,
+                  ),
+                  child: _wrapFreeTierEngagementBlur(
                     context,
-                    1,
-                    dashboardTab: 4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader(
+                          'Recent Activity',
+                          actionLabel: 'View All',
+                          onActionTap: () =>
+                              BusinessOwnerNavigationWrapper.navigateToTab(
+                            context,
+                            1,
+                            dashboardTab: 4,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildRecentActivityList(
+                          state.recentActivity,
+                          onReplyToReview: () =>
+                              BusinessOwnerNavigationWrapper.navigateToTab(
+                            context,
+                            1,
+                            dashboardTab: 4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else ...[
+                Container(
+                  width: double.infinity,
+                  color: AppColors.ownerHomeSectionBg,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    8,
+                    AppResources.spacingM,
+                    12,
+                  ),
+                  child: _buildSectionHeader(
+                    'Recent Activity',
+                    actionLabel: 'View All',
+                    onActionTap: () =>
+                        BusinessOwnerNavigationWrapper.navigateToTab(
+                      context,
+                      1,
+                      dashboardTab: 4,
+                    ),
                   ),
                 ),
-              ),
-              Container(
-                width: double.infinity,
-                color: AppColors.ownerHomeSectionBg,
-                padding: const EdgeInsets.fromLTRB(
-                  AppResources.spacingM,
-                  0,
-                  AppResources.spacingM,
-                  20,
-                ),
-                child: _buildRecentActivityList(
-                  state.recentActivity,
-                  onReplyToReview: () =>
-                      BusinessOwnerNavigationWrapper.navigateToTab(
-                    context,
-                    1,
-                    dashboardTab: 4,
+                Container(
+                  width: double.infinity,
+                  color: AppColors.ownerHomeSectionBg,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    0,
+                    AppResources.spacingM,
+                    20,
+                  ),
+                  child: _buildRecentActivityList(
+                    state.recentActivity,
+                    onReplyToReview: () =>
+                        BusinessOwnerNavigationWrapper.navigateToTab(
+                      context,
+                      1,
+                      dashboardTab: 4,
+                    ),
                   ),
                 ),
-              ),
-              Container(
-                width: double.infinity,
-                color: AppColors.backgroundWhite,
-                padding: const EdgeInsets.fromLTRB(
-                  AppResources.spacingM,
-                  20,
-                  AppResources.spacingM,
-                  12,
+              ],
+              if (blurEngagement)
+                Container(
+                  width: double.infinity,
+                  color: AppColors.backgroundWhite,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    20,
+                    AppResources.spacingM,
+                    24,
+                  ),
+                  child: _wrapFreeTierEngagementBlur(
+                    context,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader(
+                          'Your Deals',
+                          actionLabel: 'Manage',
+                          onActionTap: () => _openDashboardManageTab(1),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildActiveDealsList(state.activeDeals),
+                      ],
+                    ),
+                  ),
+                )
+              else ...[
+                Container(
+                  width: double.infinity,
+                  color: AppColors.backgroundWhite,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    20,
+                    AppResources.spacingM,
+                    12,
+                  ),
+                  child: _buildSectionHeader(
+                    'Your Deals',
+                    actionLabel: 'Manage',
+                    onActionTap: () => _openDashboardManageTab(1),
+                  ),
                 ),
-                child: _buildSectionHeader(
-                  'Your Deals',
-                  actionLabel: 'Manage',
-                  onActionTap: () => _openDashboardManageTab(1),
+                Container(
+                  width: double.infinity,
+                  color: AppColors.backgroundWhite,
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _buildActiveDealsList(state.activeDeals),
                 ),
-              ),
-              Container(
-                width: double.infinity,
-                color: AppColors.backgroundWhite,
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _buildActiveDealsList(state.activeDeals),
-              ),
-              Container(
-                width: double.infinity,
-                color: AppColors.backgroundWhite,
-                padding: const EdgeInsets.fromLTRB(
-                  AppResources.spacingM,
-                  16,
-                  AppResources.spacingM,
-                  12,
+              ],
+              if (blurEngagement)
+                Container(
+                  width: double.infinity,
+                  color: AppColors.backgroundWhite,
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppResources.spacingM,
+                      16,
+                      AppResources.spacingM,
+                      0,
+                    ),
+                    child: _wrapFreeTierEngagementBlur(
+                      context,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionHeader(
+                            'Your Job Posts',
+                            actionLabel: 'Manage',
+                            onActionTap: () => _openDashboardManageTab(2),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildJobPostsList(state.jobPosts),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else ...[
+                Container(
+                  width: double.infinity,
+                  color: AppColors.backgroundWhite,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    16,
+                    AppResources.spacingM,
+                    12,
+                  ),
+                  child: _buildSectionHeader(
+                    'Your Job Posts',
+                    actionLabel: 'Manage',
+                    onActionTap: () => _openDashboardManageTab(2),
+                  ),
                 ),
-                child: _buildSectionHeader(
-                  'Your Job Posts',
-                  actionLabel: 'Manage',
-                  onActionTap: () => _openDashboardManageTab(2),
+                Container(
+                  width: double.infinity,
+                  color: AppColors.backgroundWhite,
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: _buildJobPostsList(state.jobPosts),
                 ),
-              ),
-              Container(
-                width: double.infinity,
-                color: AppColors.backgroundWhite,
-                padding: const EdgeInsets.only(bottom: 24),
-                child: _buildJobPostsList(state.jobPosts),
-              ),
+              ],
               const SizedBox(height: 32),
             ],
           ),
@@ -945,6 +1239,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   Widget _buildAllBusinessesView(BusinessOwnerHomeLoaded state) {
     final showOwnerTools =
         BusinessPresence.listHasApprovedBusiness(state.presences);
+    final blurEngagement = _shouldBlurFreeTierEngagement(state);
 
     return RefreshIndicator(
       onRefresh: () => _refreshOwnerHome(context),
@@ -956,34 +1251,65 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: double.infinity,
-                color: AppColors.ownerHomeSectionBg,
-                padding: const EdgeInsets.fromLTRB(
-                  AppResources.spacingM,
-                  20,
-                  AppResources.spacingM,
-                  12,
-                ),
-                child: _buildSectionHeader(
-                  'This Month (All Businesses)',
-                  actionLabel: 'View Reports',
-                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
+              if (blurEngagement)
+                Container(
+                  width: double.infinity,
+                  color: AppColors.ownerHomeSectionBg,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    20,
+                    AppResources.spacingM,
+                    12,
+                  ),
+                  child: _wrapFreeTierEngagementBlur(
                     context,
-                    1,
-                    dashboardTab: 0,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader(
+                          'This Month (All Businesses)',
+                          actionLabel: 'View Reports',
+                          onActionTap: () =>
+                              BusinessOwnerNavigationWrapper.navigateToTab(
+                            context,
+                            1,
+                            dashboardTab: 0,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildSnapshotCards(state.snapshot),
+                      ],
+                    ),
+                  ),
+                )
+              else ...[
+                Container(
+                  width: double.infinity,
+                  color: AppColors.ownerHomeSectionBg,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    20,
+                    AppResources.spacingM,
+                    12,
+                  ),
+                  child: _buildSectionHeader(
+                    'This Month (All Businesses)',
+                    actionLabel: 'View Reports',
+                    onActionTap: () =>
+                        BusinessOwnerNavigationWrapper.navigateToTab(
+                      context,
+                      1,
+                      dashboardTab: 0,
+                    ),
                   ),
                 ),
-              ),
-              Container(
-                width: double.infinity,
-                color: AppColors.ownerHomeSectionBg,
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildSnapshotCards(state.snapshot),
-              ),
-              if (state.presences.any((presence) =>
-                  presence.id != 'all' && presence.isPendingApproval))
-                _buildUnderReviewNotice('under_review_all'),
+                Container(
+                  width: double.infinity,
+                  color: AppColors.ownerHomeSectionBg,
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildSnapshotCards(state.snapshot),
+                ),
+              ],
               if (_businessesNeedingLegalDocsCount > 0)
                 _buildLegalDocsRequiredNotice(
                   singleBusiness: false,
@@ -1045,44 +1371,86 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   child: _buildQuickActions(),
                 ),
               ],
-              Container(
-                width: double.infinity,
-                color: AppColors.ownerHomeSectionBg,
-                padding: const EdgeInsets.fromLTRB(
-                  AppResources.spacingM,
-                  8,
-                  AppResources.spacingM,
-                  12,
-                ),
-                child: _buildSectionHeader(
-                  'Recent Activity',
-                  actionLabel: 'View All',
-                  onActionTap: () => BusinessOwnerNavigationWrapper.navigateToTab(
+              if (blurEngagement)
+                Container(
+                  width: double.infinity,
+                  color: AppColors.ownerHomeSectionBg,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    8,
+                    AppResources.spacingM,
+                    32,
+                  ),
+                  child: _wrapFreeTierEngagementBlur(
                     context,
-                    1,
-                    dashboardTab: 4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader(
+                          'Recent Activity',
+                          actionLabel: 'View All',
+                          onActionTap: () =>
+                              BusinessOwnerNavigationWrapper.navigateToTab(
+                            context,
+                            1,
+                            dashboardTab: 4,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildRecentActivityList(
+                          state.recentActivity,
+                          onReplyToReview: () =>
+                              BusinessOwnerNavigationWrapper.navigateToTab(
+                            context,
+                            1,
+                            dashboardTab: 4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else ...[
+                Container(
+                  width: double.infinity,
+                  color: AppColors.ownerHomeSectionBg,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    8,
+                    AppResources.spacingM,
+                    12,
+                  ),
+                  child: _buildSectionHeader(
+                    'Recent Activity',
+                    actionLabel: 'View All',
+                    onActionTap: () =>
+                        BusinessOwnerNavigationWrapper.navigateToTab(
+                      context,
+                      1,
+                      dashboardTab: 4,
+                    ),
                   ),
                 ),
-              ),
-              Container(
-                width: double.infinity,
-                color: AppColors.ownerHomeSectionBg,
-                padding: const EdgeInsets.fromLTRB(
-                  AppResources.spacingM,
-                  0,
-                  AppResources.spacingM,
-                  32,
-                ),
-                child: _buildRecentActivityList(
-                  state.recentActivity,
-                  onReplyToReview: () =>
-                      BusinessOwnerNavigationWrapper.navigateToTab(
-                    context,
-                    1,
-                    dashboardTab: 4,
+                Container(
+                  width: double.infinity,
+                  color: AppColors.ownerHomeSectionBg,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppResources.spacingM,
+                    0,
+                    AppResources.spacingM,
+                    32,
+                  ),
+                  child: _buildRecentActivityList(
+                    state.recentActivity,
+                    onReplyToReview: () =>
+                        BusinessOwnerNavigationWrapper.navigateToTab(
+                      context,
+                      1,
+                      dashboardTab: 4,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -1838,51 +2206,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     );
   }
 
-  Widget _buildUnderReviewNotice(String dismissKey) {
-    return _buildDismissibleHomeBanner(
-      dismissKey: dismissKey,
-      backgroundColor: AppColors.brandPrimary.withValues(alpha: 0.08),
-      borderColor: AppColors.brandPrimary.withValues(alpha: 0.25),
-      outerPadding: const EdgeInsets.fromLTRB(
-        AppResources.spacingM,
-        12,
-        AppResources.spacingM,
-        4,
-      ),
-      child: const Text(
-        'Your documents were submitted successfully and are under review. We will notify you once approved.',
-        style: TextStyle(
-          fontSize: 14,
-          color: AppColors.textPrimary,
-          height: 1.4,
-        ),
-      ),
-    );
-  }
-
-  /// Shown when license (+ optional EIN) are on file but admin has not marked rows approved yet.
-  Widget _buildLegalDocsPendingReviewNotice(String dismissKey) {
-    return _buildDismissibleHomeBanner(
-      dismissKey: dismissKey,
-      backgroundColor: AppColors.brandPrimary.withValues(alpha: 0.08),
-      borderColor: AppColors.brandPrimary.withValues(alpha: 0.25),
-      outerPadding: const EdgeInsets.fromLTRB(
-        AppResources.spacingM,
-        8,
-        AppResources.spacingM,
-        4,
-      ),
-      child: const Text(
-        'Your legal documents are on file and pending admin review. You do not need to upload again unless we ask you to replace a file.',
-        style: TextStyle(
-          fontSize: 14,
-          color: AppColors.textPrimary,
-          height: 1.4,
-        ),
-      ),
-    );
-  }
-
   Widget _buildLegalDocsRequiredNotice({
     required bool singleBusiness,
     required String dismissKey,
@@ -2211,6 +2534,8 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         state is BusinessOwnerHomeLoaded ? state.selectedPresence : null;
     final hasSpecificBusiness =
         selectedPresence != null && selectedPresence.id != 'all';
+    final blurPostingRow = state is BusinessOwnerHomeLoaded &&
+        _shouldBlurFreeTierEngagement(state);
 
     const circleSize = 64.0;
     const iconSize = 28.0;
@@ -2219,6 +2544,15 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       if (!hasSpecificBusiness) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Select a business first')),
+        );
+        return;
+      }
+      if (!BusinessSubscriptionPolicy.canPostDealsEventsJobs(
+        selectedPresence!.subscriptionTier,
+      )) {
+        await BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
+          context,
+          widget.user,
         );
         return;
       }
@@ -2244,6 +2578,15 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       if (!hasSpecificBusiness) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Select a business first')),
+        );
+        return;
+      }
+      if (!BusinessSubscriptionPolicy.canPostDealsEventsJobs(
+        selectedPresence!.subscriptionTier,
+      )) {
+        await BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
+          context,
+          widget.user,
         );
         return;
       }
@@ -2362,33 +2705,37 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       );
     }
 
+    final postingRow = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        action(
+          icon: Icons.sell_rounded,
+          label: 'Post Deal',
+          onTap: postDeal,
+          primary: true,
+        ),
+        action(
+          icon: Icons.work_outline_rounded,
+          label: 'Post Job',
+          onTap: postJob,
+          primary: false,
+        ),
+        action(
+          icon: Icons.event_available_rounded,
+          label: 'Event',
+          onTap: createEvent,
+          primary: false,
+        ),
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppResources.spacingM),
       child: Column(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              action(
-                icon: Icons.sell_rounded,
-                label: 'Post Deal',
-                onTap: postDeal,
-                primary: true,
-              ),
-              action(
-                icon: Icons.work_outline_rounded,
-                label: 'Post Job',
-                onTap: postJob,
-                primary: false,
-              ),
-              action(
-                icon: Icons.event_available_rounded,
-                label: 'Event',
-                onTap: createEvent,
-                primary: false,
-              ),
-            ],
-          ),
+          blurPostingRow
+              ? _wrapFreeTierEngagementBlur(context, child: postingRow)
+              : postingRow,
           const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,

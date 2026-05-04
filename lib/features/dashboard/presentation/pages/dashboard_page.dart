@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../auth/domain/entities/user.dart';
@@ -16,6 +17,7 @@ import '../../../settings/presentation/pages/settings_page.dart';
 import '../bloc/dashboard_cubit.dart';
 import '../bloc/dashboard_state.dart';
 import '../widgets/dashboard_app_bar.dart';
+import '../widgets/dashboard_listing_tier_locked.dart';
 import '../widgets/dashboard_tab_bar.dart';
 import 'dashboard_analytics_tab.dart';
 import 'dashboard_deals_tab.dart';
@@ -89,6 +91,27 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Future<void> _loadDashboard() async {
     await _syncDashboardWithHome();
+  }
+
+  BusinessSubscriptionTier _selectedListingTier(BuildContext context) {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is BusinessOwnerHomeLoaded &&
+        homeState.selectedPresence != null &&
+        homeState.selectedPresence!.id != 'all') {
+      return homeState.selectedPresence!.subscriptionTier;
+    }
+    return BusinessSubscriptionTier.basic;
+  }
+
+  /// Returns true when the user may open create flows for deals, jobs, or events.
+  Future<bool> _ensureCanPostDealsEventsJobs() async {
+    final tier = _selectedListingTier(context);
+    if (BusinessSubscriptionPolicy.canPostDealsEventsJobs(tier)) return true;
+    await BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
+      context,
+      widget.user,
+    );
+    return false;
   }
 
   @override
@@ -366,6 +389,15 @@ class _DashboardPageState extends State<DashboardPage> {
                         onRefresh: _loadDashboard,
                       );
                     case 1:
+                      final tierDeals = _selectedListingTier(context);
+                      if (!BusinessSubscriptionPolicy.canPostDealsEventsJobs(
+                        tierDeals,
+                      )) {
+                        return DashboardListingTierLocked(
+                          user: widget.user,
+                          sectionLabel: 'deals',
+                        );
+                      }
                       return DashboardDealsTab(
                         deals: state.deals,
                         filter: state.dealsFilter,
@@ -387,6 +419,15 @@ class _DashboardPageState extends State<DashboardPage> {
                         onStats: (_) => setState(() => _tabIndex = 0),
                       );
                     case 2:
+                      final tierJobs = _selectedListingTier(context);
+                      if (!BusinessSubscriptionPolicy.canPostDealsEventsJobs(
+                        tierJobs,
+                      )) {
+                        return DashboardListingTierLocked(
+                          user: widget.user,
+                          sectionLabel: 'job posts',
+                        );
+                      }
                       return DashboardJobsTab(
                         jobs: state.jobs,
                         filter: state.jobsFilter,
@@ -397,6 +438,15 @@ class _DashboardPageState extends State<DashboardPage> {
                         onEditJob: (job) => _navigateToCreateJob(jobToEdit: job),
                       );
                     case 3:
+                      final tierEvents = _selectedListingTier(context);
+                      if (!BusinessSubscriptionPolicy.canPostDealsEventsJobs(
+                        tierEvents,
+                      )) {
+                        return DashboardListingTierLocked(
+                          user: widget.user,
+                          sectionLabel: 'events',
+                        );
+                      }
                       return DashboardEventsTab(
                         events: state.upcomingEvents,
                         onCreateEvent: _navigateToCreateEvent,
@@ -418,31 +468,45 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ],
         ),
-        floatingActionButton: BlocBuilder<DashboardCubit, DashboardState>(
-          builder: (context, state) {
-            if (state is! DashboardTabState) return const SizedBox.shrink();
-            if (_tabIndex == 1) {
-              return FloatingActionButton(
-                onPressed: () => _navigateToCreateDeal(),
-                backgroundColor: AppColors.brandSecondary,
-                child: const Icon(Icons.add, color: AppColors.textOnPrimary),
-              );
-            }
-            if (_tabIndex == 2) {
-              return FloatingActionButton(
-                onPressed: _navigateToCreateJob,
-                backgroundColor: AppColors.brandSecondary,
-                child: const Icon(Icons.add, color: AppColors.textOnPrimary),
-              );
-            }
-            if (_tabIndex == 3) {
-              return FloatingActionButton(
-                onPressed: _navigateToCreateEvent,
-                backgroundColor: AppColors.brandSecondary,
-                child: const Icon(Icons.add, color: AppColors.textOnPrimary),
-              );
-            }
-            return const SizedBox.shrink();
+        floatingActionButton: BlocBuilder<BusinessOwnerHomeCubit,
+            BusinessOwnerHomeState>(
+          builder: (context, homeState) {
+            return BlocBuilder<DashboardCubit, DashboardState>(
+              builder: (context, state) {
+                if (state is! DashboardTabState) {
+                  return const SizedBox.shrink();
+                }
+                final tier = homeState is BusinessOwnerHomeLoaded &&
+                        homeState.selectedPresence?.id != 'all'
+                    ? homeState.selectedPresence!.subscriptionTier
+                    : BusinessSubscriptionTier.basic;
+                if (!BusinessSubscriptionPolicy.canPostDealsEventsJobs(tier)) {
+                  return const SizedBox.shrink();
+                }
+                if (_tabIndex == 1) {
+                  return FloatingActionButton(
+                    onPressed: () => _navigateToCreateDeal(),
+                    backgroundColor: AppColors.brandSecondary,
+                    child: const Icon(Icons.add, color: AppColors.textOnPrimary),
+                  );
+                }
+                if (_tabIndex == 2) {
+                  return FloatingActionButton(
+                    onPressed: _navigateToCreateJob,
+                    backgroundColor: AppColors.brandSecondary,
+                    child: const Icon(Icons.add, color: AppColors.textOnPrimary),
+                  );
+                }
+                if (_tabIndex == 3) {
+                  return FloatingActionButton(
+                    onPressed: _navigateToCreateEvent,
+                    backgroundColor: AppColors.brandSecondary,
+                    child: const Icon(Icons.add, color: AppColors.textOnPrimary),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            );
           },
         ),
       ),
@@ -478,6 +542,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _navigateToCreateEvent() async {
+    if (!await _ensureCanPostDealsEventsJobs()) return;
     final dashboardCubit = context.read<DashboardCubit>();
     final homeCubit = context.read<BusinessOwnerHomeCubit>();
     final createEventCubit = di.sl<CreateEventCubit>();
@@ -500,6 +565,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _navigateToCreateDeal({DashboardDeal? dealToEdit}) async {
+    if (!await _ensureCanPostDealsEventsJobs()) return;
     final dashboardCubit = context.read<DashboardCubit>();
     final homeCubit = context.read<BusinessOwnerHomeCubit>();
     final result = await Navigator.push<bool>(
@@ -540,6 +606,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _navigateToCreateJob({DashboardJob? jobToEdit}) async {
+    if (!await _ensureCanPostDealsEventsJobs()) return;
     final dashboardCubit = context.read<DashboardCubit>();
     final homeCubit = context.read<BusinessOwnerHomeCubit>();
     final result = await Navigator.push<bool>(

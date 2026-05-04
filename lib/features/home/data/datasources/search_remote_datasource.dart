@@ -83,6 +83,7 @@ class SearchRemoteDataSourceImpl implements SearchRemoteDataSource {
             .select('*')
             .eq('approval_status', 'approved')
             .eq('is_active', true)
+            .eq('is_verified', true)
             .or('name.ilike.%$q%,description.ilike.%$q%,address_city.ilike.%$q%')
             .order('rating', ascending: false)
             .limit(_perTypeLimit);
@@ -112,7 +113,8 @@ class SearchRemoteDataSourceImpl implements SearchRemoteDataSource {
             .from('businesses')
             .select('id')
             .eq('approval_status', 'approved')
-            .eq('is_active', true);
+            .eq('is_active', true)
+            .eq('is_verified', true);
         final approvedIds =
             (approvedBizRes as List).map((e) => (e as Map)['id']).whereType<String>().toList();
         if (approvedIds.isEmpty) return;

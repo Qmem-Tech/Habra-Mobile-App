@@ -297,12 +297,15 @@ class _BusinessOwnerSubscriptionPageState
       case BusinessSubscriptionTier.pro:
         return const [
           'Full dashboard with analytics you can act on—not just numbers',
+          'Up to 5 active deals, 5 hosted events, and 5 open job posts per listing',
           'Publish and manage deals, job posts, and events in one flow',
           'See reviews and engagement without juggling extra tools',
           'Designed for busy owners; cancel anytime from the App Store or Google Play',
         ];
       case BusinessSubscriptionTier.basic:
         return const [
+          'Listing profile and discovery—your business can appear in search when approved',
+          'Edit listing details, photos, and hours (no deals, events, or job posts on Free)',
           'Unlock Habra\'s paid business-owner tools in the app',
           'Secure billing through Apple or Google—never charged twice here',
         ];

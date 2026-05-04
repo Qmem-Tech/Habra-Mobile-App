@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
+import '../../../auth/domain/entities/user.dart';
+import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
+import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../../domain/entities/boost_option.dart';
 import '../bloc/boosts_cubit.dart';
 import '../bloc/boosts_state.dart';
@@ -17,8 +23,13 @@ import 'select_job_to_boost_page.dart';
 /// When [preselectFlowForType] is set (e.g. from RE-BOOST), the matching option
 /// flow opens automatically after options load.
 class BoostOptionsPage extends StatefulWidget {
-  const BoostOptionsPage({super.key, this.preselectFlowForType});
+  const BoostOptionsPage({
+    super.key,
+    required this.user,
+    this.preselectFlowForType,
+  });
 
+  final User user;
   final BoostOptionType? preselectFlowForType;
 
   @override
@@ -74,6 +85,16 @@ class _BoostOptionsPageState extends State<BoostOptionsPage> {
           if (match == null) return;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!context.mounted) return;
+            final homeState = context.read<BusinessOwnerHomeCubit>().state;
+            final tier = _subscriptionTierForBoost(homeState);
+            if ((want == BoostOptionType.deal || want == BoostOptionType.job) &&
+                !BusinessSubscriptionPolicy.canBoostDealsOrJobs(tier)) {
+              BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
+                context,
+                widget.user,
+              );
+              return;
+            }
             _onOptionTap(context, match!);
           });
         },
@@ -89,6 +110,11 @@ class _BoostOptionsPageState extends State<BoostOptionsPage> {
             return const HabraCircularLoader(fullScreen: true);
           }
           final options = state.options;
+          final homeState = context.watch<BusinessOwnerHomeCubit>().state;
+          final tier = _subscriptionTierForBoost(homeState);
+          final canDealJobBoost =
+              BusinessSubscriptionPolicy.canBoostDealsOrJobs(tier);
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(AppResources.spacingM),
             child: Column(
@@ -104,10 +130,16 @@ class _BoostOptionsPageState extends State<BoostOptionsPage> {
                 ),
                 const SizedBox(height: AppResources.spacingL),
                 ...options.map(
-                  (option) => BoostOptionCard(
-                    option: option,
-                    onTap: () => _onOptionTap(context, option),
-                  ),
+                  (option) {
+                    final locked = !canDealJobBoost &&
+                        (option.type == BoostOptionType.deal ||
+                            option.type == BoostOptionType.job);
+                    return BoostOptionCard(
+                      option: option,
+                      locked: locked,
+                      onTap: () => _onOptionTap(context, option),
+                    );
+                  },
                 ),
                 const SizedBox(height: AppResources.spacingL),
                 _buildProTip(),
@@ -160,7 +192,34 @@ class _BoostOptionsPageState extends State<BoostOptionsPage> {
     );
   }
 
+  BusinessSubscriptionTier _subscriptionTierForBoost(
+    BusinessOwnerHomeState homeState,
+  ) {
+    if (homeState is! BusinessOwnerHomeLoaded) {
+      return BusinessSubscriptionTier.basic;
+    }
+    final bid = homeState.focusBusinessIdForOwnerTools;
+    if (bid == null) return BusinessSubscriptionTier.basic;
+    for (final p in homeState.presences) {
+      if (p.id == bid) return p.subscriptionTier;
+    }
+    return BusinessSubscriptionTier.basic;
+  }
+
   void _onOptionTap(BuildContext context, BoostOption option) {
+    final tier = _subscriptionTierForBoost(
+      context.read<BusinessOwnerHomeCubit>().state,
+    );
+    if ((option.type == BoostOptionType.deal ||
+            option.type == BoostOptionType.job) &&
+        !BusinessSubscriptionPolicy.canBoostDealsOrJobs(tier)) {
+      BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
+        context,
+        widget.user,
+      );
+      return;
+    }
+
     switch (option.type) {
       case BoostOptionType.businessListing:
         Navigator.push(

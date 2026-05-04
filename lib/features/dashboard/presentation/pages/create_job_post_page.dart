@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/subscription/business_subscription_policy.dart'
+    show maxOpenJobPostsForSubscriptionTier;
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -118,6 +123,37 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
       return homeState.presences.where((p) => p.id != 'all').toList();
     }
     return [];
+  }
+
+  BusinessSubscriptionTier _selectedBusinessTier() {
+    final selectedId = _getSelectedBusinessId();
+    if (selectedId == null) return BusinessSubscriptionTier.basic;
+    for (final b in _getBusinesses()) {
+      if (b.id == selectedId) return b.subscriptionTier;
+    }
+    return BusinessSubscriptionTier.basic;
+  }
+
+  /// Blocks publishing when open-job count is already at the tier cap (new post or draft→open).
+  Future<String?> _checkJobPublishLimit() async {
+    final bizId = _getSelectedBusinessId();
+    if (bizId == null) return null;
+    final editing = widget.jobToEdit;
+    if (editing != null && editing.status == DashboardJobStatus.open) {
+      return null;
+    }
+    final tier = _selectedBusinessTier();
+    final maxAllowed = maxOpenJobPostsForSubscriptionTier(tier);
+    final existing = await Supabase.instance.client
+        .from(SupabaseTables.jobs)
+        .select('id')
+        .eq('business_id', bizId)
+        .eq('status', 'open');
+    final count = (existing as List).length;
+    if (count >= maxAllowed) {
+      return 'Your ${tier.name.toUpperCase()} plan allows up to $maxAllowed active job post(s).';
+    }
+    return null;
   }
 
   bool get _needsBusinessPicker {
@@ -280,6 +316,14 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errors.first)),
+      );
+      return;
+    }
+    final limitMsg = await _checkJobPublishLimit();
+    if (!context.mounted) return;
+    if (limitMsg != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(limitMsg)),
       );
       return;
     }

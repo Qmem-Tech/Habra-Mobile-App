@@ -142,7 +142,8 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
             .from('businesses')
             .select(select)
             .eq('approval_status', 'approved')
-            .eq('is_active', true);
+            .eq('is_active', true)
+            .eq('is_verified', true);
 
         if (featuredOnly) query = query.eq('is_featured', true);
         // TODO: Add location filter when ready: query.or('address_city.ilike.%$location%,address_state.ilike.%$location%')
@@ -225,6 +226,9 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
       if (res == null) throw Exception('Business not found');
 
       final row = Map<String, dynamic>.from(res as Map);
+      if (!parseBool(row['is_verified'])) {
+        throw Exception('Business not found');
+      }
       final location =
           NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
       final listItem = _rowToBusinessListItem(row);
@@ -335,7 +339,8 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
           .select('*, business_categories(categories(id, name, slug))')
           .inFilter('id', take)
           .eq('approval_status', 'approved')
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .eq('is_verified', true);
       final rows = (bizRes as List).cast<Map<String, dynamic>>();
       final byId = {for (final r in rows) parseStringRequired(r['id']): r};
       final ordered = <BusinessListItem>[];
@@ -413,7 +418,8 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
           .from('businesses')
           .select('id')
           .eq('approval_status', 'approved')
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .eq('is_verified', true);
       final approvedBizList = approvedBizRes as List;
       if (approvedBizList.isEmpty) return [];
       final approvedIds = approvedBizList.map((e) => (e as Map)['id']).whereType<String>().toList();
