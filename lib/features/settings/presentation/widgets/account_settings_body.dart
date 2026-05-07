@@ -14,7 +14,7 @@ import '../../../../core/widgets/permission_list_page.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
-import '../../../auth/presentation/pages/sign_in_page.dart';
+import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import '../../../feedback/presentation/bloc/feedback_cubit.dart';
 import '../../../feedback/presentation/pages/feedback_page.dart';
 import '../../../home/presentation/pages/edit_profile_page.dart';
@@ -123,7 +123,7 @@ class _AccountSettingsBodyState extends State<AccountSettingsBody> {
   void _logout(BuildContext context) {
     context.read<AuthCubit>().logout();
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const SignInPage()),
+      MaterialPageRoute<void>(builder: (_) => const ChoosePathPage()),
       (route) => false,
     );
   }

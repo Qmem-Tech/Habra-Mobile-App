@@ -25,6 +25,8 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
 
   SupabaseClient get _client => Supabase.instance.client;
   static const double _serviceFeeRate = 0.05;
+  static const Duration _paymentConfirmationMaxWait = Duration(seconds: 12);
+  static const Duration _paymentStatusPollInterval = Duration(milliseconds: 500);
 
   static EventCategory _categoryFromString(String? s) {
     if (s == null || s.isEmpty) return EventCategory.all;
@@ -547,16 +549,16 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         // Webhook `stripe-event-webhook` can still complete the order.
       }
 
-      final deadline = DateTime.now().add(const Duration(seconds: 45));
+      final deadline = DateTime.now().add(_paymentConfirmationMaxWait);
       while (DateTime.now().isBefore(deadline)) {
-        final order = await _fetchOrderModel(orderId);
-        if (order.status == events_domain.OrderStatus.completed ||
-            order.status == events_domain.OrderStatus.failed ||
-            order.status == events_domain.OrderStatus.cancelled ||
-            order.status == events_domain.OrderStatus.refunded) {
-          return order;
+        final status = await _fetchOrderStatus(orderId);
+        if (status == events_domain.OrderStatus.completed ||
+            status == events_domain.OrderStatus.failed ||
+            status == events_domain.OrderStatus.cancelled ||
+            status == events_domain.OrderStatus.refunded) {
+          return await _fetchOrderModel(orderId);
         }
-        await Future<void>.delayed(const Duration(milliseconds: 900));
+        await Future<void>.delayed(_paymentStatusPollInterval);
       }
 
       // Do not throw: payment may have succeeded but webhook/DB is still catching up.
@@ -706,6 +708,12 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
     );
   }
 
+  Future<events_domain.OrderStatus> _fetchOrderStatus(String orderId) async {
+    final res = await _client.from('orders').select('status').eq('id', orderId).single();
+    final row = Map<String, dynamic>.from(res as Map);
+    return _parseOrderStatus(parseString(row['status']));
+  }
+
   events_domain.OrderStatus _parseOrderStatus(String? status) {
     switch ((status ?? '').toLowerCase()) {
       case 'processing':
@@ -756,12 +764,18 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('Not authenticated');
 
-      await _client
+      final updated = await _client
           .from('orders')
           .update({'status': 'cancelled'})
           .eq('id', orderId)
           .eq('user_id', userId)
-          .inFilter('status', ['pending', 'failed']);
+          .inFilter('status', ['pending', 'processing', 'failed'])
+          .select('id');
+      if (updated is List && updated.isEmpty) {
+        throw Exception(
+          'This ticket cannot be removed anymore. Please refresh and try again.',
+        );
+      }
     });
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/navigation/main_navigation_wrapper.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -10,7 +12,10 @@ import '../bloc/tickets_cubit.dart';
 import '../bloc/tickets_state.dart';
 import '../widgets/list_ticket_sheet.dart';
 import 'ticket_detail_page.dart';
-import 'package:intl/intl.dart';
+
+enum _TicketSortOption { newestFirst, oldestFirst }
+
+enum _TicketStatusFilter { all, confirmed, confirming, failed, refunded, cancelled }
 
 class MyTicketsPage extends StatefulWidget {
   final bool initialUpcoming;
@@ -23,6 +28,9 @@ class MyTicketsPage extends StatefulWidget {
 
 class _MyTicketsPageState extends State<MyTicketsPage> {
   late bool _isUpcoming;
+  _TicketSortOption _sortOption = _TicketSortOption.newestFirst;
+  _TicketStatusFilter _statusFilter = _TicketStatusFilter.all;
+  final Set<String> _collapsedMonths = <String>{};
 
   @override
   void initState() {
@@ -70,7 +78,10 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                       }
 
                       if (state is TicketsLoaded) {
-                        return _buildTicketsList(state.tickets);
+                        return _buildTicketsList(
+                          state.tickets,
+                          pendingOrderActionId: state.pendingOrderActionId,
+                        );
                       }
 
                       return const SizedBox.shrink();
@@ -133,36 +144,82 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
     );
   }
 
-  Widget _buildTicketsList(List<Ticket> tickets) {
-    final groupedTickets = _groupTicketsByMonth(tickets);
+  Widget _buildTicketsList(
+    List<Ticket> tickets, {
+    String? pendingOrderActionId,
+  }) {
+    final filtered = _applyStatusFilter(tickets);
+    final groupedTickets = _groupTicketsByMonth(filtered);
 
     return RefreshIndicator(
       color: AppColors.customerHomePrimary,
       onRefresh: () async {
         await context.read<TicketsCubit>().loadUserTickets(upcomingOnly: _isUpcoming);
       },
-      child: ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: groupedTickets.length,
-      itemBuilder: (context, index) {
-        final entry = groupedTickets.entries.elementAt(index);
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              entry.key,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildListControls(),
+          const SizedBox(height: 12),
+          if (groupedTickets.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 36),
+              child: Text(
+                'No tickets match this filter.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 12),
-            ...entry.value.map((ticket) => _buildTicketCard(ticket)),
-            const SizedBox(height: 24),
-          ],
-        );
-      },
-    ),
+            )
+          else
+            ...groupedTickets.entries.expand((entry) {
+              final isCollapsed = _collapsedMonths.contains(entry.key);
+              return <Widget>[
+                InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () {
+                    setState(() {
+                      if (isCollapsed) {
+                        _collapsedMonths.remove(entry.key);
+                      } else {
+                        _collapsedMonths.add(entry.key);
+                      }
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${entry.key} (${entry.value.length})',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          isCollapsed ? Icons.expand_more : Icons.expand_less,
+                          color: AppColors.textSecondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (!isCollapsed) ...entry.value.map(
+                  (ticket) => _buildTicketCard(
+                    ticket,
+                    pendingOrderActionId: pendingOrderActionId,
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ];
+            }),
+        ],
+      ),
     );
   }
 
@@ -183,7 +240,157 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
     }
   }
 
-  Widget _buildTicketCard(Ticket ticket) {
+  String _formatTicketAmount(BuildContext context, double amount) {
+    final code = AppConfig.stripePaymentCurrency.toUpperCase();
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    try {
+      return NumberFormat.simpleCurrency(
+        name: code,
+        locale: locale,
+      ).format(amount);
+    } catch (_) {
+      return NumberFormat.currency(
+        name: code,
+        symbol: '$code ',
+        decimalDigits: 2,
+      ).format(amount);
+    }
+  }
+
+  Widget _buildListControls() {
+    return Row(
+      children: [
+        Expanded(
+          child: DropdownButtonFormField<_TicketSortOption>(
+            value: _sortOption,
+            decoration: InputDecoration(
+              labelText: 'Sort',
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: _TicketSortOption.newestFirst,
+                child: Text('Newest month first'),
+              ),
+              DropdownMenuItem(
+                value: _TicketSortOption.oldestFirst,
+                child: Text('Oldest month first'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => _sortOption = value);
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: DropdownButtonFormField<_TicketStatusFilter>(
+            value: _statusFilter,
+            decoration: InputDecoration(
+              labelText: 'Filter',
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            items: const [
+              DropdownMenuItem(value: _TicketStatusFilter.all, child: Text('All statuses')),
+              DropdownMenuItem(value: _TicketStatusFilter.confirmed, child: Text('Confirmed')),
+              DropdownMenuItem(value: _TicketStatusFilter.confirming, child: Text('Confirming')),
+              DropdownMenuItem(value: _TicketStatusFilter.failed, child: Text('Failed')),
+              DropdownMenuItem(value: _TicketStatusFilter.cancelled, child: Text('Cancelled')),
+              DropdownMenuItem(value: _TicketStatusFilter.refunded, child: Text('Refunded')),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => _statusFilter = value);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Ticket> _applyStatusFilter(List<Ticket> tickets) {
+    switch (_statusFilter) {
+      case _TicketStatusFilter.all:
+        return tickets;
+      case _TicketStatusFilter.confirmed:
+        return tickets.where((t) => t.orderPaymentStatus == OrderStatus.completed).toList();
+      case _TicketStatusFilter.confirming:
+        return tickets
+            .where((t) =>
+                t.orderPaymentStatus == OrderStatus.processing ||
+                t.orderPaymentStatus == OrderStatus.pending)
+            .toList();
+      case _TicketStatusFilter.failed:
+        return tickets.where((t) => t.orderPaymentStatus == OrderStatus.failed).toList();
+      case _TicketStatusFilter.refunded:
+        return tickets.where((t) => t.orderPaymentStatus == OrderStatus.refunded).toList();
+      case _TicketStatusFilter.cancelled:
+        return tickets.where((t) => t.orderPaymentStatus == OrderStatus.cancelled).toList();
+    }
+  }
+
+  bool _canRemoveOrder(OrderStatus status) {
+    return status == OrderStatus.pending ||
+        status == OrderStatus.processing ||
+        status == OrderStatus.failed ||
+        status == OrderStatus.cancelled;
+  }
+
+  Future<void> _removeUnpaidOrder(Ticket ticket) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove this ticket?'),
+        content: const Text(
+          'This removes this failed/confirming order from My Tickets.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    if (!mounted) return;
+
+    final error = await context.read<TicketsCubit>().cancelUnpaidOrder(ticket.orderId);
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    if (error != null && error.trim().isNotEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Ticket removed from My Tickets.')),
+    );
+  }
+
+  Widget _buildTicketCard(
+    Ticket ticket, {
+    String? pendingOrderActionId,
+  }) {
+    final isOrderActionPending = pendingOrderActionId == ticket.orderId;
+    final canRemove = !ticket.isPaymentConfirmed &&
+        _canRemoveOrder(ticket.orderPaymentStatus) &&
+        ticket.orderId.trim().isNotEmpty;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -316,86 +523,135 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: ticket.isPaymentConfirmed &&
-                                !ticket.isSyntheticOrderRow
-                            ? () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        TicketDetailPage(ticketId: ticket.ticketId),
-                                  ),
-                                );
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.brandPrimary,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: AppColors.backgroundGrey,
-                          disabledForegroundColor: AppColors.textTertiary,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Text(
-                          !ticket.isPaymentConfirmed
-                              ? 'Confirming…'
-                              : (ticket.isSyntheticOrderRow
-                                  ? 'Details soon'
-                                  : 'View Ticket'),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
+                    Icon(Icons.attach_money, size: 16, color: AppColors.success),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatTicketAmount(context, ticket.price),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.success,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: ticket.isPaymentConfirmed &&
-                              !ticket.isSyntheticOrderRow
-                          ? () {
-                              final ctx = context;
-                              showModalBottomSheet(
-                                context: ctx,
-                                builder: (_) => ListTicketSheet(
-                                  ticketId: ticket.ticketId,
-                                  ticketTypeName: ticket.ticketTypeName,
-                                  eventTitle: ticket.event.title,
-                                ),
-                              ).then((result) {
-                                if (result == true && ctx.mounted) {
-                                  ctx
-                                      .read<TicketsCubit>()
-                                      .loadUserTickets(upcomingOnly: _isUpcoming);
-                                }
-                              });
-                            }
-                          : null,
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.brandPrimary),
-                        foregroundColor: AppColors.brandPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'Sell',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    const SizedBox(width: 6),
+                    Text(
+                      ticket.isSyntheticOrderRow ? 'Order total' : 'Per ticket',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+                if (ticket.isPaymentConfirmed) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: !ticket.isSyntheticOrderRow
+                              ? () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          TicketDetailPage(ticketId: ticket.ticketId),
+                                    ),
+                                  );
+                                }
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.brandPrimary,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: AppColors.backgroundGrey,
+                            disabledForegroundColor: AppColors.textTertiary,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            ticket.isSyntheticOrderRow ? 'Details soon' : 'View Ticket',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: !ticket.isSyntheticOrderRow
+                            ? () {
+                                final ctx = context;
+                                showModalBottomSheet(
+                                  context: ctx,
+                                  builder: (_) => ListTicketSheet(
+                                    ticketId: ticket.ticketId,
+                                    ticketTypeName: ticket.ticketTypeName,
+                                    eventTitle: ticket.event.title,
+                                  ),
+                                ).then((result) {
+                                  if (result == true && ctx.mounted) {
+                                    ctx
+                                        .read<TicketsCubit>()
+                                        .loadUserTickets(upcomingOnly: _isUpcoming);
+                                  }
+                                });
+                              }
+                            : null,
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppColors.brandPrimary),
+                          foregroundColor: AppColors.brandPrimary,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Sell',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: canRemove && !isOrderActionPending
+                          ? () => _removeUnpaidOrder(ticket)
+                          : null,
+                      icon: isOrderActionPending
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.delete_outline),
+                      label: Text(isOrderActionPending ? 'Removing…' : 'Remove'),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: canRemove ? AppColors.error : AppColors.backgroundGrey,
+                        ),
+                        foregroundColor: canRemove ? AppColors.error : AppColors.textTertiary,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -470,8 +726,20 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
       ..sort((a, b) {
         final aDate = DateFormat('MMMM yyyy').parse(a);
         final bDate = DateFormat('MMMM yyyy').parse(b);
+        if (_sortOption == _TicketSortOption.newestFirst) {
+          return bDate.compareTo(aDate);
+        }
         return aDate.compareTo(bDate);
       });
-    return {for (final key in sortedKeys) key: grouped[key]!};
+    final sorted = <String, List<Ticket>>{};
+    for (final key in sortedKeys) {
+      final monthTickets = [...grouped[key]!]
+        ..sort((a, b) => a.event.startDate.compareTo(b.event.startDate));
+      if (_sortOption == _TicketSortOption.newestFirst) {
+        monthTickets.sort((a, b) => b.event.startDate.compareTo(a.event.startDate));
+      }
+      sorted[key] = monthTickets;
+    }
+    return sorted;
   }
 }

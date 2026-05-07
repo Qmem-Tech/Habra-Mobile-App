@@ -71,7 +71,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   bool _selectedBusinessLegalRejected = false;
   List<String> _selectedBusinessLegalRejectionReasons = [];
   bool _selectedBusinessLegalAwaitingReview = false;
-  bool _selectedBusinessLegalDocsApproved = false;
 
   /// Session dismissals for home info banners (under review, legal pending, etc.).
   final Set<String> _dismissedHomeBannerKeys = <String>{};
@@ -287,7 +286,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         _dismissedHomeBannerKeys.remove('legal_pending_$businessId');
         _dismissedHomeBannerKeys.remove('legal_required_$businessId');
         _dismissedHomeBannerKeys.remove('legal_rejected_$businessId');
-        _dismissedHomeBannerKeys.remove('legal_approved_$businessId');
       });
     } catch (_) {
       if (mounted) {
@@ -333,7 +331,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     _selectedBusinessLegalRejected = status.hasRejected;
     _selectedBusinessLegalRejectionReasons = List<String>.from(status.rejectionReasons);
     _selectedBusinessLegalAwaitingReview = status.awaitingLegalDocReview;
-    _selectedBusinessLegalDocsApproved = status.showLegalApprovalSuccess;
   }
 
   void _checkSelectedBusinessLegalDocs(BusinessOwnerHomeLoaded state) {
@@ -342,14 +339,12 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       if (_selectedBusinessMissingLegalDocs ||
           _selectedBusinessLegalAwaitingReview ||
           _selectedBusinessLegalRejected ||
-          _selectedBusinessLegalDocsApproved ||
           _lastCheckedPresenceId != null) {
         setState(() {
           _selectedBusinessMissingLegalDocs = false;
           _selectedBusinessLegalAwaitingReview = false;
           _selectedBusinessLegalRejected = false;
           _selectedBusinessLegalRejectionReasons = [];
-          _selectedBusinessLegalDocsApproved = false;
           _lastCheckedPresenceId = null;
         });
       }
@@ -372,7 +367,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           _selectedBusinessLegalRejected = false;
           _selectedBusinessLegalRejectionReasons = [];
           _selectedBusinessLegalAwaitingReview = false;
-          _selectedBusinessLegalDocsApproved = false;
         });
       } finally {
         _checkingLegalDocsForPresence = false;
@@ -961,11 +955,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 _buildLegalDocsRequiredNotice(
                   singleBusiness: true,
                   dismissKey: 'legal_required_${presence.id}',
-                ),
-              if (_selectedBusinessLegalDocsApproved && presence != null)
-                _buildLegalAndListingApprovedNotice(
-                  dismissKey: 'legal_approved_${presence.id}',
-                  presence: presence,
                 ),
               _buildSubscriptionUpgradePrompt(),
               if (blurEngagement)
@@ -2344,60 +2333,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 child: const Text('Contact support'),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLegalAndListingApprovedNotice({
-    required String dismissKey,
-    required BusinessPresence presence,
-  }) {
-    final listingApproved =
-        (presence.statusText ?? '').toLowerCase() == 'approved';
-    final body = listingApproved
-        ? 'Your legal documents are approved and your business listing is approved. You can use the dashboard, deals, jobs, and boosts as usual.'
-        : 'Your legal documents are approved. If your business listing still shows as pending, it will update after our team completes the final listing review.';
-
-    return _buildDismissibleHomeBanner(
-      dismissKey: dismissKey,
-      backgroundColor: Colors.green.shade50,
-      borderColor: Colors.green.shade200,
-      outerPadding: const EdgeInsets.fromLTRB(
-        AppResources.spacingM,
-        8,
-        AppResources.spacingM,
-        8,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.check_circle_outline, color: Colors.green.shade700, size: 22),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  listingApproved ? 'You’re all set' : 'Documents approved',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.green.shade900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppResources.spacingS),
-          Text(
-            body,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.green.shade900,
-              height: 1.35,
-            ),
           ),
         ],
       ),

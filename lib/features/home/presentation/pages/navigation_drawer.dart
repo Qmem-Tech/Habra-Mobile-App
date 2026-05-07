@@ -4,7 +4,7 @@ import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
-import '../../../auth/presentation/pages/sign_in_page.dart';
+import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import '../../../../injection/injection_container.dart' as di;
 import 'profile_page.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
@@ -372,7 +372,7 @@ class NavigationDrawer extends StatelessWidget {
             Navigator.pop(context);
             context.read<AuthCubit>().logout();
             Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const SignInPage()),
+              MaterialPageRoute(builder: (_) => const ChoosePathPage()),
               (route) => false,
             );
           },

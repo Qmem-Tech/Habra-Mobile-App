@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
-import '../../../auth/presentation/pages/sign_in_page.dart';
+import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import '../../domain/entities/business_presence.dart';
 
 /// Drawer for business owner: business profile header + menu (Home, Dashboard, Messages, etc.).
@@ -366,7 +366,7 @@ class BusinessOwnerDrawer extends StatelessWidget {
             Navigator.pop(context);
             context.read<AuthCubit>().logout();
             Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const SignInPage()),
+              MaterialPageRoute(builder: (_) => const ChoosePathPage()),
               (route) => false,
             );
           },

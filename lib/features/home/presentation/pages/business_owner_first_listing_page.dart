@@ -7,6 +7,7 @@ import '../../../../core/theme/app_fonts.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
+import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import 'add_new_presence_page.dart';
 
 /// Shown when a business owner has completed intro onboarding but has no listings yet.
@@ -30,7 +31,15 @@ class BusinessOwnerFirstListingPage extends StatelessWidget {
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: () => context.read<AuthCubit>().logout(),
+            onPressed: () {
+              context.read<AuthCubit>().logout();
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ChoosePathPage(),
+                ),
+                (route) => false,
+              );
+            },
             child: Text(
               'Sign out',
               style: AppFonts.body(color: AppColors.brandPrimary),
