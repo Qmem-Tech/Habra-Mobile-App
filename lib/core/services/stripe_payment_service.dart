@@ -180,11 +180,6 @@ class StripePaymentService {
                 )
               : null;
 
-      final PaymentSheetApplePay? applePay =
-          defaultTargetPlatform == TargetPlatform.iOS
-              ? PaymentSheetApplePay(merchantCountryCode: _merchantCountry)
-              : null;
-
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: paymentIntentClientSecret,
@@ -193,7 +188,6 @@ class StripePaymentService {
           merchantDisplayName: merchantDisplayName,
           style: ThemeMode.light,
           googlePay: googlePay,
-          applePay: applePay,
         ),
       );
       await Stripe.instance.presentPaymentSheet();
