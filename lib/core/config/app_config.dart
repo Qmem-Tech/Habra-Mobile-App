@@ -21,7 +21,9 @@ import 'revenue_cat_sdk_keys.dart';
 /// `ios/Flutter/GoogleSignInIos.generated.xcconfig` for `GIDClientID` and the
 /// reversed URL scheme in Info.plist. Keep `GOOGLE_WEB_CLIENT_ID` for Supabase.
 ///
-/// **RevenueCat:** Public SDK keys live in [RevenueCatSdkKeys] (`lib/core/config/revenue_cat_sdk_keys.dart`).
+/// **RevenueCat:** Public (**not secret**) SDK keys are **only** in
+/// `lib/core/config/revenue_cat_sdk_keys.dart` — [RevenueCatSdkKeys] — not via
+/// `dart_defines.json`. Offering / entitlement ids use `REVENUECAT_*` defines below.
 class AppConfig {
   AppConfig._();
 

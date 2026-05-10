@@ -62,8 +62,7 @@ flutter build apk --release --dart-define-from-file=dart_defines.json
 | `SUPABASE_ANON_KEY` | **Yes** | Public anon key | same |
 | `SUPABASE_AUTH_REDIRECT_URL` | No | Email / callback scheme | same (default `habra://auth/callback`) |
 | `GOOGLE_WEB_CLIENT_ID` | No (recommended Android) | Web OAuth client → `GoogleSignIn(serverClientId: …)` | `lib/features/auth/data/datasources/auth_supabase_remote_datasource.dart` |
-| `REVENUECAT_ANDROID_API_KEY` | For IAP on Android | RevenueCat SDK | `lib/main.dart` → `RevenueCatService` |
-| `REVENUECAT_IOS_API_KEY` | For IAP on iOS | RevenueCat SDK | same |
+| *(RevenueCat public SDK keys)* | For IAP | `goog_…` / `appl_…` (source, not defines) | `lib/core/config/revenue_cat_sdk_keys.dart` → `main.dart` → `RevenueCatService` |
 | `BUSINESS_OWNER_SUBSCRIPTION_MODE` | No | `revenuecat` (default), `off`, `stub_locked` | `lib/core/config/business_subscription_config.dart` |
 | `REVENUECAT_BUSINESS_ENTITLEMENT_ID` | If mode = `revenuecat` | Entitlement id | same (default `business_owner_tools`) |
 | `STRIPE_PUBLISHABLE_KEY` | For Stripe UI | `pk_test_…` / `pk_live_…` | `lib/main.dart` → `StripePaymentService` |
@@ -116,13 +115,13 @@ flutter build apk --release --dart-define-from-file=dart_defines.json
 |--|--|
 | **Purpose** | In-app purchases (boosts, tickets, and owner Pro/Premium subscriptions) |
 | **In the app** | `purchases_flutter` + `RevenueCatService` |
-| **Keys** | `REVENUECAT_ANDROID_API_KEY`, `REVENUECAT_IOS_API_KEY`, `REVENUECAT_BUSINESS_ENTITLEMENT_ID`; optional `REVENUECAT_BUSINESS_OFFERING_ID` |
+| **Keys** | **SDK:** `lib/core/config/revenue_cat_sdk_keys.dart`. **Defines:** `REVENUECAT_BUSINESS_ENTITLEMENT_ID`, optional `REVENUECAT_BUSINESS_OFFERING_ID`, `REVENUECAT_BOOST_OFFERING_ID` |
 
 **Configure (external)**
 
 1. [RevenueCat](https://www.revenuecat.com/) project; add Android/iOS apps.
 2. Store products in Play Console / App Store Connect; map in RevenueCat; offerings + entitlements.
-3. Put public SDK keys in `dart_defines.json`.
+3. Put public SDK keys in `lib/core/config/revenue_cat_sdk_keys.dart`.
 
 **Behavior if keys missing:** RevenueCat does not initialize; app otherwise runs.
 

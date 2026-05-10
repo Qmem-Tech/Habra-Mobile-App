@@ -20,8 +20,7 @@ as source of truth and verifies super-admin reporting data.
 ## App Config (Sandbox)
 
 - `BUSINESS_OWNER_SUBSCRIPTION_MODE=revenuecat`
-- `REVENUECAT_ANDROID_API_KEY=<public_sdk_key>`
-- `REVENUECAT_IOS_API_KEY=<public_sdk_key>`
+- RevenueCat public SDK keys in `lib/core/config/revenue_cat_sdk_keys.dart`
 - `REVENUECAT_BUSINESS_ENTITLEMENT_ID=business_owner_tools` (or your custom id)
 - `REVENUECAT_BUSINESS_OFFERING_ID=<offering_id>` (optional but recommended)
 

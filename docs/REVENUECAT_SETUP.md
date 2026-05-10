@@ -3,8 +3,8 @@
 > **Integration overview:** [INTEGRATION_DOCUMENT.md](./INTEGRATION_DOCUMENT.md).
 
 Habra uses RevenueCat for in-app purchases (boost listings, event tickets, and
-business-owner Pro/Premium subscriptions). This project reads RevenueCat keys
-from `--dart-define` values.
+business-owner Pro/Premium subscriptions). **Public SDK keys are set in source:**
+`lib/core/config/revenue_cat_sdk_keys.dart` (not `dart_defines.json`).
 
 ## 1) RevenueCat project and products
 
@@ -18,24 +18,22 @@ from `--dart-define` values.
 
 In the RevenueCat dashboard, open **Project settings → API keys**.
 
-- **Use in the mobile app:** the **public** “App specific” / SDK keys (one per Android app, one per iOS app). These are safe to embed with `--dart-define`.
+- **Use in the mobile app:** the **public** “App specific” / SDK keys (one per Android app, one per iOS app). These are safe to embed in `revenue_cat_sdk_keys.dart`.
 - **Never use in the app:** the **Secret** API key. It is for your server only. If you paste it into the app, the SDK will fail with a backend error similar to: **Code 7243 – Secret API keys should not be used in your app.**
 
 ## 3) App configuration (required)
 
-Run the app with:
+1. Open `lib/core/config/revenue_cat_sdk_keys.dart` and set `android` / `ios` to your
+   public SDK keys from the RevenueCat dashboard.
+2. Run the app with your usual defines (Supabase, etc.), for example:
 
 ```bash
-flutter run \
-  --dart-define=SUPABASE_URL=YOUR_SUPABASE_URL \
-  --dart-define=SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY \
-  --dart-define=REVENUECAT_ANDROID_API_KEY=YOUR_ANDROID_REVENUECAT_KEY \
-  --dart-define=REVENUECAT_IOS_API_KEY=YOUR_IOS_REVENUECAT_KEY
+flutter run --dart-define-from-file=dart_defines.json
 ```
 
 Notes:
 
-- Do not commit real keys.
+- Do not commit real keys to a public repo (or keep a private fork for production keys).
 - If RevenueCat keys are missing, `RevenueCatService` remains uninitialized.
 - Auth flow now identifies/logs out RevenueCat users using app user id.
 

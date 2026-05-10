@@ -1,4 +1,5 @@
 {
+  "_README_REVENUECAT_SDK_KEYS": "RevenueCat public SDK keys are NOT dart-defines. Set them in lib/core/config/revenue_cat_sdk_keys.dart (goog_/appl_ keys only).",
   "SUPABASE_URL": "",
   "SUPABASE_ANON_KEY": "",
   "SUPABASE_AUTH_REDIRECT_URL": "habra://auth/callback",
