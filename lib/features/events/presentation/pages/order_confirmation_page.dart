@@ -3,6 +3,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../domain/entities/order.dart' as events;
+import '../utils/ticket_export_utils.dart';
 import 'my_tickets_page.dart';
 import 'package:intl/intl.dart';
 
@@ -232,6 +233,20 @@ class OrderConfirmationPage extends StatelessWidget {
   }
 
   Widget _buildActionButtons(BuildContext context) {
+    Future<void> runWithErrorToast(
+      String failureLabel,
+      Future<void> Function() task,
+    ) async {
+      try {
+        await task();
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$failureLabel: $e')),
+        );
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -239,13 +254,19 @@ class OrderConfirmationPage extends StatelessWidget {
           AppButton(
             text: 'Download Tickets',
             icon: Icons.download,
-            onPressed: () {},
+            onPressed: () => runWithErrorToast(
+              'Could not export tickets',
+              () => TicketExportUtils.saveAndShareOrderPdf(order),
+            ),
           ),
           const SizedBox(height: 12),
           AppOutlinedButton(
             text: 'Add To Calendar',
             icon: Icons.calendar_today,
-            onPressed: () {},
+            onPressed: () => runWithErrorToast(
+              'Could not create calendar event',
+              () => TicketExportUtils.shareEventIcs(order),
+            ),
           ),
           const SizedBox(height: 24),
           Row(
@@ -260,7 +281,10 @@ class OrderConfirmationPage extends StatelessWidget {
                   ),
                   child: const Icon(Icons.share),
                 ),
-                onPressed: () {},
+                onPressed: () => runWithErrorToast(
+                  'Could not share',
+                  () => TicketExportUtils.shareOrderSummary(order),
+                ),
               ),
               const SizedBox(width: 8),
               const Text('Share'),

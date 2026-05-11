@@ -11,6 +11,7 @@ import '../core/services/location_service.dart';
 import '../core/services/image_picker_service.dart';
 import '../core/services/permission_service.dart';
 import '../core/services/storage_service.dart';
+import '../core/services/app_version_service.dart';
 import '../core/services/push_notification_service.dart';
 import '../core/services/revenue_cat_service.dart';
 import '../core/services/stripe_payment_service.dart';
@@ -193,6 +194,7 @@ Future<void> init() async {
   sl.registerLazySingleton<StorageService>(() => StorageService());
   sl.registerLazySingleton<RevenueCatService>(() => RevenueCatService());
   sl.registerLazySingleton<StripePaymentService>(() => StripePaymentService());
+  sl.registerLazySingleton<AppVersionService>(() => AppVersionService());
   sl.registerLazySingleton<PushNotificationService>(
     () => PushNotificationService(sl<LocalStorage>()),
   );

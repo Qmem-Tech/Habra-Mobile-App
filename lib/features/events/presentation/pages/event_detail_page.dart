@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_share.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -667,10 +668,14 @@ class EventDetailPage extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.popUntil(context, (route) => route.isFirst);
+                  // Land the user back on the Events tab so they can browse more.
+                  MainNavigationWrapper.navigateToTab(context, 1);
+                },
                 child: Text(
                   'View All >',
-                  style: TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: AppColors.brandPrimary),
                 ),
               ),
             ],

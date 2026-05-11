@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/services/app_version_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/force_update_page.dart';
+import '../../../../injection/injection_container.dart' as di;
 import '../bloc/splash_cubit.dart';
 import '../bloc/splash_state.dart';
 import '../../../onboarding/presentation/pages/onboarding_page.dart';
@@ -109,12 +112,34 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     );
   }
 
+  /// Returns true when a force-update screen was pushed (caller should stop
+  /// navigating to the rest of the app).
+  Future<bool> _maybeShowForceUpdate() async {
+    try {
+      final versionStatus = await di.sl<AppVersionService>().evaluate();
+      if (!mounted) return true;
+      if (versionStatus.mustUpdate) {
+        await Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => ForceUpdatePage(status: versionStatus),
+          ),
+        );
+        return true;
+      }
+    } catch (_) {
+      // Never block startup on remote config errors.
+    }
+    return false;
+  }
+
   void _navigateToNextScreen(SplashState state) {
     if (state is SplashLoaded) {
       final status = state.status;
 
       // Wait for splash duration before navigating
       Future.delayed(AppResources.splashScreenDuration, () async {
+        if (!mounted) return;
+        if (await _maybeShowForceUpdate()) return;
         if (!mounted) return;
 
         if (!status.hasCompletedOnboarding) {

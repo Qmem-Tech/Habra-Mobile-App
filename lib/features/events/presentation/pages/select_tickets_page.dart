@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
@@ -611,7 +612,7 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
               const Spacer(),
               if (isSoldOut)
                 OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _joinWaitlist(ticketType),
                   icon: const Icon(Icons.notifications_none, size: 16),
                   label: const Text('Notify Me'),
                 )
@@ -622,6 +623,43 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
         ],
       ),
     );
+  }
+
+  /// Adds the current user to the waitlist for [ticketType] on this event so
+  /// they get notified when seats free up. Idempotent on (user, event, ticket).
+  Future<void> _joinWaitlist(TicketType ticketType) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Sign in to get notified.')),
+      );
+      return;
+    }
+    try {
+      await Supabase.instance.client.from('event_ticket_waitlist').upsert({
+        'user_id': userId,
+        'event_id': widget.eventId,
+        'ticket_type_id': ticketType.id,
+      }, onConflict: 'user_id,event_id,ticket_type_id');
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'You\'re on the waitlist — we\'ll notify you if ${ticketType.name} reopens.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      // Graceful no-op when the table/migration isn\'t deployed yet — keep the
+      // user-facing message honest rather than showing a raw Postgrest error.
+      final msg = e.toString().toLowerCase();
+      final fallback = (msg.contains('does not exist') || msg.contains('not found'))
+          ? 'Waitlist is not available yet. Try again later.'
+          : 'Could not join waitlist: $e';
+      messenger.showSnackBar(SnackBar(content: Text(fallback)));
+    }
   }
 
   void _calculateTotal(List<TicketType> ticketTypes) {

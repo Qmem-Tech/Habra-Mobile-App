@@ -12,6 +12,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../domain/entities/order.dart' as events;
 import '../../domain/entities/ticket.dart';
 
 /// Share QR as PNG, build a simple ticket PDF, open Google Maps for in-person events.
@@ -183,6 +184,203 @@ class TicketExportUtils {
       [XFile(file.path)],
       subject: 'Ticket — ${event.title}',
     );
+  }
+
+  /// Build and share a single combined PDF for all tickets in an order.
+  /// Used from OrderConfirmationPage's "Download Tickets" before per-ticket
+  /// details are available.
+  static Future<void> saveAndShareOrderPdf(events.Order order) async {
+    final event = order.event;
+    final pdf = pw.Document();
+
+    Uint8List? logoPdfBytes;
+    try {
+      final logoData = await rootBundle.load(_logoAsset);
+      logoPdfBytes = logoData.buffer.asUint8List();
+    } catch (_) {}
+
+    // One QR per issued ticket; if no IDs yet, fall back to a single order-level QR.
+    final qrIds = order.issuedTicketIds.isNotEmpty
+        ? order.issuedTicketIds
+        : <String>[order.id];
+
+    final qrPngs = <String, Uint8List?>{};
+    for (final id in qrIds) {
+      qrPngs[id] = await _qrPngBytes(id, size: 320);
+    }
+
+    for (var i = 0; i < qrIds.length; i++) {
+      final ticketId = qrIds[i];
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (ctx) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                if (logoPdfBytes != null)
+                  pw.Container(
+                    width: double.infinity,
+                    color: PdfColor.fromInt(0xFF1F563F),
+                    padding: const pw.EdgeInsets.fromLTRB(18, 16, 18, 16),
+                    margin: const pw.EdgeInsets.only(bottom: 18),
+                    child: pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Image(
+                          pw.MemoryImage(logoPdfBytes),
+                          width: 76,
+                          height: 38,
+                        ),
+                        pw.Spacer(),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border.all(
+                              color: PdfColors.white,
+                              width: 0.8,
+                            ),
+                            borderRadius: pw.BorderRadius.circular(18),
+                          ),
+                          child: pw.Text(
+                            'E-TICKET ${i + 1} / ${qrIds.length}',
+                            style: pw.TextStyle(
+                              color: PdfColors.white,
+                              fontSize: 9,
+                              letterSpacing: 1.4,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                pw.Text(
+                  event.title,
+                  style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+                ),
+                pw.SizedBox(height: 12),
+                pw.Text(
+                  DateFormat('EEEE, MMMM d, yyyy • h:mm a')
+                      .format(event.startDate),
+                ),
+                pw.SizedBox(height: 6),
+                pw.Text(
+                  event.isOnline
+                      ? 'Online event'
+                      : '${event.venue}, ${event.fullAddress}',
+                ),
+                pw.SizedBox(height: 6),
+                pw.Text(
+                  'Order #${order.id}',
+                  style: const pw.TextStyle(
+                    fontSize: 11,
+                    color: PdfColors.grey700,
+                  ),
+                ),
+                pw.SizedBox(height: 24),
+                if (qrPngs[ticketId] != null)
+                  pw.Center(
+                    child: pw.Image(
+                      pw.MemoryImage(qrPngs[ticketId]!),
+                      width: 220,
+                      height: 220,
+                    ),
+                  ),
+                pw.SizedBox(height: 12),
+                pw.Center(
+                  child: pw.Text(
+                    'Ticket ID: $ticketId',
+                    style: const pw.TextStyle(
+                      fontSize: 11,
+                      color: PdfColors.grey700,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+                pw.Text(
+                  'Present this QR at the entrance.',
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    }
+
+    final bytes = await pdf.save();
+    final dir = await getTemporaryDirectory();
+    final slug = event.title.replaceAll(RegExp(r'[^\w\-]+'), '_');
+    final safeTitle = slug.length > 40 ? slug.substring(0, 40) : slug;
+    final file = File(
+      '${dir.path}/habra_order_${safeTitle}_${order.id}.pdf',
+    );
+    await file.writeAsBytes(bytes);
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      subject: 'Tickets — ${event.title}',
+    );
+  }
+
+  /// Build an ICS calendar file from the event and offer it via the system share
+  /// sheet. Most calendar apps will offer "Add to Calendar" on the .ics file.
+  static Future<void> shareEventIcs(events.Order order) async {
+    final event = order.event;
+    final start = event.startDate.toUtc();
+    final end = event.endDate.toUtc();
+
+    String fmt(DateTime d) {
+      String two(int v) => v.toString().padLeft(2, '0');
+      return '${d.year}${two(d.month)}${two(d.day)}T${two(d.hour)}${two(d.minute)}${two(d.second)}Z';
+    }
+
+    String escape(String s) =>
+        s.replaceAll(r'\', r'\\').replaceAll(',', r'\,').replaceAll(';', r'\;');
+
+    final location = event.isOnline
+        ? (event.onlineUrl ?? 'Online event')
+        : '${event.venue}, ${event.fullAddress}';
+
+    final ics = StringBuffer()
+      ..writeln('BEGIN:VCALENDAR')
+      ..writeln('VERSION:2.0')
+      ..writeln('PRODID:-//Habra//EN')
+      ..writeln('BEGIN:VEVENT')
+      ..writeln('UID:order-${order.id}@habra')
+      ..writeln('DTSTAMP:${fmt(DateTime.now().toUtc())}')
+      ..writeln('DTSTART:${fmt(start)}')
+      ..writeln('DTEND:${fmt(end)}')
+      ..writeln('SUMMARY:${escape(event.title)}')
+      ..writeln('LOCATION:${escape(location)}')
+      ..writeln('DESCRIPTION:${escape('Habra order #${order.id}')}')
+      ..writeln('END:VEVENT')
+      ..writeln('END:VCALENDAR');
+
+    final dir = await getTemporaryDirectory();
+    final slug = event.title.replaceAll(RegExp(r'[^\w\-]+'), '_');
+    final safeTitle = slug.length > 40 ? slug.substring(0, 40) : slug;
+    final file = File('${dir.path}/habra_event_$safeTitle.ics');
+    await file.writeAsString(ics.toString());
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'text/calendar')],
+      subject: 'Add to calendar — ${event.title}',
+    );
+  }
+
+  /// Plain-text share of an event the user is attending.
+  static Future<void> shareOrderSummary(events.Order order) async {
+    final event = order.event;
+    final when = DateFormat('EEE, MMM d • h:mm a').format(event.startDate);
+    final where = event.isOnline ? 'Online event' : event.venue;
+    final body = StringBuffer()
+      ..writeln('I\'m going to ${event.title} 🎉')
+      ..writeln('$when at $where')
+      ..writeln('Get your tickets on Habra!');
+    await Share.share(body.toString(), subject: event.title);
   }
 
   /// Opens Google Maps directions/search for physical venues only.

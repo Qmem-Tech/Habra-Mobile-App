@@ -10,12 +10,11 @@ import '../../domain/entities/order.dart' show OrderStatus;
 import '../../domain/entities/ticket.dart';
 import '../bloc/tickets_cubit.dart';
 import '../bloc/tickets_state.dart';
-import '../widgets/list_ticket_sheet.dart';
 import 'ticket_detail_page.dart';
 
 enum _TicketSortOption { newestFirst, oldestFirst }
 
-enum _TicketStatusFilter { all, confirmed, confirming, failed, refunded, cancelled }
+enum _TicketStatusFilter { all, confirmed, confirming, failed }
 
 class MyTicketsPage extends StatefulWidget {
   final bool initialUpcoming;
@@ -113,6 +112,7 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
 
                       if (state is TicketsLoaded) {
                         return _buildTicketsList(
+                          context,
                           state.tickets,
                           pendingOrderActionId: state.pendingOrderActionId,
                         );
@@ -178,7 +178,10 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
     );
   }
 
+  /// Builds the scrollable ticket list. [blocContext] must be a descendant of
+  /// the page's [BlocProvider] so `context.read<TicketsCubit>()` resolves.
   Widget _buildTicketsList(
+    BuildContext blocContext,
     List<Ticket> tickets, {
     String? pendingOrderActionId,
   }) {
@@ -188,7 +191,9 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
     return RefreshIndicator(
       color: AppColors.customerHomePrimary,
       onRefresh: () async {
-        await context.read<TicketsCubit>().loadUserTickets(upcomingOnly: _isUpcoming);
+        await blocContext
+            .read<TicketsCubit>()
+            .loadUserTickets(upcomingOnly: _isUpcoming);
       },
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -245,6 +250,7 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                 ),
                 if (!isCollapsed) ...entry.value.map(
                   (ticket) => _buildTicketCard(
+                    blocContext,
                     ticket,
                     pendingOrderActionId: pendingOrderActionId,
                   ),
@@ -354,8 +360,6 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
               DropdownMenuItem(value: _TicketStatusFilter.confirmed, child: Text('Confirmed')),
               DropdownMenuItem(value: _TicketStatusFilter.confirming, child: Text('Confirming')),
               DropdownMenuItem(value: _TicketStatusFilter.failed, child: Text('Failed')),
-              DropdownMenuItem(value: _TicketStatusFilter.cancelled, child: Text('Cancelled')),
-              DropdownMenuItem(value: _TicketStatusFilter.refunded, child: Text('Refunded')),
             ],
             onChanged: (value) {
               if (value == null) return;
@@ -381,23 +385,28 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
             .toList();
       case _TicketStatusFilter.failed:
         return tickets.where((t) => t.orderPaymentStatus == OrderStatus.failed).toList();
-      case _TicketStatusFilter.refunded:
-        return tickets.where((t) => t.orderPaymentStatus == OrderStatus.refunded).toList();
-      case _TicketStatusFilter.cancelled:
-        return tickets.where((t) => t.orderPaymentStatus == OrderStatus.cancelled).toList();
     }
   }
 
   bool _canRemoveOrder(OrderStatus status) {
     return status == OrderStatus.pending ||
         status == OrderStatus.processing ||
-        status == OrderStatus.failed ||
-        status == OrderStatus.cancelled;
+        status == OrderStatus.failed;
   }
 
-  Future<void> _removeUnpaidOrder(Ticket ticket) async {
+  /// Confirms and cancels an unpaid order. [blocContext] must be a descendant
+  /// of the page's [BlocProvider] so `context.read<TicketsCubit>()` resolves.
+  Future<void> _removeUnpaidOrder(
+    BuildContext blocContext,
+    Ticket ticket,
+  ) async {
+    // Capture before the first await — these stop being safe to look up after
+    // navigations and snackbar / scaffold changes.
+    final cubit = blocContext.read<TicketsCubit>();
+    final messenger = ScaffoldMessenger.of(blocContext);
+
     final confirm = await showDialog<bool>(
-      context: context,
+      context: blocContext,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Remove this ticket?'),
         content: const Text(
@@ -419,10 +428,9 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
     if (confirm != true) return;
     if (!mounted) return;
 
-    final error = await context.read<TicketsCubit>().cancelUnpaidOrder(ticket.orderId);
+    final error = await cubit.cancelUnpaidOrder(ticket.orderId);
     if (!mounted) return;
 
-    final messenger = ScaffoldMessenger.of(context);
     if (error != null && error.trim().isNotEmpty) {
       messenger.showSnackBar(SnackBar(content: Text(error)));
       return;
@@ -432,7 +440,10 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
     );
   }
 
+  /// Builds an individual ticket card. [blocContext] must be a descendant of
+  /// the page's [BlocProvider] so cubit reads from the card actions resolve.
   Widget _buildTicketCard(
+    BuildContext blocContext,
     Ticket ticket, {
     String? pendingOrderActionId,
   }) {
@@ -598,88 +609,45 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                 ),
                 const SizedBox(height: 12),
                 if (ticket.isPaymentConfirmed) ...[
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: !ticket.isSyntheticOrderRow
-                              ? () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          TicketDetailPage(ticketId: ticket.ticketId),
-                                    ),
-                                  );
-                                }
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.brandPrimary,
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor: AppColors.backgroundGrey,
-                            disabledForegroundColor: AppColors.textTertiary,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: Text(
-                            ticket.isSyntheticOrderRow ? 'Details soon' : 'View Ticket',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: !ticket.isSyntheticOrderRow
+                          ? () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      TicketDetailPage(ticketId: ticket.ticketId),
+                                ),
+                              );
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.brandPrimary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: AppColors.backgroundGrey,
+                        disabledForegroundColor: AppColors.textTertiary,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: !ticket.isSyntheticOrderRow
-                            ? () {
-                                final ctx = context;
-                                showModalBottomSheet(
-                                  context: ctx,
-                                  builder: (_) => ListTicketSheet(
-                                    ticketId: ticket.ticketId,
-                                    ticketTypeName: ticket.ticketTypeName,
-                                    eventTitle: ticket.event.title,
-                                  ),
-                                ).then((result) {
-                                  if (result == true && ctx.mounted) {
-                                    ctx
-                                        .read<TicketsCubit>()
-                                        .loadUserTickets(upcomingOnly: _isUpcoming);
-                                  }
-                                });
-                              }
-                            : null,
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: AppColors.brandPrimary),
-                          foregroundColor: AppColors.brandPrimary,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 16,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          'Sell',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      child: Text(
+                        ticket.isSyntheticOrderRow ? 'Details soon' : 'View Ticket',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ] else ...[
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: canRemove && !isOrderActionPending
-                          ? () => _removeUnpaidOrder(ticket)
+                          ? () => _removeUnpaidOrder(blocContext, ticket)
                           : null,
                       icon: isOrderActionPending
                           ? const SizedBox(

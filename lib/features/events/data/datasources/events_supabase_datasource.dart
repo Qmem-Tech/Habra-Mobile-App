@@ -112,12 +112,26 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         return (res as List).cast<Map<String, dynamic>>();
       }
 
+      // Embed ticket-type prices so list cards can show real $/range instead
+      // of falling back to "Free". Try with locations + tickets first; degrade
+      // gracefully if either embed isn't available.
       late final List<Map<String, dynamic>> list;
       try {
-        list = await fetch('*, ${SupabaseTables.locations}(*)');
+        list = await fetch(
+          '*, ${SupabaseTables.locations}(*), '
+          '${SupabaseTables.eventTickets}(price, quantity_available, quantity_sold)',
+        );
       } on PostgrestException catch (e) {
         if (_isMissingLocationsRelationship(e)) {
-          list = await fetch('*');
+          try {
+            list = await fetch(
+              '*, ${SupabaseTables.eventTickets}(price, quantity_available, quantity_sold)',
+            );
+          } on PostgrestException {
+            list = await fetch('*');
+          }
+        } else if (_isMissingEventTicketsRelationship(e)) {
+          list = await fetch('*, ${SupabaseTables.locations}(*)');
         } else {
           rethrow;
         }
@@ -145,16 +159,34 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
 
       late final List<Map<String, dynamic>> list;
       try {
-        list = await fetch('*, ${SupabaseTables.locations}(*)');
+        list = await fetch(
+          '*, ${SupabaseTables.locations}(*), '
+          '${SupabaseTables.eventTickets}(price, quantity_available, quantity_sold)',
+        );
       } on PostgrestException catch (e) {
         if (_isMissingLocationsRelationship(e)) {
-          list = await fetch('*');
+          try {
+            list = await fetch(
+              '*, ${SupabaseTables.eventTickets}(price, quantity_available, quantity_sold)',
+            );
+          } on PostgrestException {
+            list = await fetch('*');
+          }
+        } else if (_isMissingEventTicketsRelationship(e)) {
+          list = await fetch('*, ${SupabaseTables.locations}(*)');
         } else {
           rethrow;
         }
       }
       return list.map(_rowToEventListItem).toList();
     });
+  }
+
+  static bool _isMissingEventTicketsRelationship(PostgrestException e) {
+    final message = e.message.toLowerCase();
+    return e.code == 'PGRST200' &&
+        (message.contains('event_tickets') ||
+            message.contains('event tickets'));
   }
 
   EventListItemModel _rowToEventListItem(Map<String, dynamic> row) {
@@ -177,6 +209,9 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
             ? normalizedLocation!.displayAddress
             : parseString(row['venue_address']));
     final locationLabel = venueAddress ?? venue;
+
+    final pricing = _pricingFromEmbeddedTickets(row[SupabaseTables.eventTickets]);
+
     return EventListItemModel(
       id: id,
       title: title,
@@ -185,9 +220,47 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       dateTime: startAt,
       venue: venue,
       location: locationLabel,
-      price: null,
-      priceRange: null,
+      price: pricing.price,
+      priceRange: pricing.priceRange,
       isBookmarked: false,
+    );
+  }
+
+  /// Computes `(price, priceRange)` from the embedded `event_tickets` rows.
+  /// - No tickets or all $0          → both null (UI shows "Free")
+  /// - Single non-zero price         → `price` set, `priceRange` null
+  /// - Multiple distinct prices > 0  → `priceRange` like "$25 – $100"
+  static ({double? price, String? priceRange}) _pricingFromEmbeddedTickets(
+    dynamic embedded,
+  ) {
+    if (embedded is! List || embedded.isEmpty) {
+      return (price: null, priceRange: null);
+    }
+    final priced = <double>[];
+    for (final e in embedded) {
+      if (e is! Map) continue;
+      final p = parseDouble(e['price']);
+      if (p == null) continue;
+      // Skip ticket types that have nothing left to sell — pricing the card off
+      // a sold-out tier is misleading.
+      final qa = parseInt(e['quantity_available']);
+      final qs = parseInt(e['quantity_sold']);
+      if (qa != null && qs != null && qa - qs <= 0) continue;
+      priced.add(p);
+    }
+    if (priced.isEmpty) return (price: null, priceRange: null);
+    final positive = priced.where((p) => p > 0).toList();
+    if (positive.isEmpty) return (price: null, priceRange: null);
+
+    positive.sort();
+    final lo = positive.first;
+    final hi = positive.last;
+    if (lo == hi) {
+      return (price: lo, priceRange: null);
+    }
+    return (
+      price: lo,
+      priceRange: '\$${lo.toStringAsFixed(0)} – \$${hi.toStringAsFixed(0)}',
     );
   }
 
@@ -290,15 +363,32 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       final category = event is Map ? parseString((event as Map<String, dynamic>)['category']) : null;
       var query = _client
           .from('events')
-          .select('*')
+          .select(
+            '*, ${SupabaseTables.eventTickets}(price, quantity_available, quantity_sold)',
+          )
           .eq('is_active', true)
           .gte('start_at', DateTime.now().toIso8601String())
           .neq('id', eventId);
       if (category != null && category.isNotEmpty) {
         query = query.eq('category', category);
       }
-      final res = await query.limit(5);
-      final list = (res as List).cast<Map<String, dynamic>>();
+      late final List<Map<String, dynamic>> list;
+      try {
+        final res = await query.limit(5);
+        list = (res as List).cast<Map<String, dynamic>>();
+      } on PostgrestException catch (e) {
+        if (!_isMissingEventTicketsRelationship(e)) rethrow;
+        // Fallback when event_tickets relation can't be embedded (e.g. legacy
+        // env). Prices won't show on similar-event cards in that case.
+        final fallback = await _client
+            .from('events')
+            .select('*')
+            .eq('is_active', true)
+            .gte('start_at', DateTime.now().toIso8601String())
+            .neq('id', eventId)
+            .limit(5);
+        list = (fallback as List).cast<Map<String, dynamic>>();
+      }
       return list.map(_rowToEventListItem).toList();
     });
   }
@@ -309,6 +399,9 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return <TicketModel>[];
 
+      // 'cancelled' is excluded so user-removed orders disappear from the list.
+      // 'refunded' is excluded because a refund is the post-completion terminal
+      // state — the ticket already moved out of the "My Tickets" experience.
       final ordersRes = await _client
           .from('orders')
           .select('*')
@@ -319,13 +412,62 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
             'processing',
             'completed',
             'failed',
-            'cancelled',
-            'refunded',
           ])
           .order('created_at', ascending: false);
 
       final ordersList = (ordersRes as List).cast<Map<String, dynamic>>();
       if (ordersList.isEmpty) return <TicketModel>[];
+
+      // Batch-fetch every ticket row for these orders in one round-trip
+      // instead of one query per order.
+      final orderIds = ordersList
+          .map((m) => parseString(m['id']))
+          .whereType<String>()
+          .toList(growable: false);
+      final ticketsRes = orderIds.isEmpty
+          ? const <dynamic>[]
+          : await _client.from('tickets').select('*').inFilter('order_id', orderIds);
+      final ticketRowsByOrderId = <String, List<Map<String, dynamic>>>{};
+      for (final t in ticketsRes) {
+        final tm = Map<String, dynamic>.from(t as Map);
+        final orderId = parseString(tm['order_id']);
+        if (orderId == null) continue;
+        ticketRowsByOrderId.putIfAbsent(orderId, () => []).add(tm);
+      }
+
+      // Pre-fetch each unique event_ticket once.
+      final eventTicketIds = <String>{};
+      for (final rows in ticketRowsByOrderId.values) {
+        for (final tm in rows) {
+          final etId = parseString(tm['event_ticket_id']);
+          if (etId != null) eventTicketIds.add(etId);
+        }
+      }
+      final eventTicketById = <String, Map<String, dynamic>>{};
+      if (eventTicketIds.isNotEmpty) {
+        final etRes = await _client
+            .from('event_tickets')
+            .select('*')
+            .inFilter('id', eventTicketIds.toList(growable: false));
+        for (final row in etRes as List) {
+          final m = Map<String, dynamic>.from(row as Map);
+          final id = parseString(m['id']);
+          if (id != null) eventTicketById[id] = m;
+        }
+      }
+
+      // Cache event detail per event id — orders to the same event reuse it.
+      final eventDetailCache = <String, EventDetailModel>{};
+      Future<EventDetailModel?> resolveEvent(String id) async {
+        if (eventDetailCache.containsKey(id)) return eventDetailCache[id];
+        try {
+          final detail = await getEventDetail(id);
+          eventDetailCache[id] = detail;
+          return detail;
+        } catch (_) {
+          return null;
+        }
+      }
 
       final tickets = <TicketModel>[];
       final now = DateTime.now();
@@ -335,23 +477,18 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         final eventId = parseString(orderMap['event_id']);
         if (eventId == null) continue;
 
-        final eventDetail = await getEventDetail(eventId);
+        final eventDetail = await resolveEvent(eventId);
+        if (eventDetail == null) continue;
         final isUpcoming = !eventDetail.startDate.isBefore(now);
         if (upcomingOnly != isUpcoming) continue;
 
         final orderId = parseString(orderMap['id']);
         if (orderId == null) continue;
 
-        // Include every ticket row for this order (not only `valid`), so resale /
-        // edge statuses still appear with the correct order payment chip.
-        final ticketsRes = await _client
-            .from('tickets')
-            .select('*')
-            .eq('order_id', orderId);
-
         final paid = orderPaymentStatus == events_domain.OrderStatus.completed;
+        final rows = ticketRowsByOrderId[orderId] ?? const <Map<String, dynamic>>[];
 
-        if (ticketsRes.isEmpty) {
+        if (rows.isEmpty) {
           tickets.add(_syntheticTicketForOrder(
             orderId: orderId,
             orderMap: orderMap,
@@ -361,14 +498,13 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
           continue;
         }
 
-        for (final t in ticketsRes) {
-          final tm = Map<String, dynamic>.from(t as Map);
+        for (final tm in rows) {
           final etId = parseString(tm['event_ticket_id']);
           if (etId == null) continue;
 
-          final etRes = await _client.from('event_tickets').select('*').eq('id', etId).maybeSingle();
-          final price = etRes is Map<String, dynamic> ? parseDouble(etRes['price']) ?? 0.0 : 0.0;
-          final name = etRes is Map<String, dynamic> ? parseStringRequired(etRes['name']) : 'Ticket';
+          final etRow = eventTicketById[etId];
+          final price = etRow != null ? parseDouble(etRow['price']) ?? 0.0 : 0.0;
+          final name = etRow != null ? parseStringRequired(etRow['name']) : 'Ticket';
 
           tickets.add(TicketModel(
             id: parseStringRequired(tm['id']),
@@ -787,11 +923,50 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
   }
 
   /// Cancels an event order that was never completed (safe release for user abandon flow).
+  ///
+  /// Prefers the `cancel_unpaid_event_order(uuid)` RPC because it runs with
+  /// SECURITY DEFINER server-side — that sidesteps RLS pitfalls on the orders
+  /// table. Falls back to a direct UPDATE if the function isn\'t deployed yet
+  /// (older environments) so the feature degrades instead of breaking.
   @override
   Future<void> cancelUnpaidEventOrder(String orderId) async {
     return SupabaseFailureMapper.guard(() async {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('Not authenticated');
+
+      try {
+        final res = await _client.rpc(
+          'cancel_unpaid_event_order',
+          params: {'p_order_id': orderId},
+        );
+        // The RPC returns the number of rows updated. 0 means the row slipped
+        // out from under us (e.g. webhook completed it between the guard and
+        // the UPDATE) — surface a refresh hint to the user.
+        final rowCount = res is int
+            ? res
+            : (res is num ? res.toInt() : int.tryParse('$res'));
+        if (rowCount != null && rowCount > 0) return;
+        if (rowCount == 0) {
+          throw Exception(
+            'This ticket couldn\'t be removed. Please refresh and try again.',
+          );
+        }
+        // Unexpected return shape — treat as success rather than blocking the
+        // user, then let the background refresh reconcile.
+        return;
+      } on PostgrestException catch (e) {
+        // RPC missing in this Supabase project — fall through to direct UPDATE
+        // so older environments keep working until the migration is applied.
+        final missing = e.code == 'PGRST202' ||
+            e.code == '42883' ||
+            e.message.toLowerCase().contains('could not find the function') ||
+            e.message.toLowerCase().contains('does not exist');
+        if (!missing) {
+          // Surface the precise reason from our raise exception messages.
+          final raw = (e.message).trim();
+          throw Exception(_friendlyCancelError(raw));
+        }
+      }
 
       final updated = await _client
           .from('orders')
@@ -802,9 +977,27 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
           .select('id');
       if (updated is List && updated.isEmpty) {
         throw Exception(
-          'This ticket cannot be removed anymore. Please refresh and try again.',
+          'This ticket couldn\'t be removed. Run the latest Supabase migration '
+          '(orders_user_can_cancel) so the cancel_unpaid_event_order RPC '
+          'exists, or add an UPDATE policy on orders that lets a user cancel '
+          'their own pending/processing/failed rows.',
         );
       }
     });
+  }
+
+  static String _friendlyCancelError(String raw) {
+    final r = raw.toLowerCase();
+    if (r.contains('not_authenticated')) {
+      return 'Sign in to remove this ticket.';
+    }
+    if (r.contains('order_not_found_or_not_yours')) {
+      return 'This ticket is no longer on your account. Pull to refresh.';
+    }
+    if (r.contains('order_not_removable')) {
+      return 'This ticket is already in a final state (likely paid, refunded, '
+          'or cancelled). Pull to refresh.';
+    }
+    return raw;
   }
 }

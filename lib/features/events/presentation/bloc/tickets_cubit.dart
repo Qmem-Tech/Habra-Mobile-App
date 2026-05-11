@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/error/failures.dart';
 import '../../../../core/services/stripe_payment_service.dart';
 import '../../domain/usecases/get_user_tickets_usecase.dart';
 import '../../domain/usecases/create_order_usecase.dart';
@@ -121,24 +124,57 @@ class TicketsCubit extends Cubit<TicketsState> {
     }
   }
 
+  /// Cancels an unpaid order with an **optimistic** UI update: the row is
+  /// removed from the list (or kept on failure) the moment the cancel RPC
+  /// returns, so the "Removing…" spinner doesn't have to wait for a slow
+  /// re-fetch of every ticket. A background refresh is fire-and-forget so the
+  /// list eventually reconciles with the server.
   Future<String?> cancelUnpaidOrder(String orderId) async {
     final prev = state;
-    var upcoming = true;
-    if (prev is TicketsLoaded) {
-      upcoming = prev.isUpcoming;
-      emit(TicketsLoaded(
-        tickets: prev.tickets,
-        isUpcoming: upcoming,
-        pendingOrderActionId: orderId,
-      ));
+    if (prev is! TicketsLoaded) {
+      // Nothing on screen to optimistically update — defer to the basic flow.
+      final result = await cancelUnpaidEventOrderUseCase(orderId);
+      await loadUserTickets(showLoading: false);
+      String? err;
+      result.fold((f) => err = f.message, (_) {});
+      return err;
     }
 
-    final result = await cancelUnpaidEventOrderUseCase(orderId);
-    await loadUserTickets(upcomingOnly: upcoming, showLoading: false);
+    final upcoming = prev.isUpcoming;
+    final originalTickets = prev.tickets;
 
-    String? err;
-    result.fold((f) => err = f.message, (_) {});
-    return err;
+    // 1. Show inline spinner on the row being removed.
+    emit(TicketsLoaded(
+      tickets: originalTickets,
+      isUpcoming: upcoming,
+      pendingOrderActionId: orderId,
+    ));
+
+    // 2. Run the cancel call.
+    final result = await cancelUnpaidEventOrderUseCase(orderId);
+
+    final failure = result.fold<Failure?>((f) => f, (_) => null);
+
+    // 3. Emit the resolved state immediately — never leave the spinner on.
+    if (failure == null) {
+      final next = originalTickets
+          .where((t) => t.orderId != orderId)
+          .toList(growable: false);
+      if (next.isEmpty) {
+        emit(TicketsEmpty(isUpcoming: upcoming));
+      } else {
+        emit(TicketsLoaded(tickets: next, isUpcoming: upcoming));
+      }
+    } else {
+      // Cancel failed — restore the original list without the spinner.
+      emit(TicketsLoaded(tickets: originalTickets, isUpcoming: upcoming));
+    }
+
+    // 4. Background reconciliation. We don't await; the spinner is already
+    // gone and the list is already correct optimistically.
+    unawaited(loadUserTickets(upcomingOnly: upcoming, showLoading: false));
+
+    return failure?.message;
   }
 
   Future<void> createOrder({
