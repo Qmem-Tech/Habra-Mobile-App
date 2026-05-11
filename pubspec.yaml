@@ -2,7 +2,7 @@ name: habra_mobile_app
 description: "A Flutter super app with Clean Architecture, Supabase backend, Theme Management, and Localization"
 publish_to: 'none'
 
-version: 1.0.1+6
+version: 1.0.1+7
 
 environment:
   sdk: '^3.8.0'
