@@ -148,7 +148,12 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
         if (featuredOnly) query = query.eq('is_featured', true);
         // TODO: Add location filter when ready: query.or('address_city.ilike.%$location%,address_state.ilike.%$location%')
         if (searchQuery != null && searchQuery.isNotEmpty) {
-          query = query.or('name.ilike.%$searchQuery%,description.ilike.%$searchQuery%');
+          final q = searchQuery.replaceAll('%', '').trim();
+          if (q.isNotEmpty) {
+            query = query.or(
+              'name.ilike.%$q%,description.ilike.%$q%,address_city.ilike.%$q%,address_state.ilike.%$q%',
+            );
+          }
         }
 
         final res = await query.order('created_at', ascending: false);

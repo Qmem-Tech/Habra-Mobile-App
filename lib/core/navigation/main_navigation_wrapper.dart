@@ -1,4 +1,7 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/services/push_notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../injection/injection_container.dart' as di;
@@ -51,6 +54,7 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   late int _currentIndex;
   late PageController _pageController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  DateTime? _lastBackPressPromptAt;
 
   @override
   void initState() {
@@ -99,7 +103,8 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
   @override
   Widget build(BuildContext context) {
     final hasUser = widget.userId != null && widget.userName != null;
-    return Scaffold(
+
+    Widget shell = Scaffold(
       key: _scaffoldKey,
       drawer: hasUser
           ? app_drawer.NavigationDrawer(
@@ -177,6 +182,36 @@ class _MainNavigationWrapperState extends State<MainNavigationWrapper> {
         ],
       ),
     );
+
+    if (Platform.isAndroid) {
+      shell = PopScope<Object?>(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          final nav = Navigator.maybeOf(context);
+          if (nav != null && nav.canPop()) {
+            nav.pop();
+            return;
+          }
+          final now = DateTime.now();
+          final prev = _lastBackPressPromptAt;
+          if (prev != null && now.difference(prev) < const Duration(seconds: 2)) {
+            SystemNavigator.pop();
+            return;
+          }
+          _lastBackPressPromptAt = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tap back again to exit'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
+        child: shell,
+      );
+    }
+
+    return shell;
   }
 
 }

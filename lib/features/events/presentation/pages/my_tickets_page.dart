@@ -70,7 +70,41 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
                       }
 
                       if (state is TicketsError) {
-                        return Center(child: Text('Error: ${state.message}'));
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.confirmation_number_outlined,
+                                  size: 48,
+                                  color: AppColors.error,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  state.message,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 15,
+                                    height: 1.35,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                TextButton.icon(
+                                  onPressed: () {
+                                    context
+                                        .read<TicketsCubit>()
+                                        .loadUserTickets(upcomingOnly: _isUpcoming);
+                                  },
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Try again'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
                       }
 
                       if (state is TicketsEmpty) {
@@ -263,8 +297,16 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
         Expanded(
           child: DropdownButtonFormField<_TicketSortOption>(
             value: _sortOption,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+            dropdownColor: AppColors.backgroundWhite,
+            iconEnabledColor: AppColors.textPrimary,
             decoration: InputDecoration(
               labelText: 'Sort',
+              labelStyle: const TextStyle(color: AppColors.textSecondary),
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               border: OutlineInputBorder(
@@ -291,8 +333,16 @@ class _MyTicketsPageState extends State<MyTicketsPage> {
         Expanded(
           child: DropdownButtonFormField<_TicketStatusFilter>(
             value: _statusFilter,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+            dropdownColor: AppColors.backgroundWhite,
+            iconEnabledColor: AppColors.textPrimary,
             decoration: InputDecoration(
               labelText: 'Filter',
+              labelStyle: const TextStyle(color: AppColors.textSecondary),
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               border: OutlineInputBorder(

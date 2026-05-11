@@ -19,6 +19,7 @@ class DashboardJobsTab extends StatelessWidget {
     required this.onCreateJob,
     required this.onViewApplicants,
     this.onEditJob,
+    this.onDeleteJob,
   });
 
   final List<DashboardJob> jobs;
@@ -27,6 +28,7 @@ class DashboardJobsTab extends StatelessWidget {
   final VoidCallback onCreateJob;
   final void Function(DashboardJob job) onViewApplicants;
   final void Function(DashboardJob job)? onEditJob;
+  final void Function(DashboardJob job)? onDeleteJob;
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +87,7 @@ class DashboardJobsTab extends StatelessWidget {
                       job: job,
                       onViewApplicants: () => onViewApplicants(job),
                       onEdit: onEditJob != null ? () => onEditJob!(job) : null,
+                      onDelete: onDeleteJob != null ? () => onDeleteJob!(job) : null,
                     );
                   },
                 ),
@@ -165,11 +168,13 @@ class _JobCard extends StatelessWidget {
     required this.job,
     required this.onViewApplicants,
     this.onEdit,
+    this.onDelete,
   });
 
   final DashboardJob job;
   final VoidCallback onViewApplicants;
   final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   String get _postedBadgeText {
     final t = job.postedTimeAgo.trim();
@@ -335,6 +340,24 @@ class _JobCard extends StatelessWidget {
                     child: Icon(
                       Icons.edit_outlined,
                       color: onEdit != null ? AppColors.brandPrimary : AppColors.textTertiary,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Material(
+                color: _statGraySurface,
+                borderRadius: BorderRadius.circular(14),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onDelete,
+                  child: SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: onDelete != null ? AppColors.error : AppColors.textTertiary,
                       size: 24,
                     ),
                   ),

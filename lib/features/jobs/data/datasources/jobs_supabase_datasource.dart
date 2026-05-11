@@ -93,7 +93,7 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
       final q = _sanitizeIlike(searchQuery);
       if (q.isNotEmpty) {
         query = query.or(
-          'title.ilike.%$q%,description.ilike.%$q%,location.ilike.%$q%,job_type.ilike.%$q%',
+          'title.ilike.%$q%,description.ilike.%$q%,location.ilike.%$q%,job_type.ilike.%$q%,category.ilike.%$q%',
         );
       }
       final categories = filters?.categories;

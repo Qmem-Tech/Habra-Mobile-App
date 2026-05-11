@@ -44,13 +44,16 @@ class _JobsPageState extends State<JobsPage> {
   @override
   void initState() {
     super.initState();
-    _currentLocation = widget.initialLocation ?? 'Washington, D.C.';
+    _currentLocation = widget.initialLocation;
   }
+
+  static const _kLocationUnsetLabel = 'Choose your location';
 
   String _resolvedLocationLabel(BuildContext context) {
     return SessionDeviceLocationCubit.tryLabel(context) ??
-        _currentLocation ??
-        'Washington, D.C.';
+        (_currentLocation?.trim().isNotEmpty == true
+            ? _currentLocation!
+            : _kLocationUnsetLabel);
   }
 
   Future<void> _openLocationPicker() async {
@@ -82,8 +85,7 @@ class _JobsPageState extends State<JobsPage> {
     final ctx = context ?? this.context;
     final jobsCubit = cubit ?? ctx.read<JobsCubit>();
     final loc = SessionDeviceLocationCubit.tryLabel(ctx) ??
-        _currentLocation ??
-        'Washington, D.C.';
+        (_currentLocation?.trim().isNotEmpty == true ? _currentLocation! : null);
     jobsCubit.loadJobs(
       location: loc,
       filters: _activeFilters,
@@ -200,8 +202,9 @@ class _JobsPageState extends State<JobsPage> {
         final cubit = di.sl<JobsCubit>();
         WidgetsBinding.instance.addPostFrameCallback((_) {
           final loc = SessionDeviceLocationCubit.tryLabel(context) ??
-              _currentLocation ??
-              'Washington, D.C.';
+              (_currentLocation?.trim().isNotEmpty == true
+                  ? _currentLocation!
+                  : null);
           cubit.loadJobs(
             location: loc,
             filters: _activeFilters,

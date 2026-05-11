@@ -16,6 +16,7 @@ class DashboardDealsTab extends StatelessWidget {
     this.onEdit,
     this.onPause,
     this.onStats,
+    this.onDelete,
   });
 
   final List<DashboardDeal> deals;
@@ -25,6 +26,7 @@ class DashboardDealsTab extends StatelessWidget {
   final void Function(DashboardDeal)? onEdit;
   final void Function(DashboardDeal)? onPause;
   final void Function(DashboardDeal)? onStats;
+  final void Function(DashboardDeal)? onDelete;
 
   static Color _dealTypeColor(String label) {
     if (label.toLowerCase().contains('buy') || label.toLowerCase().contains('get')) {
@@ -108,6 +110,7 @@ class DashboardDealsTab extends StatelessWidget {
                       onEdit: () => onEdit?.call(deal),
                       onPause: () => onPause?.call(deal),
                       onStats: () => onStats?.call(deal),
+                      onDelete: onDelete == null ? null : () => onDelete!(deal),
                     );
                   },
                 ),
@@ -158,12 +161,14 @@ class _DealCard extends StatelessWidget {
     this.onEdit,
     this.onPause,
     this.onStats,
+    this.onDelete,
   });
 
   final DashboardDeal deal;
   final VoidCallback? onEdit;
   final VoidCallback? onPause;
   final VoidCallback? onStats;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -334,6 +339,14 @@ class _DealCard extends StatelessWidget {
                   label: const Text('Stats'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.textSecondary,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Delete'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.error,
                   ),
                 ),
               ],

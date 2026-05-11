@@ -34,10 +34,9 @@ class DashboardCubit extends Cubit<DashboardState> {
         ownerId ?? Supabase.instance.client.auth.currentUser?.id;
     try {
       final analyticsFuture = _repository.getAnalytics(businessId);
-      final dealsFuture = _repository.getDeals(
-        businessId,
-        status: DashboardDealStatus.active,
-      );
+      // Load all deal statuses so tab counts (Active / Expired / Drafts) are correct
+      // before the user switches chips (see HAB-26).
+      final dealsFuture = _repository.getDeals(businessId);
       final jobsFuture = _repository.getJobs(businessId);
       final reviewsOverviewFuture =
           _repository.getReviewsOverview(businessId);
@@ -101,13 +100,8 @@ class DashboardCubit extends Cubit<DashboardState> {
   Future<void> setDealsFilter(String businessId, DashboardDealStatus? status) async {
     final current = state;
     if (current is! DashboardTabState) return;
+    // Filter is client-side only; keep full [deals] list so chip counts stay accurate.
     emit(current.copyWith(dealsFilter: status));
-    try {
-      final deals = await _repository.getDeals(businessId, status: status);
-      if (state is DashboardTabState) {
-        emit((state as DashboardTabState).copyWith(deals: deals));
-      }
-    } catch (_) {}
   }
 
   void setJobsFilter(DashboardJobStatus? status) {
@@ -203,22 +197,12 @@ class DashboardCubit extends Cubit<DashboardState> {
 
   Future<DashboardDeal?> createDeal(
       String businessId, Map<String, dynamic> data) async {
-    try {
-      return await _repository.createDeal(businessId, data);
-    } catch (e) {
-      emit(DashboardError(e.toString()));
-      return null;
-    }
+    return await _repository.createDeal(businessId, data);
   }
 
   Future<DashboardDeal?> updateDeal(
       String dealId, Map<String, dynamic> data) async {
-    try {
-      return await _repository.updateDeal(dealId, data);
-    } catch (e) {
-      emit(DashboardError(e.toString()));
-      return null;
-    }
+    return await _repository.updateDeal(dealId, data);
   }
 
   /// Pause ([inactive]) or resume ([active]) without replacing the whole dashboard state on failure.
@@ -230,10 +214,7 @@ class DashboardCubit extends Cubit<DashboardState> {
         dealId,
         paused ? DashboardDealStatus.inactive : DashboardDealStatus.active,
       );
-      final deals = await _repository.getDeals(
-        businessId,
-        status: current.dealsFilter,
-      );
+      final deals = await _repository.getDeals(businessId);
       if (state is DashboardTabState) {
         emit((state as DashboardTabState).copyWith(deals: deals));
       }
@@ -254,22 +235,12 @@ class DashboardCubit extends Cubit<DashboardState> {
 
   Future<DashboardJob?> createJob(
       String businessId, Map<String, dynamic> data) async {
-    try {
-      return await _repository.createJob(businessId, data);
-    } catch (e) {
-      emit(DashboardError(e.toString()));
-      return null;
-    }
+    return await _repository.createJob(businessId, data);
   }
 
   Future<DashboardJob?> updateJob(
       String jobId, Map<String, dynamic> data) async {
-    try {
-      return await _repository.updateJob(jobId, data);
-    } catch (e) {
-      emit(DashboardError(e.toString()));
-      return null;
-    }
+    return await _repository.updateJob(jobId, data);
   }
 
   Future<bool> deleteJob(String jobId) async {

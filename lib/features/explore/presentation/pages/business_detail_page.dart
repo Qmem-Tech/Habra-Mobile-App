@@ -27,6 +27,9 @@ import '../bloc/reviews_cubit.dart';
 import '../bloc/reviews_state.dart';
 import '../widgets/business_card.dart';
 import '../widgets/review_widget.dart';
+import 'business_photos_gallery_page.dart';
+import 'business_reviews_page.dart';
+import 'deal_detail_page.dart';
 import 'write_review_page.dart';
 import 'map_page.dart';
 
@@ -83,11 +86,12 @@ class BusinessDetailPage extends StatelessWidget {
             children: [
               _buildHeader(business),
               _buildActionButtons(context, business),
-              if (business.currentDeals.isNotEmpty) _buildCurrentDeals(business),
+              if (business.currentDeals.isNotEmpty)
+                _buildCurrentDeals(context, business),
               BusinessHostedEventsSection(businessId: business.id),
               _buildAbout(business),
               _buildLocation(context, business),
-              _buildPhotos(business),
+              _buildPhotos(context, business),
               _buildReviews(context, business),
               if (business.similarBusinesses.isNotEmpty) _buildSimilarBusinesses(context, business),
               const SizedBox(height: 24),
@@ -329,7 +333,7 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildCurrentDeals(BusinessDetail business) {
+  Widget _buildCurrentDeals(BuildContext context, BusinessDetail business) {
     if (business.currentDeals.isEmpty) return const SizedBox.shrink();
 
     return Padding(
@@ -353,40 +357,57 @@ class BusinessDetailPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           ...business.currentDeals.map((deal) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Material(
                 color: AppColors.backgroundLight,
                 borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.restaurant_menu, color: AppColors.brandPrimary),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push<void>(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => DealDetailPage(dealId: deal.id),
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
                       children: [
-                        Text(
-                          deal.discountText ?? deal.title,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+                        const Icon(Icons.restaurant_menu, color: AppColors.brandPrimary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                deal.discountText ?? deal.title,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                deal.description,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        Text(
-                          deal.description,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppColors.textTertiary,
                         ),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
             );
           }),
@@ -515,7 +536,7 @@ class BusinessDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildPhotos(BusinessDetail business) {
+  Widget _buildPhotos(BuildContext context, BusinessDetail business) {
     if (business.photos.isEmpty) return const SizedBox.shrink();
 
     return Padding(
@@ -523,10 +544,10 @@ class BusinessDetailPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'Photos',
                 style: TextStyle(
                   fontSize: 18,
@@ -534,13 +555,32 @@ class BusinessDetailPage extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-              Text(
-                'View All >',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
+              if (business.photos.length > 1)
+                TextButton(
+                  onPressed: () {
+                    Navigator.push<void>(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => BusinessPhotosGalleryPage(
+                          businessName: business.name,
+                          photos: business.photos,
+                        ),
+                      ),
+                    );
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 0),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'View All (${business.photos.length}) >',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.brandPrimary,
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -584,12 +624,32 @@ class BusinessDetailPage extends StatelessWidget {
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      // View all reviews
-                    },
-                    child: const Text('View All >'),
-                  ),
+                  if (reviewsState is ReviewsLoaded &&
+                      reviewsState.reviews.length > 1)
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push<void>(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => BusinessReviewsPage(
+                              businessId: business.id,
+                              businessName: business.name,
+                            ),
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 0),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        'View All (${reviewsState.reviews.length}) >',
+                        style: TextStyle(
+                          color: AppColors.brandPrimary,
+                        ),
+                      ),
+                    ),
                 ],
               ),
               if (reviewsState is ReviewsLoaded) ...[

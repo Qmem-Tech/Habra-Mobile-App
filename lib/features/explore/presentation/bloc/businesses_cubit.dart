@@ -19,7 +19,9 @@ class BusinessesCubit extends Cubit<BusinessesState> {
     String? searchQuery,
     bool featuredOnly = false,
   }) async {
-    emit(BusinessesLoading());
+    if (state is! BusinessesLoaded) {
+      emit(BusinessesLoading());
+    }
 
     final result = await getBusinessesUseCase(
       location: location,

@@ -465,18 +465,40 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               (interest) => Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
-                                  vertical: 8,
+                                  vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
                                   color: AppColors.settingsIconTileBackground,
                                   borderRadius: BorderRadius.circular(18),
                                 ),
-                                child: Text(
-                                  interest,
-                                  style: const TextStyle(
-                                    color: AppColors.ownerHomePrimary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      interest,
+                                      style: const TextStyle(
+                                        color: AppColors.ownerHomePrimary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    InkWell(
+                                      onTap: () => setState(() {
+                                        _selectedInterests = List<String>.from(
+                                          _selectedInterests,
+                                        )..remove(interest);
+                                      }),
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(2),
+                                        child: Icon(
+                                          Icons.close_rounded,
+                                          size: 16,
+                                          color: AppColors.ownerHomePrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             )

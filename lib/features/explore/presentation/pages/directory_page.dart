@@ -30,7 +30,8 @@ class _DirectoryPageState extends State<DirectoryPage> {
   String? _selectedListingCategoryId;
   List<ListingCategory> _listingCategories = [];
   bool _categoriesLoading = true;
-  String _currentLocation = 'Washington, D.C.';
+  static const _kUnsetLocationLabel = 'Choose your location';
+  String _currentLocation = _kUnsetLocationLabel;
   Timer? _searchDebounce;
 
   BusinessesCubit get _cubit => _businessesCubit ??= di.sl<BusinessesCubit>();
@@ -71,8 +72,10 @@ class _DirectoryPageState extends State<DirectoryPage> {
     final filters = (cid != null && cid.isNotEmpty)
         ? BusinessFilters(listingCategoryId: cid)
         : null;
-    final loc = SessionDeviceLocationCubit.tryLabel(context) ??
-        _currentLocation;
+    final sessionLoc = SessionDeviceLocationCubit.tryLabel(context);
+    final stored =
+        _currentLocation != _kUnsetLocationLabel ? _currentLocation : null;
+    final loc = sessionLoc ?? stored;
     _cubit.loadBusinesses(
       location: loc,
       filters: filters,
@@ -81,7 +84,10 @@ class _DirectoryPageState extends State<DirectoryPage> {
   }
 
   String _displayLocationLabel(BuildContext context) {
-    return SessionDeviceLocationCubit.tryLabel(context) ?? _currentLocation;
+    return SessionDeviceLocationCubit.tryLabel(context) ??
+        (_currentLocation != _kUnsetLocationLabel
+            ? _currentLocation
+            : _kUnsetLocationLabel);
   }
 
   @override

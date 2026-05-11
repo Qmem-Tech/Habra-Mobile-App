@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/error/exceptions.dart' as app_err;
 import '../../../../core/subscription/business_subscription_policy.dart'
     show maxOpenJobPostsForSubscriptionTier;
 import '../../../../core/subscription/business_subscription_tier.dart';
@@ -21,6 +22,15 @@ import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../../domain/entities/dashboard_job.dart';
 import '../bloc/dashboard_cubit.dart';
+
+String _mapJobMutationError(Object e) {
+  if (e is app_err.ServerException) return e.message;
+  if (e is app_err.AuthException) return e.message;
+  if (e is app_err.ForbiddenException) return e.message;
+  if (e is app_err.NetworkException) return e.message;
+  final s = e.toString();
+  return s.length > 240 ? '${s.substring(0, 240)}…' : s;
+}
 
 const _kJobTypeLabels = <String, String>{
   'full-time': 'Full-time',
@@ -347,7 +357,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
             .createJob(bizId, _buildPayload(status: 'open'));
       }
     } catch (e) {
-      errorMessage = e.toString();
+      errorMessage = _mapJobMutationError(e);
     } finally {
       if (ctx.mounted) {
         await LoaderHelper.hide(ctx);
@@ -395,7 +405,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
             .createJob(bizId, _buildPayload(status: 'draft'));
       }
     } catch (e) {
-      errorMessage = e.toString();
+      errorMessage = _mapJobMutationError(e);
     } finally {
       if (ctx.mounted) {
         await LoaderHelper.hide(ctx);
@@ -437,7 +447,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
             _buildPayload(status: _statusPayloadForExistingJob()),
           );
     } catch (e) {
-      errorMessage = e.toString();
+      errorMessage = _mapJobMutationError(e);
     } finally {
       if (ctx.mounted) {
         await LoaderHelper.hide(ctx);

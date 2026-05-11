@@ -151,15 +151,23 @@ class StripePaymentService {
     return e.toString();
   }
 
-  /// Presents Stripe PaymentSheet. Returns true if payment succeeded.
-  /// Wallets (Apple Pay / Google Pay) appear when enabled for your Stripe account and configured on device.
-  Future<bool> presentPaymentSheet({
+  /// Presents Stripe PaymentSheet. Wallets (Apple Pay / Google Pay) appear when
+  /// enabled for your Stripe account and configured on device.
+  ///
+  /// Returns a [StripeSheetOutcome] so the caller can distinguish user-cancelled,
+  /// card-declined, and configuration errors instead of a generic false.
+  Future<StripeSheetOutcome> presentPaymentSheet({
     required String paymentIntentClientSecret,
     String? customerId,
     String? customerEphemeralKeySecret,
     String merchantDisplayName = 'Habra',
   }) async {
-    if (!_initialized) return false;
+    if (!_initialized) {
+      return const StripeSheetOutcome.failed(
+        code: PaymentSheetFailureCode.notInitialized,
+        message: 'Stripe is not initialized.',
+      );
+    }
     try {
       await Stripe.instance.applySettings();
     } catch (e, st) {
@@ -167,7 +175,12 @@ class StripePaymentService {
         'Stripe: applySettings before PaymentSheet failed (check Android theme is '
         'Theme.MaterialComponents / AppCompat per flutter_stripe docs): $e\n$st',
       );
-      return false;
+      return const StripeSheetOutcome.failed(
+        code: PaymentSheetFailureCode.applySettings,
+        message:
+            'Payment sheet could not initialize. On Android, make sure MainActivity '
+            'uses Theme.MaterialComponents / AppCompat.',
+      );
     }
 
     try {
@@ -191,14 +204,100 @@ class StripePaymentService {
         ),
       );
       await Stripe.instance.presentPaymentSheet();
-      return true;
+      return const StripeSheetOutcome.succeeded();
     } on StripeException catch (e) {
       debugPrint('Stripe PaymentSheet: ${e.error.code} ${e.error.message}');
-      return false;
+      return StripeSheetOutcome._fromStripeException(e);
     } catch (e) {
       debugPrint('Stripe PaymentSheet error: $e');
-      return false;
+      return StripeSheetOutcome.failed(
+        code: PaymentSheetFailureCode.unknown,
+        message: e.toString(),
+      );
     }
+  }
+}
+
+/// Why a [StripePaymentService.presentPaymentSheet] call did not succeed.
+enum PaymentSheetFailureCode {
+  /// User dismissed the sheet (back button, cancel). Not a real failure.
+  cancelled,
+
+  /// Card declined / 3DS failed / insufficient funds — Stripe rejected the attempt.
+  cardDeclined,
+
+  /// Authentication challenge (3DS) was cancelled or timed out.
+  authenticationFailed,
+
+  /// Network problem during payment (timeout, lost connection).
+  network,
+
+  /// Stripe SDK not initialized — missing publishable key or applySettings failed.
+  notInitialized,
+
+  /// Android-specific theme/Activity setup blocked applySettings.
+  applySettings,
+
+  /// Any other failure we couldn't classify.
+  unknown,
+}
+
+/// Outcome of presenting Stripe PaymentSheet. Use [succeeded] for the happy
+/// path; [wasCancelled] to distinguish user dismissal from real failures.
+class StripeSheetOutcome {
+  const StripeSheetOutcome._({
+    required this.succeeded,
+    this.code,
+    this.message,
+  });
+
+  const StripeSheetOutcome.succeeded() : this._(succeeded: true);
+
+  const StripeSheetOutcome.failed({
+    required PaymentSheetFailureCode code,
+    String? message,
+  }) : this._(succeeded: false, code: code, message: message);
+
+  final bool succeeded;
+  final PaymentSheetFailureCode? code;
+  final String? message;
+
+  bool get wasCancelled => code == PaymentSheetFailureCode.cancelled;
+
+  factory StripeSheetOutcome._fromStripeException(StripeException e) {
+    final codeStr = e.error.code.toString().toLowerCase();
+    final msg = e.error.message?.trim();
+
+    if (codeStr.contains('canceled') || codeStr.contains('cancelled')) {
+      return StripeSheetOutcome.failed(
+        code: PaymentSheetFailureCode.cancelled,
+        message: msg ?? 'Payment was cancelled.',
+      );
+    }
+    if (codeStr.contains('failed') &&
+        (msg?.toLowerCase().contains('authentication') ?? false)) {
+      return StripeSheetOutcome.failed(
+        code: PaymentSheetFailureCode.authenticationFailed,
+        message: msg,
+      );
+    }
+    if (codeStr.contains('failed')) {
+      return StripeSheetOutcome.failed(
+        code: PaymentSheetFailureCode.cardDeclined,
+        message: msg ?? 'Your card was declined. Try another card or method.',
+      );
+    }
+    if (codeStr.contains('timeout') || codeStr.contains('network')) {
+      return StripeSheetOutcome.failed(
+        code: PaymentSheetFailureCode.network,
+        message: msg ??
+            'Network issue during payment. Check your connection and try again.',
+      );
+    }
+    return StripeSheetOutcome.failed(
+      code: PaymentSheetFailureCode.unknown,
+      message: msg,
+    );
   }
 }
 

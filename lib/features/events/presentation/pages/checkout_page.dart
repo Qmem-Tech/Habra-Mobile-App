@@ -412,6 +412,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
       builder: (context, state) {
         final isLoading = state is PaymentProcessing || state is OrderLoading;
         final canPay = _stripe.isConfigured;
+        final PaymentPhase? phase = state is OrderLoading
+            ? state.phase
+            : (state is PaymentProcessing ? state.phase : null);
+
         return Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           decoration: BoxDecoration(
@@ -427,6 +431,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (phase != null) ...[
+                _CheckoutProgressIndicator(phase: phase),
+                const SizedBox(height: 12),
+              ],
               if (!_stripe.isConfigured)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -547,5 +555,144 @@ class _CheckoutPageState extends State<CheckoutPage> {
       }
     }
     return result;
+  }
+}
+
+/// 3-step progress indicator shown above the Pay button during checkout.
+///
+/// Phases: creatingOrder → securingPayment → confirmingOrder. Animates the
+/// "current" step with a brand-coloured dot; "done" steps show a checkmark.
+class _CheckoutProgressIndicator extends StatelessWidget {
+  const _CheckoutProgressIndicator({required this.phase});
+
+  final PaymentPhase phase;
+
+  static const _steps = <(PaymentPhase, String)>[
+    (PaymentPhase.creatingOrder, 'Creating order'),
+    (PaymentPhase.securingPayment, 'Securing payment'),
+    (PaymentPhase.confirmingOrder, 'Confirming order'),
+  ];
+
+  int get _currentIndex => _steps.indexWhere((s) => s.$1 == phase);
+
+  String get _activeLabel {
+    final idx = _currentIndex;
+    if (idx < 0) return 'Processing…';
+    if (phase == PaymentPhase.confirmingOrder) {
+      return 'Confirming your order — this usually takes a few seconds.';
+    }
+    if (phase == PaymentPhase.securingPayment) {
+      return 'Securing payment — opening the Stripe sheet…';
+    }
+    return 'Creating your order…';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentIndex = _currentIndex;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              for (var i = 0; i < _steps.length; i++) ...[
+                _StepDot(
+                  index: i + 1,
+                  isDone: i < currentIndex,
+                  isCurrent: i == currentIndex,
+                ),
+                if (i < _steps.length - 1)
+                  Expanded(
+                    child: Container(
+                      height: 2,
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      color: i < currentIndex
+                          ? AppColors.brandPrimary
+                          : AppColors.backgroundGrey,
+                    ),
+                  ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _activeLabel,
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepDot extends StatelessWidget {
+  const _StepDot({
+    required this.index,
+    required this.isDone,
+    required this.isCurrent,
+  });
+
+  final int index;
+  final bool isDone;
+  final bool isCurrent;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color background;
+    final Color foreground;
+    if (isDone) {
+      background = AppColors.brandPrimary;
+      foreground = Colors.white;
+    } else if (isCurrent) {
+      background = AppColors.brandPrimary;
+      foreground = Colors.white;
+    } else {
+      background = AppColors.backgroundGrey;
+      foreground = AppColors.textSecondary;
+    }
+
+    final Widget child;
+    if (isDone) {
+      child = const Icon(Icons.check, size: 14, color: Colors.white);
+    } else if (isCurrent) {
+      child = const SizedBox(
+        width: 12,
+        height: 12,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        ),
+      );
+    } else {
+      child = Text(
+        '$index',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: foreground,
+        ),
+      );
+    }
+
+    return Container(
+      width: 26,
+      height: 26,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: background,
+        shape: BoxShape.circle,
+      ),
+      child: child,
+    );
   }
 }

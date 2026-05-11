@@ -3345,6 +3345,11 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
 
   void _manageBusiness(BusinessPresence p) {
     context.read<BusinessOwnerHomeCubit>().setSelectedPresenceId(p.id);
-    BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 0);
+    // Wait a frame so [BusinessOwnerNavigationWrapper] gate sees the updated
+    // [focusBusinessIdForOwnerTools] (fixes pending-message when managing an approved listing).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 0);
+    });
   }
 }

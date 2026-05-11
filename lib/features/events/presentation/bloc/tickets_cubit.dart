@@ -76,16 +76,17 @@ class TicketsCubit extends Cubit<TicketsState> {
 
       await Future<void>.delayed(Duration.zero);
 
-      final paid = await stripePaymentService.presentPaymentSheet(
+      final sheet = await stripePaymentService.presentPaymentSheet(
         paymentIntentClientSecret: session.clientSecret,
         customerId: session.customerId,
         customerEphemeralKeySecret: session.customerEphemeralKeySecret,
       );
-      if (!paid) {
+      if (!sheet.succeeded) {
         if (prev is TicketsLoaded) {
           emit(TicketsLoaded(tickets: prev.tickets, isUpcoming: upcoming));
         }
-        return null;
+        // User-cancelled: no toast. Real failure: surface the message.
+        return sheet.wasCancelled ? null : sheet.message;
       }
 
       final processResult = await processPaymentUseCase(
@@ -205,6 +206,9 @@ class TicketsCubit extends Cubit<TicketsState> {
   }
 
   /// Event tickets: Stripe PaymentSheet when configured; debug-only unpaid completion otherwise.
+  ///
+  /// Emits [OrderLoading] → [PaymentProcessing] (creatingOrder → securingPayment →
+  /// confirmingOrder) so the checkout UI can show a 3-step progress indicator.
   Future<void> performCheckout({
     required String eventId,
     required List<Map<String, dynamic>> tickets,
@@ -212,7 +216,7 @@ class TicketsCubit extends Cubit<TicketsState> {
     required Map<String, dynamic> paymentMethod,
     String? promoCode,
   }) async {
-    emit(OrderLoading());
+    emit(const OrderLoading(phase: PaymentPhase.creatingOrder));
 
     final orderResult = await createOrderUseCase(
       eventId: eventId,
@@ -229,74 +233,81 @@ class TicketsCubit extends Cubit<TicketsState> {
     );
     if (order == null) return;
 
-    emit(PaymentProcessing(order));
+    emit(PaymentProcessing(order, phase: PaymentPhase.securingPayment));
 
-    if (stripePaymentService.isConfigured) {
-      final fetch = await stripePaymentService.fetchPaymentSheetSession(order.id);
-      final session = fetch.session;
-      if (session == null || session.clientSecret.isEmpty) {
-        emit(PaymentFailed(
-          fetch.errorMessage ??
-              'Could not start card payment. Deploy the payment Edge Function and set '
-              'STRIPE_SECRET_KEY (sk_…) in Supabase secrets — not the publishable pk_ key.',
-          order: order,
-        ));
-        return;
-      }
-
-      // Let the frame finish so the Stripe sheet can present reliably (esp. Android).
-      await Future<void>.delayed(Duration.zero);
-
-      final paid = await stripePaymentService.presentPaymentSheet(
-        paymentIntentClientSecret: session.clientSecret,
-        customerId: session.customerId,
-        customerEphemeralKeySecret: session.customerEphemeralKeySecret,
-      );
-      if (!paid) {
-        emit(PaymentFailed('Payment was cancelled.', order: order));
-        return;
-      }
-
-      final processResult = await processPaymentUseCase(
-        orderId: order.id,
-        paymentMethod: {
-          ...paymentMethod,
-          'type': 'stripe',
-          'id': 'stripe_payment_sheet_v2',
-          'payment_intent_id': session.paymentIntentId,
-          'customer_id': session.customerId,
-        },
-        promoCode: promoCode,
-      );
-
-      processResult.fold(
-        (failure) => emit(PaymentFailed(failure.message, order: order)),
-        (completedOrder) {
-          if (completedOrder.status == events.OrderStatus.completed) {
-            emit(PaymentSuccess(completedOrder));
-          } else if (completedOrder.status == events.OrderStatus.processing ||
-              completedOrder.status == events.OrderStatus.pending) {
-            emit(PaymentFailed(
-              'Your payment went through. We’re confirming your order — check My Tickets in a moment.',
-              order: completedOrder,
-              awaitingConfirmation: true,
-            ));
-          } else {
-            emit(PaymentFailed(
-              completedOrder.status == events.OrderStatus.refunded
-                  ? 'Payment was refunded.'
-                  : 'Payment could not be processed',
-              order: completedOrder,
-            ));
-          }
-        },
-      );
+    if (!stripePaymentService.isConfigured) {
+      emit(PaymentFailed(
+        'Card payments are not configured. Set STRIPE_PUBLISHABLE_KEY and your payment backend.',
+        order: order,
+      ));
       return;
     }
 
-    emit(PaymentFailed(
-      'Card payments are not configured. Set STRIPE_PUBLISHABLE_KEY and your payment backend.',
-      order: order,
-    ));
+    final fetch = await stripePaymentService.fetchPaymentSheetSession(order.id);
+    final session = fetch.session;
+    if (session == null || session.clientSecret.isEmpty) {
+      emit(PaymentFailed(
+        fetch.errorMessage ??
+            'Could not start card payment. Deploy the payment Edge Function and set '
+            'STRIPE_SECRET_KEY (sk_…) in Supabase secrets — not the publishable pk_ key.',
+        order: order,
+      ));
+      return;
+    }
+
+    // Let the frame finish so the Stripe sheet can present reliably (esp. Android).
+    await Future<void>.delayed(Duration.zero);
+
+    final sheet = await stripePaymentService.presentPaymentSheet(
+      paymentIntentClientSecret: session.clientSecret,
+      customerId: session.customerId,
+      customerEphemeralKeySecret: session.customerEphemeralKeySecret,
+    );
+    if (!sheet.succeeded) {
+      emit(PaymentFailed(
+        sheet.wasCancelled
+            ? 'Payment was cancelled. Your card was not charged.'
+            : (sheet.message ?? 'Payment could not be completed.'),
+        order: order,
+      ));
+      return;
+    }
+
+    emit(PaymentProcessing(order, phase: PaymentPhase.confirmingOrder));
+
+    final processResult = await processPaymentUseCase(
+      orderId: order.id,
+      paymentMethod: {
+        ...paymentMethod,
+        'type': 'stripe',
+        'id': 'stripe_payment_sheet_v2',
+        'payment_intent_id': session.paymentIntentId,
+        'customer_id': session.customerId,
+      },
+      promoCode: promoCode,
+    );
+
+    processResult.fold(
+      (failure) => emit(PaymentFailed(failure.message, order: order)),
+      (completedOrder) {
+        if (completedOrder.status == events.OrderStatus.completed) {
+          emit(PaymentSuccess(completedOrder));
+        } else if (completedOrder.status == events.OrderStatus.processing ||
+            completedOrder.status == events.OrderStatus.pending) {
+          emit(PaymentFailed(
+            'Your payment went through. We’re confirming your order — check My Tickets in a moment.',
+            order: completedOrder,
+            awaitingConfirmation: true,
+          ));
+        } else {
+          emit(PaymentFailed(
+            completedOrder.status == events.OrderStatus.refunded
+                ? 'Payment was refunded.'
+                : 'Payment could not be processed',
+            order: completedOrder,
+          ));
+        }
+      },
+    );
   }
 }

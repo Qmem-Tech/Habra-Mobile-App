@@ -26,7 +26,16 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
   SupabaseClient get _client => Supabase.instance.client;
   static const double _serviceFeeRate = 0.05;
   static const Duration _paymentConfirmationMaxWait = Duration(seconds: 12);
-  static const Duration _paymentStatusPollInterval = Duration(milliseconds: 500);
+
+  /// Adaptive poll cadence after Payment Sheet succeeds.
+  /// Sync edge fn usually finalizes within ~200ms; webhook within 1-3s; cold
+  /// starts within ~6s. We poll fast at the start, then back off.
+  /// Each entry is (interval, attempts).
+  static const List<(Duration, int)> _paymentStatusPollSchedule = [
+    (Duration(milliseconds: 200), 5),
+    (Duration(milliseconds: 500), 10),
+    (Duration(milliseconds: 1000), 6),
+  ];
 
   static EventCategory _categoryFromString(String? s) {
     if (s == null || s.isEmpty) return EventCategory.all;
@@ -539,18 +548,41 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         }).eq('id', orderId);
       }
 
-      // Fast path: finalize from Stripe in Edge Function (same as webhook) without waiting for Stripe→Supabase webhook delivery.
+      // Fast path: finalize from Stripe in Edge Function (same as webhook) without
+      // waiting for Stripe→Supabase webhook delivery. When the function returns a
+      // definitive status, skip polling entirely — saves up to 12s on the happy path.
       try {
-        await _client.functions.invoke(
+        final syncRes = await _client.functions.invoke(
           AppConfig.stripeSyncOrderPaymentFunction,
           body: {'order_id': orderId},
         );
+        final data = syncRes.data;
+        if (data is Map) {
+          final reportedStatus = parseString(data['orderStatus']);
+          if (reportedStatus == 'completed' ||
+              reportedStatus == 'failed' ||
+              reportedStatus == 'cancelled' ||
+              reportedStatus == 'refunded') {
+            return await _fetchOrderModel(orderId);
+          }
+        }
       } catch (_) {
         // Webhook `stripe-event-webhook` can still complete the order.
       }
 
-      final deadline = DateTime.now().add(_paymentConfirmationMaxWait);
-      while (DateTime.now().isBefore(deadline)) {
+      final completion = await _pollOrderUntilTerminal(orderId);
+      return completion ?? await _fetchOrderModel(orderId);
+    });
+  }
+
+  /// Polls the order row using an adaptive backoff schedule.
+  /// Returns the [OrderModel] once the order is in a terminal state (completed
+  /// / failed / cancelled / refunded), or null if the overall deadline passed.
+  Future<OrderModel?> _pollOrderUntilTerminal(String orderId) async {
+    final deadline = DateTime.now().add(_paymentConfirmationMaxWait);
+    for (final (interval, attempts) in _paymentStatusPollSchedule) {
+      for (var i = 0; i < attempts; i++) {
+        if (DateTime.now().isAfter(deadline)) return null;
         final status = await _fetchOrderStatus(orderId);
         if (status == events_domain.OrderStatus.completed ||
             status == events_domain.OrderStatus.failed ||
@@ -558,13 +590,10 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
             status == events_domain.OrderStatus.refunded) {
           return await _fetchOrderModel(orderId);
         }
-        await Future<void>.delayed(_paymentStatusPollInterval);
+        await Future<void>.delayed(interval);
       }
-
-      // Do not throw: payment may have succeeded but webhook/DB is still catching up.
-      // Return latest order so the app can show a "confirming" experience instead of a raw error.
-      return await _fetchOrderModel(orderId);
-    });
+    }
+    return null;
   }
 
   @override

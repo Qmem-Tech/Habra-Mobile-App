@@ -227,7 +227,12 @@ All queries use the same Supabase client with the **anon** key. RLS policies tha
 ### 7.4 Content Moderation (Deals, Events, Jobs, Reviews)
 
 - **Deals**: List `supabase.from('deals').select('*, businesses(name)').order('updated_at', { ascending: false })`. Filter by status: draft, active, expired, inactive. Update: `.update({ status: 'inactive' }).eq('id', id)` to hide or deactivate.
-- **Events**: List `supabase.from('events').select('*').order('start_at', { ascending: false })`. Update: `.update({ is_active: false }).eq('id', id)` to hide.
+- **Events**: RLS grants admins **full CRUD** on `events` (`admin_events` policy). Same for `event_tickets` (`admin_event_tickets`).
+  - **List**: `supabase.from('events').select('*').order('start_at', { ascending: false })`.
+  - **Create**: `.insert({ ... })`. **Required:** `organizer_id` (UUID → `profiles.id`, usually the business owner creating the listing), `title`, **`start_at`**, **`end_at`** (timestamptz; these are your event dates). Optional/detail fields: `description`, `business_id`, `venue_name`, `venue_address`, `venue_lat`, `venue_lng`, `location_id`, `is_online`, `online_url`, `image_url`, `category`, `is_active`.
+  - **Edit date or details**: `.update({ title, description, start_at, end_at, venue_name, ... }).eq('id', id)`. Keep `start_at <= end_at` (app expectations).
+  - **Hide**: `.update({ is_active: false }).eq('id', id)`.
+  - **Tickets** (paid tiers): `supabase.from('event_tickets').insert({ event_id, name, price, quantity_available })` (and updates) after the parent event exists.
 - **Jobs**: List `supabase.from('jobs').select('*, businesses(name)').order('posted_at', { ascending: false })`. Update: `.update({ is_active: false }).eq('id', id)` (if column exists) or equivalent.
 - **Reviews**: List `supabase.from('reviews').select('*, businesses(name), profiles!user_id(full_name)').order('created_at', { ascending: false })`. Admin can update or delete if RLS allows; schema has `reviews_update_delete_own` for user, and `admin_reviews` for admin FOR ALL — so admin can update/delete. To “hide” a review you might add a `is_hidden` column and filter in app, or delete.
 

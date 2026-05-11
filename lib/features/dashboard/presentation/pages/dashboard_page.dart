@@ -417,6 +417,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         onEdit: (deal) => _navigateToCreateDeal(dealToEdit: deal),
                         onPause: (deal) => _onDealPauseResume(context, deal),
                         onStats: (_) => setState(() => _tabIndex = 0),
+                        onDelete: (deal) => _onDeleteDeal(context, deal),
                       );
                     case 2:
                       final tierJobs = _selectedListingTier(context);
@@ -436,6 +437,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         onCreateJob: () => _navigateToCreateJob(),
                         onViewApplicants: (job) => _navigateToApplicants(job),
                         onEditJob: (job) => _navigateToCreateJob(jobToEdit: job),
+                        onDeleteJob: (job) => _onDeleteJob(context, job),
                       );
                     case 3:
                       final tierEvents = _selectedListingTier(context);
@@ -583,6 +585,76 @@ class _DashboardPageState extends State<DashboardPage> {
     if (result == true && mounted) {
       _loadDashboard();
     }
+  }
+
+  Future<void> _onDeleteDeal(BuildContext context, DashboardDeal deal) async {
+    final dashboardCubit = context.read<DashboardCubit>();
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Deal'),
+        content: Text('Delete "${deal.title}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final ok = await dashboardCubit.deleteDeal(deal.id);
+    if (!mounted) return;
+    if (ok) {
+      await _loadDashboard();
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('Deal deleted')));
+      return;
+    }
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Could not delete deal. Try again.')),
+    );
+  }
+
+  Future<void> _onDeleteJob(BuildContext context, DashboardJob job) async {
+    final dashboardCubit = context.read<DashboardCubit>();
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Job'),
+        content: Text('Delete "${job.title}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final ok = await dashboardCubit.deleteJob(job.id);
+    if (!mounted) return;
+    if (ok) {
+      await _loadDashboard();
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('Job deleted')));
+      return;
+    }
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Could not delete job. Try again.')),
+    );
   }
 
   Future<void> _onDealPauseResume(BuildContext context, DashboardDeal deal) async {

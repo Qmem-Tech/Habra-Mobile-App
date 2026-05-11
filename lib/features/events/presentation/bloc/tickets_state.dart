@@ -51,7 +51,15 @@ class TicketsEmpty extends TicketsState {
 // Order States
 class OrderInitial extends TicketsState {}
 
-class OrderLoading extends TicketsState {}
+class OrderLoading extends TicketsState {
+  /// Step shown in checkout progress UI ([PaymentPhase.creatingOrder]).
+  final PaymentPhase phase;
+
+  const OrderLoading({this.phase = PaymentPhase.creatingOrder});
+
+  @override
+  List<Object?> get props => [phase];
+}
 
 class OrderCreated extends TicketsState {
   final events.Order order;
@@ -62,13 +70,27 @@ class OrderCreated extends TicketsState {
   List<Object?> get props => [order];
 }
 
+/// Phases shown in the checkout progress UI. Mapped to a 3-step indicator on
+/// CheckoutPage and a final-step confirmation banner.
+enum PaymentPhase {
+  /// Creating the order row in Supabase before fetching the Stripe client secret.
+  creatingOrder,
+
+  /// Stripe PaymentSheet is being prepared / presented.
+  securingPayment,
+
+  /// Sheet succeeded; waiting on Edge Function or webhook to flip status to completed.
+  confirmingOrder,
+}
+
 class PaymentProcessing extends TicketsState {
   final events.Order order;
+  final PaymentPhase phase;
 
-  const PaymentProcessing(this.order);
+  const PaymentProcessing(this.order, {this.phase = PaymentPhase.securingPayment});
 
   @override
-  List<Object?> get props => [order];
+  List<Object?> get props => [order, phase];
 }
 
 class PaymentSuccess extends TicketsState {

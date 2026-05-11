@@ -44,7 +44,7 @@ class _ExplorePageState extends State<ExplorePage> {
   @override
   void initState() {
     super.initState();
-    _currentLocation = widget.location ?? 'Washington, D.C.';
+    _currentLocation = widget.location;
     _loadListingCategories();
   }
 
@@ -78,15 +78,21 @@ class _ExplorePageState extends State<ExplorePage> {
     );
   }
 
+  static const _kUnsetLocation = 'Choose your location';
+
   String _resolvedLocationLabel(BuildContext context) {
     return SessionDeviceLocationCubit.tryLabel(context) ??
-        _currentLocation ??
-        'Washington, D.C.';
+        (_currentLocation?.trim().isNotEmpty == true
+            ? _currentLocation!
+            : _kUnsetLocation);
   }
 
   Future<void> _loadData(BuildContext context) async {
     if (!context.mounted) return;
-    final loc = _resolvedLocationLabel(context);
+    final sessionLoc = SessionDeviceLocationCubit.tryLabel(context);
+    final stored =
+        _currentLocation?.trim().isNotEmpty == true ? _currentLocation : null;
+    final loc = sessionLoc ?? stored;
     await context.read<BusinessesCubit>().loadBusinesses(
           location: loc,
           featuredOnly: false,
@@ -159,11 +165,12 @@ class _ExplorePageState extends State<ExplorePage> {
           create: (context) {
             final cubit = di.sl<BusinessesCubit>();
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              final loc = SessionDeviceLocationCubit.tryLabel(context) ??
-                  _currentLocation ??
-                  'Washington, D.C.';
+              final sessionLoc = SessionDeviceLocationCubit.tryLabel(context);
+              final stored = _currentLocation?.trim().isNotEmpty == true
+                  ? _currentLocation
+                  : null;
               cubit.loadBusinesses(
-                location: loc,
+                location: sessionLoc ?? stored,
                 featuredOnly: false,
               );
             });
@@ -174,10 +181,11 @@ class _ExplorePageState extends State<ExplorePage> {
           create: (context) {
             final cubit = di.sl<DealsCubit>();
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              final loc = SessionDeviceLocationCubit.tryLabel(context) ??
-                  _currentLocation ??
-                  'Washington, D.C.';
-              cubit.loadDeals(location: loc);
+              final sessionLoc = SessionDeviceLocationCubit.tryLabel(context);
+              final stored = _currentLocation?.trim().isNotEmpty == true
+                  ? _currentLocation
+                  : null;
+              cubit.loadDeals(location: sessionLoc ?? stored);
             });
             return cubit;
           },
