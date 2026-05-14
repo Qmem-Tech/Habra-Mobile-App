@@ -3,8 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/constants/business_media_limits.dart';
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_utils.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -27,14 +28,15 @@ class BusinessImagesUploadDialog extends StatefulWidget {
     this.initialLogoUrl,
     this.initialBackgroundUrl,
     this.initialGalleryUrls,
+    this.subscriptionTier = BusinessSubscriptionTier.basic,
   });
 
   final String businessId;
   final String businessName;
   final String? initialLogoUrl;
   final String? initialBackgroundUrl;
-  /// Existing gallery URLs to keep; new picks are appended (capped at [BusinessMediaLimits.maxGalleryImages]).
   final List<String>? initialGalleryUrls;
+  final BusinessSubscriptionTier subscriptionTier;
 
   @override
   State<BusinessImagesUploadDialog> createState() =>
@@ -45,6 +47,9 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
   File? _logoFile;
   File? _backgroundFile;
   List<File> _galleryFiles = [];
+
+  int get _maxGallery =>
+      BusinessSubscriptionPolicy.maxGalleryImages(widget.subscriptionTier);
 
   String? get _logoUrl => widget.initialLogoUrl;
   String? get _backgroundUrl => widget.initialBackgroundUrl;
@@ -74,13 +79,12 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
   int get _existingGalleryCount => widget.initialGalleryUrls?.length ?? 0;
 
   Future<void> _pickGalleryImage() async {
-    if (_existingGalleryCount + _galleryFiles.length >=
-        BusinessMediaLimits.maxGalleryImages) {
+    if (_existingGalleryCount + _galleryFiles.length >= _maxGallery) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'You can have up to ${BusinessMediaLimits.maxGalleryImages} gallery photos in total.',
+            'You can have up to $_maxGallery gallery photos on your current plan.',
           ),
         ),
       );
@@ -154,8 +158,8 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
         );
         final existing = widget.initialGalleryUrls ?? const <String>[];
         final merged = [...existing, ...urls];
-        data['image_urls'] = merged.length > BusinessMediaLimits.maxGalleryImages
-            ? merged.sublist(0, BusinessMediaLimits.maxGalleryImages)
+        data['image_urls'] = merged.length > _maxGallery
+            ? merged.sublist(0, _maxGallery)
             : merged;
       }
 
@@ -221,7 +225,7 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
                 const SizedBox(height: 8),
                 Text(
                   'Logo and background are required for ${widget.businessName}. '
-                  'Optional: up to ${BusinessMediaLimits.maxGalleryImages} gallery photos total '
+                  'Optional: up to $_maxGallery gallery photos total '
                   '${_existingGalleryCount > 0 ? '($_existingGalleryCount already saved) ' : ''}'
                   '(new ones are added). Max 5 MB per file.',
                   style: TextStyle(
@@ -402,7 +406,7 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
               ),
             ),
             Text(
-              ' (Optional, max ${BusinessMediaLimits.maxGalleryImages})',
+              ' (Optional, max $_maxGallery)',
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.textTertiary,

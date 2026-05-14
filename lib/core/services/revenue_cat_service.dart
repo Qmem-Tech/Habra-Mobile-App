@@ -82,23 +82,95 @@ class RevenueCatService {
   }
 
   /// Purchase a package. Returns true if successful.
+  ///
+  /// After a successful StoreKit transaction, RevenueCat's server can take a
+  /// few seconds to process the receipt and activate the entitlement. This
+  /// method retries [_maxEntitlementRetries] times with a short delay so the
+  /// caller doesn't see a false "Purchase incomplete" on a valid purchase.
+  static const int _maxEntitlementRetries = 4;
+  static const Duration _entitlementRetryDelay = Duration(seconds: 2);
+
   Future<bool> purchasePackage(Package package) async {
     if (!_initialized) return false;
     try {
-      final purchaserInfo = await Purchases.purchasePackage(package);
-      return purchaserInfo.entitlements.active.isNotEmpty;
+      await Purchases.purchasePackage(package);
     } catch (e) {
       debugPrint('RevenueCat purchase error: $e');
       return false;
     }
+
+    // Sync once to push the new receipt to RC's server.
+    try {
+      await Purchases.syncPurchases();
+    } catch (_) {}
+
+    // Retry fetching CustomerInfo until the entitlement becomes active or we
+    // exhaust retries — handles RC server processing delay (common in Sandbox).
+    for (int attempt = 1; attempt <= _maxEntitlementRetries; attempt++) {
+      try {
+        final info = await Purchases.getCustomerInfo();
+        debugPrint(
+          '[RC] purchasePackage attempt $attempt — '
+          'activeSubscriptions: ${info.activeSubscriptions}, '
+          'activeEntitlements: ${info.entitlements.active.keys.toList()}',
+        );
+        if (info.entitlements.active.isNotEmpty) return true;
+        // Also treat an active subscription as success even if the entitlement
+        // map lags — prevents false "Purchase incomplete" in Sandbox.
+        if (info.activeSubscriptions.isNotEmpty) return true;
+      } catch (e) {
+        debugPrint('[RC] getCustomerInfo error on attempt $attempt: $e');
+      }
+      if (attempt < _maxEntitlementRetries) {
+        await Future.delayed(_entitlementRetryDelay);
+        try {
+          await Purchases.syncPurchases();
+        } catch (_) {}
+      }
+    }
+    return false;
   }
 
+  /// Business subscription product IDs — used as fallback when RevenueCat's
+  /// entitlement map lags behind or has a product-ID suffix mismatch.
+  static const _businessProductIds = {
+    'habra_standard_monthly',
+    'habra_standard_yearly',
+    'habra_premium_monthly',
+    'habra_premium_yearly',
+  };
+
   /// Check if user has active entitlement (e.g. for premium features).
-  Future<bool> hasEntitlement(String entitlementId) async {
+  ///
+  /// Pass [forceRefresh] = true to bypass the SDK cache and fetch directly
+  /// from RevenueCat's server (use after a purchase or restore).
+  Future<bool> hasEntitlement(String entitlementId,
+      {bool forceRefresh = false}) async {
     if (!_initialized) return false;
     try {
-      final purchaserInfo = await Purchases.getCustomerInfo();
-      return purchaserInfo.entitlements.all[entitlementId]?.isActive ?? false;
+      if (forceRefresh) {
+        try {
+          await Purchases.syncPurchases();
+        } catch (_) {}
+      }
+      final info = await Purchases.getCustomerInfo();
+      debugPrint(
+        '[RC] hasEntitlement("$entitlementId") — '
+        'active: ${info.entitlements.all[entitlementId]?.isActive}, '
+        'activeSubscriptions: ${info.activeSubscriptions}',
+      );
+      if (info.entitlements.all[entitlementId]?.isActive == true) return true;
+      // Fallback: RC sometimes lags granting entitlements, or the active
+      // subscription ID has a store-specific suffix (e.g. :habra-standard-monthly-base)
+      // that doesn't match the bare product ID attached to the entitlement.
+      // Check whether any known business subscription product is active.
+      if (info.activeSubscriptions.any(
+        (id) => _businessProductIds.any((p) => id.contains(p)),
+      )) {
+        debugPrint('[RC] hasEntitlement fallback: granted via activeSubscriptions');
+        return true;
+      }
+      return false;
     } catch (e) {
       debugPrint('RevenueCat hasEntitlement error: $e');
       return false;
@@ -291,14 +363,17 @@ class RevenueCatService {
     if (!_initialized) return BusinessSubscriptionTier.basic;
     try {
       final info = await Purchases.getCustomerInfo();
-      final ids = <String>[
-        ...info.activeSubscriptions,
-        ...info.entitlements.active.keys,
-      ].map((e) => e.toLowerCase()).toList();
-      if (ids.any((e) => e.contains('premium'))) {
+      // Use only activeSubscriptions (product IDs) — not entitlement keys,
+      // which can contain words like "production" that falsely match "pro".
+      final productIds = info.activeSubscriptions
+          .map((e) => e.toLowerCase())
+          .toList();
+      debugPrint('[RC] resolveCurrentTier — productIds: $productIds');
+      if (productIds.any((e) => e.contains('premium'))) {
         return BusinessSubscriptionTier.premium;
       }
-      if (ids.any((e) => e.contains('pro'))) {
+      // habra_standard_* products map to the mid (pro) tier.
+      if (productIds.any((e) => e.contains('standard'))) {
         return BusinessSubscriptionTier.pro;
       }
       return BusinessSubscriptionTier.basic;

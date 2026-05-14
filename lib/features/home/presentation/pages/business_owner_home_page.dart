@@ -186,6 +186,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   initialLogoUrl: selected.logoUrl,
                   initialBackgroundUrl: selected.backgroundUrl,
                   initialGalleryUrls: selected.imageUrls,
+                  subscriptionTier: selected.subscriptionTier,
                 ),
               ),
             );

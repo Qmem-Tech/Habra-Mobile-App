@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User, LocalStorage;
+import '../../../../core/config/business_subscription_config.dart';
 import '../../../../core/constants/storage_keys.dart';
+import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/services/revenue_cat_service.dart';
 import '../../../../core/storage/local_storage.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../auth/domain/entities/user.dart';
@@ -61,6 +66,9 @@ class _BusinessOwnerWrapperPageState extends State<BusinessOwnerWrapperPage> {
     try {
       final repo = di.sl<DashboardRepository>();
       final list = await repo.getOwnerBusinesses(widget.user.id);
+      // Sync RC subscription state to Supabase BEFORE showing the main shell so
+      // the home cubit loads with the already-updated subscription_tier.
+      await _syncSubscriptionToDB();
       if (!mounted) return;
       setState(() {
         _hasAtLeastOneBusiness = list.isNotEmpty;
@@ -73,6 +81,34 @@ class _BusinessOwnerWrapperPageState extends State<BusinessOwnerWrapperPage> {
         _hasAtLeastOneBusiness = true;
         _isCheckingBusinesses = false;
       });
+    }
+  }
+
+  /// Reads the RevenueCat subscription state and, when active, writes the
+  /// resolved tier back to the `businesses` row so the home UI reflects the
+  /// correct plan without needing a webhook.
+  Future<void> _syncSubscriptionToDB({bool forceRefresh = false}) async {
+    if (BusinessSubscriptionConfig.mode != BusinessOwnerSubscriptionMode.revenuecat) {
+      return;
+    }
+    try {
+      final rc = di.sl<RevenueCatService>();
+      if (!rc.isInitialized) return;
+      final active = await rc.hasEntitlement(
+        BusinessSubscriptionConfig.revenueCatEntitlementId,
+        forceRefresh: forceRefresh,
+      );
+      if (!active) return;
+      final tier = await rc.resolveCurrentTier();
+      final tierStr =
+          tier == BusinessSubscriptionTier.premium ? 'premium' : 'pro';
+      await Supabase.instance.client
+          .from(SupabaseTables.businesses)
+          .update({'subscription_tier': tierStr})
+          .eq('owner_id', widget.user.id);
+      debugPrint('[Sync] subscription_tier=$tierStr written for ${widget.user.id}');
+    } catch (e) {
+      debugPrint('[Sync] Failed to sync subscription to DB: $e');
     }
   }
 

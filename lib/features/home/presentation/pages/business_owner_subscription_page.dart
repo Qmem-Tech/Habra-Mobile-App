@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/config/business_subscription_config.dart';
+import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/services/revenue_cat_service.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
@@ -12,6 +15,7 @@ import '../../../../core/widgets/error_display_helper.dart';
 import '../../../../core/widgets/loader_helper.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
+import '../bloc/business_owner_home_cubit.dart';
 import '../bloc/business_owner_subscription_cubit.dart';
 
 class _LocalPlanConfig {
@@ -141,6 +145,27 @@ class _BusinessOwnerSubscriptionPageState
   List<Package> get _packagesForActiveBillingTab =>
       _billingPeriodTab == 0 ? _monthlyPackages : _yearlyPackages;
 
+  /// Writes the active RC subscription tier to Supabase and re-fetches the
+  /// home cubit so the home page reflects the new plan immediately.
+  Future<void> _syncAndReload(BuildContext ctx) async {
+    try {
+      final tier = await di.sl<RevenueCatService>().resolveCurrentTier();
+      final tierStr =
+          tier == BusinessSubscriptionTier.premium ? 'premium' : 'pro';
+      await Supabase.instance.client
+          .from(SupabaseTables.businesses)
+          .update({'subscription_tier': tierStr})
+          .eq('owner_id', widget.user.id);
+      debugPrint('[Sync] post-purchase: tier=$tierStr for ${widget.user.id}');
+      if (!ctx.mounted) return;
+      ctx
+          .read<BusinessOwnerHomeCubit>()
+          .loadOwnerHome(ownerId: widget.user.id);
+    } catch (e) {
+      debugPrint('[Sync] post-purchase sync failed: $e');
+    }
+  }
+
   Future<void> _onPurchase(Package package) async {
     if (_purchasing) return;
     setState(() => _purchasing = true);
@@ -152,10 +177,12 @@ class _BusinessOwnerSubscriptionPageState
       await LoaderHelper.hide(ctx);
       if (!ctx.mounted) return;
       if (ok) {
-        await ctx.read<BusinessOwnerSubscriptionCubit>().refresh(widget.user.id);
+        await ctx.read<BusinessOwnerSubscriptionCubit>().refresh(widget.user.id, forceRefresh: true);
         if (!ctx.mounted) return;
         if (ctx.read<BusinessOwnerSubscriptionCubit>().state
             .hasActiveSubscription) {
+          await _syncAndReload(ctx);
+          if (!ctx.mounted) return;
           Navigator.of(ctx).pop(true);
           return;
         }
@@ -188,10 +215,12 @@ class _BusinessOwnerSubscriptionPageState
       if (!ctx.mounted) return;
       await LoaderHelper.hide(ctx);
       if (!ctx.mounted) return;
-      await ctx.read<BusinessOwnerSubscriptionCubit>().refresh(widget.user.id);
+      await ctx.read<BusinessOwnerSubscriptionCubit>().refresh(widget.user.id, forceRefresh: true);
       if (!ctx.mounted) return;
       if (ctx.read<BusinessOwnerSubscriptionCubit>().state
           .hasActiveSubscription) {
+        await _syncAndReload(ctx);
+        if (!ctx.mounted) return;
         Navigator.of(ctx).pop(true);
       } else {
         ScaffoldMessenger.of(ctx).showSnackBar(
@@ -407,7 +436,7 @@ class _BusinessOwnerSubscriptionPageState
           }
           if (subState.hasActiveSubscription ||
               BusinessSubscriptionConfig.mode == BusinessOwnerSubscriptionMode.off) {
-            return _buildActiveBody();
+            return _buildActiveBody(subState.currentTier);
           }
           return _buildRevenueCatBody(subState.currentTier);
         },
@@ -780,46 +809,233 @@ class _BusinessOwnerSubscriptionPageState
     );
   }
 
-  Widget _buildActiveBody() {
-    final message = BusinessSubscriptionConfig.mode ==
-            BusinessOwnerSubscriptionMode.off
-        ? 'Subscription gating is turned off for this build.'
-        : 'You can use the Dashboard tab. Manage or cancel your plan from your App Store or Google Play subscriptions.';
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppResources.spacingL),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.verified_rounded,
-                size: 72, color: AppColors.brandSecondary),
-            const SizedBox(height: 20),
-            const Text(
-              'Business tools are active',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+  Widget _buildActiveBody(BusinessSubscriptionTier currentTier) {
+    if (BusinessSubscriptionConfig.mode == BusinessOwnerSubscriptionMode.off) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppResources.spacingL),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.verified_rounded,
+                  size: 64, color: AppColors.brandSecondary),
+              const SizedBox(height: 20),
+              const Text(
+                'Business tools are active',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary),
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: AppColors.textSecondary,
-                height: 1.4,
+              const SizedBox(height: 8),
+              Text(
+                'Subscription gating is turned off for this build.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    height: 1.4),
               ),
-            ),
-            const SizedBox(height: 28),
-            AppButton(
-              text: 'Done',
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
+              const SizedBox(height: 28),
+              AppButton(
+                  text: 'Done', onPressed: () => Navigator.pop(context)),
+            ],
+          ),
         ),
+      );
+    }
+
+    final isPremium = currentTier == BusinessSubscriptionTier.premium;
+    final planName = isPremium ? 'Premium' : 'Standard';
+    final planIcon =
+        isPremium ? Icons.workspace_premium_rounded : Icons.stars_rounded;
+    final planColor =
+        isPremium ? const Color(0xFFB8860B) : AppColors.brandPrimary;
+    final features = _curatedBulletsForTier(currentTier);
+
+    // Find the package for upgrade / downgrade
+    Package? upgradePackage;
+    Package? downgradePackage;
+    if (!isPremium) {
+      upgradePackage = _packages.where((p) {
+        final id = p.storeProduct.identifier.toLowerCase();
+        final isSamePeriod = _billingPeriodTab == 0
+            ? !_packageIsYearly(p)
+            : _packageIsYearly(p);
+        return id.contains('premium') && isSamePeriod;
+      }).firstOrNull;
+      upgradePackage ??= _packages
+          .where((p) => p.storeProduct.identifier.toLowerCase().contains('premium'))
+          .firstOrNull;
+    } else {
+      downgradePackage = _packages.where((p) {
+        final id = p.storeProduct.identifier.toLowerCase();
+        final isSamePeriod = _billingPeriodTab == 0
+            ? !_packageIsYearly(p)
+            : _packageIsYearly(p);
+        return id.contains('standard') && isSamePeriod;
+      }).firstOrNull;
+      downgradePackage ??= _packages
+          .where((p) => p.storeProduct.identifier.toLowerCase().contains('standard'))
+          .firstOrNull;
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppResources.spacingM, vertical: AppResources.spacingM),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // — Plan card —
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: planColor.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: planColor.withOpacity(0.3), width: 1.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(planIcon, color: planColor, size: 28),
+                    const SizedBox(width: 10),
+                    Text(
+                      '$planName Plan',
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: planColor,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Active',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ...features.map(
+                  (f) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.check_circle_rounded,
+                            size: 17, color: planColor),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(f,
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                  height: 1.4)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // — Upgrade action —
+          if (!isPremium && upgradePackage != null) ...[
+            Text(
+              'Want more?',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 8),
+            AppButton(
+              text: _purchasing
+                  ? 'Processing…'
+                  : 'Upgrade to Premium — ${upgradePackage.storeProduct.priceString}',
+              onPressed: _purchasing ? null : () => _onPurchase(upgradePackage!),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // — Downgrade action —
+          if (isPremium && downgradePackage != null) ...[
+            Text(
+              'Want to switch?',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed:
+                  _purchasing ? null : () => _onPurchase(downgradePackage!),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.brandPrimary,
+                side: BorderSide(color: AppColors.brandPrimary),
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(
+                _purchasing
+                    ? 'Processing…'
+                    : 'Switch to Standard — ${downgradePackage.storeProduct.priceString}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          const Divider(),
+          const SizedBox(height: 12),
+
+          // — Manage / Cancel —
+          Text(
+            'Manage subscription',
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'To cancel or manage billing, go to Settings → [your name] → Subscriptions on your iPhone.',
+            style: TextStyle(
+                fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+          ),
+          const SizedBox(height: 10),
+          TextButton.icon(
+            onPressed: () => launchUrl(
+              Uri.parse('https://apps.apple.com/account/subscriptions'),
+              mode: LaunchMode.externalApplication,
+            ),
+            icon: const Icon(Icons.open_in_new_rounded, size: 16),
+            label: const Text('Open App Store subscriptions'),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Done'),
+          ),
+          const SizedBox(height: 12),
+        ],
       ),
     );
   }

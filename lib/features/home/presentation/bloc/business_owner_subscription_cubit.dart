@@ -45,9 +45,9 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
 
   final RevenueCatService _revenueCat;
 
-  Future<void> refresh(String userId) async {
+  Future<void> refresh(String userId, {bool forceRefresh = false}) async {
     emit(state.copyWith(isLoading: true));
-    final (active, tier) = await _resolveState(userId);
+    final (active, tier) = await _resolveState(userId, forceRefresh: forceRefresh);
     emit(BusinessOwnerSubscriptionState(
       isLoading: false,
       hasActiveSubscription: active,
@@ -55,7 +55,8 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
     ));
   }
 
-  Future<(bool, BusinessSubscriptionTier)> _resolveState(String userId) async {
+  Future<(bool, BusinessSubscriptionTier)> _resolveState(String userId,
+      {bool forceRefresh = false}) async {
     switch (BusinessSubscriptionConfig.mode) {
       case BusinessOwnerSubscriptionMode.off:
         return (true, BusinessSubscriptionTier.premium);
@@ -67,6 +68,7 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
         }
         final active = await _revenueCat.hasEntitlement(
           BusinessSubscriptionConfig.revenueCatEntitlementId,
+          forceRefresh: forceRefresh,
         );
         if (!active) return (false, BusinessSubscriptionTier.basic);
         final tier = await _revenueCat.resolveCurrentTier();

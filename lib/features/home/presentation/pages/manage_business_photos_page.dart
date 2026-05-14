@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/constants/business_media_limits.dart';
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -78,6 +78,9 @@ class _ManageBusinessPhotosPageState extends State<ManageBusinessPhotosPage> {
 
   int get _galleryTotal => _galleryUrls.length + _newGalleryFiles.length;
 
+  int get _maxGallery =>
+      BusinessSubscriptionPolicy.maxGalleryImages(widget.business.subscriptionTier);
+
   bool get _dirty {
     if (_logoFile != null || _coverFile != null) return true;
     if (!listEquals(_galleryUrls, _initialGalleryUrls)) return true;
@@ -102,12 +105,12 @@ class _ManageBusinessPhotosPageState extends State<ManageBusinessPhotosPage> {
   }
 
   Future<void> _pickGalleryImage() async {
-    if (_galleryTotal >= BusinessMediaLimits.maxGalleryImages) {
+    if (_galleryTotal >= _maxGallery) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'You can have up to ${BusinessMediaLimits.maxGalleryImages} gallery photos.',
+            'You can have up to $_maxGallery gallery photos on your current plan.',
           ),
         ),
       );
@@ -206,9 +209,8 @@ class _ManageBusinessPhotosPageState extends State<ManageBusinessPhotosPage> {
         );
         mergedGallery = [...mergedGallery, ...uploaded];
       }
-      if (mergedGallery.length > BusinessMediaLimits.maxGalleryImages) {
-        mergedGallery =
-            mergedGallery.sublist(0, BusinessMediaLimits.maxGalleryImages);
+      if (mergedGallery.length > _maxGallery) {
+        mergedGallery = mergedGallery.sublist(0, _maxGallery);
       }
 
       final data = <String, dynamic>{
@@ -364,8 +366,7 @@ class _ManageBusinessPhotosPageState extends State<ManageBusinessPhotosPage> {
                 onAddTap: _pickGalleryImage,
                 onRemoveSaved: _removeSavedGallery,
                 onRemoveNew: _removeNewGallery,
-                atGalleryLimit:
-                    _galleryTotal >= BusinessMediaLimits.maxGalleryImages,
+                atGalleryLimit: _galleryTotal >= _maxGallery,
               ),
               if (_visibleGalleryThumbs < _galleryTotal) ...[
                 const SizedBox(height: AppResources.spacingM),

@@ -70,4 +70,17 @@ class BusinessSubscriptionPolicy {
         return 2;
     }
   }
+
+  /// Gallery photo limit per listing.
+  /// Basic = 3, Standard (Pro) = 8, Premium = 15.
+  static int maxGalleryImages(BusinessSubscriptionTier tier) {
+    switch (tier) {
+      case BusinessSubscriptionTier.basic:
+        return 3;
+      case BusinessSubscriptionTier.pro:
+        return 8;
+      case BusinessSubscriptionTier.premium:
+        return 15;
+    }
+  }
 }
