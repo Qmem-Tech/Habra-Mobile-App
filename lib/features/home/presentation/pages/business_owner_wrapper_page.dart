@@ -17,7 +17,7 @@ import 'business_owner_first_listing_page.dart';
 import 'business_owner_onboarding_page.dart';
 
 /// Wraps business owner flow: intro onboarding, then either the empty-listing shell
-/// or cubits + bottom nav (Home, Dash, Boosts, Profile).
+/// or cubits + bottom nav (Home, Dash, Profile).
 class BusinessOwnerWrapperPage extends StatefulWidget {
   final User user;
 

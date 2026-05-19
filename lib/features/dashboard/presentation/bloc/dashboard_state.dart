@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/applicant_detail.dart';
-import '../../domain/entities/boost_plan.dart';
 import '../../domain/entities/business_review.dart';
 import '../../domain/entities/dashboard_analytics.dart';
 import '../../domain/entities/dashboard_deal.dart';
@@ -137,18 +136,6 @@ class ApplicantDetailError extends DashboardState {
 
   @override
   List<Object?> get props => [message];
-}
-
-class BoostPlansLoading extends DashboardState {}
-
-class BoostPlansLoaded extends DashboardState {
-  final List<BoostPlan> plans;
-  final int selectedIndex;
-
-  const BoostPlansLoaded(this.plans, {this.selectedIndex = 1});
-
-  @override
-  List<Object?> get props => [plans, selectedIndex];
 }
 
 class DashboardError extends DashboardState {

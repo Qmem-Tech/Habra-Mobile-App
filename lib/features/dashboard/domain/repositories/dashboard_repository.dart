@@ -2,7 +2,6 @@ import '../../../../core/models/legal_document_upload_result.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../entities/applicant_detail.dart';
 import '../entities/business_legal_document.dart';
-import '../entities/boost_plan.dart';
 import '../entities/business_review.dart';
 import '../entities/dashboard_analytics.dart';
 import '../entities/dashboard_deal.dart';
@@ -15,9 +14,7 @@ abstract class DashboardRepository {
   Future<List<BusinessPresence>> getOwnerBusinesses(String ownerId);
   Future<DashboardAnalytics?> getAnalytics(String businessId);
   Future<List<DashboardDeal>> getDeals(String businessId, {DashboardDealStatus? status});
-  Future<List<DashboardDeal>> getActiveDealsForCurrentOwner();
   Future<List<DashboardJob>> getJobs(String businessId);
-  Future<List<DashboardJob>> getOpenJobsForCurrentOwner();
   Future<RatingOverview?> getReviewsOverview(String businessId);
   Future<List<BusinessReview>> getReviews(String businessId);
   Future<List<JobApplicant>> getApplicants(String jobId, {ApplicantStatus? status});
@@ -28,7 +25,6 @@ abstract class DashboardRepository {
     String jobId,
     String status,
   );
-  Future<List<BoostPlan>> getBoostPlans(String targetType);
   Future<DashboardDeal> createDeal(String businessId, Map<String, dynamic> data);
   Future<DashboardDeal> updateDeal(String dealId, Map<String, dynamic> data);
   Future<void> updateDealStatus(String dealId, DashboardDealStatus status);

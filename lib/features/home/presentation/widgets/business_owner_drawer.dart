@@ -19,15 +19,12 @@ class BusinessOwnerDrawer extends StatelessWidget {
   final VoidCallback? onViewPublicListingTap;
   final VoidCallback? onBusinessPhotosTap;
   final VoidCallback? onUpdateHoursTap;
-  final VoidCallback? onBoostListingTap;
   final VoidCallback? onCreateEventTap;
   final VoidCallback? onSettingsTap;
-  /// When false (no businesses yet), hides Dashboard, edit, hours, and Boosts.
+  /// When false (no businesses yet), hides Dashboard, edit, and hours.
   final bool showBusinessToolsMenu;
   /// When false, hides Dashboard (e.g. listing not yet approved).
   final bool showDashboardMenuItem;
-  /// When false, hides Boosts (e.g. legal docs rejected).
-  final bool showBoostsMenuItem;
 
   const BusinessOwnerDrawer({
     super.key,
@@ -42,12 +39,10 @@ class BusinessOwnerDrawer extends StatelessWidget {
     this.onViewPublicListingTap,
     this.onBusinessPhotosTap,
     this.onUpdateHoursTap,
-    this.onBoostListingTap,
     this.onCreateEventTap,
     this.onSettingsTap,
     this.showBusinessToolsMenu = true,
     this.showDashboardMenuItem = true,
-    this.showBoostsMenuItem = true,
   });
 
   @override
@@ -267,17 +262,6 @@ class BusinessOwnerDrawer extends StatelessWidget {
             onTap: () {
               Navigator.pop(context);
               onCreateEventTap!();
-            },
-          ),
-        if (showBoostsMenuItem)
-          _DrawerMenuItemData(
-            icon: Icons.rocket_launch_outlined,
-            activeIcon: Icons.rocket_launch,
-            title: 'Boost Listing',
-            iconColor: AppColors.brandPrimary,
-            onTap: () {
-              Navigator.pop(context);
-              onBoostListingTap?.call();
             },
           ),
       ],

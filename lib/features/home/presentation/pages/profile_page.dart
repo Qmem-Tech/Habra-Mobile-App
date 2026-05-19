@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:habra_mobile_app/l10n/app_localizations.dart';
 
-import '../../../../core/constants/boost_plan_target.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -11,7 +10,6 @@ import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../explore/presentation/pages/business_detail_page.dart';
-import '../../../dashboard/presentation/pages/boost_listing_page.dart';
 import '../../../dashboard/presentation/pages/edit_business_details_page.dart';
 import '../../../dashboard/presentation/pages/operating_hours_page.dart';
 import '../../domain/entities/business_presence.dart';
@@ -351,40 +349,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                 onTap: realCount == 0
                                     ? () {}
                                     : () => _openMyBusinesses(homeState),
-                              ),
-                              const _OwnerSectionHeader(title: 'Boost Your Business'),
-                              _OwnerMenuTile(
-                                icon: Icons.auto_awesome_outlined,
-                                title: 'Boost My Listing',
-                                subtitle: 'Get featured & more views',
-                                onTap: () {
-                                  if (focus == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Choose a business from the header first, or add a listing under My Businesses.',
-                                        ),
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                  _afterOwnerToolRoute(
-                                    Navigator.push<void>(
-                                      context,
-                                      MaterialPageRoute<void>(
-                                        builder: (_) => BlocProvider.value(
-                                          value: context.read<DashboardCubit>(),
-                                          child: BoostListingPage(
-                                            boostType:
-                                                BoostPlanTarget.businessListing,
-                                            selectedId: focus.id,
-                                            selectedTitle: focus.displayName,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
                               ),
                               if (focus != null) ...[
                                 _OwnerSectionHeader(

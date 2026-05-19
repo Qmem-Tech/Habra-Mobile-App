@@ -317,7 +317,7 @@ class _BusinessOwnerSubscriptionPageState
           'Up to 15 gallery photos per listing',
           'Rich analytics: see who finds you and what drives calls and visits',
           'Unlimited active deals, events, and job posts',
-          'Boosts and promos to reach more Habra customers when it matters',
+          'Deals, events, and jobs to reach more Habra customers when it matters',
         ];
       case BusinessSubscriptionTier.pro:
         return const [

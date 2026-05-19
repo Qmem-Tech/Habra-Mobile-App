@@ -24,10 +24,6 @@ class BusinessSubscriptionPolicy {
   static bool canPostDealsEventsJobs(BusinessSubscriptionTier tier) =>
       !isFreeListingOnlyTier(tier);
 
-  /// Deal and job boosts use the same tier rule as posting those entities.
-  static bool canBoostDealsOrJobs(BusinessSubscriptionTier tier) =>
-      canPostDealsEventsJobs(tier);
-
   static bool canAccessAnalytics(BusinessSubscriptionTier tier) =>
       tier != BusinessSubscriptionTier.basic;
 

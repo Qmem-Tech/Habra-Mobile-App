@@ -9,8 +9,6 @@ import '../../features/home/presentation/pages/business_owner_home_page.dart';
 import '../../features/home/presentation/bloc/business_owner_subscription_cubit.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/dashboard/presentation/pages/business_legal_documents_detail_page.dart';
-import '../../features/boosts/presentation/bloc/boosts_cubit.dart';
-import '../../features/boosts/presentation/pages/boosts_page.dart';
 import '../../features/auth/domain/entities/user.dart';
 import '../../features/dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../features/home/domain/entities/business_presence.dart';
@@ -24,12 +22,10 @@ import '../subscription/subscription_logger.dart';
 ///
 /// **Product rules**
 /// - **Home** and **Profile** are always reachable.
-/// - **Dashboard** uses the same focus listing as the dashboard APIs ([BusinessOwnerHomeLoaded.focusBusinessIdForOwnerTools]): that location must be `approved` and have no rejected legal row. Other locations do not block Dash for the selected one.
-/// - **Boosts** uses the same focus listing for legal checks; listing may be pending/rejected so owners can still open Boosts. Blocked when there are no listings or the focus location has a rejected legal doc.
+/// - **Dashboard** uses the same focus listing as the dashboard APIs ([BusinessOwnerHomeLoaded.focusBusinessIdForOwnerTools]): that location must be `approved` and have no rejected legal row.
 class BusinessOwnerNavToolsSnapshot {
   const BusinessOwnerNavToolsSnapshot({
     required this.dashboardEnabled,
-    required this.boostsEnabled,
     required this.gateEvaluated,
     this.userMessage,
     this.primaryBlockedBusinessId,
@@ -38,7 +34,6 @@ class BusinessOwnerNavToolsSnapshot {
   });
 
   final bool dashboardEnabled;
-  final bool boostsEnabled;
   /// False until the first gate computation finishes (UI may treat as “unknown”).
   final bool gateEvaluated;
   final String? userMessage;
@@ -48,7 +43,7 @@ class BusinessOwnerNavToolsSnapshot {
   final bool showLegalDocumentsSnackAction;
 }
 
-/// Bottom nav for business owner: Home, Dash, Boosts, Profile.
+/// Bottom nav for business owner: Home, Dash, Profile.
 class BusinessOwnerNavigationWrapper extends StatefulWidget {
   final User user;
   final int initialIndex;
@@ -99,12 +94,6 @@ class BusinessOwnerNavigationWrapper extends StatefulWidget {
     return s.dashboardEnabled;
   }
 
-  static bool drawerShowBoostsMenu(BuildContext context) {
-    final s = toolsSnapshotOf(context);
-    if (s == null || !s.gateEvaluated) return true;
-    return s.boostsEnabled;
-  }
-
   /// Opens business-owner subscription / paywall (requires [BusinessOwnerSubscriptionCubit] above context).
   ///
   /// Returns `true` when the user subscribed or restored successfully.
@@ -151,8 +140,9 @@ class _BusinessOwnerNavigationWrapperState
     subscriptionLog(
       'BusinessOwnerNavigationWrapper init — userId=${widget.user.id} tab=${widget.initialIndex}',
     );
-    _currentIndex = widget.initialIndex;
-    _pageController = PageController(initialPage: widget.initialIndex);
+    final maxIndex = 2;
+    _currentIndex = widget.initialIndex.clamp(0, maxIndex);
+    _pageController = PageController(initialPage: _currentIndex);
     di.sl<PushNotificationService>().registerTokenForUser(widget.user.id);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       di.sl<PushNotificationService>().consumePendingDeepLink();
@@ -161,10 +151,6 @@ class _BusinessOwnerNavigationWrapperState
       final snap = await _ensureToolsSnapshot(forceRefresh: true);
       if (!mounted) return;
       if (!snap.dashboardEnabled && _currentIndex == 1) {
-        setState(() => _currentIndex = 0);
-        _pageController.jumpToPage(0);
-      }
-      if (!snap.boostsEnabled && _currentIndex == 2) {
         setState(() => _currentIndex = 0);
         _pageController.jumpToPage(0);
       }
@@ -210,10 +196,6 @@ class _BusinessOwnerNavigationWrapperState
         setState(() => _currentIndex = 0);
         _pageController.jumpToPage(0);
       }
-      if (!snap.boostsEnabled && _currentIndex == 2) {
-        setState(() => _currentIndex = 0);
-        _pageController.jumpToPage(0);
-      }
     });
   }
 
@@ -252,7 +234,6 @@ class _BusinessOwnerNavigationWrapperState
         const userMessage = 'No businesses found.';
         final snap = BusinessOwnerNavToolsSnapshot(
           dashboardEnabled: false,
-          boostsEnabled: false,
           gateEvaluated: true,
           userMessage: userMessage,
           showLegalDocumentsSnackAction: false,
@@ -297,7 +278,6 @@ class _BusinessOwnerNavigationWrapperState
       if (focusLegalRejected) {
         final snap = BusinessOwnerNavToolsSnapshot(
           dashboardEnabled: false,
-          boostsEnabled: false,
           gateEvaluated: true,
           userMessage:
               'A legal document was rejected for ${focus.name}. Re-upload a corrected file to continue.',
@@ -312,7 +292,6 @@ class _BusinessOwnerNavigationWrapperState
       if (!listingApproved) {
         final snap = BusinessOwnerNavToolsSnapshot(
           dashboardEnabled: false,
-          boostsEnabled: true,
           gateEvaluated: true,
           userMessage: listingMessage,
           primaryBlockedBusinessId: focusId,
@@ -323,9 +302,8 @@ class _BusinessOwnerNavigationWrapperState
         return snap;
       }
 
-      final snap = const BusinessOwnerNavToolsSnapshot(
+      const snap = BusinessOwnerNavToolsSnapshot(
         dashboardEnabled: true,
-        boostsEnabled: true,
         gateEvaluated: true,
         userMessage: null,
         primaryBlockedBusinessId: null,
@@ -339,7 +317,6 @@ class _BusinessOwnerNavigationWrapperState
           'Could not verify your business status. Check your connection and try again.';
       final snap = BusinessOwnerNavToolsSnapshot(
         dashboardEnabled: false,
-        boostsEnabled: false,
         gateEvaluated: true,
         userMessage: userMessage,
         showLegalDocumentsSnackAction: false,
@@ -411,7 +388,6 @@ class _BusinessOwnerNavigationWrapperState
     messenger.showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        // Sit closer to the bottom nav (was bottomInset + 8).
         margin: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 2),
         duration: const Duration(seconds: 4),
         backgroundColor: Colors.transparent,
@@ -458,7 +434,7 @@ class _BusinessOwnerNavigationWrapperState
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Habra Pro gives you analytics, deals, jobs, and boosts in one place. Choose a plan when you’re ready.',
+                        'Habra Pro gives you analytics, deals, jobs, and events in one place. Choose a plan when you’re ready.',
                         style: TextStyle(
                           fontSize: 13,
                           height: 1.4,
@@ -535,10 +511,6 @@ class _BusinessOwnerNavigationWrapperState
       _showGateSnackBar(snap);
       return;
     }
-    if (index == 2 && !snap.boostsEnabled) {
-      _showGateSnackBar(snap);
-      return;
-    }
 
     if (index == 1) {
       final canAccessSubscription = await _ensureSubscriptionAccess();
@@ -593,7 +565,6 @@ class _BusinessOwnerNavigationWrapperState
   Widget build(BuildContext context) {
     final snap = _toolsSnapshot;
     final dashEnabled = snap == null || !snap.gateEvaluated || snap.dashboardEnabled;
-    final boostEnabled = snap == null || !snap.gateEvaluated || snap.boostsEnabled;
 
     return BlocListener<BusinessOwnerSubscriptionCubit,
         BusinessOwnerSubscriptionState>(
@@ -633,10 +604,6 @@ class _BusinessOwnerNavigationWrapperState
               user: widget.user,
               initialTabIndex: _pendingDashboardTab,
             ),
-            BlocProvider(
-              create: (_) => di.sl<BoostsCubit>(),
-              child: BoostsPage(user: widget.user),
-            ),
             ProfilePage(user: widget.user),
           ],
         ),
@@ -668,12 +635,6 @@ class _BusinessOwnerNavigationWrapperState
               filled: Icons.dashboard,
               label: 'Dash',
               enabledWhenGated: dashEnabled,
-            ),
-            _navBarItem(
-              outlined: Icons.rocket_launch_outlined,
-              filled: Icons.rocket_launch,
-              label: 'Boosts',
-              enabledWhenGated: boostEnabled,
             ),
             _navBarItem(
               outlined: Icons.person_outline,

@@ -1,6 +1,6 @@
 import 'app_config.dart';
 
-/// Feature flags for business-owner paid tools (Dashboard, Boosts).
+/// Feature flags for business-owner paid tools (Dashboard).
 ///
 /// Set via `--dart-define=BUSINESS_OWNER_SUBSCRIPTION_MODE=...` ([AppConfig]).
 ///

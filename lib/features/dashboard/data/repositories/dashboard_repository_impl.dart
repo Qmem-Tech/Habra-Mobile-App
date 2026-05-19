@@ -1,7 +1,6 @@
 import '../../../../../core/models/legal_document_upload_result.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../domain/entities/applicant_detail.dart';
-import '../../domain/entities/boost_plan.dart';
 import '../../domain/entities/business_review.dart';
 import '../../domain/entities/dashboard_analytics.dart';
 import '../../domain/entities/dashboard_deal.dart';
@@ -31,16 +30,8 @@ class DashboardRepositoryImpl implements DashboardRepository {
       _remote.getDeals(businessId, status: status);
 
   @override
-  Future<List<DashboardDeal>> getActiveDealsForCurrentOwner() =>
-      _remote.getActiveDealsForCurrentOwner();
-
-  @override
   Future<List<DashboardJob>> getJobs(String businessId) =>
       _remote.getJobs(businessId);
-
-  @override
-  Future<List<DashboardJob>> getOpenJobsForCurrentOwner() =>
-      _remote.getOpenJobsForCurrentOwner();
 
   @override
   Future<RatingOverview?> getReviewsOverview(String businessId) =>
@@ -69,10 +60,6 @@ class DashboardRepositoryImpl implements DashboardRepository {
     String status,
   ) =>
       _remote.updateJobApplicationStatus(applicationId, jobId, status);
-
-  @override
-  Future<List<BoostPlan>> getBoostPlans(String targetType) =>
-      _remote.getBoostPlans(targetType);
 
   @override
   Future<DashboardDeal> createDeal(String businessId, Map<String, dynamic> data) =>

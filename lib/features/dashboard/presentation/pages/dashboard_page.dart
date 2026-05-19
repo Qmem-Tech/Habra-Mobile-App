@@ -166,11 +166,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   : false,
               showDashboardMenuItem:
                   BusinessOwnerNavigationWrapper.drawerShowDashboardMenu(context),
-              showBoostsMenuItem:
-                  BusinessOwnerNavigationWrapper.drawerShowBoostsMenu(context),
               onHomeTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 0),
               onDashboardTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1),
-              onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
               onEditBusinessTap: () async {
                 if (state is! BusinessOwnerHomeLoaded) return;
                 final loadedState = state;

@@ -39,7 +39,7 @@ class BusinessOwnerSubscriptionState extends Equatable {
   List<Object?> get props => [isLoading, hasActiveSubscription, currentTier];
 }
 
-/// Resolves whether business-owner paid tabs (Dash, Boosts) are allowed.
+/// Resolves whether business-owner paid tabs (Dash) are allowed.
 class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionState> {
   BusinessOwnerSubscriptionCubit(this._revenueCat)
       : super(const BusinessOwnerSubscriptionState());

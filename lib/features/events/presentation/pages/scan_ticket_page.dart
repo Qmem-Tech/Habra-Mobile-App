@@ -3,21 +3,26 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../utils/event_ticket_scan_payload.dart';
 
 /// Result of a single QR scan attempt.
 enum _ScanResult { valid, alreadyUsed, wrongEvent, notFound, error }
 
 class _CheckInInfo {
-  _ScanResult result;
-  String? attendeeName;
-  String? ticketType;
-  String? message;
-  _CheckInInfo(this.result, {this.attendeeName, this.ticketType, this.message});
+  _CheckInInfo(
+    this.result, {
+    this.attendeeName,
+    this.ticketType,
+    this.message,
+  });
+
+  final _ScanResult result;
+  final String? attendeeName;
+  final String? ticketType;
+  final String? message;
 }
 
 /// Full-screen QR scanner for event organizers to check in attendees.
-/// Opens the device camera, detects ticket QR codes, looks them up in Supabase,
-/// marks valid tickets as `used`, and shows an inline result card.
 class ScanTicketPage extends StatefulWidget {
   const ScanTicketPage({
     super.key,
@@ -68,64 +73,175 @@ class _ScanTicketPageState extends State<ScanTicketPage> {
     });
   }
 
-  Future<_CheckInInfo> _lookupAndCheckIn(String ticketId) async {
+  Future<_CheckInInfo> _lookupAndCheckIn(String raw) async {
+    final ticketId = ticketIdFromScanPayload(raw);
+    if (ticketId == null) {
+      return _CheckInInfo(
+        _ScanResult.notFound,
+        message: 'Unrecognized QR code. Scan the ticket QR from the Habra app.',
+      );
+    }
+
     try {
       final db = Supabase.instance.client;
 
-      // Fetch ticket + its parent order in one round-trip.
-      final row = await db
-          .from('tickets')
-          .select('id, status, event_ticket_id, orders!inner(event_id, status, user_id, profiles(full_name)), event_tickets!inner(name)')
-          .eq('id', ticketId)
-          .maybeSingle();
-
-      if (row == null) {
-        return _CheckInInfo(_ScanResult.notFound,
-            message: 'Ticket not found. Make sure you are scanning a Habra ticket.');
+      // Prefer SECURITY DEFINER RPC (organizer check-in; see allow_organizer_event_ticket_checkin.sql).
+      try {
+        final res = await db.rpc(
+          'check_in_event_ticket',
+          params: {
+            'p_ticket_id': ticketId,
+            'p_event_id': widget.eventId,
+          },
+        );
+        if (res != null) {
+          if (res is Map) {
+            return _checkInFromRpc(Map<String, dynamic>.from(res));
+          }
+          if (res is String && res.isNotEmpty) {
+            return _CheckInInfo(
+              _ScanResult.error,
+              message: 'Unexpected check-in response. Please try again.',
+            );
+          }
+        }
+      } on PostgrestException catch (e) {
+        if (!_isMissingRpc(e)) rethrow;
       }
 
-      final orderEventId = row['orders']['event_id'] as String?;
-      if (orderEventId != widget.eventId) {
-        return _CheckInInfo(_ScanResult.wrongEvent,
-            message: 'This ticket is for a different event.');
-      }
-
-      final orderStatus = row['orders']['status'] as String?;
-      if (orderStatus != 'completed') {
-        return _CheckInInfo(_ScanResult.notFound,
-            message: 'Payment for this ticket was not completed.');
-      }
-
-      final ticketStatus = row['status'] as String?;
-      if (ticketStatus == 'used') {
-        return _CheckInInfo(_ScanResult.alreadyUsed,
-            ticketType: row['event_tickets']['name'] as String?,
-            message: 'This ticket has already been scanned.');
-      }
-      if (ticketStatus == 'cancelled') {
-        return _CheckInInfo(_ScanResult.notFound,
-            message: 'This ticket has been cancelled.');
-      }
-
-      // Mark as used.
-      await db
-          .from('tickets')
-          .update({'status': 'used'})
-          .eq('id', ticketId);
-
-      final profile = row['orders']['profiles'] as Map<String, dynamic>?;
-      final name = profile?['full_name'] as String?;
-
-      return _CheckInInfo(
-        _ScanResult.valid,
-        attendeeName: (name?.trim().isEmpty ?? true) ? null : name,
-        ticketType: row['event_tickets']['name'] as String?,
-      );
+      return await _lookupAndCheckInDirect(db, ticketId);
     } catch (e) {
       debugPrint('[ScanTicket] error: $e');
-      return _CheckInInfo(_ScanResult.error,
-          message: 'Something went wrong. Please try again.');
+      return _CheckInInfo(
+        _ScanResult.error,
+        message: 'Something went wrong. Please try again.',
+      );
     }
+  }
+
+  static bool _isMissingRpc(PostgrestException e) {
+    final message = e.message.toLowerCase();
+    return e.code == 'PGRST202' ||
+        e.code == '42883' ||
+        message.contains('could not find the function') ||
+        message.contains('does not exist');
+  }
+
+  _CheckInInfo _checkInFromRpc(Map<String, dynamic> body) {
+    final result = body['result'] as String? ?? 'not_found';
+    final ticketType = body['ticket_type'] as String?;
+    final attendeeName = body['attendee_name'] as String?;
+
+    switch (result) {
+      case 'valid':
+        return _CheckInInfo(
+          _ScanResult.valid,
+          attendeeName: attendeeName,
+          ticketType: ticketType,
+        );
+      case 'already_used':
+        return _CheckInInfo(
+          _ScanResult.alreadyUsed,
+          ticketType: ticketType,
+          message: 'This ticket has already been scanned.',
+        );
+      case 'wrong_event':
+        return _CheckInInfo(
+          _ScanResult.wrongEvent,
+          message: 'This ticket is for a different event.',
+        );
+      case 'unpaid':
+        return _CheckInInfo(
+          _ScanResult.notFound,
+          message: 'Payment for this ticket was not completed.',
+        );
+      case 'cancelled':
+        return _CheckInInfo(
+          _ScanResult.notFound,
+          message: 'This ticket has been cancelled.',
+        );
+      default:
+        return _CheckInInfo(
+          _ScanResult.notFound,
+          message: 'Ticket not found. Make sure you are scanning a Habra ticket.',
+        );
+    }
+  }
+
+  Future<_CheckInInfo> _lookupAndCheckInDirect(
+    SupabaseClient db,
+    String ticketId,
+  ) async {
+    final row = await db
+        .from('tickets')
+        .select(
+          'id, status, event_ticket_id, '
+          'orders!inner(event_id, status, user_id, profiles(full_name)), '
+          'event_tickets!inner(name)',
+        )
+        .eq('id', ticketId)
+        .maybeSingle();
+
+    if (row == null) {
+      return _CheckInInfo(
+        _ScanResult.notFound,
+        message:
+            'Ticket not found. Run allow_organizer_event_ticket_checkin.sql in Supabase, '
+            'or confirm this is a Habra ticket for this event.',
+      );
+    }
+
+    final orders = row['orders'];
+    if (orders is! Map) {
+      return _CheckInInfo(_ScanResult.error, message: 'Could not read ticket order.');
+    }
+    final orderMap = Map<String, dynamic>.from(orders);
+
+    final orderEventId = orderMap['event_id'] as String?;
+    if (orderEventId != widget.eventId) {
+      return _CheckInInfo(
+        _ScanResult.wrongEvent,
+        message: 'This ticket is for a different event.',
+      );
+    }
+
+    final orderStatus = orderMap['status'] as String?;
+    if (orderStatus != 'completed') {
+      return _CheckInInfo(
+        _ScanResult.notFound,
+        message: 'Payment for this ticket was not completed.',
+      );
+    }
+
+    final ticketStatus = row['status'] as String?;
+    final eventTickets = row['event_tickets'];
+    final ticketTypeName =
+        eventTickets is Map ? eventTickets['name'] as String? : null;
+
+    if (ticketStatus == 'used') {
+      return _CheckInInfo(
+        _ScanResult.alreadyUsed,
+        ticketType: ticketTypeName,
+        message: 'This ticket has already been scanned.',
+      );
+    }
+    if (ticketStatus == 'cancelled') {
+      return _CheckInInfo(
+        _ScanResult.notFound,
+        message: 'This ticket has been cancelled.',
+      );
+    }
+
+    await db.from('tickets').update({'status': 'used'}).eq('id', ticketId);
+
+    final profile = orderMap['profiles'];
+    final name = profile is Map ? profile['full_name'] as String? : null;
+
+    return _CheckInInfo(
+      _ScanResult.valid,
+      attendeeName: (name?.trim().isEmpty ?? true) ? null : name,
+      ticketType: ticketTypeName,
+    );
   }
 
   void _resumeScanning() {
@@ -143,8 +259,14 @@ class _ScanTicketPageState extends State<ScanTicketPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Scan Tickets',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white)),
+            const Text(
+              'Scan Tickets',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
             Text(
               widget.eventTitle,
               style: const TextStyle(fontSize: 12, color: Colors.white70),
@@ -159,7 +281,8 @@ class _ScanTicketPageState extends State<ScanTicketPage> {
               padding: const EdgeInsets.only(right: 16),
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.brandPrimary,
                     borderRadius: BorderRadius.circular(20),
@@ -167,7 +290,10 @@ class _ScanTicketPageState extends State<ScanTicketPage> {
                   child: Text(
                     '$_checkedInCount checked in',
                     style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -189,22 +315,15 @@ class _ScanTicketPageState extends State<ScanTicketPage> {
       ),
       body: Stack(
         children: [
-          // — Camera view —
           MobileScanner(
             controller: _scanner,
             onDetect: _onDetect,
           ),
-
-          // — Scan-frame overlay —
           _ScanFrame(),
-
-          // — Processing spinner —
           if (_processing)
             const Center(
               child: CircularProgressIndicator(color: Colors.white),
             ),
-
-          // — Result card —
           if (_lastResult != null)
             Positioned(
               left: 0,
@@ -221,8 +340,6 @@ class _ScanTicketPageState extends State<ScanTicketPage> {
   }
 }
 
-// ─── Scan frame ───────────────────────────────────────────────────────────────
-
 class _ScanFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -232,7 +349,6 @@ class _ScanFrame extends StatelessWidget {
         height: 260,
         child: Stack(
           children: [
-            // Dimmed surround
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -241,7 +357,6 @@ class _ScanFrame extends StatelessWidget {
                 ),
               ),
             ),
-            // Corner brackets
             ..._corners(),
           ],
         ),
@@ -285,22 +400,24 @@ class _ScanFrame extends StatelessWidget {
 
     return [
       corner(
-          alignment: Alignment.topLeft,
-          border: const BorderRadius.only(topLeft: Radius.circular(r))),
+        alignment: Alignment.topLeft,
+        border: const BorderRadius.only(topLeft: Radius.circular(r)),
+      ),
       corner(
-          alignment: Alignment.topRight,
-          border: const BorderRadius.only(topRight: Radius.circular(r))),
+        alignment: Alignment.topRight,
+        border: const BorderRadius.only(topRight: Radius.circular(r)),
+      ),
       corner(
-          alignment: Alignment.bottomLeft,
-          border: const BorderRadius.only(bottomLeft: Radius.circular(r))),
+        alignment: Alignment.bottomLeft,
+        border: const BorderRadius.only(bottomLeft: Radius.circular(r)),
+      ),
       corner(
-          alignment: Alignment.bottomRight,
-          border: const BorderRadius.only(bottomRight: Radius.circular(r))),
+        alignment: Alignment.bottomRight,
+        border: const BorderRadius.only(bottomRight: Radius.circular(r)),
+      ),
     ];
   }
 }
-
-// ─── Result card ──────────────────────────────────────────────────────────────
 
 class _ResultCard extends StatelessWidget {
   const _ResultCard({required this.info, required this.onContinue});
@@ -336,15 +453,20 @@ class _ResultCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-          24, 24, 24, MediaQuery.paddingOf(context).bottom + 24),
+        24,
+        24,
+        24,
+        MediaQuery.paddingOf(context).bottom + 24,
+      ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.4),
-              blurRadius: 20,
-              offset: const Offset(0, -4)),
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
         ],
       ),
       child: Column(
@@ -355,7 +477,10 @@ class _ResultCard extends StatelessWidget {
           Text(
             heading,
             style: const TextStyle(
-                fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           if (info.attendeeName != null) ...[
             const SizedBox(height: 6),
@@ -389,10 +514,13 @@ class _ResultCard extends StatelessWidget {
                 backgroundColor: Colors.white,
                 foregroundColor: bg,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('Scan next ticket',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              child: const Text(
+                'Scan next ticket',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
             ),
           ),
         ],

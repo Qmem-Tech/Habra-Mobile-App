@@ -1,7 +1,6 @@
 import '../../../../../core/models/legal_document_upload_result.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../domain/entities/applicant_detail.dart';
-import '../../domain/entities/boost_plan.dart';
 import '../../domain/entities/business_review.dart';
 import '../../domain/entities/dashboard_analytics.dart';
 import '../../domain/entities/dashboard_deal.dart';
@@ -15,11 +14,7 @@ abstract class DashboardRemoteDataSource {
   Future<List<BusinessPresence>> getOwnerBusinesses(String ownerId);
   Future<DashboardAnalytics?> getAnalytics(String businessId);
   Future<List<DashboardDeal>> getDeals(String businessId, {DashboardDealStatus? status});
-  /// Active deals for every business owned by the signed-in user (boost flow).
-  Future<List<DashboardDeal>> getActiveDealsForCurrentOwner();
   Future<List<DashboardJob>> getJobs(String businessId);
-  /// Open/draft jobs for every business owned by the signed-in user (boost flow).
-  Future<List<DashboardJob>> getOpenJobsForCurrentOwner();
   Future<RatingOverview?> getReviewsOverview(String businessId);
   Future<List<BusinessReview>> getReviews(String businessId);
   Future<List<JobApplicant>> getApplicants(String jobId, {ApplicantStatus? status});
@@ -32,7 +27,6 @@ abstract class DashboardRemoteDataSource {
     String jobId,
     String status,
   );
-  Future<List<BoostPlan>> getBoostPlans(String targetType);
   Future<DashboardDeal> createDeal(String businessId, Map<String, dynamic> data);
   Future<DashboardDeal> updateDeal(String dealId, Map<String, dynamic> data);
   Future<void> updateDealStatus(String dealId, DashboardDealStatus status);

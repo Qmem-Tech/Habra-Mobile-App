@@ -14,7 +14,6 @@ import '../../../../core/supabase/supabase_mappers.dart';
 import '../../../home/domain/entities/business_presence.dart';
 import '../../domain/entities/applicant_detail.dart';
 import '../../domain/entities/business_legal_document.dart';
-import '../../domain/entities/boost_plan.dart';
 import '../../domain/entities/business_review.dart';
 import '../../domain/entities/dashboard_analytics.dart';
 import '../../domain/entities/dashboard_deal.dart';
@@ -302,67 +301,6 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       subscriptionTier: tier,
       subscriptionStatus: subStatus,
     );
-  }
-
-  Future<List<String>> _currentOwnerBusinessIds() async {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null || uid.isEmpty) return [];
-    final res = await _client
-        .from(SupabaseTables.businesses)
-        .select('id')
-        .eq('owner_id', uid);
-    final rows = (res as List).cast<Map<String, dynamic>>();
-    return rows.map((r) => parseStringRequired(r['id'])).toList();
-  }
-
-  /// True when PostgREST reports `jobs.status` is missing (older DBs use `is_active` only).
-  bool _isMissingJobsStatusColumn(PostgrestException e) {
-    final m = e.message.toLowerCase();
-    if (!m.contains('status')) return false;
-    return m.contains('does not exist') ||
-        m.contains('schema cache') ||
-        (m.contains('column') && m.contains('jobs'));
-  }
-
-  /// When `status` exists: only open/draft. When the column is absent, rows have no status → include.
-  bool _jobRowEligibleForBoost(Map<String, dynamic> row) {
-    final s = parseString(row['status']);
-    if (s == null) return true;
-    return s == 'open' || s == 'draft';
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchJobsForOwnerBusinessIds(
-    List<String> ids, {
-    required bool filterStatusInQuery,
-  }) async {
-    List<dynamic> res;
-    try {
-      var query = _client
-          .from(SupabaseTables.jobs)
-          .select(
-              '*, ${SupabaseTables.businesses}!jobs_business_id_fkey(name, logo_url)')
-          .inFilter('business_id', ids);
-      if (filterStatusInQuery) {
-        query = query.inFilter('status', ['open', 'draft']);
-      }
-      res = await query.order('created_at', ascending: false) as List;
-    } on PostgrestException catch (e) {
-      if (e.message.contains('could not find') ||
-          e.message.contains('relationship') ||
-          e.code == 'PGRST200') {
-        var query = _client
-            .from(SupabaseTables.jobs)
-            .select()
-            .inFilter('business_id', ids);
-        if (filterStatusInQuery) {
-          query = query.inFilter('status', ['open', 'draft']);
-        }
-        res = await query.order('created_at', ascending: false) as List;
-      } else {
-        rethrow;
-      }
-    }
-    return res.cast<Map<String, dynamic>>();
   }
 
   DashboardJob _mapRowToDashboardJob(
@@ -693,73 +631,6 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
     });
   }
 
-  @override
-  Future<List<DashboardDeal>> getActiveDealsForCurrentOwner() async {
-    return SupabaseFailureMapper.guard(() async {
-      final ids = await _currentOwnerBusinessIds();
-      if (ids.isEmpty) return [];
-      List<dynamic> res;
-      try {
-        var query = _client
-            .from(SupabaseTables.deals)
-            .select(
-                '*, ${SupabaseTables.businesses}!deals_business_id_fkey(name)')
-            .inFilter('business_id', ids)
-            .eq('status', _dealStatusToString(DashboardDealStatus.active));
-        res = await query.order('created_at', ascending: false) as List;
-      } on PostgrestException catch (e) {
-        if (e.message.contains('could not find') ||
-            e.message.contains('relationship') ||
-            e.code == 'PGRST200') {
-          res = await _client
-              .from(SupabaseTables.deals)
-              .select()
-              .inFilter('business_id', ids)
-              .eq('status', _dealStatusToString(DashboardDealStatus.active))
-              .order('created_at', ascending: false) as List;
-        } else {
-          rethrow;
-        }
-      }
-      final rows = res.cast<Map<String, dynamic>>();
-      return rows.map(_rowToDashboardDeal).toList();
-    });
-  }
-
-  @override
-  Future<List<DashboardJob>> getOpenJobsForCurrentOwner() async {
-    return SupabaseFailureMapper.guard(() async {
-      final ids = await _currentOwnerBusinessIds();
-      if (ids.isEmpty) return [];
-      List<Map<String, dynamic>> rows;
-      try {
-        rows =
-            await _fetchJobsForOwnerBusinessIds(ids, filterStatusInQuery: true);
-      } on PostgrestException catch (e) {
-        if (_isMissingJobsStatusColumn(e)) {
-          rows = await _fetchJobsForOwnerBusinessIds(
-            ids,
-            filterStatusInQuery: false,
-          );
-          rows = rows.where(_jobRowEligibleForBoost).toList();
-        } else {
-          rethrow;
-        }
-      }
-      final List<DashboardJob> result = [];
-      for (final row in rows) {
-        final jobId = parseStringRequired(row['id']);
-        final appCount = await _client
-            .from(SupabaseTables.jobApplications)
-            .select('id')
-            .eq('job_id', jobId);
-        final applicants = (appCount as List).length;
-        result.add(_mapRowToDashboardJob(row, applicantsCount: applicants));
-      }
-      return result;
-    });
-  }
-
   // ---------------------------------------------------------------------------
   // Reviews
   // ---------------------------------------------------------------------------
@@ -1044,41 +915,6 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
         'status': status,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('id', applicationId).eq('job_id', jobId);
-    });
-  }
-
-  // ---------------------------------------------------------------------------
-  // Boost plans
-  // ---------------------------------------------------------------------------
-  @override
-  Future<List<BoostPlan>> getBoostPlans(String targetType) async {
-    return SupabaseFailureMapper.guard(() async {
-      final res = await _client
-          .from(SupabaseTables.boostPlans)
-          .select('*')
-          .eq('is_active', true)
-          .eq('target_type', targetType)
-          .order('price_usd', ascending: true);
-      final rows = (res as List).cast<Map<String, dynamic>>();
-      return rows.map((row) {
-        final priceUsd = parseDouble(row['price_usd']) ?? 0.0;
-        final originalUsd = parseDouble(row['original_price_usd']);
-        final durationWeeks = parseInt(row['duration_weeks']) ?? 1;
-        String? originalPriceFormatted;
-        if (originalUsd != null &&
-            originalUsd > priceUsd + 0.009) {
-          originalPriceFormatted = '\$${originalUsd.toStringAsFixed(2)}';
-        }
-        return BoostPlan(
-          id: parseStringRequired(row['id']),
-          title: parseStringRequired(row['title']),
-          description: parseString(row['description']) ?? '',
-          priceFormatted: '\$${priceUsd.toStringAsFixed(2)}',
-          originalPriceFormatted: originalPriceFormatted,
-          durationWeeks: durationWeeks,
-          billingProductId: parseString(row['billing_product_id']),
-        );
-      }).toList();
     });
   }
 

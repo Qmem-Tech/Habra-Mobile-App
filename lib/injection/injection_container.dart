@@ -69,12 +69,6 @@ import '../features/dashboard/data/datasources/dashboard_supabase_datasource.dar
 import '../features/dashboard/data/repositories/dashboard_repository_impl.dart';
 import '../features/dashboard/domain/repositories/dashboard_repository.dart';
 import '../features/dashboard/presentation/bloc/dashboard_cubit.dart';
-import '../features/boosts/data/datasources/boosts_remote_datasource.dart';
-import '../features/boosts/data/datasources/boosts_supabase_datasource.dart';
-import '../features/boosts/data/repositories/boosts_repository_impl.dart';
-import '../features/boosts/domain/repositories/boosts_repository.dart';
-import '../features/boosts/presentation/bloc/boosts_cubit.dart';
-
 // Events feature
 import '../features/events/data/datasources/events_remote_datasource.dart';
 import '../features/events/data/datasources/events_supabase_datasource.dart';
@@ -309,18 +303,6 @@ Future<void> init() async {
       sl<LocalStorage>(),
     ));
   sl.registerFactory(() => BusinessOwnerSubscriptionCubit(sl<RevenueCatService>()));
-
-  // Features - Boosts (Business Owner) — Supabase
-  sl.registerLazySingleton<BoostsRemoteDataSource>(
-    () => BoostsSupabaseDataSource(),
-  );
-  sl.registerLazySingleton<BoostsRepository>(
-    () => BoostsRepositoryImpl(
-      remoteDataSource: sl<BoostsRemoteDataSource>(),
-      dashboardRepository: sl<DashboardRepository>(),
-    ),
-  );
-  sl.registerFactory(() => BoostsCubit(sl<BoostsRepository>()));
 
   // Features - Events
   // Data sources

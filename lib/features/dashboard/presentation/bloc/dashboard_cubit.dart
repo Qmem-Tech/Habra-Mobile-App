@@ -182,19 +182,6 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
-  Future<void> loadBoostPlans({
-    required String targetType,
-    int selectedIndex = 1,
-  }) async {
-    emit(BoostPlansLoading());
-    try {
-      final plans = await _repository.getBoostPlans(targetType);
-      emit(BoostPlansLoaded(plans, selectedIndex: selectedIndex));
-    } catch (e) {
-      emit(DashboardError(e.toString()));
-    }
-  }
-
   Future<DashboardDeal?> createDeal(
       String businessId, Map<String, dynamic> data) async {
     return await _repository.createDeal(businessId, data);
@@ -353,13 +340,6 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
-  void setBoostPlanSelected(int index) {
-    final current = state;
-    if (current is BoostPlansLoaded) {
-      emit(BoostPlansLoaded(current.plans, selectedIndex: index));
-    }
-  }
-
   void clearApplicantDetail() {
     if (state is ApplicantDetailLoaded || state is ApplicantDetailError) {
       emit(DashboardInitial());
@@ -372,9 +352,4 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
-  void clearBoostPlans() {
-    if (state is BoostPlansLoaded) {
-      emit(DashboardInitial());
-    }
-  }
 }

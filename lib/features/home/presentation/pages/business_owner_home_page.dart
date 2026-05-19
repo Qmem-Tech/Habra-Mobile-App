@@ -515,11 +515,8 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 : false,
             showDashboardMenuItem:
                 BusinessOwnerNavigationWrapper.drawerShowDashboardMenu(context),
-            showBoostsMenuItem:
-                BusinessOwnerNavigationWrapper.drawerShowBoostsMenu(context),
             onHomeTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 0),
             onDashboardTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1),
-            onBoostListingTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
             onEditBusinessTap: () async {
               if (state is! BusinessOwnerHomeLoaded) return;
               final loadedState = state;
@@ -1769,7 +1766,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           }
           break;
         case SetupTaskId.shareListing:
-          onTap = () => BusinessOwnerNavigationWrapper.navigateToTab(context, 2);
+          onTap = () => BusinessOwnerNavigationWrapper.navigateToTab(context, 1);
           break;
       }
       onButtonPressed = onTap;
@@ -2160,7 +2157,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                         ),
                         const SizedBox(height: AppResources.spacingXS),
                         Text(
-                          'Unlock live analytics, full dashboard controls, and boosts—'
+                          'Unlock live analytics, deals, jobs, and events—'
                           'everything you need to reach more customers in one simple plan.',
                           style: AppFonts.bodySmall(
                             color: AppColors.textSecondary,
@@ -2185,17 +2182,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                     ),
                     child: Text(
                       'See plans',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.ownerHomePrimary,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () =>
-                        BusinessOwnerNavigationWrapper.navigateToTab(context, 2),
-                    child: Text(
-                      'Explore boosts',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         color: AppColors.ownerHomePrimary,
@@ -2612,9 +2598,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       homeCubit.loadOwnerHome(ownerId: widget.user.id);
     }
 
-    void promote() =>
-        BusinessOwnerNavigationWrapper.navigateToTab(context, 2);
-
     void hours() {
       if (!hasSpecificBusiness) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2745,17 +2728,12 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               action(
-                icon: Icons.campaign_outlined,
-                label: 'Promote',
-                onTap: promote,
-                primary: false,
-              ),
-              action(
                 icon: Icons.schedule_rounded,
                 label: 'Hours',
                 onTap: hours,
                 primary: false,
               ),
+              const Expanded(child: SizedBox()),
               const Expanded(child: SizedBox()),
             ],
           ),
