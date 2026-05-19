@@ -158,9 +158,7 @@ class _BusinessImagesUploadDialogState extends State<BusinessImagesUploadDialog>
         );
         final existing = widget.initialGalleryUrls ?? const <String>[];
         final merged = [...existing, ...urls];
-        data['image_urls'] = merged.length > _maxGallery
-            ? merged.sublist(0, _maxGallery)
-            : merged;
+        data['image_urls'] = merged;
       }
 
       data.removeWhere((_, v) => v == null);

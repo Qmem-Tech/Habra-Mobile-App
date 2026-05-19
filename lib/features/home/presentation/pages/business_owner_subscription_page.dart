@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/config/business_subscription_config.dart';
-import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/services/revenue_cat_service.dart';
+import '../../../../core/subscription/business_subscription_post_unlock.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -15,7 +14,6 @@ import '../../../../core/widgets/error_display_helper.dart';
 import '../../../../core/widgets/loader_helper.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
-import '../bloc/business_owner_home_cubit.dart';
 import '../bloc/business_owner_subscription_cubit.dart';
 
 class _LocalPlanConfig {
@@ -145,25 +143,14 @@ class _BusinessOwnerSubscriptionPageState
   List<Package> get _packagesForActiveBillingTab =>
       _billingPeriodTab == 0 ? _monthlyPackages : _yearlyPackages;
 
-  /// Writes the active RC subscription tier to Supabase and re-fetches the
-  /// home cubit so the home page reflects the new plan immediately.
-  Future<void> _syncAndReload(BuildContext ctx) async {
-    try {
-      final tier = await di.sl<RevenueCatService>().resolveCurrentTier();
-      final tierStr =
-          tier == BusinessSubscriptionTier.premium ? 'premium' : 'pro';
-      await Supabase.instance.client
-          .from(SupabaseTables.businesses)
-          .update({'subscription_tier': tierStr})
-          .eq('owner_id', widget.user.id);
-      debugPrint('[Sync] post-purchase: tier=$tierStr for ${widget.user.id}');
-      if (!ctx.mounted) return;
-      ctx
-          .read<BusinessOwnerHomeCubit>()
-          .loadOwnerHome(ownerId: widget.user.id);
-    } catch (e) {
-      debugPrint('[Sync] post-purchase sync failed: $e');
-    }
+  Future<void> _applyUnlockedAndPop(BuildContext ctx) async {
+    await BusinessSubscriptionPostUnlock.apply(
+      ctx,
+      userId: widget.user.id,
+      forceRefreshRevenueCat: true,
+    );
+    if (!ctx.mounted) return;
+    Navigator.of(ctx).pop(true);
   }
 
   Future<void> _onPurchase(Package package) async {
@@ -177,13 +164,12 @@ class _BusinessOwnerSubscriptionPageState
       await LoaderHelper.hide(ctx);
       if (!ctx.mounted) return;
       if (ok) {
-        await ctx.read<BusinessOwnerSubscriptionCubit>().refresh(widget.user.id, forceRefresh: true);
+        final subCubit = ctx.read<BusinessOwnerSubscriptionCubit>();
+        final active = await BusinessSubscriptionPostUnlock
+            .refreshSubscriptionUntilActive(subCubit, widget.user.id);
         if (!ctx.mounted) return;
-        if (ctx.read<BusinessOwnerSubscriptionCubit>().state
-            .hasActiveSubscription) {
-          await _syncAndReload(ctx);
-          if (!ctx.mounted) return;
-          Navigator.of(ctx).pop(true);
+        if (active) {
+          await _applyUnlockedAndPop(ctx);
           return;
         }
       }
@@ -198,9 +184,19 @@ class _BusinessOwnerSubscriptionPageState
     } catch (e) {
       if (ctx.mounted) {
         await LoaderHelper.hide(ctx);
-        if (ctx.mounted) {
-          ErrorDisplayHelper.show(ctx, error: e, title: 'Purchase failed');
-        }
+      }
+      if (!ctx.mounted) return;
+      // StoreKit may succeed while the RC SDK still throws — confirm before failing.
+      final subCubit = ctx.read<BusinessOwnerSubscriptionCubit>();
+      final active = await BusinessSubscriptionPostUnlock
+          .refreshSubscriptionUntilActive(subCubit, widget.user.id);
+      if (!ctx.mounted) return;
+      if (active) {
+        await _applyUnlockedAndPop(ctx);
+        return;
+      }
+      if (ctx.mounted) {
+        ErrorDisplayHelper.show(ctx, error: e, title: 'Purchase failed');
       }
     } finally {
       if (mounted) setState(() => _purchasing = false);
@@ -215,13 +211,12 @@ class _BusinessOwnerSubscriptionPageState
       if (!ctx.mounted) return;
       await LoaderHelper.hide(ctx);
       if (!ctx.mounted) return;
-      await ctx.read<BusinessOwnerSubscriptionCubit>().refresh(widget.user.id, forceRefresh: true);
+      final subCubit = ctx.read<BusinessOwnerSubscriptionCubit>();
+      final active = await BusinessSubscriptionPostUnlock
+          .refreshSubscriptionUntilActive(subCubit, widget.user.id);
       if (!ctx.mounted) return;
-      if (ctx.read<BusinessOwnerSubscriptionCubit>().state
-          .hasActiveSubscription) {
-        await _syncAndReload(ctx);
-        if (!ctx.mounted) return;
-        Navigator.of(ctx).pop(true);
+      if (active) {
+        await _applyUnlockedAndPop(ctx);
       } else {
         ScaffoldMessenger.of(ctx).showSnackBar(
           const SnackBar(
@@ -240,11 +235,12 @@ class _BusinessOwnerSubscriptionPageState
   }
 
   Future<void> _onRefreshStatus() async {
-    await context.read<BusinessOwnerSubscriptionCubit>().refresh(widget.user.id);
+    final subCubit = context.read<BusinessOwnerSubscriptionCubit>();
+    final active = await BusinessSubscriptionPostUnlock
+        .refreshSubscriptionUntilActive(subCubit, widget.user.id);
     if (!mounted) return;
-    if (context.read<BusinessOwnerSubscriptionCubit>().state
-        .hasActiveSubscription) {
-      Navigator.of(context).pop(true);
+    if (active) {
+      await _applyUnlockedAndPop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

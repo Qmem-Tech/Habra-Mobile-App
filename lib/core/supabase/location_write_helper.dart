@@ -80,7 +80,8 @@ class LocationWriteHelper {
   Future<void> attachBusinessLocation(Map<String, dynamic> payload) async {
     final id = await createOrReuseFromPayload(
       payload,
-      name: parseString(payload['location_name']) ?? parseString(payload['name']),
+      name:
+          parseString(payload['location_name']) ?? parseString(payload['name']),
       addressLine1: parseString(payload['address_street']),
       city: parseString(payload['address_city']),
       state: parseString(payload['address_state']),
@@ -105,7 +106,9 @@ class LocationWriteHelper {
 
     final id = await createOrReuseFromPayload(
       payload,
-      name: parseString(payload['location_name']) ?? parseString(payload['venue_name']),
+      name:
+          parseString(payload['location_name']) ??
+          parseString(payload['venue_name']),
       addressLine1: parseString(payload['venue_address']),
       city: parseString(payload['location_city']),
       state: parseString(payload['location_state']),
@@ -139,10 +142,10 @@ class LocationWriteHelper {
   static bool _isMissingLocationsSchema(PostgrestException e) {
     final message = e.message.toLowerCase();
     return e.code == 'PGRST200' ||
-        message.contains('locations') && (
-            message.contains('does not exist') ||
-            message.contains('schema cache') ||
-            message.contains('could not find') ||
-            message.contains('relationship'));
+        message.contains('locations') &&
+            (message.contains('does not exist') ||
+                message.contains('schema cache') ||
+                message.contains('could not find') ||
+                message.contains('relationship'));
   }
 }

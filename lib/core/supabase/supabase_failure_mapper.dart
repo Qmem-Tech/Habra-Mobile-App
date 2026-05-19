@@ -22,10 +22,7 @@ class SupabaseFailureMapper {
       );
     }
     if (error is supabase.FunctionException) {
-      throw app.ServerException(
-        error.toString(),
-        null,
-      );
+      throw app.ServerException(error.toString(), null);
     }
     if (error is supabase.PostgrestException) {
       final code = error.code;
@@ -35,10 +32,7 @@ class SupabaseFailureMapper {
           _userFriendly('You don\'t have permission for this action.'),
         );
       }
-      throw app.ServerException(
-        _userFriendly(message),
-        code,
-      );
+      throw app.ServerException(_userFriendly(message), code);
     }
     if (error is supabase.StorageException) {
       if (error.statusCode == '403') {
@@ -46,16 +40,10 @@ class SupabaseFailureMapper {
           _userFriendly('You don\'t have permission for this file.'),
         );
       }
-      throw app.ServerException(
-        _userFriendly(error.message),
-        error.statusCode,
-      );
+      throw app.ServerException(_userFriendly(error.message), error.statusCode);
     }
     if (error is PlatformException) {
-      throw app.ServerException(
-        _friendlyPlatformException(error),
-        error.code,
-      );
+      throw app.ServerException(_friendlyPlatformException(error), error.code);
     }
 
     final message = error.toString();
@@ -87,7 +75,10 @@ class SupabaseFailureMapper {
           'Add SHA-1/256 to Firebase/Google Cloud and set GOOGLE_WEB_CLIENT_ID for Android.';
     }
     // Android: com.google.android.gms.common.api.ApiException: 10 = DEVELOPER_ERROR
-    if (RegExp(r'apiexception:\s*10\b', caseSensitive: false).hasMatch(trimmed)) {
+    if (RegExp(
+      r'apiexception:\s*10\b',
+      caseSensitive: false,
+    ).hasMatch(trimmed)) {
       return 'Google Sign-In error (code 10): your Android app is not registered correctly. '
           'In Google Cloud Console → APIs & Services → Credentials, open the '
           'OAuth 2.0 Client ID of type Android for package com.habra.habra and add '
@@ -109,7 +100,8 @@ class SupabaseFailureMapper {
   static String _friendlyPlatformException(PlatformException e) {
     final parts = <String>[
       if (e.message != null && e.message!.trim().isNotEmpty) e.message!.trim(),
-      if (e.details != null && '$e.details'.trim().isNotEmpty) '$e.details'.trim(),
+      if (e.details != null && '$e.details'.trim().isNotEmpty)
+        '$e.details'.trim(),
     ];
     final combined = parts.join(' ');
     if (combined.isEmpty) {

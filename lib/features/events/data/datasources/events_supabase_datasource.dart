@@ -141,7 +141,9 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
   }
 
   @override
-  Future<List<EventListItemModel>> getEventsByBusinessId(String businessId) async {
+  Future<List<EventListItemModel>> getEventsByBusinessId(
+    String businessId,
+  ) async {
     return SupabaseFailureMapper.guard(() async {
       if (businessId.isEmpty) return <EventListItemModel>[];
 
@@ -190,27 +192,32 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
   }
 
   EventListItemModel _rowToEventListItem(Map<String, dynamic> row) {
-    final normalizedLocation =
-        NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
+    final normalizedLocation = NormalizedLocation.maybeFromEmbedded(
+      row[SupabaseTables.locations],
+    );
     final isOnline = parseBool(row['is_online']);
     final id = parseStringRequired(row['id']);
     final title = parseStringRequired(row['title']);
-    final imageUrl = parseString(row['image_url']) ?? 'https://placehold.co/400x300?text=Event';
+    final imageUrl =
+        parseString(row['image_url']) ??
+        'https://placehold.co/400x300?text=Event';
     final category = parseString(row['category']);
-    final categories = [ _categoryFromString(category) ];
+    final categories = [_categoryFromString(category)];
     final startAt = parseTimestampRequired(row['start_at']);
     final venue = isOnline
         ? 'Online'
         : (normalizedLocation?.name ??
-            parseStringRequired(row['venue_name'], 'Venue'));
+              parseStringRequired(row['venue_name'], 'Venue'));
     final venueAddress = isOnline
         ? parseString(row['online_url'])
         : (normalizedLocation?.displayAddress.isNotEmpty == true
-            ? normalizedLocation!.displayAddress
-            : parseString(row['venue_address']));
+              ? normalizedLocation!.displayAddress
+              : parseString(row['venue_address']));
     final locationLabel = venueAddress ?? venue;
 
-    final pricing = _pricingFromEmbeddedTickets(row[SupabaseTables.eventTickets]);
+    final pricing = _pricingFromEmbeddedTickets(
+      row[SupabaseTables.eventTickets],
+    );
 
     return EventListItemModel(
       id: id,
@@ -279,7 +286,11 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
             e.message.contains('could not find') ||
             e.message.contains('relationship') ||
             e.message.contains('locations')) {
-          eventRes = await _client.from('events').select('*').eq('id', eventId).maybeSingle();
+          eventRes = await _client
+              .from('events')
+              .select('*')
+              .eq('id', eventId)
+              .maybeSingle();
         } else {
           rethrow;
         }
@@ -287,7 +298,10 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       if (eventRes == null) throw Exception('Event not found');
       final row = Map<String, dynamic>.from(eventRes as Map);
 
-      final ticketsRes = await _client.from('event_tickets').select('*').eq('event_id', eventId);
+      final ticketsRes = await _client
+          .from('event_tickets')
+          .select('*')
+          .eq('event_id', eventId);
       final ticketRows = (ticketsRes as List).cast<Map<String, dynamic>>();
       final ticketTypes = ticketRows.map((t) {
         final avail = parseInt(t['quantity_available']) ?? 0;
@@ -304,30 +318,44 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       }).toList();
 
       final category = parseString(row['category']);
-      final location = NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
+      final location = NormalizedLocation.maybeFromEmbedded(
+        row[SupabaseTables.locations],
+      );
       final isOnline = parseBool(row['is_online']);
-      final minPrice = ticketTypes.isEmpty ? null : ticketTypes.map((e) => e.price).reduce((a, b) => a < b ? a : b);
-      final maxPrice = ticketTypes.isEmpty ? null : ticketTypes.map((e) => e.price).reduce((a, b) => a > b ? a : b);
+      final minPrice = ticketTypes.isEmpty
+          ? null
+          : ticketTypes.map((e) => e.price).reduce((a, b) => a < b ? a : b);
+      final maxPrice = ticketTypes.isEmpty
+          ? null
+          : ticketTypes.map((e) => e.price).reduce((a, b) => a > b ? a : b);
 
       return EventDetailModel(
         id: parseStringRequired(row['id']),
         title: parseStringRequired(row['title']),
         description: parseStringRequired(row['description']),
-        imageUrl: parseString(row['image_url']) ?? 'https://placehold.co/400x300?text=Event',
-        categories: [ _categoryFromString(category) ],
+        imageUrl:
+            parseString(row['image_url']) ??
+            'https://placehold.co/400x300?text=Event',
+        categories: [_categoryFromString(category)],
         startDate: parseTimestampRequired(row['start_at']),
         endDate: parseTimestampRequired(row['end_at']),
         venue: isOnline
             ? 'Online'
-            : (location?.name ?? parseStringRequired(row['venue_name'], 'Venue')),
+            : (location?.name ??
+                  parseStringRequired(row['venue_name'], 'Venue')),
         address: isOnline
             ? parseStringRequired(row['online_url'])
-            : (location?.addressLine1 ?? parseStringRequired(row['venue_address'])),
+            : (location?.addressLine1 ??
+                  parseStringRequired(row['venue_address'])),
         city: isOnline ? '' : (location?.city ?? ''),
         state: isOnline ? '' : (location?.state ?? ''),
         zipCode: isOnline ? null : location?.postalCode,
-        latitude: isOnline ? null : (location?.latitude ?? parseDouble(row['venue_lat'])),
-        longitude: isOnline ? null : (location?.longitude ?? parseDouble(row['venue_lng'])),
+        latitude: isOnline
+            ? null
+            : (location?.latitude ?? parseDouble(row['venue_lat'])),
+        longitude: isOnline
+            ? null
+            : (location?.longitude ?? parseDouble(row['venue_lng'])),
         minPrice: minPrice,
         maxPrice: maxPrice,
         organizer: null,
@@ -359,8 +387,14 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
   @override
   Future<List<EventListItemModel>> getSimilarEvents(String eventId) async {
     return SupabaseFailureMapper.guard(() async {
-      final event = await _client.from('events').select('category').eq('id', eventId).maybeSingle();
-      final category = event is Map ? parseString((event as Map<String, dynamic>)['category']) : null;
+      final event = await _client
+          .from('events')
+          .select('category')
+          .eq('id', eventId)
+          .maybeSingle();
+      final category = event is Map
+          ? parseString((event as Map<String, dynamic>)['category'])
+          : null;
       var query = _client
           .from('events')
           .select(
@@ -407,12 +441,7 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
           .select('*')
           .eq('user_id', userId)
           .eq('type', 'event')
-          .inFilter('status', [
-            'pending',
-            'processing',
-            'completed',
-            'failed',
-          ])
+          .inFilter('status', ['pending', 'processing', 'completed', 'failed'])
           .order('created_at', ascending: false);
 
       final ordersList = (ordersRes as List).cast<Map<String, dynamic>>();
@@ -426,7 +455,10 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
           .toList(growable: false);
       final ticketsRes = orderIds.isEmpty
           ? const <dynamic>[]
-          : await _client.from('tickets').select('*').inFilter('order_id', orderIds);
+          : await _client
+                .from('tickets')
+                .select('*')
+                .inFilter('order_id', orderIds);
       final ticketRowsByOrderId = <String, List<Map<String, dynamic>>>{};
       for (final t in ticketsRes) {
         final tm = Map<String, dynamic>.from(t as Map);
@@ -473,7 +505,9 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       final now = DateTime.now();
       for (final orderRow in ordersList) {
         final orderMap = Map<String, dynamic>.from(orderRow);
-        final orderPaymentStatus = _parseOrderStatus(parseString(orderMap['status']));
+        final orderPaymentStatus = _parseOrderStatus(
+          parseString(orderMap['status']),
+        );
         final eventId = parseString(orderMap['event_id']);
         if (eventId == null) continue;
 
@@ -486,15 +520,18 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
         if (orderId == null) continue;
 
         final paid = orderPaymentStatus == events_domain.OrderStatus.completed;
-        final rows = ticketRowsByOrderId[orderId] ?? const <Map<String, dynamic>>[];
+        final rows =
+            ticketRowsByOrderId[orderId] ?? const <Map<String, dynamic>>[];
 
         if (rows.isEmpty) {
-          tickets.add(_syntheticTicketForOrder(
-            orderId: orderId,
-            orderMap: orderMap,
-            eventDetail: eventDetail,
-            orderPaymentStatus: orderPaymentStatus,
-          ));
+          tickets.add(
+            _syntheticTicketForOrder(
+              orderId: orderId,
+              orderMap: orderMap,
+              eventDetail: eventDetail,
+              orderPaymentStatus: orderPaymentStatus,
+            ),
+          );
           continue;
         }
 
@@ -503,21 +540,27 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
           if (etId == null) continue;
 
           final etRow = eventTicketById[etId];
-          final price = etRow != null ? parseDouble(etRow['price']) ?? 0.0 : 0.0;
-          final name = etRow != null ? parseStringRequired(etRow['name']) : 'Ticket';
+          final price = etRow != null
+              ? parseDouble(etRow['price']) ?? 0.0
+              : 0.0;
+          final name = etRow != null
+              ? parseStringRequired(etRow['name'])
+              : 'Ticket';
 
-          tickets.add(TicketModel(
-            id: parseStringRequired(tm['id']),
-            ticketId: parseStringRequired(tm['id']),
-            event: eventDetail,
-            ticketTypeName: name,
-            price: price,
-            purchaseDate: parseTimestampRequired(orderMap['created_at']),
-            orderId: orderId,
-            isVerified: paid,
-            qrCode: null,
-            orderPaymentStatus: orderPaymentStatus,
-          ));
+          tickets.add(
+            TicketModel(
+              id: parseStringRequired(tm['id']),
+              ticketId: parseStringRequired(tm['id']),
+              event: eventDetail,
+              ticketTypeName: name,
+              price: price,
+              purchaseDate: parseTimestampRequired(orderMap['created_at']),
+              orderId: orderId,
+              isVerified: paid,
+              qrCode: null,
+              orderPaymentStatus: orderPaymentStatus,
+            ),
+          );
         }
       }
       return tickets;
@@ -542,9 +585,12 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
           ? Map<String, dynamic>.from(row['orders'] as Map)
           : null;
       if (order == null) throw Exception('Ticket order not found');
-      if (parseString(order['user_id']) != userId) throw Exception('Ticket not found');
+      if (parseString(order['user_id']) != userId)
+        throw Exception('Ticket not found');
 
-      final orderPaymentStatus = _parseOrderStatus(parseString(order['status']));
+      final orderPaymentStatus = _parseOrderStatus(
+        parseString(order['status']),
+      );
       if (orderPaymentStatus == events_domain.OrderStatus.failed ||
           orderPaymentStatus == events_domain.OrderStatus.cancelled) {
         throw Exception('This order is no longer valid.');
@@ -554,8 +600,12 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       if (eventId == null) throw Exception('Event not found');
       final eventDetail = await getEventDetail(eventId);
       final et = row['event_tickets'];
-      final price = et is Map<String, dynamic> ? parseDouble(et['price']) ?? 0.0 : 0.0;
-      final name = et is Map<String, dynamic> ? parseStringRequired(et['name']) : 'Ticket';
+      final price = et is Map<String, dynamic>
+          ? parseDouble(et['price']) ?? 0.0
+          : 0.0;
+      final name = et is Map<String, dynamic>
+          ? parseStringRequired(et['name'])
+          : 'Ticket';
       final paid = orderPaymentStatus == events_domain.OrderStatus.completed;
       final ordId = parseString(order['id']);
       return TicketModel(
@@ -587,10 +637,16 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       num subtotalAmount = 0;
       final selectedTickets = <SelectedTicket>[];
       for (final t in tickets) {
-        final ticketTypeId = (t['ticket_type_id'] ?? t['event_ticket_id'] ?? t['ticketTypeId']) as String?;
+        final ticketTypeId =
+            (t['ticket_type_id'] ?? t['event_ticket_id'] ?? t['ticketTypeId'])
+                as String?;
         if (ticketTypeId == null) continue;
         final qty = (t['quantity'] as num?)?.toInt() ?? 1;
-        final etRes = await _client.from('event_tickets').select('*').eq('id', ticketTypeId).maybeSingle();
+        final etRes = await _client
+            .from('event_tickets')
+            .select('*')
+            .eq('id', ticketTypeId)
+            .maybeSingle();
         if (etRes is Map<String, dynamic>) {
           final price = parseDouble(etRes['price']) ?? 0;
           final name = parseStringRequired(etRes['name']);
@@ -610,17 +666,21 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
 
       final serviceFeeAmount = subtotalAmount * _serviceFeeRate;
       final totalAmount = subtotalAmount + serviceFeeAmount;
-      final orderRes = await _client.from('orders').insert({
-        'user_id': userId,
-        'type': 'event',
-        'event_id': eventId,
-        'status': 'pending',
-        'subtotal_amount': subtotalAmount,
-        'service_fee_amount': serviceFeeAmount,
-        'total_amount': totalAmount,
-        'contact_email': contactInfo['email'] ?? '',
-        'contact_phone': contactInfo['phone'] ?? '',
-      }).select('id, created_at').single();
+      final orderRes = await _client
+          .from('orders')
+          .insert({
+            'user_id': userId,
+            'type': 'event',
+            'event_id': eventId,
+            'status': 'pending',
+            'subtotal_amount': subtotalAmount,
+            'service_fee_amount': serviceFeeAmount,
+            'total_amount': totalAmount,
+            'contact_email': contactInfo['email'] ?? '',
+            'contact_phone': contactInfo['phone'] ?? '',
+          })
+          .select('id, created_at')
+          .single();
 
       final orderId = (orderRes as Map)['id'] as String;
       for (final st in selectedTickets) {
@@ -664,24 +724,30 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       final paymentId = parseString(paymentMethod['id']) ?? '';
 
       try {
-        await _client.rpc('mark_event_order_processing', params: {
-          'p_order_id': orderId,
-          'p_payment_provider': 'stripe',
-          'p_stripe_payment_intent_id': stripePaymentIntentId,
-          'p_payment_method': paymentType,
-          'p_payment_id': paymentId,
-          'p_stripe_customer_id': stripeCustomerId,
-        });
+        await _client.rpc(
+          'mark_event_order_processing',
+          params: {
+            'p_order_id': orderId,
+            'p_payment_provider': 'stripe',
+            'p_stripe_payment_intent_id': stripePaymentIntentId,
+            'p_payment_method': paymentType,
+            'p_payment_id': paymentId,
+            'p_stripe_customer_id': stripeCustomerId,
+          },
+        );
       } catch (_) {
-        await _client.from('orders').update({
-          'status': 'processing',
-          'payment_provider': 'stripe',
-          'stripe_payment_intent_id': stripePaymentIntentId,
-          'stripe_customer_id': stripeCustomerId,
-          'payment_method': paymentType,
-          'payment_id': paymentId,
-          'payment_started_at': DateTime.now().toIso8601String(),
-        }).eq('id', orderId);
+        await _client
+            .from('orders')
+            .update({
+              'status': 'processing',
+              'payment_provider': 'stripe',
+              'stripe_payment_intent_id': stripePaymentIntentId,
+              'stripe_customer_id': stripeCustomerId,
+              'payment_method': paymentType,
+              'payment_id': paymentId,
+              'payment_started_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', orderId);
       }
 
       // Fast path: finalize from Stripe in Edge Function (same as webhook) without
@@ -741,10 +807,16 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       if (data.ticketTypes.isEmpty) {
         throw Exception('Add at least one ticket type');
       }
+      final businessId = data.businessId?.trim();
+      if (businessId == null || businessId.isEmpty) {
+        throw Exception(
+          'A business listing is required. Select a location from your dashboard.',
+        );
+      }
 
       final payload = <String, dynamic>{
         'organizer_id': userId,
-        'business_id': data.businessId,
+        'business_id': businessId,
         'title': data.title,
         'description': data.description,
         'venue_name': data.venueName,
@@ -769,7 +841,11 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       };
       await LocationWriteHelper(_client).attachEventLocation(payload);
 
-      final eventRes = await _client.from(SupabaseTables.events).insert(payload).select('id').single();
+      final eventRes = await _client
+          .from(SupabaseTables.events)
+          .insert(payload)
+          .select('id')
+          .single();
 
       final eventId = (eventRes as Map)['id'] as String;
 
@@ -788,7 +864,10 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
   }
 
   @override
-  Future<EventDetailModel> updateEvent(String eventId, CreateEventData data) async {
+  Future<EventDetailModel> updateEvent(
+    String eventId,
+    CreateEventData data,
+  ) async {
     return SupabaseFailureMapper.guard(() async {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('Not authenticated');
@@ -829,14 +908,21 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       };
       await LocationWriteHelper(_client).attachEventLocation(payload);
 
-      await _client.from(SupabaseTables.events).update(payload).eq('id', eventId);
+      await _client
+          .from(SupabaseTables.events)
+          .update(payload)
+          .eq('id', eventId);
 
       return getEventDetail(eventId);
     });
   }
 
   Future<OrderModel> _fetchOrderModel(String orderId) async {
-    final res = await _client.from('orders').select('*').eq('id', orderId).single();
+    final res = await _client
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
     final row = Map<String, dynamic>.from(res as Map);
     final eventId = parseString(row['event_id']);
     if (eventId == null) throw Exception('Order event not found');
@@ -854,7 +940,8 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       if (ticketId != null) issuedIds.add(ticketId);
     }
 
-    final subtotal = parseDouble(row['subtotal_amount']) ??
+    final subtotal =
+        parseDouble(row['subtotal_amount']) ??
         parseDouble(row['total_amount']) ??
         0;
     final serviceFee = parseDouble(row['service_fee_amount']) ?? 0;
@@ -874,7 +961,11 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
   }
 
   Future<events_domain.OrderStatus> _fetchOrderStatus(String orderId) async {
-    final res = await _client.from('orders').select('status').eq('id', orderId).single();
+    final res = await _client
+        .from('orders')
+        .select('status')
+        .eq('id', orderId)
+        .single();
     final row = Map<String, dynamic>.from(res as Map);
     return _parseOrderStatus(parseString(row['status']));
   }
@@ -957,7 +1048,8 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
       } on PostgrestException catch (e) {
         // RPC missing in this Supabase project — fall through to direct UPDATE
         // so older environments keep working until the migration is applied.
-        final missing = e.code == 'PGRST202' ||
+        final missing =
+            e.code == 'PGRST202' ||
             e.code == '42883' ||
             e.message.toLowerCase().contains('could not find the function') ||
             e.message.toLowerCase().contains('does not exist');

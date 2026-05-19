@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../theme/app_colors.dart';
 import '../config/business_subscription_config.dart';
+import '../subscription/business_subscription_post_unlock.dart';
 import '../../core/services/push_notification_service.dart';
 import '../../injection/injection_container.dart' as di;
 import '../../features/home/presentation/pages/business_owner_home_page.dart';
@@ -17,6 +18,7 @@ import '../../features/home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../features/home/presentation/bloc/business_owner_home_state.dart';
 import '../../features/home/presentation/pages/profile_page.dart';
 import '../../features/home/presentation/pages/business_owner_subscription_page.dart';
+import '../subscription/subscription_logger.dart';
 
 /// Result of evaluating listing approval + legal-doc rules for owner navigation.
 ///
@@ -104,11 +106,13 @@ class BusinessOwnerNavigationWrapper extends StatefulWidget {
   }
 
   /// Opens business-owner subscription / paywall (requires [BusinessOwnerSubscriptionCubit] above context).
-  static Future<void> openBusinessOwnerSubscription(
+  ///
+  /// Returns `true` when the user subscribed or restored successfully.
+  static Future<bool?> openBusinessOwnerSubscription(
     BuildContext context,
     User user,
-  ) {
-    return Navigator.of(context).push<bool>(
+  ) async {
+    final subscribed = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (ctx) => BlocProvider.value(
           value: context.read<BusinessOwnerSubscriptionCubit>(),
@@ -116,6 +120,14 @@ class BusinessOwnerNavigationWrapper extends StatefulWidget {
         ),
       ),
     );
+    if (subscribed == true && context.mounted) {
+      await BusinessSubscriptionPostUnlock.apply(
+        context,
+        userId: user.id,
+        forceRefreshRevenueCat: true,
+      );
+    }
+    return subscribed;
   }
 
   @override
@@ -136,6 +148,9 @@ class _BusinessOwnerNavigationWrapperState
   @override
   void initState() {
     super.initState();
+    subscriptionLog(
+      'BusinessOwnerNavigationWrapper init — userId=${widget.user.id} tab=${widget.initialIndex}',
+    );
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
     di.sl<PushNotificationService>().registerTokenForUser(widget.user.id);
@@ -580,17 +595,30 @@ class _BusinessOwnerNavigationWrapperState
     final dashEnabled = snap == null || !snap.gateEvaluated || snap.dashboardEnabled;
     final boostEnabled = snap == null || !snap.gateEvaluated || snap.boostsEnabled;
 
-    return BlocListener<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
-      listenWhen: (prev, curr) {
-        if (curr is! BusinessOwnerHomeLoaded) {
-          return prev is BusinessOwnerHomeLoaded;
-        }
-        if (prev is! BusinessOwnerHomeLoaded) return true;
-        return prev.selectedPresenceId != curr.selectedPresenceId ||
-            prev.presences != curr.presences;
+    return BlocListener<BusinessOwnerSubscriptionCubit,
+        BusinessOwnerSubscriptionState>(
+      listenWhen: (prev, curr) =>
+          !curr.isLoading &&
+          !prev.isLoading &&
+          (prev.hasActiveSubscription != curr.hasActiveSubscription ||
+              prev.currentTier != curr.currentTier),
+      listener: (context, _) async {
+        await BusinessSubscriptionPostUnlock.apply(
+          context,
+          userId: widget.user.id,
+        );
       },
-      listener: (context, state) => _refreshToolsGateDueToHomeChange(),
-      child: Scaffold(
+      child: BlocListener<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
+        listenWhen: (prev, curr) {
+          if (curr is! BusinessOwnerHomeLoaded) {
+            return prev is BusinessOwnerHomeLoaded;
+          }
+          if (prev is! BusinessOwnerHomeLoaded) return true;
+          return prev.selectedPresenceId != curr.selectedPresenceId ||
+              prev.presences != curr.presences;
+        },
+        listener: (context, state) => _refreshToolsGateDueToHomeChange(),
+        child: Scaffold(
         body: PageView(
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),
@@ -654,6 +682,7 @@ class _BusinessOwnerNavigationWrapperState
               enabledWhenGated: true,
             ),
           ],
+        ),
         ),
       ),
     );

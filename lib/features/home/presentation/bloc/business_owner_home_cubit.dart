@@ -1,6 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/storage/local_storage.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
+import '../../../../core/subscription/subscription_logger.dart';
 import '../../../dashboard/domain/entities/dashboard_deal.dart';
 import '../../../dashboard/domain/repositories/dashboard_repository.dart';
 import '../../domain/entities/business_presence.dart';
@@ -36,9 +38,18 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
     bool showSetupIncomplete = false,
   }) async {
     _ownerId = ownerId;
+    subscriptionLog('loadOwnerHome started — userId=$ownerId');
     emit(BusinessOwnerHomeLoading());
     try {
       final presences = await _dashboardRepository.getOwnerBusinesses(ownerId);
+      for (final p in presences) {
+        subscriptionLogPlan(
+          source: 'home-loaded',
+          userId: ownerId,
+          businessName: p.displayName,
+          supabaseTier: p.subscriptionTier,
+        );
+      }
 
       if (presences.isEmpty) {
         await _localStorage.remove('${_storageKeyPrefix}_$ownerId');
@@ -93,6 +104,7 @@ class BusinessOwnerHomeCubit extends Cubit<BusinessOwnerHomeState> {
         isSetupIncomplete: showSetupIncomplete,
       ));
     } catch (e) {
+      subscriptionLog('loadOwnerHome failed — userId=$ownerId error=$e');
       emit(BusinessOwnerHomeError(e.toString()));
     }
   }

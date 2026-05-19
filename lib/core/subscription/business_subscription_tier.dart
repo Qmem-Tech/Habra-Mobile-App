@@ -4,6 +4,22 @@ enum BusinessSubscriptionTier {
   premium,
 }
 
+/// User-facing plan name (Basic / Standard / Premium).
+extension BusinessSubscriptionTierDisplay on BusinessSubscriptionTier {
+  String get displayName => switch (this) {
+        BusinessSubscriptionTier.premium => 'Premium',
+        BusinessSubscriptionTier.pro => 'Standard',
+        BusinessSubscriptionTier.basic => 'Basic',
+      };
+
+  /// Value stored in `businesses.subscription_tier`.
+  String get dbValue => switch (this) {
+        BusinessSubscriptionTier.premium => 'premium',
+        BusinessSubscriptionTier.pro => 'pro',
+        BusinessSubscriptionTier.basic => 'basic',
+      };
+}
+
 enum BusinessSubscriptionStatus {
   active,
   inactive,

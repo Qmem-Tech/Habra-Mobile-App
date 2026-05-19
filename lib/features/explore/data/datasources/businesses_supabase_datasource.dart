@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/subscription/business_gallery_access.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/domain/normalized_location.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
@@ -89,7 +91,13 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
     final id = parseStringRequired(row['id']);
     final name = parseStringRequired(row['name']);
     final logoUrl = parseString(row['logo_url']);
-    final imageUrls = parseStringList(row['image_urls']);
+    final listingTier = businessTierFromRaw(
+      parseString(row['subscription_tier']),
+    );
+    final imageUrls = BusinessGalleryAccess.urlsForPublic(
+      parseStringList(row['image_urls']),
+      listingTier,
+    );
     final imageUrl = logoUrl ?? (imageUrls.isNotEmpty ? imageUrls.first : '');
     final address = location?.addressLine1 ?? parseStringRequired(row['address_street']);
     final city = location?.city ?? parseStringRequired(row['address_city']);
@@ -252,7 +260,13 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
           .order('created_at', ascending: false);
       final reviews = (reviewsRes as List).cast<Map<String, dynamic>>().map(_rowToReview).toList();
 
-      final gallery = parseStringList(row['image_urls']);
+      final listingTier = businessTierFromRaw(
+        parseString(row['subscription_tier']),
+      );
+      final gallery = BusinessGalleryAccess.urlsForPublic(
+        parseStringList(row['image_urls']),
+        listingTier,
+      );
       final backgroundUrl = parseString(row['background_url']);
       final logoUrl = parseString(row['logo_url']);
       final seen = <String>{};

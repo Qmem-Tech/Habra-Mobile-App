@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/subscription/business_subscription_effective.dart';
 import '../../../../core/subscription/business_subscription_policy.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -86,7 +87,7 @@ class _BoostOptionsPageState extends State<BoostOptionsPage> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!context.mounted) return;
             final homeState = context.read<BusinessOwnerHomeCubit>().state;
-            final tier = _subscriptionTierForBoost(homeState);
+            final tier = _subscriptionTierForBoost(context, homeState);
             if ((want == BoostOptionType.deal || want == BoostOptionType.job) &&
                 !BusinessSubscriptionPolicy.canBoostDealsOrJobs(tier)) {
               BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
@@ -111,7 +112,7 @@ class _BoostOptionsPageState extends State<BoostOptionsPage> {
           }
           final options = state.options;
           final homeState = context.watch<BusinessOwnerHomeCubit>().state;
-          final tier = _subscriptionTierForBoost(homeState);
+          final tier = _subscriptionTierForBoost(context, homeState);
           final canDealJobBoost =
               BusinessSubscriptionPolicy.canBoostDealsOrJobs(tier);
 
@@ -193,6 +194,7 @@ class _BoostOptionsPageState extends State<BoostOptionsPage> {
   }
 
   BusinessSubscriptionTier _subscriptionTierForBoost(
+    BuildContext context,
     BusinessOwnerHomeState homeState,
   ) {
     if (homeState is! BusinessOwnerHomeLoaded) {
@@ -201,13 +203,19 @@ class _BoostOptionsPageState extends State<BoostOptionsPage> {
     final bid = homeState.focusBusinessIdForOwnerTools;
     if (bid == null) return BusinessSubscriptionTier.basic;
     for (final p in homeState.presences) {
-      if (p.id == bid) return p.subscriptionTier;
+      if (p.id == bid) {
+        return BusinessSubscriptionEffective.fromContext(
+          context,
+          databaseTier: p.subscriptionTier,
+        );
+      }
     }
     return BusinessSubscriptionTier.basic;
   }
 
   void _onOptionTap(BuildContext context, BoostOption option) {
     final tier = _subscriptionTierForBoost(
+      context,
       context.read<BusinessOwnerHomeCubit>().state,
     );
     if ((option.type == BoostOptionType.deal ||

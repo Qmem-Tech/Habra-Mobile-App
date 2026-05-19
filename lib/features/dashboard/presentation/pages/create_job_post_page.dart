@@ -5,6 +5,7 @@ import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/error/exceptions.dart' as app_err;
 import '../../../../core/subscription/business_subscription_policy.dart'
     show maxOpenJobPostsForSubscriptionTier;
+import '../../../../core/subscription/business_subscription_effective.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -135,11 +136,16 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     return [];
   }
 
-  BusinessSubscriptionTier _selectedBusinessTier() {
+  BusinessSubscriptionTier _selectedBusinessTier(BuildContext context) {
     final selectedId = _getSelectedBusinessId();
     if (selectedId == null) return BusinessSubscriptionTier.basic;
     for (final b in _getBusinesses()) {
-      if (b.id == selectedId) return b.subscriptionTier;
+      if (b.id == selectedId) {
+        return BusinessSubscriptionEffective.fromContext(
+          context,
+          databaseTier: b.subscriptionTier,
+        );
+      }
     }
     return BusinessSubscriptionTier.basic;
   }
@@ -152,7 +158,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
     if (editing != null && editing.status == DashboardJobStatus.open) {
       return null;
     }
-    final tier = _selectedBusinessTier();
+    final tier = _selectedBusinessTier(context);
     final maxAllowed = maxOpenJobPostsForSubscriptionTier(tier);
     final existing = await Supabase.instance.client
         .from(SupabaseTables.jobs)
@@ -161,7 +167,7 @@ class _CreateJobPostPageState extends State<CreateJobPostPage> {
         .eq('status', 'open');
     final count = (existing as List).length;
     if (count >= maxAllowed) {
-      return 'Your ${tier.name.toUpperCase()} plan allows up to $maxAllowed active job post(s).';
+      return 'Your ${tier.displayName} plan allows up to $maxAllowed active job post(s).';
     }
     return null;
   }

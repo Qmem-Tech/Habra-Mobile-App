@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/config/business_subscription_config.dart';
 import '../../../../core/services/revenue_cat_service.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
+import '../../../../core/subscription/subscription_logger.dart';
 
 class BusinessOwnerSubscriptionState extends Equatable {
   const BusinessOwnerSubscriptionState({
@@ -48,6 +49,13 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
   Future<void> refresh(String userId, {bool forceRefresh = false}) async {
     emit(state.copyWith(isLoading: true));
     final (active, tier) = await _resolveState(userId, forceRefresh: forceRefresh);
+    subscriptionLogPlan(
+      source: 'cubit',
+      userId: userId,
+      revenueCatActive: active,
+      revenueCatTier: tier,
+    );
+    subscriptionLog('gating mode=${BusinessSubscriptionConfig.mode.name}');
     emit(BusinessOwnerSubscriptionState(
       isLoading: false,
       hasActiveSubscription: active,

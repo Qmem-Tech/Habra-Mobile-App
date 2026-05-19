@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/subscription/business_subscription_effective.dart';
 import '../../../../core/subscription/business_subscription_policy.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -44,7 +45,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
   final _descriptionController = TextEditingController();
   final _venueNameController = TextEditingController();
   final _venueAddressController = TextEditingController();
-  final _onlineUrlController = TextEditingController();
   final _eventPolicyController = TextEditingController();
 
   DateTime? _startAt;
@@ -55,7 +55,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
   double? _venueLat;
   double? _venueLng;
   BusinessAddressData? _venueAddressData;
-  bool _isOnline = false;
 
   final List<_TicketTypeRow> _ticketTypes = [];
   bool _loadingExisting = false;
@@ -92,10 +91,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
           _loadingExisting = false;
           _titleController.text = detail.title;
           _descriptionController.text = detail.description;
-          _isOnline = detail.isOnline;
-          _venueNameController.text = detail.isOnline ? '' : detail.venue;
-          _venueAddressController.text = detail.isOnline ? '' : detail.address;
-          if (detail.isOnline) _onlineUrlController.text = detail.onlineUrl ?? detail.address;
+          _venueNameController.text =
+              detail.venue.toLowerCase() == 'online' ? '' : detail.venue;
+          _venueAddressController.text = detail.isOnline
+              ? (detail.onlineUrl ?? detail.address)
+              : detail.address;
           _startAt = detail.startDate;
           _endAt = detail.endDate;
           _venueLat = detail.latitude;
@@ -124,7 +124,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
     _descriptionController.dispose();
     _venueNameController.dispose();
     _venueAddressController.dispose();
-    _onlineUrlController.dispose();
     _eventPolicyController.dispose();
     for (final row in _ticketTypes) {
       row.nameController.dispose();
@@ -134,32 +133,36 @@ class _CreateEventPageState extends State<CreateEventPage> {
     super.dispose();
   }
 
-  String? _getSelectedBusinessId() {
+  /// Same listing anchor as dashboard create-deal/job ([focusBusinessIdForOwnerTools]).
+  String? _businessIdForEvent() {
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
-    if (homeState is BusinessOwnerHomeLoaded &&
-        homeState.selectedPresence != null &&
-        homeState.selectedPresence!.id != 'all') {
-      return homeState.selectedPresence!.id;
+    if (homeState is BusinessOwnerHomeLoaded) {
+      return homeState.focusBusinessIdForOwnerTools;
     }
     return null;
   }
 
-  BusinessSubscriptionTier _selectedBusinessTier() {
-    final selectedId = _getSelectedBusinessId();
+  BusinessSubscriptionTier _selectedBusinessTier(BuildContext context) {
+    final selectedId = _businessIdForEvent();
     if (selectedId == null) return BusinessSubscriptionTier.basic;
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
     if (homeState is BusinessOwnerHomeLoaded) {
       for (final p in homeState.presences) {
-        if (p.id == selectedId) return p.subscriptionTier;
+        if (p.id == selectedId) {
+          return BusinessSubscriptionEffective.fromContext(
+            context,
+            databaseTier: p.subscriptionTier,
+          );
+        }
       }
     }
     return BusinessSubscriptionTier.basic;
   }
 
   Future<String?> _checkEventLimit() async {
-    final bizId = _getSelectedBusinessId();
+    final bizId = _businessIdForEvent();
     if (bizId == null) return null;
-    final tier = _selectedBusinessTier();
+    final tier = _selectedBusinessTier(context);
     final maxAllowed = BusinessSubscriptionPolicy.maxActiveEvents(tier);
     final existing = await Supabase.instance.client
         .from(SupabaseTables.events)
@@ -169,7 +172,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         .gte('end_at', DateTime.now().toIso8601String());
     final count = (existing as List).length;
     if (count >= maxAllowed) {
-      return 'Your ${tier.name.toUpperCase()} plan allows up to $maxAllowed active event(s).';
+      return 'Your ${tier.displayName} plan allows up to $maxAllowed active event(s).';
     }
     return null;
   }
@@ -201,13 +204,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       );
       return;
     }
-    if (_isOnline && _onlineUrlController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter the online event URL')),
-      );
-      return;
-    }
-    if (!_isOnline && (_venueLat == null || _venueLng == null)) {
+    if (_venueLat == null || _venueLng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -218,6 +215,18 @@ class _CreateEventPageState extends State<CreateEventPage> {
       );
       return;
     }
+    final bizId = _businessIdForEvent();
+    if (bizId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Add an approved business listing before creating an event.',
+          ),
+        ),
+      );
+      return;
+    }
+
     if (!_isEditing) {
       final limitError = await _checkEventLimit();
       if (limitError != null) {
@@ -270,10 +279,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final data = CreateEventData(
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
-      venueName: _isOnline ? 'Online' : _venueNameController.text.trim(),
-      venueAddress: _isOnline ? '' : _venueAddressController.text.trim(),
-      venueLat: _isOnline ? null : _venueLat,
-      venueLng: _isOnline ? null : _venueLng,
+      venueName: _venueNameController.text.trim(),
+      venueAddress: _venueAddressController.text.trim(),
+      venueLat: _venueLat,
+      venueLng: _venueLng,
       locationName: _venueAddressData?.name,
       locationCity: _venueAddressData?.city,
       locationState: _venueAddressData?.state,
@@ -281,13 +290,13 @@ class _CreateEventPageState extends State<CreateEventPage> {
       locationPostalCode: _venueAddressData?.zipCode,
       placeId: _venueAddressData?.placeId,
       googleMapsUrl: _venueAddressData?.googleMapsUrl,
-      isOnline: _isOnline,
-      onlineUrl: _isOnline ? _onlineUrlController.text.trim() : null,
+      isOnline: false,
+      onlineUrl: null,
       startAt: _startAt!,
       endAt: _endAt!,
       imageUrl: imageUrl,
       category: _category,
-      businessId: _getSelectedBusinessId(),
+      businessId: bizId,
       eventPolicy: _eventPolicyController.text.trim().isEmpty
           ? null
           : _eventPolicyController.text.trim(),
@@ -388,32 +397,16 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   const SizedBox(height: 16),
                   _sectionTitle('Venue'),
                   const SizedBox(height: 8),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Online event'),
-                    subtitle: const Text('Use a streaming or meeting link instead of a physical venue.'),
-                    value: _isOnline,
-                    onChanged: (value) => setState(() => _isOnline = value),
+                  _buildTextField(
+                    'Venue Name',
+                    controller: _venueNameController,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
                   ),
                   const SizedBox(height: 12),
-                  if (_isOnline)
-                    _buildTextField(
-                      'Online URL',
-                      controller: _onlineUrlController,
-                      keyboardType: TextInputType.url,
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-                    )
-                  else ...[
-                    _buildTextField(
-                      'Venue Name',
-                      controller: _venueNameController,
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildVenueAddressField(),
-                    const SizedBox(height: 12),
-                    _buildLocationSection(),
-                  ],
+                  _buildVenueAddressField(),
+                  const SizedBox(height: 12),
+                  _buildLocationSection(),
                   const SizedBox(height: 16),
                   _sectionTitle('Date & Time'),
                   const SizedBox(height: 8),

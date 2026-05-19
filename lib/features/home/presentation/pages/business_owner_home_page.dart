@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/subscription/business_subscription_effective.dart';
 import '../../../../core/subscription/business_subscription_policy.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
+import '../../../../core/subscription/subscription_logger.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/storage/local_storage.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -14,6 +16,7 @@ import '../../../events/presentation/pages/create_event_page.dart';
 import '../../../../core/constants/support_contact.dart';
 import '../../../../core/utils/relative_time_short.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
+import '../../../../core/navigation/business_owner_tool_route.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
 import '../../../../core/resources/app_assets.dart';
@@ -82,6 +85,9 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   @override
   void initState() {
     super.initState();
+    subscriptionLog(
+      'BusinessOwnerHomePage opened — userId=${widget.user.id}',
+    );
     context.read<BusinessOwnerHomeCubit>().loadOwnerHome(
           ownerId: widget.user.id,
           showSetupIncomplete: false,
@@ -99,12 +105,21 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     setState(() => _dismissedHomeBannerKeys.addAll(keys));
   }
 
+  BusinessSubscriptionTier _effectiveTier(
+    BuildContext context,
+    BusinessPresence presence,
+  ) {
+    final sub = context.read<BusinessOwnerSubscriptionCubit>().state;
+    return presence.effectiveTier(sub);
+  }
+
   Future<void> _navigateToCreateEvent() async {
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
-    final tier = homeState is BusinessOwnerHomeLoaded &&
-            homeState.selectedPresence != null &&
-            homeState.selectedPresence!.id != 'all'
-        ? homeState.selectedPresence!.subscriptionTier
+    final selected = homeState is BusinessOwnerHomeLoaded
+        ? homeState.selectedPresence
+        : null;
+    final tier = selected != null && selected.id != 'all'
+        ? _effectiveTier(context, selected)
         : BusinessSubscriptionTier.basic;
     if (!BusinessSubscriptionPolicy.canPostDealsEventsJobs(tier)) {
       await BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
@@ -120,11 +135,12 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
       context,
       MaterialPageRoute(
         builder: (_) => MultiBlocProvider(
-          providers: [
-            BlocProvider<DashboardCubit>.value(value: dashboardCubit),
-            BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
-            BlocProvider<CreateEventCubit>.value(value: createEventCubit),
-          ],
+          providers: businessOwnerToolRouteProviders(
+            context,
+            dashboard: dashboardCubit,
+            home: homeCubit,
+            createEvent: createEventCubit,
+          ),
           child: const CreateEventPage(),
         ),
       ),
@@ -186,7 +202,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   initialLogoUrl: selected.logoUrl,
                   initialBackgroundUrl: selected.backgroundUrl,
                   initialGalleryUrls: selected.imageUrls,
-                  subscriptionTier: selected.subscriptionTier,
+                  subscriptionTier: _effectiveTier(context, selected),
                 ),
               ),
             );
@@ -445,7 +461,44 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return BlocListener<BusinessOwnerSubscriptionCubit,
+        BusinessOwnerSubscriptionState>(
+      listenWhen: (prev, curr) =>
+          !curr.isLoading &&
+          !prev.isLoading &&
+          (prev.hasActiveSubscription != curr.hasActiveSubscription ||
+              prev.currentTier != curr.currentTier),
+      listener: (context, sub) {
+        subscriptionLogPlan(
+          source: 'home-ui',
+          userId: widget.user.id,
+          revenueCatActive: sub.hasActiveSubscription,
+          revenueCatTier: sub.currentTier,
+        );
+      },
+      child: BlocBuilder<BusinessOwnerSubscriptionCubit,
+          BusinessOwnerSubscriptionState>(
+        buildWhen: (prev, curr) =>
+            prev.hasActiveSubscription != curr.hasActiveSubscription ||
+            prev.currentTier != curr.currentTier ||
+            prev.isLoading != curr.isLoading,
+        builder: (context, _) => BlocListener<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
+        listenWhen: (prev, curr) =>
+            curr is BusinessOwnerHomeLoaded &&
+            (prev is! BusinessOwnerHomeLoaded ||
+                prev.selectedPresenceId != curr.selectedPresenceId),
+        listener: (context, home) {
+          if (home is! BusinessOwnerHomeLoaded) return;
+          final selected = home.selectedPresence;
+          if (selected == null || selected.id == 'all') return;
+          subscriptionLogPlan(
+            source: 'home-selected-business',
+            userId: widget.user.id,
+            businessName: selected.displayName,
+            supabaseTier: selected.subscriptionTier,
+          );
+        },
+        child: Scaffold(
       backgroundColor: AppColors.ownerHomeSectionBg,
       key: _scaffoldKey,
       drawer: BlocBuilder<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
@@ -575,6 +628,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                     businessId: targetPresence.id,
                     businessName: targetPresence.displayName,
                     initialImageUrls: targetPresence.imageUrls,
+                    subscriptionTier: _effectiveTier(dlgCtx, targetPresence),
                   ),
                 ),
               );
@@ -645,6 +699,9 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
           ],
         ),
       ),
+        ),
+      ),
+        ),
     );
   }
 
@@ -748,15 +805,23 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   }
 
   /// True when engagement metrics (reports, activity, deals/jobs on Home) should be blurred for Free-only listings.
-  bool _shouldBlurFreeTierEngagement(BusinessOwnerHomeLoaded state) {
+  bool _shouldBlurFreeTierEngagement(
+    BuildContext context,
+    BusinessOwnerHomeLoaded state,
+  ) {
+    final sub = context.read<BusinessOwnerSubscriptionCubit>().state;
     final sel = state.selectedPresence;
     if (sel != null && sel.id != 'all') {
-      return BusinessSubscriptionPolicy.isFreeListingOnlyTier(sel.subscriptionTier);
+      return BusinessSubscriptionPolicy.isFreeListingOnlyTier(
+        sel.effectiveTier(sub),
+      );
     }
     final businesses = state.presences.where((p) => p.id != 'all').toList();
     if (businesses.isEmpty) return false;
     return businesses.every(
-      (p) => BusinessSubscriptionPolicy.isFreeListingOnlyTier(p.subscriptionTier),
+      (p) => BusinessSubscriptionPolicy.isFreeListingOnlyTier(
+        p.effectiveTier(sub),
+      ),
     );
   }
 
@@ -923,7 +988,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     final presence = state.selectedPresence;
     final showOwnerTools =
         BusinessPresence.listHasApprovedBusiness(state.presences);
-    final blurEngagement = _shouldBlurFreeTierEngagement(state);
+    final blurEngagement = _shouldBlurFreeTierEngagement(context, state);
 
     return RefreshIndicator(
       onRefresh: () => _refreshOwnerHome(context),
@@ -1229,7 +1294,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   Widget _buildAllBusinessesView(BusinessOwnerHomeLoaded state) {
     final showOwnerTools =
         BusinessPresence.listHasApprovedBusiness(state.presences);
-    final blurEngagement = _shouldBlurFreeTierEngagement(state);
+    final blurEngagement = _shouldBlurFreeTierEngagement(context, state);
 
     return RefreshIndicator(
       onRefresh: () => _refreshOwnerHome(context),
@@ -1691,10 +1756,11 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => MultiBlocProvider(
-                    providers: [
-                      BlocProvider<DashboardCubit>.value(value: dashboardCubit),
-                      BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
-                    ],
+                    providers: businessOwnerToolRouteProviders(
+                      context,
+                      dashboard: dashboardCubit,
+                      home: homeCubit,
+                    ),
                     child: const CreateDealPage(),
                   ),
                 ),
@@ -2471,7 +2537,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     final hasSpecificBusiness =
         selectedPresence != null && selectedPresence.id != 'all';
     final blurPostingRow = state is BusinessOwnerHomeLoaded &&
-        _shouldBlurFreeTierEngagement(state);
+        _shouldBlurFreeTierEngagement(context, state);
 
     const circleSize = 64.0;
     const iconSize = 28.0;
@@ -2484,7 +2550,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         return;
       }
       if (!BusinessSubscriptionPolicy.canPostDealsEventsJobs(
-        selectedPresence!.subscriptionTier,
+        _effectiveTier(context, selectedPresence!),
       )) {
         await BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
           context,
@@ -2498,10 +2564,11 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         context,
         MaterialPageRoute(
           builder: (_) => MultiBlocProvider(
-            providers: [
-              BlocProvider<DashboardCubit>.value(value: dashboardCubit),
-              BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
-            ],
+            providers: businessOwnerToolRouteProviders(
+              context,
+              dashboard: dashboardCubit,
+              home: homeCubit,
+            ),
             child: const CreateDealPage(),
           ),
         ),
@@ -2518,7 +2585,7 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         return;
       }
       if (!BusinessSubscriptionPolicy.canPostDealsEventsJobs(
-        selectedPresence!.subscriptionTier,
+        _effectiveTier(context, selectedPresence!),
       )) {
         await BusinessOwnerNavigationWrapper.openBusinessOwnerSubscription(
           context,
@@ -2532,10 +2599,11 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         context,
         MaterialPageRoute(
           builder: (_) => MultiBlocProvider(
-            providers: [
-              BlocProvider<DashboardCubit>.value(value: dashboardCubit),
-              BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
-            ],
+            providers: businessOwnerToolRouteProviders(
+              context,
+              dashboard: dashboardCubit,
+              home: homeCubit,
+            ),
             child: const CreateJobPostPage(),
           ),
         ),

@@ -4,7 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/subscription/business_gallery_access.dart';
+import '../../../../core/subscription/business_subscription_effective.dart';
 import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
+import '../../../../core/widgets/tier_locked_gallery_image.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_utils.dart';
@@ -31,8 +35,14 @@ class EditBusinessPage extends StatefulWidget {
 }
 
 class _EditBusinessPageState extends State<EditBusinessPage> {
-  int get _maxGallery => BusinessSubscriptionPolicy.maxGalleryImages(
-      widget.business.subscriptionTier);
+  BusinessSubscriptionTier _effectiveTier(BuildContext context) =>
+      BusinessSubscriptionEffective.fromContext(
+        context,
+        databaseTier: widget.business.subscriptionTier,
+      );
+
+  int _maxGallery(BuildContext context) =>
+      BusinessGalleryAccess.activeLimit(_effectiveTier(context));
 
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
@@ -110,15 +120,20 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
 
   Future<void> _openGalleryPhotos() async {
     final ctx = context;
+    final effectiveTier = BusinessSubscriptionEffective.fromContext(
+      ctx,
+      databaseTier: widget.business.subscriptionTier,
+    );
     final updated = await showDialog<List<String>?>(
       context: ctx,
-      builder: (_) => BlocProvider.value(
+      barrierDismissible: true,
+      builder: (dialogContext) => BlocProvider.value(
         value: ctx.read<DashboardCubit>(),
         child: BusinessGalleryPhotosDialog(
           businessId: widget.business.id,
           businessName: widget.business.displayName,
           initialImageUrls: _galleryUrls,
-          subscriptionTier: widget.business.subscriptionTier,
+          subscriptionTier: effectiveTier,
         ),
       ),
     );
@@ -304,10 +319,13 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              '${_galleryUrls.length} of $_maxGallery slots used on your current plan. '
-              'These appear alongside your listing in Explore.',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            buildGalleryPlanSummary(
+              totalCount: _galleryUrls.length,
+              activeLimit: _maxGallery(context),
+              lockedCount: BusinessGalleryAccess.lockedCount(
+                _galleryUrls,
+                _effectiveTier(context),
+              ),
             ),
             if (_galleryUrls.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -319,22 +337,27 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
                   separatorBuilder: (_, __) => const SizedBox(width: 10),
                   itemBuilder: (context, index) {
                     final url = _galleryUrls[index];
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(AppResources.radiusM),
-                      child: Image.network(
-                        url,
-                        width: 88,
-                        height: 88,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          width: 88,
-                          height: 88,
-                          color: AppColors.backgroundGrey,
-                          alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.broken_image_outlined,
-                            color: AppColors.textTertiary,
-                            size: 28,
+                    final maxActive = _maxGallery(context);
+                    final locked = index >= maxActive;
+                    return SizedBox(
+                      width: 88,
+                      height: 88,
+                      child: TierLockedGalleryImage(
+                        locked: locked,
+                        borderRadius:
+                            BorderRadius.circular(AppResources.radiusM),
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          errorBuilder: (_, __, ___) => ColoredBox(
+                            color: AppColors.backgroundGrey,
+                            child: const Icon(
+                              Icons.broken_image_outlined,
+                              color: AppColors.textTertiary,
+                              size: 28,
+                            ),
                           ),
                         ),
                       ),

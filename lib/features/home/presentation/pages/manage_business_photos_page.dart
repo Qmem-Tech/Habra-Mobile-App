@@ -6,7 +6,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/supabase_tables.dart';
-import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_gallery_access.dart';
+import '../../../../core/subscription/business_subscription_effective.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
+import '../../../../core/widgets/tier_locked_gallery_image.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
@@ -78,8 +81,16 @@ class _ManageBusinessPhotosPageState extends State<ManageBusinessPhotosPage> {
 
   int get _galleryTotal => _galleryUrls.length + _newGalleryFiles.length;
 
-  int get _maxGallery =>
-      BusinessSubscriptionPolicy.maxGalleryImages(widget.business.subscriptionTier);
+  BusinessSubscriptionTier get _effectiveTier =>
+      BusinessSubscriptionEffective.fromContext(
+        context,
+        databaseTier: widget.business.subscriptionTier,
+      );
+
+  int get _maxGallery => BusinessGalleryAccess.activeLimit(_effectiveTier);
+
+  int get _lockedGalleryCount =>
+      BusinessGalleryAccess.lockedCount(_galleryUrls, _effectiveTier);
 
   bool get _dirty {
     if (_logoFile != null || _coverFile != null) return true;
@@ -107,12 +118,11 @@ class _ManageBusinessPhotosPageState extends State<ManageBusinessPhotosPage> {
   Future<void> _pickGalleryImage() async {
     if (_galleryTotal >= _maxGallery) {
       if (!mounted) return;
+      final msg = _lockedGalleryCount > 0
+          ? 'Remove locked photos first, or upgrade your plan to add more.'
+          : 'You can have up to $_maxGallery gallery photos on your current plan.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'You can have up to $_maxGallery gallery photos on your current plan.',
-          ),
-        ),
+        SnackBar(content: Text(msg)),
       );
       return;
     }
@@ -209,10 +219,6 @@ class _ManageBusinessPhotosPageState extends State<ManageBusinessPhotosPage> {
         );
         mergedGallery = [...mergedGallery, ...uploaded];
       }
-      if (mergedGallery.length > _maxGallery) {
-        mergedGallery = mergedGallery.sublist(0, _maxGallery);
-      }
-
       final data = <String, dynamic>{
         'logo_url': logoUrl ?? _initialLogoUrl,
         'background_url': backgroundUrl ?? _initialBackgroundUrl,
@@ -358,15 +364,31 @@ class _ManageBusinessPhotosPageState extends State<ManageBusinessPhotosPage> {
                 style: AppFonts.mediumTitle(color: AppColors.textPrimary)
                     .copyWith(fontSize: 17),
               ),
+              const SizedBox(height: 6),
+              buildGalleryPlanSummary(
+                totalCount: _galleryTotal,
+                activeLimit: _maxGallery,
+                lockedCount: _lockedGalleryCount,
+              ),
               const SizedBox(height: AppResources.spacingM),
               _GalleryGrid(
                 visibleThumbCount: _visibleGalleryThumbs,
                 savedUrls: _galleryUrls,
                 newFiles: _newGalleryFiles,
+                maxActive: _maxGallery,
                 onAddTap: _pickGalleryImage,
                 onRemoveSaved: _removeSavedGallery,
                 onRemoveNew: _removeNewGallery,
                 atGalleryLimit: _galleryTotal >= _maxGallery,
+                onLockedTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Upgrade your plan to show more gallery photos on your listing.',
+                      ),
+                    ),
+                  );
+                },
               ),
               if (_visibleGalleryThumbs < _galleryTotal) ...[
                 const SizedBox(height: AppResources.spacingM),
@@ -630,19 +652,23 @@ class _GalleryGrid extends StatelessWidget {
     required this.visibleThumbCount,
     required this.savedUrls,
     required this.newFiles,
+    required this.maxActive,
     required this.onAddTap,
     required this.onRemoveSaved,
     required this.onRemoveNew,
     required this.atGalleryLimit,
+    this.onLockedTap,
   });
 
   final int visibleThumbCount;
   final List<String> savedUrls;
   final List<File> newFiles;
+  final int maxActive;
   final VoidCallback onAddTap;
   final void Function(int index) onRemoveSaved;
   final void Function(int index) onRemoveNew;
   final bool atGalleryLimit;
+  final VoidCallback? onLockedTap;
 
   @override
   Widget build(BuildContext context) {
@@ -650,8 +676,11 @@ class _GalleryGrid extends StatelessWidget {
     var budget = visibleThumbCount;
     for (var i = 0; i < savedUrls.length && budget > 0; i++, budget--) {
       final index = i;
+      final locked = index >= maxActive;
       thumbs.add(
         _GalleryThumb(
+          locked: locked,
+          onLockedTap: onLockedTap,
           image: Image.network(
             savedUrls[i],
             fit: BoxFit.cover,
@@ -671,8 +700,12 @@ class _GalleryGrid extends StatelessWidget {
     }
     for (var j = 0; j < newFiles.length && budget > 0; j++, budget--) {
       final index = j;
+      final slotIndex = savedUrls.length + j;
+      final locked = slotIndex >= maxActive;
       thumbs.add(
         _GalleryThumb(
+          locked: locked,
+          onLockedTap: onLockedTap,
           image: Image.file(
             newFiles[j],
             fit: BoxFit.cover,
@@ -765,20 +798,26 @@ class _AddGalleryTile extends StatelessWidget {
 class _GalleryThumb extends StatelessWidget {
   const _GalleryThumb({
     required this.image,
+    required this.locked,
     required this.onRemove,
+    this.onLockedTap,
   });
 
   final Widget image;
+  final bool locked;
   final VoidCallback onRemove;
+  final VoidCallback? onLockedTap;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
+    return TierLockedGalleryImage(
+      locked: locked,
       borderRadius: BorderRadius.circular(AppResources.radiusM),
+      onLockedTap: onLockedTap,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          image,
+          Positioned.fill(child: image),
           Positioned(
             top: 4,
             right: 4,

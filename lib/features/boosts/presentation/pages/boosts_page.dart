@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
+import '../../../../core/navigation/business_owner_tool_route.dart';
+import '../../../../core/subscription/business_subscription_effective.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -203,6 +205,11 @@ class _BoostsPageState extends State<BoostsPage> {
                         businessId: targetPresence.id,
                         businessName: targetPresence.displayName,
                         initialImageUrls: targetPresence.imageUrls,
+                        subscriptionTier:
+                            BusinessSubscriptionEffective.fromContext(
+                          dlgCtx,
+                          databaseTier: targetPresence.subscriptionTier,
+                        ),
                       ),
                     ),
                   );
@@ -443,11 +450,12 @@ class _BoostsPageState extends State<BoostsPage> {
       context,
       MaterialPageRoute(
         builder: (_) => MultiBlocProvider(
-          providers: [
-            BlocProvider<DashboardCubit>.value(value: dashboardCubit),
-            BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
-            BlocProvider<CreateEventCubit>.value(value: createEventCubit),
-          ],
+          providers: businessOwnerToolRouteProviders(
+            context,
+            dashboard: dashboardCubit,
+            home: homeCubit,
+            createEvent: createEventCubit,
+          ),
           child: const CreateEventPage(),
         ),
       ),

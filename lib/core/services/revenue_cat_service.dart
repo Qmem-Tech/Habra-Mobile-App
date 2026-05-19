@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import '../config/business_subscription_config.dart';
 import '../subscription/business_subscription_tier.dart';
+import '../subscription/subscription_logger.dart';
 
 /// Outcome of a one-time boost purchase (consumable / non-entitlement IAP).
 class BoostIapResult {
@@ -92,43 +94,87 @@ class RevenueCatService {
 
   Future<bool> purchasePackage(Package package) async {
     if (!_initialized) return false;
+
+    var sdkThrew = false;
     try {
       await Purchases.purchasePackage(package);
+    } on PlatformException catch (e) {
+      if (_isUserCancelledPurchase(e)) {
+        debugPrint('[RC] purchasePackage: user cancelled');
+        return false;
+      }
+      sdkThrew = true;
+      debugPrint(
+        '[RC] purchasePackage PlatformException (verifying subscription): $e',
+      );
     } catch (e) {
-      debugPrint('RevenueCat purchase error: $e');
-      return false;
+      sdkThrew = true;
+      debugPrint('[RC] purchasePackage error (verifying subscription): $e');
     }
 
-    // Sync once to push the new receipt to RC's server.
-    try {
-      await Purchases.syncPurchases();
-    } catch (_) {}
+    final active = await _waitForActiveBusinessSubscription(
+      logLabel: sdkThrew ? 'post-sdk-error' : 'post-purchase',
+    );
+    if (active && sdkThrew) {
+      debugPrint(
+        '[RC] purchasePackage: subscription active despite SDK error',
+      );
+    }
+    return active;
+  }
 
-    // Retry fetching CustomerInfo until the entitlement becomes active or we
-    // exhaust retries — handles RC server processing delay (common in Sandbox).
+  bool _isUserCancelledPurchase(PlatformException e) {
+    try {
+      return PurchasesErrorHelper.getErrorCode(e) ==
+          PurchasesErrorCode.purchaseCancelledError;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// After purchase (or a benign SDK error), poll until RC reports an active sub.
+  Future<bool> _waitForActiveBusinessSubscription({
+    required String logLabel,
+  }) async {
+    final entitlementId = BusinessSubscriptionConfig.revenueCatEntitlementId;
+
     for (int attempt = 1; attempt <= _maxEntitlementRetries; attempt++) {
       try {
-        final info = await Purchases.getCustomerInfo();
-        debugPrint(
-          '[RC] purchasePackage attempt $attempt — '
-          'activeSubscriptions: ${info.activeSubscriptions}, '
-          'activeEntitlements: ${info.entitlements.active.keys.toList()}',
-        );
-        if (info.entitlements.active.isNotEmpty) return true;
-        // Also treat an active subscription as success even if the entitlement
-        // map lags — prevents false "Purchase incomplete" in Sandbox.
-        if (info.activeSubscriptions.isNotEmpty) return true;
-      } catch (e) {
-        debugPrint('[RC] getCustomerInfo error on attempt $attempt: $e');
-      }
-      if (attempt < _maxEntitlementRetries) {
-        await Future.delayed(_entitlementRetryDelay);
         try {
           await Purchases.syncPurchases();
         } catch (_) {}
+
+        final info = await Purchases.getCustomerInfo();
+        debugPrint(
+          '[RC] $logLabel attempt $attempt — '
+          'activeSubscriptions: ${info.activeSubscriptions}, '
+          'activeEntitlements: ${info.entitlements.active.keys.toList()}',
+        );
+        if (_customerInfoHasBusinessSubscription(info, entitlementId)) {
+          return true;
+        }
+      } catch (e) {
+        debugPrint('[RC] $logLabel getCustomerInfo error on attempt $attempt: $e');
+      }
+      if (attempt < _maxEntitlementRetries) {
+        await Future.delayed(_entitlementRetryDelay);
       }
     }
     return false;
+  }
+
+  bool _customerInfoHasBusinessSubscription(
+    CustomerInfo info,
+    String entitlementId,
+  ) {
+    if (info.entitlements.all[entitlementId]?.isActive == true) return true;
+    if (info.entitlements.active.isNotEmpty) return true;
+    if (info.activeSubscriptions.any(
+      (id) => _businessProductIds.any((p) => id.contains(p)),
+    )) {
+      return true;
+    }
+    return info.activeSubscriptions.isNotEmpty;
   }
 
   /// Business subscription product IDs — used as fallback when RevenueCat's
@@ -159,15 +205,12 @@ class RevenueCatService {
         'active: ${info.entitlements.all[entitlementId]?.isActive}, '
         'activeSubscriptions: ${info.activeSubscriptions}',
       );
-      if (info.entitlements.all[entitlementId]?.isActive == true) return true;
-      // Fallback: RC sometimes lags granting entitlements, or the active
-      // subscription ID has a store-specific suffix (e.g. :habra-standard-monthly-base)
-      // that doesn't match the bare product ID attached to the entitlement.
-      // Check whether any known business subscription product is active.
-      if (info.activeSubscriptions.any(
-        (id) => _businessProductIds.any((p) => id.contains(p)),
-      )) {
-        debugPrint('[RC] hasEntitlement fallback: granted via activeSubscriptions');
+      if (_customerInfoHasBusinessSubscription(info, entitlementId)) {
+        if (info.entitlements.all[entitlementId]?.isActive != true) {
+          debugPrint(
+            '[RC] hasEntitlement fallback: granted via activeSubscriptions',
+          );
+        }
         return true;
       }
       return false;
@@ -369,15 +412,21 @@ class RevenueCatService {
           .map((e) => e.toLowerCase())
           .toList();
       debugPrint('[RC] resolveCurrentTier — productIds: $productIds');
+      final BusinessSubscriptionTier tier;
       if (productIds.any((e) => e.contains('premium'))) {
-        return BusinessSubscriptionTier.premium;
+        tier = BusinessSubscriptionTier.premium;
+      } else if (productIds.any((e) => e.contains('standard'))) {
+        // habra_standard_* products map to the mid (pro) tier.
+        tier = BusinessSubscriptionTier.pro;
+      } else {
+        tier = BusinessSubscriptionTier.basic;
       }
-      // habra_standard_* products map to the mid (pro) tier.
-      if (productIds.any((e) => e.contains('standard'))) {
-        return BusinessSubscriptionTier.pro;
-      }
-      return BusinessSubscriptionTier.basic;
-    } catch (_) {
+      subscriptionLog(
+        'RevenueCat plan: ${tier.displayName} (tier=${tier.name}, products=$productIds)',
+      );
+      return tier;
+    } catch (e) {
+      subscriptionLog('RevenueCat resolveCurrentTier failed: $e → Basic');
       return BusinessSubscriptionTier.basic;
     }
   }

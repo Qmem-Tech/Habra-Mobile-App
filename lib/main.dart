@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -31,9 +32,12 @@ import 'features/splash/presentation/bloc/splash_cubit.dart';
 import 'features/splash/domain/usecases/get_splash_status_usecase.dart';
 import 'features/onboarding/presentation/bloc/onboarding_cubit.dart';
 import 'features/onboarding/domain/usecases/complete_onboarding_usecase.dart';
+import 'core/subscription/subscription_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  print("This is a test!");
+  subscriptionLog('main() started (kDebugMode=$kDebugMode)');
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   if (!SupabaseConfig.isConfigured) {
@@ -54,10 +58,11 @@ void main() async {
 
   // Push notifications - no-op until Firebase is configured (see PUSH_NOTIFICATIONS_SETUP.md)
   await di.sl<PushNotificationService>().initialize();
-  await di.sl<RevenueCatService>().initialize(
+  final rcOk = await di.sl<RevenueCatService>().initialize(
     androidApiKey: AppConfig.revenueCatAndroidApiKey,
     iosApiKey: AppConfig.revenueCatIosApiKey,
   );
+  subscriptionLog('RevenueCat initialize: ok=$rcOk');
   await di.sl<StripePaymentService>().initialize(
     publishableKey: AppConfig.stripePublishableKey,
     merchantIdentifier: AppConfig.stripeMerchantId,

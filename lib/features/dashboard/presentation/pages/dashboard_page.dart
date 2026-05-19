@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
+import '../../../../core/navigation/business_owner_tool_route.dart';
 import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_effective.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
+import '../../../home/presentation/bloc/business_owner_subscription_cubit.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../auth/domain/entities/user.dart';
@@ -98,7 +101,10 @@ class _DashboardPageState extends State<DashboardPage> {
     if (homeState is BusinessOwnerHomeLoaded &&
         homeState.selectedPresence != null &&
         homeState.selectedPresence!.id != 'all') {
-      return homeState.selectedPresence!.subscriptionTier;
+      return BusinessSubscriptionEffective.fromContext(
+        context,
+        databaseTier: homeState.selectedPresence!.subscriptionTier,
+      );
     }
     return BusinessSubscriptionTier.basic;
   }
@@ -116,7 +122,22 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
+    return BlocListener<BusinessOwnerSubscriptionCubit,
+        BusinessOwnerSubscriptionState>(
+      listenWhen: (prev, curr) =>
+          !curr.isLoading &&
+          !prev.isLoading &&
+          (prev.hasActiveSubscription != curr.hasActiveSubscription ||
+              prev.currentTier != curr.currentTier),
+      listener: (context, _) => _syncDashboardWithHome(),
+      child: BlocBuilder<BusinessOwnerSubscriptionCubit,
+          BusinessOwnerSubscriptionState>(
+        buildWhen: (prev, curr) =>
+            prev.hasActiveSubscription != curr.hasActiveSubscription ||
+            prev.currentTier != curr.currentTier ||
+            prev.isLoading != curr.isLoading,
+        builder: (context, _) =>
+            BlocListener<BusinessOwnerHomeCubit, BusinessOwnerHomeState>(
       listenWhen: (previous, current) {
         if (current is! BusinessOwnerHomeLoaded) return false;
         if (previous is! BusinessOwnerHomeLoaded) return true;
@@ -256,6 +277,10 @@ class _DashboardPageState extends State<DashboardPage> {
                       businessId: targetPresence.id,
                       businessName: targetPresence.displayName,
                       initialImageUrls: targetPresence.imageUrls,
+                      subscriptionTier: BusinessSubscriptionEffective.fromContext(
+                        dlgCtx,
+                        databaseTier: targetPresence.subscriptionTier,
+                      ),
                     ),
                   ),
                 );
@@ -367,7 +392,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           homeState.selectedPresence!.id != 'all') {
                         analyticsLocked = !BusinessSubscriptionPolicy
                             .canAccessAnalytics(
-                          homeState.selectedPresence!.subscriptionTier,
+                          _selectedListingTier(context),
                         );
                       }
                       return DashboardAnalyticsTab(
@@ -478,10 +503,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 if (state is! DashboardTabState) {
                   return const SizedBox.shrink();
                 }
-                final tier = homeState is BusinessOwnerHomeLoaded &&
-                        homeState.selectedPresence?.id != 'all'
-                    ? homeState.selectedPresence!.subscriptionTier
-                    : BusinessSubscriptionTier.basic;
+                final tier = _selectedListingTier(context);
                 if (!BusinessSubscriptionPolicy.canPostDealsEventsJobs(tier)) {
                   return const SizedBox.shrink();
                 }
@@ -510,6 +532,8 @@ class _DashboardPageState extends State<DashboardPage> {
               },
             );
           },
+        ),
+      ),
         ),
       ),
     );
@@ -552,11 +576,12 @@ class _DashboardPageState extends State<DashboardPage> {
       context,
       MaterialPageRoute(
         builder: (_) => MultiBlocProvider(
-          providers: [
-            BlocProvider<DashboardCubit>.value(value: dashboardCubit),
-            BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
-            BlocProvider<CreateEventCubit>.value(value: createEventCubit),
-          ],
+          providers: businessOwnerToolRouteProviders(
+            context,
+            dashboard: dashboardCubit,
+            home: homeCubit,
+            createEvent: createEventCubit,
+          ),
           child: const CreateEventPage(),
         ),
       ),
@@ -574,10 +599,11 @@ class _DashboardPageState extends State<DashboardPage> {
       context,
       MaterialPageRoute(
         builder: (_) => MultiBlocProvider(
-          providers: [
-            BlocProvider<DashboardCubit>.value(value: dashboardCubit),
-            BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
-          ],
+          providers: businessOwnerToolRouteProviders(
+            context,
+            dashboard: dashboardCubit,
+            home: homeCubit,
+          ),
           child: CreateDealPage(dealToEdit: dealToEdit),
         ),
       ),
@@ -685,10 +711,11 @@ class _DashboardPageState extends State<DashboardPage> {
       context,
       MaterialPageRoute(
         builder: (_) => MultiBlocProvider(
-          providers: [
-            BlocProvider<DashboardCubit>.value(value: dashboardCubit),
-            BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
-          ],
+          providers: businessOwnerToolRouteProviders(
+            context,
+            dashboard: dashboardCubit,
+            home: homeCubit,
+          ),
           child: CreateJobPostPage(jobToEdit: jobToEdit),
         ),
       ),

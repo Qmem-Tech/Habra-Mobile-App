@@ -14,6 +14,7 @@ import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth_cubit.dart';
 import '../../../home/presentation/pages/admin_home_page.dart';
 import '../../../home/presentation/pages/business_owner_wrapper_page.dart';
+import '../../../../core/subscription/subscription_logger.dart';
 import '../../../home/presentation/pages/customer_home_page.dart';
 import '../../../home/presentation/pages/guest_home_page.dart';
 
@@ -158,9 +159,13 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
           // Restore auth + RevenueCat identity (subscriber attributes + store sync).
           await context.read<AuthCubit>().restoreUser(user);
           if (!mounted) return;
+          subscriptionLog(
+            'splash authenticated — userId=${user.id} role=${user.role.name}',
+          );
           final Widget destination;
           switch (user.role) {
             case UserRole.businessOwner:
+              subscriptionLog('splash → BusinessOwnerWrapperPage userId=${user.id}');
               destination = BusinessOwnerWrapperPage(user: user);
               break;
             case UserRole.admin:

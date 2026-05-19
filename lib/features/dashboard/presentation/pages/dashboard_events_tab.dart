@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/navigation/business_owner_tool_route.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -289,11 +290,12 @@ class _EventRow extends StatelessWidget {
             context,
             MaterialPageRoute<bool>(
               builder: (_) => MultiBlocProvider(
-                providers: [
-                  BlocProvider<DashboardCubit>.value(value: dashboardCubit),
-                  BlocProvider<BusinessOwnerHomeCubit>.value(value: homeCubit),
-                  BlocProvider<CreateEventCubit>.value(value: createEventCubit),
-                ],
+                providers: businessOwnerToolRouteProviders(
+                  context,
+                  dashboard: dashboardCubit,
+                  home: homeCubit,
+                  createEvent: createEventCubit,
+                ),
                 child: CreateEventPage(editingEventId: event.id),
               ),
             ),

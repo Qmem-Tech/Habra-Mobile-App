@@ -6,8 +6,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/supabase_tables.dart';
-import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_gallery_access.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
+import '../../../../core/widgets/tier_locked_gallery_image.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_utils.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -50,7 +51,10 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
   final List<File> _newFiles = [];
 
   int get _maxGallery =>
-      BusinessSubscriptionPolicy.maxGalleryImages(widget.subscriptionTier);
+      BusinessGalleryAccess.activeLimit(widget.subscriptionTier);
+
+  int get _lockedCount =>
+      BusinessGalleryAccess.lockedCount(_savedUrls, widget.subscriptionTier);
 
   void _popNavigator([List<String>? result]) {
     if (widget.embeddedAsPage) {
@@ -75,12 +79,11 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
   Future<void> _pickImage() async {
     if (_totalCount >= _maxGallery) {
       if (!mounted) return;
+      final msg = _lockedCount > 0
+          ? 'Remove locked photos first, or upgrade your plan to add more.'
+          : 'You can have up to $_maxGallery photos on your current plan.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'You can have up to $_maxGallery photos on your current plan.',
-          ),
-        ),
+        SnackBar(content: Text(msg)),
       );
       return;
     }
@@ -134,10 +137,6 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
           _newFiles,
         );
         merged = [...merged, ...uploaded];
-      }
-
-      if (merged.length > _maxGallery) {
-        merged = merged.sublist(0, _maxGallery);
       }
 
       final success = await cubit.updateBusiness(widget.businessId, {
@@ -214,49 +213,37 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
             ),
             ...List.generate(_savedUrls.length, (i) {
               final url = _savedUrls[i];
-              return _thumbShell(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppResources.radiusM),
-                  child: Image.network(
-                    url,
-                    width: 88,
-                    height: 88,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 88,
-                      height: 88,
-                      color: AppColors.backgroundGrey,
-                      child: const Icon(Icons.broken_image_outlined),
-                    ),
+              final locked = i >= _maxGallery;
+              return _thumbTile(
+                locked: locked,
+                onRemove: () => _removeSaved(i),
+                child: Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => ColoredBox(
+                    color: AppColors.backgroundGrey,
+                    child: const Icon(Icons.broken_image_outlined),
                   ),
                 ),
-                onRemove: () => _removeSaved(i),
               );
             }),
             ...List.generate(_newFiles.length, (i) {
               final file = _newFiles[i];
-              return _thumbShell(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppResources.radiusM),
-                  child: Image.file(
-                    file,
-                    width: 88,
-                    height: 88,
-                    fit: BoxFit.cover,
-                  ),
-                ),
+              final slot = _savedUrls.length + i;
+              final locked = slot >= _maxGallery;
+              return _thumbTile(
+                locked: locked,
                 onRemove: () => _removeNew(i),
+                child: Image.file(file, fit: BoxFit.cover),
               );
             }),
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          '$_totalCount / $_maxGallery',
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColors.textTertiary,
-          ),
+        buildGalleryPlanSummary(
+          totalCount: _totalCount,
+          activeLimit: _maxGallery,
+          lockedCount: _lockedCount,
         ),
       ],
     );
@@ -331,7 +318,6 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400, maxHeight: 560),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
@@ -370,7 +356,7 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
               child: description,
             ),
             const SizedBox(height: 12),
-            Flexible(
+            Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppResources.spacingL,
@@ -385,30 +371,41 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
     );
   }
 
-  Widget _thumbShell({
+  Widget _thumbTile({
     required Widget child,
+    required bool locked,
     required VoidCallback onRemove,
   }) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        child,
-        Positioned(
-          top: 2,
-          right: 2,
-          child: GestureDetector(
-            onTap: onRemove,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                color: Colors.black54,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.close, size: 16, color: Colors.white),
+    return SizedBox(
+      width: 88,
+      height: 88,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: TierLockedGalleryImage(
+              locked: locked,
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              child: child,
             ),
           ),
-        ),
-      ],
+          Positioned(
+            top: 2,
+            right: 2,
+            child: GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, size: 16, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
