@@ -139,27 +139,12 @@ class _TicketDetailPageState extends State<TicketDetailPage> {
                 },
               ),
             ListTile(
-              leading: const Icon(Icons.qr_code_2, color: AppColors.brandPrimary),
-              title: const Text('Share QR code'),
-              subtitle: const Text('Send the check-in image'),
-              onTap: () async {
-                try {
-                  await TicketExportUtils.shareQrImage(ticket);
-                } catch (e) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Could not share: $e')),
-                  );
-                }
-              },
-            ),
-            ListTile(
               leading: const Icon(Icons.picture_as_pdf, color: AppColors.brandPrimary),
               title: const Text('Save or share PDF'),
               subtitle: const Text('Ticket summary with QR and policy'),
               onTap: () async {
                 try {
-                  await TicketExportUtils.saveAndSharePdf(ticket);
+                  await TicketExportUtils.saveAndSharePdf(context, ticket);
                 } catch (e) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(

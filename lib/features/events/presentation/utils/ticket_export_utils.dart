@@ -21,6 +21,23 @@ class TicketExportUtils {
 
   static const String _logoAsset = 'assets/logos/habra_app_logo.png';
 
+  /// Returns a share-sheet anchor rect centred on the screen.
+  /// Required on iPadOS; safe to pass on all iOS devices.
+  static Rect _shareOrigin(BuildContext ctx) {
+    final size = MediaQuery.sizeOf(ctx);
+    return Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: 1,
+      height: 1,
+    );
+  }
+
+  /// Strips characters outside the Latin-1 range that Helvetica cannot render.
+  /// Accented letters are kept (they fall within Latin-1); only truly unsupported
+  /// code-points (emoji, CJK, special symbols, etc.) are replaced with '?'.
+  static String _safe(String text) =>
+      text.runes.map((r) => r <= 0xFF ? String.fromCharCode(r) : '?').join();
+
   static String _qrPayload(Ticket ticket) {
     return ticket.qrCode?.isNotEmpty == true ? ticket.qrCode! : ticket.ticketId;
   }
@@ -41,7 +58,7 @@ class TicketExportUtils {
   }
 
   /// Share QR image + short caption.
-  static Future<void> shareQrImage(Ticket ticket) async {
+  static Future<void> shareQrImage(BuildContext ctx, Ticket ticket) async {
     final payload = _qrPayload(ticket);
     final bytes = await _qrPngBytes(payload);
     if (bytes == null) return;
@@ -51,12 +68,13 @@ class TicketExportUtils {
     await Share.shareXFiles(
       [XFile(file.path)],
       text:
-          'Ticket for "${ticket.event.title}" • ${ticket.ticketTypeName}\nShow this QR at check-in.',
+          'Ticket for "${ticket.event.title}" - ${ticket.ticketTypeName}\nShow this QR at check-in.',
+      sharePositionOrigin: _shareOrigin(ctx),
     );
   }
 
   /// Generate and share a PDF (users can save via the system sheet).
-  static Future<void> saveAndSharePdf(Ticket ticket) async {
+  static Future<void> saveAndSharePdf(BuildContext ctx, Ticket ticket) async {
     final payload = _qrPayload(ticket);
     final qrBytes = await _qrPngBytes(payload, size: 320);
     final event = ticket.event;
@@ -88,7 +106,7 @@ class TicketExportUtils {
         policyWidgets.add(
           pw.Padding(
             padding: const pw.EdgeInsets.only(bottom: 4),
-            child: pw.Text('• $line', style: const pw.TextStyle(fontSize: 11)),
+            child: pw.Text('- ${_safe(line)}', style: const pw.TextStyle(fontSize: 11)),
           ),
         );
       }
@@ -133,26 +151,26 @@ class TicketExportUtils {
               ),
             ),
           pw.Text(
-            event.title,
+            _safe(event.title),
             style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
           ),
           pw.SizedBox(height: 8),
           pw.Text(
-            ticket.ticketTypeName,
+            _safe(ticket.ticketTypeName),
             style: pw.TextStyle(fontSize: 14, color: PdfColors.blue800),
           ),
           pw.SizedBox(height: 12),
           pw.Text(
-            DateFormat('EEEE, MMMM d, yyyy • h:mm a').format(event.startDate),
+            DateFormat('EEEE, MMMM d, yyyy  -  h:mm a').format(event.startDate),
           ),
           pw.SizedBox(height: 6),
           pw.Text(
             event.isOnline
                 ? 'Online event'
-                : '${event.venue}, ${event.fullAddress}',
+                : _safe('${event.venue}, ${event.fullAddress}'),
           ),
-          pw.SizedBox(height: 16),
-          if (qrBytes != null)
+        pw.SizedBox(height: 16),
+        if (qrBytes != null)
             pw.Center(
               child: pw.Image(
                 pw.MemoryImage(qrBytes),
@@ -182,14 +200,15 @@ class TicketExportUtils {
     await file.writeAsBytes(bytes);
     await Share.shareXFiles(
       [XFile(file.path)],
-      subject: 'Ticket — ${event.title}',
+      subject: 'Ticket - ${event.title}',
+      sharePositionOrigin: _shareOrigin(ctx),
     );
   }
 
   /// Build and share a single combined PDF for all tickets in an order.
   /// Used from OrderConfirmationPage's "Download Tickets" before per-ticket
   /// details are available.
-  static Future<void> saveAndShareOrderPdf(events.Order order) async {
+  static Future<void> saveAndShareOrderPdf(BuildContext ctx, events.Order order) async {
     final event = order.event;
     final pdf = pw.Document();
 
@@ -259,19 +278,19 @@ class TicketExportUtils {
                     ),
                   ),
                 pw.Text(
-                  event.title,
+                  _safe(event.title),
                   style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
                 ),
                 pw.SizedBox(height: 12),
                 pw.Text(
-                  DateFormat('EEEE, MMMM d, yyyy • h:mm a')
+                  DateFormat('EEEE, MMMM d, yyyy  -  h:mm a')
                       .format(event.startDate),
                 ),
                 pw.SizedBox(height: 6),
                 pw.Text(
                   event.isOnline
                       ? 'Online event'
-                      : '${event.venue}, ${event.fullAddress}',
+                      : _safe('${event.venue}, ${event.fullAddress}'),
                 ),
                 pw.SizedBox(height: 6),
                 pw.Text(
@@ -322,13 +341,14 @@ class TicketExportUtils {
     await file.writeAsBytes(bytes);
     await Share.shareXFiles(
       [XFile(file.path)],
-      subject: 'Tickets — ${event.title}',
+      subject: 'Tickets - ${event.title}',
+      sharePositionOrigin: _shareOrigin(ctx),
     );
   }
 
   /// Build an ICS calendar file from the event and offer it via the system share
   /// sheet. Most calendar apps will offer "Add to Calendar" on the .ics file.
-  static Future<void> shareEventIcs(events.Order order) async {
+  static Future<void> shareEventIcs(BuildContext ctx, events.Order order) async {
     final event = order.event;
     final start = event.startDate.toUtc();
     final end = event.endDate.toUtc();
@@ -367,20 +387,25 @@ class TicketExportUtils {
     await file.writeAsString(ics.toString());
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'text/calendar')],
-      subject: 'Add to calendar — ${event.title}',
+      subject: 'Add to calendar - ${event.title}',
+      sharePositionOrigin: _shareOrigin(ctx),
     );
   }
 
   /// Plain-text share of an event the user is attending.
-  static Future<void> shareOrderSummary(events.Order order) async {
+  static Future<void> shareOrderSummary(BuildContext ctx, events.Order order) async {
     final event = order.event;
-    final when = DateFormat('EEE, MMM d • h:mm a').format(event.startDate);
+    final when = DateFormat('EEE, MMM d - h:mm a').format(event.startDate);
     final where = event.isOnline ? 'Online event' : event.venue;
     final body = StringBuffer()
-      ..writeln('I\'m going to ${event.title} 🎉')
+      ..writeln("I'm going to ${event.title}")
       ..writeln('$when at $where')
       ..writeln('Get your tickets on Habra!');
-    await Share.share(body.toString(), subject: event.title);
+    await Share.share(
+      body.toString(),
+      subject: event.title,
+      sharePositionOrigin: _shareOrigin(ctx),
+    );
   }
 
   /// Opens Google Maps directions/search for physical venues only.

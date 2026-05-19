@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/constants/business_media_limits.dart';
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_utils.dart';
@@ -31,6 +31,9 @@ class EditBusinessPage extends StatefulWidget {
 }
 
 class _EditBusinessPageState extends State<EditBusinessPage> {
+  int get _maxGallery => BusinessSubscriptionPolicy.maxGalleryImages(
+      widget.business.subscriptionTier);
+
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _phoneController;
@@ -115,6 +118,7 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
           businessId: widget.business.id,
           businessName: widget.business.displayName,
           initialImageUrls: _galleryUrls,
+          subscriptionTier: widget.business.subscriptionTier,
         ),
       ),
     );
@@ -301,7 +305,7 @@ class _EditBusinessPageState extends State<EditBusinessPage> {
             ),
             const SizedBox(height: 4),
             Text(
-              '${_galleryUrls.length} of ${BusinessMediaLimits.maxGalleryImages} slots used. '
+              '${_galleryUrls.length} of $_maxGallery slots used on your current plan. '
               'These appear alongside your listing in Explore.',
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),

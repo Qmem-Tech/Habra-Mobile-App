@@ -52,7 +52,7 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Habra uses your location to show nearby businesses and help you find directions. Location is used while you use the app and when map-related features need it.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Habra needs camera access to take photos for reviews and business profiles.</string>
+	<string>Habra needs camera access to take photos for reviews, business profiles, and to scan event tickets at check-in.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Habra needs photo library access to add photos to reviews and business profiles.</string>
 	<key>NSContactsUsageDescription</key>

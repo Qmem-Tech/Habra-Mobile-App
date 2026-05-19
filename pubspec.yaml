@@ -43,6 +43,7 @@ dependencies:
   intl: ^0.20.2
   flutter_svg: ^2.0.17
   qr_flutter: ^4.1.0
+  mobile_scanner: ^6.0.0
 
   # Maps & Location
   google_maps_flutter: ^2.5.0

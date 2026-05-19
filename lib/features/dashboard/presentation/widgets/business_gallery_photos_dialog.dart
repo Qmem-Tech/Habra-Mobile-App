@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/constants/business_media_limits.dart';
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_utils.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -27,6 +28,7 @@ class BusinessGalleryPhotosDialog extends StatefulWidget {
     required this.businessId,
     required this.businessName,
     this.initialImageUrls = const [],
+    this.subscriptionTier = BusinessSubscriptionTier.basic,
     /// Full-screen page (back button, no modal dialog).
     this.embeddedAsPage = false,
   });
@@ -34,6 +36,7 @@ class BusinessGalleryPhotosDialog extends StatefulWidget {
   final String businessId;
   final String businessName;
   final List<String> initialImageUrls;
+  final BusinessSubscriptionTier subscriptionTier;
   final bool embeddedAsPage;
 
   @override
@@ -45,6 +48,9 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
   late List<String> _savedUrls;
   late List<String> _initialSnapshot;
   final List<File> _newFiles = [];
+
+  int get _maxGallery =>
+      BusinessSubscriptionPolicy.maxGalleryImages(widget.subscriptionTier);
 
   void _popNavigator([List<String>? result]) {
     if (widget.embeddedAsPage) {
@@ -67,12 +73,12 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
       !listEquals(_savedUrls, _initialSnapshot) || _newFiles.isNotEmpty;
 
   Future<void> _pickImage() async {
-    if (_totalCount >= BusinessMediaLimits.maxGalleryImages) {
+    if (_totalCount >= _maxGallery) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'You can have up to ${BusinessMediaLimits.maxGalleryImages} photos.',
+            'You can have up to $_maxGallery photos on your current plan.',
           ),
         ),
       );
@@ -130,8 +136,8 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
         merged = [...merged, ...uploaded];
       }
 
-      if (merged.length > BusinessMediaLimits.maxGalleryImages) {
-        merged = merged.sublist(0, BusinessMediaLimits.maxGalleryImages);
+      if (merged.length > _maxGallery) {
+        merged = merged.sublist(0, _maxGallery);
       }
 
       final success = await cubit.updateBusiness(widget.businessId, {
@@ -168,8 +174,8 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
   @override
   Widget build(BuildContext context) {
     final description = Text(
-      '${widget.businessName} — up to ${BusinessMediaLimits.maxGalleryImages} '
-      'extra photos (shown on your listing). Max 5 MB each.',
+      '${widget.businessName} — up to $_maxGallery '
+      'extra photos on your current plan (shown on your listing). Max 5 MB each.',
       style: TextStyle(
         fontSize: 13,
         color: AppColors.textSecondary,
@@ -246,7 +252,7 @@ class _BusinessGalleryPhotosDialogState extends State<BusinessGalleryPhotosDialo
         ),
         const SizedBox(height: 8),
         Text(
-          '$_totalCount / ${BusinessMediaLimits.maxGalleryImages}',
+          '$_totalCount / $_maxGallery',
           style: TextStyle(
             fontSize: 12,
             color: AppColors.textTertiary,

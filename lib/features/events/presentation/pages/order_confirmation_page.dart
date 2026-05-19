@@ -256,7 +256,7 @@ class OrderConfirmationPage extends StatelessWidget {
             icon: Icons.download,
             onPressed: () => runWithErrorToast(
               'Could not export tickets',
-              () => TicketExportUtils.saveAndShareOrderPdf(order),
+              () => TicketExportUtils.saveAndShareOrderPdf(context, order),
             ),
           ),
           const SizedBox(height: 12),
@@ -265,7 +265,7 @@ class OrderConfirmationPage extends StatelessWidget {
             icon: Icons.calendar_today,
             onPressed: () => runWithErrorToast(
               'Could not create calendar event',
-              () => TicketExportUtils.shareEventIcs(order),
+              () => TicketExportUtils.shareEventIcs(context, order),
             ),
           ),
           const SizedBox(height: 24),
@@ -282,8 +282,8 @@ class OrderConfirmationPage extends StatelessWidget {
                   child: const Icon(Icons.share),
                 ),
                 onPressed: () => runWithErrorToast(
-                  'Could not share',
-                  () => TicketExportUtils.shareOrderSummary(order),
+                  'Could not share ticket',
+                  () => TicketExportUtils.saveAndShareOrderPdf(context, order),
                 ),
               ),
               const SizedBox(width: 8),

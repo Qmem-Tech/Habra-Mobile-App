@@ -318,25 +318,25 @@ class _BusinessOwnerSubscriptionPageState
       case BusinessSubscriptionTier.premium:
         return const [
           'Everything in Standard—plus extra visibility when competition heats up',
+          'Up to 15 gallery photos per listing',
           'Rich analytics: see who finds you and what drives calls and visits',
-          'Spotlight deals, jobs, and events so customers choose you first',
+          'Unlimited active deals, events, and job posts',
           'Boosts and promos to reach more Habra customers when it matters',
-          'Built for owners who are serious about growing on Habra',
         ];
       case BusinessSubscriptionTier.pro:
         return const [
           'Full dashboard with analytics you can act on—not just numbers',
+          'Up to 8 gallery photos per listing',
           'Up to 5 active deals, 5 hosted events, and 5 open job posts per listing',
           'Publish and manage deals, job posts, and events in one flow',
-          'See reviews and engagement without juggling extra tools',
-          'Designed for busy owners; cancel anytime from the App Store or Google Play',
+          'Verified badge on your listing',
         ];
       case BusinessSubscriptionTier.basic:
         return const [
           'Listing profile and discovery—your business can appear in search when approved',
-          'Edit listing details, photos, and hours (no deals, events, or job posts on Free)',
-          'Unlock Habra\'s paid business-owner tools in the app',
-          'Secure billing through Apple or Google—never charged twice here',
+          'Up to 3 gallery photos per listing',
+          'Edit listing details and hours',
+          'Customer reviews visible on your profile',
         ];
     }
   }

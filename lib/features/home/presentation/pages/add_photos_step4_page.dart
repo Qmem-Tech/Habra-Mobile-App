@@ -3,8 +3,9 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/constants/business_media_limits.dart';
 import '../../../../core/constants/legal_document_storage.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/constants/supabase_tables.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/file_utils.dart';
@@ -138,7 +139,7 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Add up to ${BusinessMediaLimits.maxGalleryImages} gallery images. Max 5 MB each.',
+                'Add up to ${BusinessSubscriptionPolicy.maxGalleryImages(BusinessSubscriptionTier.basic)} gallery images. Max 5 MB each.',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 12),
@@ -182,12 +183,12 @@ class _AddPhotosStep4PageState extends State<AddPhotosStep4Page> {
                     child: InkWell(
                       onTap: () async {
                         if (_galleryFiles.length >=
-                            BusinessMediaLimits.maxGalleryImages) {
+                            BusinessSubscriptionPolicy.maxGalleryImages(BusinessSubscriptionTier.basic)) {
                           if (!mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'You can add up to ${BusinessMediaLimits.maxGalleryImages} gallery photos.',
+                                'You can add up to ${BusinessSubscriptionPolicy.maxGalleryImages(BusinessSubscriptionTier.basic)} gallery photos on the Basic plan.',
                               ),
                             ),
                           );

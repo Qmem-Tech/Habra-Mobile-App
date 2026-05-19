@@ -10,6 +10,7 @@ import '../../domain/entities/owner_upcoming_event.dart';
 import '../widgets/empty_state_widget.dart';
 import '../../../events/presentation/bloc/create_event_cubit.dart';
 import '../../../events/presentation/pages/create_event_page.dart';
+import '../../../events/presentation/pages/scan_ticket_page.dart';
 import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../bloc/dashboard_cubit.dart';
 
@@ -115,6 +116,7 @@ class _DashboardEventsTabState extends State<DashboardEventsTab>
           emptyDescription:
               'Published events that haven\'t ended yet show here.',
           subtitleFor: (e) => _formatStart(e.startAt),
+          showScanButton: true,
         )),
         _maybeRefresh(_buildTabBody(
           events: _past,
@@ -158,6 +160,7 @@ class _DashboardEventsTabState extends State<DashboardEventsTab>
     required String emptyDescription,
     required String Function(OwnerUpcomingEvent e) subtitleFor,
     bool showDraftBadge = false,
+    bool showScanButton = false,
   }) {
     if (events.isEmpty) {
       return ListView(
@@ -212,6 +215,7 @@ class _DashboardEventsTabState extends State<DashboardEventsTab>
           subtitle: subtitleFor(e),
           showDraftBadge: showDraftBadge,
           onRefresh: widget.onRefresh,
+          showScanButton: showScanButton,
         );
       },
     );
@@ -226,20 +230,54 @@ class _EventRow extends StatelessWidget {
     required this.subtitle,
     required this.showDraftBadge,
     this.onRefresh,
+    this.showScanButton = false,
   });
 
   final OwnerUpcomingEvent event;
   final String subtitle;
   final bool showDraftBadge;
   final Future<void> Function()? onRefresh;
+  final bool showScanButton;
 
   static const double _thumb = 56;
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildCard(context),
+        if (showScanButton) ...[
+          const SizedBox(height: 6),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ScanTicketPage(
+                  eventId: event.id,
+                  eventTitle: event.title,
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+            label: const Text('Scan tickets'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.brandPrimary,
+              side: BorderSide(color: AppColors.brandPrimary.withValues(alpha: 0.6)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppResources.radiusM)),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCard(BuildContext context) {
     final url = event.imageUrl?.trim() ?? '';
     final hasImage = url.isNotEmpty;
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
