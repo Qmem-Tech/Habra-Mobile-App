@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "518905526893",
+    "project_id": "habra-cbc2b",
+    "storage_bucket": "habra-cbc2b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:518905526893:android:6a2fed8b07e03f9a05dd64",
+        "android_client_info": {
+          "package_name": "com.habra.habra"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaesenr3ig8Us1Xeqq9pFGmUil2vBIrds"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

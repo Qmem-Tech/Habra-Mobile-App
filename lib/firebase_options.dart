@@ -54,19 +54,20 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyReplaceWithAndroidKeyFromConsole',
-    appId: '1:000000000000:android:0000000000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: 'habra-replace-me',
-    storageBucket: 'habra-replace-me.appspot.com',
+    apiKey: 'AIzaSyCaesenr3ig8Us1Xeqq9pFGmUil2vBIrds',
+    appId: '1:518905526893:android:6a2fed8b07e03f9a05dd64',
+    messagingSenderId: '518905526893',
+    projectId: 'habra-cbc2b',
+    storageBucket: 'habra-cbc2b.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyReplaceWithIosKeyFromConsole',
-    appId: '1:000000000000:ios:0000000000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: 'habra-replace-me',
-    storageBucket: 'habra-replace-me.appspot.com',
+    apiKey: 'AIzaSyBsKUsiwtIcn6sGgNTr4IfOR17i8QvB0IU',
+    appId: '1:518905526893:ios:5026c41ed095a8a505dd64',
+    messagingSenderId: '518905526893',
+    projectId: 'habra-cbc2b',
+    storageBucket: 'habra-cbc2b.firebasestorage.app',
     iosBundleId: 'com.habra.habra',
   );
+
 }

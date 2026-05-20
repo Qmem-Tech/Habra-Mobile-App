@@ -40,6 +40,7 @@ class _ExplorePageState extends State<ExplorePage> {
   String? _selectedListingCategoryId;
   List<ListingCategory> _listingCategories = [];
   bool _listingCategoriesLoading = true;
+  bool _initialLoadComplete = false;
 
   @override
   void initState() {
@@ -124,21 +125,7 @@ class _ExplorePageState extends State<ExplorePage> {
             _buildHeader(),
             _buildSearchBar(),
             _buildCategoryFilters(),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () => _loadData(context),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildFeaturedBusinesses(),
-                      _buildHotDeals(),
-                      _buildAllBusinesses(),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            Expanded(child: _buildMainContent()),
           ],
         ),
       ),
@@ -286,57 +273,123 @@ class _ExplorePageState extends State<ExplorePage> {
     );
   }
 
+  bool _isInitialExploreLoading(BusinessesState businesses, DealsState deals) {
+    if (_initialLoadComplete) return false;
+    if (_listingCategoriesLoading) return true;
+    if (businesses is BusinessesInitial || businesses is BusinessesLoading) {
+      return true;
+    }
+    if (deals is DealsInitial || deals is DealsLoading) return true;
+    return false;
+  }
+
+  void _markInitialLoadCompleteIfReady(
+    BusinessesState businesses,
+    DealsState deals,
+  ) {
+    if (_initialLoadComplete || _listingCategoriesLoading) return;
+    if (businesses is BusinessesInitial || businesses is BusinessesLoading) {
+      return;
+    }
+    if (deals is DealsInitial || deals is DealsLoading) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _initialLoadComplete = true);
+    });
+  }
+
+  Widget _buildMainContent() {
+    return BlocBuilder<BusinessesCubit, BusinessesState>(
+      builder: (context, businessState) {
+        return BlocBuilder<DealsCubit, DealsState>(
+          builder: (context, dealsState) {
+            _markInitialLoadCompleteIfReady(businessState, dealsState);
+            final showLoader =
+                _isInitialExploreLoading(businessState, dealsState);
+
+            return Stack(
+              children: [
+                RefreshIndicator(
+                  onRefresh: () => _loadData(context),
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (!showLoader) ...[
+                          _buildFeaturedBusinesses(businessState),
+                          _buildHotDeals(dealsState),
+                          _buildAllBusinesses(businessState),
+                        ] else
+                          SizedBox(
+                            height: MediaQuery.sizeOf(context).height * 0.45,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (showLoader)
+                  const HabraCircularLoader(fullScreen: true),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildCategoryFilters() {
-    if (_listingCategoriesLoading) {
-      return const SizedBox(
-        height: 120,
-        child: Center(child: HabraCircularLoader()),
-      );
+    if (_listingCategoriesLoading && !_initialLoadComplete) {
+      return const SizedBox(height: 128);
     }
     if (_listingCategories.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    return SizedBox(
-      height: 120,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'Categories',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            'Categories',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
             ),
           ),
-          Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _listingCategories.length,
-              itemBuilder: (context, index) {
-                final category = _listingCategories[index];
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() => _selectedListingCategoryId = category.id);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DirectoryPage(
-                            initialListingCategoryId: category.id,
-                          ),
+        ),
+        SizedBox(
+          height: 88,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _listingCategories.length,
+            itemBuilder: (context, index) {
+              final category = _listingCategories[index];
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() => _selectedListingCategoryId = category.id);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DirectoryPage(
+                          initialListingCategoryId: category.id,
                         ),
-                      );
-                    },
+                      ),
+                    );
+                  },
+                  child: SizedBox(
+                    width: 80,
+                    height: 88,
                     child: Container(
-                      width: 80,
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.backgroundLight,
                         borderRadius: BorderRadius.circular(12),
@@ -346,45 +399,39 @@ class _ExplorePageState extends State<ExplorePage> {
                         children: [
                           Icon(
                             listingCategoryIcon(category.iconKey),
-                            size: 32,
+                            size: 28,
                             color: AppColors.brandPrimary,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            category.name,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                          const SizedBox(height: 6),
+                          Expanded(
+                            child: Text(
+                              category.name,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                                height: 1.2,
+                              ),
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
                             ),
-                            textAlign: TextAlign.center,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 2,
                           ),
                         ],
                       ),
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildFeaturedBusinesses() {
-    return BlocBuilder<BusinessesCubit, BusinessesState>(
-      builder: (context, state) {
-        if (state is BusinessesLoading) {
-          return const SizedBox(
-            height: 200,
-            child: Center(child: HabraCircularLoader()),
-          );
-        }
-
-        if (state is BusinessesLoaded) {
+  Widget _buildFeaturedBusinesses(BusinessesState state) {
+    if (state is BusinessesLoaded) {
           final featured = state.businesses.where((b) => b.isFeatured).toList();
           if (featured.isEmpty) return const SizedBox.shrink();
 
@@ -449,24 +496,13 @@ class _ExplorePageState extends State<ExplorePage> {
               ),
             ],
           );
-        }
+    }
 
-        return const SizedBox.shrink();
-      },
-    );
+    return const SizedBox.shrink();
   }
 
-  Widget _buildHotDeals() {
-    return BlocBuilder<DealsCubit, DealsState>(
-      builder: (context, state) {
-        if (state is DealsLoading) {
-          return const SizedBox(
-            height: 200,
-            child: Center(child: HabraCircularLoader()),
-          );
-        }
-
-        if (state is DealsLoaded) {
+  Widget _buildHotDeals(DealsState state) {
+    if (state is DealsLoaded) {
           final hotDeals = state.deals.where((d) => d.type == DealType.hotDeal).take(3).toList();
           if (hotDeals.isEmpty) return const SizedBox.shrink();
 
@@ -540,24 +576,13 @@ class _ExplorePageState extends State<ExplorePage> {
               ),
             ],
           );
-        }
+    }
 
-        return const SizedBox.shrink();
-      },
-    );
+    return const SizedBox.shrink();
   }
 
-  Widget _buildAllBusinesses() {
-    return BlocBuilder<BusinessesCubit, BusinessesState>(
-      builder: (context, state) {
-        if (state is BusinessesLoading) {
-          return const SizedBox(
-            height: 200,
-            child: Center(child: HabraCircularLoader()),
-          );
-        }
-
-        if (state is BusinessesLoaded) {
+  Widget _buildAllBusinesses(BusinessesState state) {
+    if (state is BusinessesLoaded) {
           final businesses = state.businesses.take(6).toList();
           if (businesses.isEmpty) return const SizedBox.shrink();
 
@@ -623,10 +648,8 @@ class _ExplorePageState extends State<ExplorePage> {
               const SizedBox(height: 12),
             ],
           );
-        }
+    }
 
-        return const SizedBox.shrink();
-      },
-    );
+    return const SizedBox.shrink();
   }
 }

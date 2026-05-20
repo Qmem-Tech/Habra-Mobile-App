@@ -35,14 +35,48 @@ class _AdminNotificationComposerPageState
     setState(() => _sending = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await Supabase.instance.client.from('platform_notifications').insert({
-        'title': _titleController.text.trim(),
-        'body': _bodyController.text.trim(),
-        'audience': _audience,
-      });
+      final row = await Supabase.instance.client
+          .from('platform_notifications')
+          .insert({
+            'title': _titleController.text.trim(),
+            'body': _bodyController.text.trim(),
+            'audience': _audience,
+          })
+          .select('id')
+          .single();
+
+      final pushRes = await Supabase.instance.client.functions.invoke(
+        'send-push-notification',
+        body: {
+          'source': 'platform',
+          'notification_id': row['id'],
+        },
+      );
+
+      if (pushRes.status != 200) {
+        final err = pushRes.data is Map
+            ? (pushRes.data as Map)['error']?.toString()
+            : null;
+        throw Exception(
+          err ??
+              'Push delivery failed (HTTP ${pushRes.status}). '
+                  'Check Edge Function logs and FCM secrets.',
+        );
+      }
+
+      final pushData = pushRes.data;
+      if (pushData is Map &&
+          pushData['reason'] == 'no_tokens' &&
+          (pushData['delivered'] as num? ?? 0) == 0) {
+        throw Exception(
+          'Saved, but no devices have push tokens for this audience. '
+          'Open the app while signed in and allow notifications.',
+        );
+      }
+
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text('Notification queued — sending shortly.')),
+        const SnackBar(content: Text('Notification sent.')),
       );
       _titleController.clear();
       _bodyController.clear();

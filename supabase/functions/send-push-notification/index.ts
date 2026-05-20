@@ -11,9 +11,9 @@
  * Deploy: `supabase functions deploy send-push-notification`
  *
  * Required secrets (Supabase dashboard → Edge Functions → Secrets):
- *   FCM_SERVICE_ACCOUNT  — entire JSON of a Firebase service account with
- *                          "Firebase Cloud Messaging API" scope.
- *   FCM_PROJECT_ID       — Firebase project ID, e.g. "habra-prod".
+ *   FCM_SERVICE_ACCOUNT      — entire JSON of a Firebase service account.
+ *   FCM_SERVICE_ACCOUNT_B64  — optional; base64 of that JSON (avoids newline corruption).
+ *   FCM_PROJECT_ID           — Firebase project ID, e.g. "habra-cbc2b".
  *   (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY come from the standard env.)
  *
  * Request body:
@@ -24,7 +24,7 @@
  *        profile whose role matches `audience`.
  */
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 import { create, getNumericDate } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
 
 const corsHeaders = {
@@ -33,7 +33,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-type AdminClient = ReturnType<typeof createClient>;
+// Untyped client — Edge Function has no generated Database types.
+type AdminClient = SupabaseClient;
 
 interface ServiceAccount {
   client_email: string;
@@ -57,9 +58,12 @@ interface PlatformRow {
 interface UserNotificationRow {
   id: string;
   title: string;
-  body: string;
+  body: string | null;
   user_id: string;
-  data: Record<string, unknown> | null;
+  type: string | null;
+  metadata: Record<string, unknown> | null;
+  /** Legacy column name (some environments). */
+  data?: Record<string, unknown> | null;
 }
 
 serve(async (req) => {
@@ -73,33 +77,49 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const fcmServiceAccountRaw = Deno.env.get("FCM_SERVICE_ACCOUNT") ?? "";
+    const fcmServiceAccountRaw = loadFcmServiceAccountJson();
     const fcmProjectId = Deno.env.get("FCM_PROJECT_ID") ?? "";
 
     if (!supabaseUrl || !serviceRoleKey) {
       return json({ error: "Missing Supabase server configuration." }, 500);
     }
-    if (!fcmServiceAccountRaw || !fcmProjectId) {
+    if (!fcmServiceAccountRaw.trim() || !fcmProjectId.trim()) {
       return json(
         {
+          step: "config",
           error:
-            "FCM_SERVICE_ACCOUNT and FCM_PROJECT_ID secrets must be set in Supabase Edge Function secrets.",
+            "Set FCM_PROJECT_ID and FCM_SERVICE_ACCOUNT (or FCM_SERVICE_ACCOUNT_B64) in Edge Function secrets.",
         },
         500,
       );
     }
 
-    const serviceAccount = JSON.parse(fcmServiceAccountRaw) as ServiceAccount;
+    let serviceAccount: ServiceAccount;
+    try {
+      serviceAccount = parseServiceAccount(fcmServiceAccountRaw);
+    } catch (e) {
+      return json(
+        {
+          step: "config",
+          error: `FCM_SERVICE_ACCOUNT is not valid JSON: ${(e as Error).message}`,
+        },
+        500,
+      );
+    }
+
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    const body = (await req.json().catch(() => ({}))) as {
-      source?: string;
-      notification_id?: string;
-    };
-    const source = body.source;
-    const notificationId = body.notification_id;
+    const { source, notificationId } = await parseInvokeBody(req);
     if (!source || !notificationId) {
-      return json({ error: "source and notification_id are required." }, 400);
+      return json(
+        {
+          step: "request",
+          error:
+            "Body must include source + notification_id, or a Database Webhook payload with record.id.",
+          received: { source, notificationId },
+        },
+        400,
+      );
     }
 
     let payload: NotificationPayload;
@@ -117,14 +137,19 @@ serve(async (req) => {
     } else if (source === "user") {
       const result = await loadUserRow(adminClient, notificationId);
       if (!result) return json({ error: "Notification not found." }, 404);
+      const rowMeta = result.metadata ?? result.data ?? null;
+      const fcmData: Record<string, string> = {
+        source: "user",
+        id: result.id,
+        ...stringifyData(rowMeta),
+      };
+      if (result.type && !fcmData.type) {
+        fcmData.type = result.type;
+      }
       payload = {
         title: result.title,
-        body: result.body,
-        data: {
-          source: "user",
-          id: result.id,
-          ...stringifyData(result.data),
-        },
+        body: result.body ?? "",
+        data: fcmData,
       };
       tokens = await tokensForUser(adminClient, result.user_id);
     } else {
@@ -135,11 +160,50 @@ serve(async (req) => {
       return json({ ok: true, delivered: 0, reason: "no_tokens" });
     }
 
-    const accessToken = await mintAccessToken(serviceAccount);
-    const fcmEndpoint = `https://fcm.googleapis.com/v1/projects/${fcmProjectId}/messages:send`;
+    let accessToken: string;
+    try {
+      accessToken = await mintAccessToken(serviceAccount);
+    } catch (e) {
+      return json(
+        {
+          step: "oauth",
+          error: (e as Error).message,
+          hint:
+            "Use the full Firebase service-account JSON (Project settings → Service accounts → Generate new private key). Enable Firebase Cloud Messaging API in Google Cloud.",
+        },
+        500,
+      );
+    }
+
+    if (!accessToken?.trim()) {
+      return json(
+        {
+          step: "oauth",
+          error: "Google OAuth returned an empty access_token.",
+        },
+        500,
+      );
+    }
+
+    const effectiveProjectId =
+      fcmProjectId.trim() || serviceAccount.project_id?.trim() || "";
+    if (!effectiveProjectId) {
+      return json(
+        {
+          step: "config",
+          error:
+            "FCM_PROJECT_ID secret is empty and service account JSON has no project_id.",
+        },
+        500,
+      );
+    }
+
+    const fcmEndpoint =
+      `https://fcm.googleapis.com/v1/projects/${effectiveProjectId}/messages:send`;
 
     let delivered = 0;
     const invalidTokens: string[] = [];
+    let firstFcmError: string | null = null;
     for (const token of tokens) {
       const res = await fetch(fcmEndpoint, {
         method: "POST",
@@ -168,6 +232,29 @@ serve(async (req) => {
         // UNREGISTERED / INVALID_ARGUMENT — drop the stale token.
         invalidTokens.push(token);
       }
+      if (!firstFcmError) {
+        firstFcmError = `FCM ${res.status}: ${(await res.text()).slice(0, 300)}`;
+      }
+    }
+
+    if (delivered === 0 && firstFcmError) {
+      return json(
+        {
+          step: "fcm_send",
+          error: firstFcmError,
+          project_id: effectiveProjectId,
+          service_account: serviceAccount.client_email,
+          access_token_length: accessToken.length,
+          ok: false,
+          delivered: 0,
+          total: tokens.length,
+          hint:
+            firstFcmError.includes("401")
+              ? "FCM_SERVICE_ACCOUNT secret is likely corrupted (empty or truncated). Re-set using FCM_SERVICE_ACCOUNT_B64 (see docs) and redeploy."
+              : "Enable Firebase Cloud Messaging API and grant Firebase Cloud Messaging Admin to the service account.",
+        },
+        500,
+      );
     }
 
     if (invalidTokens.length > 0) {
@@ -179,9 +266,72 @@ serve(async (req) => {
 
     return json({ ok: true, delivered, total: tokens.length });
   } catch (e) {
-    return json({ error: (e as Error).message }, 500);
+    return json({ step: "unhandled", error: (e as Error).message }, 500);
   }
 });
+
+/** Prefer base64 secret — CLI/dashboard often corrupt multiline JSON private keys. */
+function loadFcmServiceAccountJson(): string {
+  const b64 = Deno.env.get("FCM_SERVICE_ACCOUNT_B64")?.trim();
+  if (b64) {
+    try {
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new TextDecoder().decode(bytes);
+    } catch (e) {
+      throw new Error(
+        `FCM_SERVICE_ACCOUNT_B64 is not valid base64: ${(e as Error).message}`,
+      );
+    }
+  }
+  return Deno.env.get("FCM_SERVICE_ACCOUNT") ?? "";
+}
+
+function parseServiceAccount(raw: string): ServiceAccount {
+  const trimmed = raw.trim();
+  const parsed = JSON.parse(trimmed) as ServiceAccount;
+  if (!parsed.client_email || !parsed.private_key) {
+    throw new Error(
+      "JSON must include client_email and private_key (download the full key file from Firebase).",
+    );
+  }
+  return parsed;
+}
+
+/** SQL trigger (pg_net) and Database Webhooks use different JSON shapes. */
+async function parseInvokeBody(req: Request): Promise<{
+  source?: string;
+  notificationId?: string;
+}> {
+  const raw = await req.json().catch(() => ({}));
+  const body = (typeof raw === "string" ? JSON.parse(raw) : raw) as Record<
+    string,
+    unknown
+  >;
+
+  let source = typeof body.source === "string" ? body.source : undefined;
+  let notificationId =
+    typeof body.notification_id === "string"
+      ? body.notification_id
+      : undefined;
+
+  // Supabase Database Webhook payload: { type, table, record: { id, ... } }
+  const record = body.record;
+  if (!notificationId && record && typeof record === "object") {
+    const rec = record as Record<string, unknown>;
+    if (typeof rec.id === "string") notificationId = rec.id;
+    if (!source) {
+      const table = typeof body.table === "string" ? body.table : "";
+      if (table === "platform_notifications") source = "platform";
+      else if (table === "notifications") source = "user";
+    }
+  }
+
+  return { source, notificationId };
+}
 
 async function loadPlatformRow(
   adminClient: AdminClient,
@@ -199,11 +349,15 @@ async function loadUserRow(
   adminClient: AdminClient,
   id: string,
 ): Promise<UserNotificationRow | null> {
-  const { data } = await adminClient
+  // Habra production uses `metadata` (jsonb), not `data`.
+  const { data, error } = await adminClient
     .from("notifications")
-    .select("id, title, body, user_id, data")
+    .select("id, title, body, user_id, type, metadata")
     .eq("id", id)
     .maybeSingle();
+  if (error) {
+    throw new Error(`notifications select failed: ${error.message}`);
+  }
   return (data as UserNotificationRow | null) ?? null;
 }
 
@@ -229,7 +383,12 @@ async function tokensForAudience(
   if (a === "customers" || a === "customer") {
     query = query.in("role", ["customer", "guest"]);
   } else if (a === "business_owners" || a === "business_owner") {
-    query = query.in("role", ["business_owner", "businessowner", "admin"]);
+    query = query.in("role", [
+      "businessOwner",
+      "business_owner",
+      "businessowner",
+      "admin",
+    ]);
   }
   const { data } = await query;
   return ((data ?? []) as Array<{ fcm_token: string | null }>)
@@ -258,7 +417,8 @@ async function mintAccessToken(account: ServiceAccount): Promise<string> {
     { alg: "RS256", typ: "JWT" },
     {
       iss: account.client_email,
-      scope: "https://www.googleapis.com/auth/firebase.messaging",
+      scope:
+        "https://www.googleapis.com/auth/firebase.messaging https://www.googleapis.com/auth/cloud-platform",
       aud: "https://oauth2.googleapis.com/token",
       iat: now,
       exp,
@@ -275,9 +435,15 @@ async function mintAccessToken(account: ServiceAccount): Promise<string> {
     }),
   });
   if (!res.ok) {
-    throw new Error(`OAuth token exchange failed: ${res.status}`);
+    const detail = (await res.text()).slice(0, 200);
+    throw new Error(`OAuth token exchange failed: ${res.status} ${detail}`);
   }
-  const data = (await res.json()) as { access_token: string };
+  const data = (await res.json()) as { access_token?: string; error?: string };
+  if (!data.access_token?.trim()) {
+    throw new Error(
+      `OAuth response missing access_token: ${data.error ?? JSON.stringify(data)}`,
+    );
+  }
   return data.access_token;
 }
 

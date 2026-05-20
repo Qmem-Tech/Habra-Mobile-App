@@ -18,6 +18,7 @@ class EventsCubit extends Cubit<EventsState> {
     EventFilters? filters,
     String? searchQuery,
   }) async {
+    if (isClosed) return;
     emit(EventsLoading());
 
     final result = await getEventsUseCase(
@@ -27,31 +28,52 @@ class EventsCubit extends Cubit<EventsState> {
     );
 
     result.fold(
-      (failure) => emit(EventsError(failure.message)),
-      (events) => emit(EventsLoaded(
-        events: events,
-        activeFilters: filters,
-        searchQuery: searchQuery,
-      )),
+      (failure) {
+        if (!isClosed) emit(EventsError(failure.message));
+      },
+      (events) {
+        if (!isClosed) {
+          emit(EventsLoaded(
+            events: events,
+            activeFilters: filters,
+            searchQuery: searchQuery,
+          ));
+        }
+      },
     );
   }
 
   Future<void> loadEventDetail(String eventId) async {
+    if (isClosed) return;
     emit(EventDetailLoading());
 
     final result = await getEventDetailUseCase(eventId);
 
     result.fold(
-      (failure) => emit(EventDetailError(failure.message)),
+      (failure) {
+        if (!isClosed) emit(EventDetailError(failure.message));
+      },
       (event) async {
         // Load similar events
         final similarResult = await getEventsUseCase();
+        if (isClosed) return;
         similarResult.fold(
-          (_) => emit(EventDetailLoaded(event: event, similarEvents: [])),
-          (similarEvents) => emit(EventDetailLoaded(
-            event: event,
-            similarEvents: similarEvents.where((e) => e.id != eventId).take(2).toList(),
-          )),
+          (_) {
+            if (!isClosed) {
+              emit(EventDetailLoaded(event: event, similarEvents: []));
+            }
+          },
+          (similarEvents) {
+            if (!isClosed) {
+              emit(EventDetailLoaded(
+                event: event,
+                similarEvents: similarEvents
+                    .where((e) => e.id != eventId)
+                    .take(2)
+                    .toList(),
+              ));
+            }
+          },
         );
       },
     );

@@ -180,7 +180,18 @@ class PushNotificationService {
     final uid = _lastSyncedUserId;
     if (uid == null) return;
     if (!await _isUserPushEnabled(uid)) return;
+    _logFcmToken(uid, token, reason: 'token refreshed');
     await _uploadToken(uid, token, isRetry: true);
+  }
+
+  /// Prints FCM token to the debug console (flutter run terminal). Debug builds only.
+  void _logFcmToken(String userId, String token, {required String reason}) {
+    if (!kDebugMode) return;
+    debugPrint('══════════════════════════════════════');
+    debugPrint('[FCM] $reason');
+    debugPrint('[FCM] userId: $userId');
+    debugPrint('[FCM] token: $token');
+    debugPrint('══════════════════════════════════════');
   }
 
   /// Call after the main navigator is ready (e.g. from [MainNavigationWrapper]).
@@ -208,12 +219,35 @@ class PushNotificationService {
         sound: true,
         provisional: false,
       );
+      if (kDebugMode) {
+        debugPrint(
+          '[FCM] permission: ${settings.authorizationStatus.name} '
+          '(alert=${settings.alert}, badge=${settings.badge}, sound=${settings.sound})',
+        );
+      }
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
+        if (kDebugMode) {
+          debugPrint('[FCM] permission denied for userId: $userId');
+        }
         _log.i('FCM permission denied');
         return;
       }
     } catch (e, st) {
       _log.w('requestPermission: $e', stackTrace: st);
+    }
+
+    if (Platform.isIOS) {
+      // Links APNs token to FCM — required for iOS delivery (Firebase Console + server).
+      try {
+        final apns = await _messaging!.getAPNSToken();
+        if (kDebugMode) {
+          debugPrint(
+            '[FCM] APNs token: ${apns == null ? "MISSING — upload APNs key in Firebase Console" : "${apns.substring(0, 16)}…"}',
+          );
+        }
+      } catch (e, st) {
+        _log.w('getAPNSToken: $e', stackTrace: st);
+      }
     }
 
     String? token;
@@ -224,9 +258,15 @@ class PushNotificationService {
       return;
     }
 
-    if (token == null || token.isEmpty) return;
+    if (token == null || token.isEmpty) {
+      if (kDebugMode) {
+        debugPrint('[FCM] no token returned for userId: $userId');
+      }
+      return;
+    }
 
     _lastSyncedUserId = userId;
+    _logFcmToken(userId, token, reason: 'logged-in user');
     await _uploadToken(userId, token, isRetry: false);
   }
 

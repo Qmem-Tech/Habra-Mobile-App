@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.window", "deno.ns"],
+    "strict": true
+  },
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.45.4",
+    "@std/http": "https://deno.land/std@0.224.0/http/server.ts",
+    "djwt": "https://deno.land/x/djwt@v3.0.2/mod.ts"
+  }
+}
