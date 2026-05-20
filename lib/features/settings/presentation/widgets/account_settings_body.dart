@@ -192,7 +192,7 @@ class _AccountSettingsBodyState extends State<AccountSettingsBody> {
         _SettingsCard(
           child: _ChevronTile(
             icon: Icons.location_on_outlined,
-            title: 'Location Settings',
+            title: 'Permissions Settings',
             onTap: () {
               Navigator.push<void>(
                 context,

@@ -14,6 +14,7 @@ import '../core/services/storage_service.dart';
 import '../core/services/app_version_service.dart';
 import '../core/services/push_notification_service.dart';
 import '../core/services/revenue_cat_service.dart';
+import '../core/subscription/subscription_trial_service.dart';
 import '../core/services/stripe_payment_service.dart';
 import '../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../features/auth/data/datasources/auth_local_datasource.dart';
@@ -187,6 +188,7 @@ Future<void> init() async {
   sl.registerLazySingleton<PermissionService>(() => PermissionService());
   sl.registerLazySingleton<StorageService>(() => StorageService());
   sl.registerLazySingleton<RevenueCatService>(() => RevenueCatService());
+  sl.registerLazySingleton<SubscriptionTrialService>(() => SubscriptionTrialService());
   sl.registerLazySingleton<StripePaymentService>(() => StripePaymentService());
   sl.registerLazySingleton<AppVersionService>(() => AppVersionService());
   sl.registerLazySingleton<PushNotificationService>(
@@ -302,7 +304,10 @@ Future<void> init() async {
       sl<DashboardRepository>(),
       sl<LocalStorage>(),
     ));
-  sl.registerFactory(() => BusinessOwnerSubscriptionCubit(sl<RevenueCatService>()));
+  sl.registerFactory(() => BusinessOwnerSubscriptionCubit(
+        sl<RevenueCatService>(),
+        sl<SubscriptionTrialService>(),
+      ));
 
   // Features - Events
   // Data sources

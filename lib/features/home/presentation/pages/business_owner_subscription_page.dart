@@ -8,6 +8,7 @@ import '../../../../core/resources/app_resources.dart';
 import '../../../../core/services/revenue_cat_service.dart';
 import '../../../../core/subscription/business_subscription_post_unlock.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
+import '../../../../core/subscription/subscription_trial_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/error_display_helper.dart';
@@ -57,8 +58,8 @@ class BusinessOwnerSubscriptionPage extends StatefulWidget {
       _BusinessOwnerSubscriptionPageState();
 }
 
-class _BusinessOwnerSubscriptionPageState
-    extends State<BusinessOwnerSubscriptionPage> {
+class _BusinessOwnerSubscriptionPageState extends State<BusinessOwnerSubscriptionPage>
+    with WidgetsBindingObserver {
   List<Package> _packages = [];
   bool _loadingPackages = true;
   String? _packagesError;
@@ -67,10 +68,67 @@ class _BusinessOwnerSubscriptionPageState
   /// 0 = Monthly (and non-annual periods), 1 = Yearly (annual).
   int _billingPeriodTab = 0;
 
+  TrialConfig _trialConfig = const TrialConfig();
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadPackages();
+    _loadTrialConfig();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadTrialConfig();
+    }
+  }
+
+  /// Reloads trial flags from Supabase, offerings from RevenueCat, and cubit state.
+  Future<void> _refreshRemoteSubscriptionSettings() async {
+    await _loadTrialConfig();
+    await _loadPackages();
+    if (!mounted) return;
+    await context.read<BusinessOwnerSubscriptionCubit>().refresh(widget.user.id);
+  }
+
+  Future<void> _loadTrialConfig() async {
+    final config = await di.sl<SubscriptionTrialService>().fetchConfig();
+    if (mounted) setState(() => _trialConfig = config);
+  }
+
+  /// Grants the platform trial and unlocks the app — no store purchase needed.
+  /// Called from [_onPurchase] when a trial is available for the user.
+  Future<void> _onGrantTrial() async {
+    final ctx = context;
+    LoaderHelper.show(ctx, message: 'Activating your free trial…');
+    try {
+      await di
+          .sl<SubscriptionTrialService>()
+          .grantTrial(widget.user.id, _trialConfig.months);
+      if (!ctx.mounted) return;
+      await LoaderHelper.hide(ctx);
+      if (!ctx.mounted) return;
+      // Refresh cubit — it will now detect isTrialing=true from the DB.
+      // No RevenueCat refresh needed; trials bypass the store entirely.
+      final subCubit = ctx.read<BusinessOwnerSubscriptionCubit>();
+      await subCubit.refresh(widget.user.id);
+      if (!ctx.mounted) return;
+      Navigator.of(ctx).pop(true);
+    } catch (e) {
+      if (ctx.mounted) await LoaderHelper.hide(ctx);
+      if (!ctx.mounted) return;
+      ErrorDisplayHelper.show(ctx, error: e, title: 'Could not activate trial');
+    } finally {
+      if (mounted) setState(() => _purchasing = false);
+    }
   }
 
   Future<void> _loadPackages() async {
@@ -155,6 +213,17 @@ class _BusinessOwnerSubscriptionPageState
 
   Future<void> _onPurchase(Package package) async {
     if (_purchasing) return;
+
+    // If a platform trial is available for this user, grant it instead of
+    // going to the App Store / Google Play. Billing starts after the trial.
+    final currentSubState =
+        context.read<BusinessOwnerSubscriptionCubit>().state;
+    if (_trialConfig.enabled && currentSubState.trialEndsAt == null) {
+      setState(() => _purchasing = true);
+      await _onGrantTrial();
+      return;
+    }
+
     setState(() => _purchasing = true);
     final ctx = context;
     LoaderHelper.show(ctx, message: 'Processing…');
@@ -423,6 +492,13 @@ class _BusinessOwnerSubscriptionPageState
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Refresh plans & trial settings',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: _refreshRemoteSubscriptionSettings,
+          ),
+        ],
       ),
       body: BlocBuilder<BusinessOwnerSubscriptionCubit,
           BusinessOwnerSubscriptionState>(
@@ -432,15 +508,18 @@ class _BusinessOwnerSubscriptionPageState
           }
           if (subState.hasActiveSubscription ||
               BusinessSubscriptionConfig.mode == BusinessOwnerSubscriptionMode.off) {
-            return _buildActiveBody(subState.currentTier);
+            return _buildActiveBody(subState.currentTier, subState);
           }
-          return _buildRevenueCatBody(subState.currentTier);
+          return _buildRevenueCatBody(subState.currentTier, subState);
         },
       ),
     );
   }
 
-  Widget _buildRevenueCatBody(BusinessSubscriptionTier currentTier) {
+  Widget _buildRevenueCatBody(
+    BusinessSubscriptionTier currentTier,
+    BusinessOwnerSubscriptionState subState,
+  ) {
     if (!di.sl<RevenueCatService>().isInitialized) {
       return Center(
         child: Padding(
@@ -457,16 +536,24 @@ class _BusinessOwnerSubscriptionPageState
         ),
       );
     }
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppResources.spacingM,
-        vertical: AppResources.spacingS,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildPromoHeroCard(),
-          const SizedBox(height: 18),
+    return RefreshIndicator(
+      onRefresh: _refreshRemoteSubscriptionSettings,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppResources.spacingM,
+          vertical: AppResources.spacingS,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildPromoHeroCard(),
+            const SizedBox(height: 18),
+            // — Trial-expired notice —
+          if (_trialConfig.enabled &&
+              subState.trialEndsAt != null &&
+              !subState.isTrialing)
+            _buildTrialExpiredBanner(),
           _buildChoosePlanHeader(),
           const SizedBox(height: 12),
           if (!_loadingPackages &&
@@ -531,6 +618,11 @@ class _BusinessOwnerSubscriptionPageState
                 ),
                 current: currentTier ==
                     _tierForPackage(_packagesForActiveBillingTab[i]),
+                trialLabel: (_trialConfig.enabled &&
+                        subState.trialEndsAt == null)
+                    ? 'First ${_trialConfig.months} '
+                        '${_trialConfig.months == 1 ? 'month' : 'months'} free'
+                    : null,
                 onTap: _purchasing
                     ? null
                     : () => _onPurchase(_packagesForActiveBillingTab[i]),
@@ -596,6 +688,85 @@ class _BusinessOwnerSubscriptionPageState
           ),
         ],
       ),
+    ),
+    );
+  }
+
+  Widget _buildTrialExpiredBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFF9800).withOpacity(0.5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.timer_off_outlined,
+              color: Color(0xFFE65100), size: 20),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Your free trial has ended. Subscribe below to keep access to paid business tools.',
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFFBF360C),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrialActiveBanner(DateTime endsAt) {
+    final daysLeft = endsAt.difference(DateTime.now()).inDays.clamp(0, 9999);
+    final label = daysLeft == 0
+        ? 'Trial ends today'
+        : daysLeft == 1
+            ? 'Trial ends tomorrow'
+            : 'Trial ends in $daysLeft days';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.card_giftcard_rounded,
+              color: Color(0xFF2E7D32), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Free Trial Active',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1B5E20),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$label — subscribe before it ends to keep uninterrupted access.',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF388E3C),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -650,7 +821,11 @@ class _BusinessOwnerSubscriptionPageState
           ),
           const SizedBox(height: 6),
           Text(
-            'Stand out. Get seen. Grow faster.',
+            _trialConfig.enabled
+                ? 'Start free for ${_trialConfig.months} '
+                    '${_trialConfig.months == 1 ? 'month' : 'months'}, '
+                    'then grow faster.'
+                : 'Stand out. Get seen. Grow faster.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.92),
               fontSize: 15,
@@ -670,9 +845,17 @@ class _BusinessOwnerSubscriptionPageState
   }
 
   Widget _buildChoosePlanHeader() {
-    return const Row(
+    final trialHint = _trialConfig.enabled
+        ? '${_trialConfig.months} '
+            '${_trialConfig.months == 1 ? 'month' : 'months'} free'
+        : 'Cancel Anytime';
+    final trialIcon = _trialConfig.enabled
+        ? Icons.card_giftcard_rounded
+        : Icons.verified_user_outlined;
+
+    return Row(
       children: [
-        Expanded(
+        const Expanded(
           child: Text(
             'Choose Your Plan',
             style: TextStyle(
@@ -682,14 +865,20 @@ class _BusinessOwnerSubscriptionPageState
             ),
           ),
         ),
-        Icon(Icons.verified_user_outlined, size: 16, color: AppColors.textSecondary),
-        SizedBox(width: 4),
+        Icon(trialIcon,
+            size: 16,
+            color: _trialConfig.enabled
+                ? const Color(0xFF2E7D32)
+                : AppColors.textSecondary),
+        const SizedBox(width: 4),
         Text(
-          'Cancel Anytime',
+          trialHint,
           style: TextStyle(
             fontSize: 12,
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w500,
+            color: _trialConfig.enabled
+                ? const Color(0xFF2E7D32)
+                : AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -756,9 +945,12 @@ class _BusinessOwnerSubscriptionPageState
       ),
       child: Column(
         children: [
-          const Text(
-            'Why Upgrade?',
-            style: TextStyle(
+          Text(
+            _trialConfig.enabled
+                ? 'Try Free for ${_trialConfig.months} '
+                    '${_trialConfig.months == 1 ? 'Month' : 'Months'}'
+                : 'Why Upgrade?',
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
@@ -779,11 +971,20 @@ class _BusinessOwnerSubscriptionPageState
   }
 
   Widget _buildLegalFooter() {
+    final trialNote = _trialConfig.enabled
+        ? 'If you start a free trial, no charge is made during the '
+            '${_trialConfig.months}-'
+            '${_trialConfig.months == 1 ? 'month' : 'month'} period. '
+            'After the trial, subscribe via the App Store or Google Play to continue. '
+        : '';
+
     return Text.rich(
       TextSpan(
-        text: 'By continuing, you agree to our ',
-        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        text: trialNote,
+        style: const TextStyle(
+            fontSize: 12, color: AppColors.textSecondary, height: 1.45),
         children: [
+          const TextSpan(text: 'By subscribing, you agree to our '),
           TextSpan(
             text: 'Terms of Service',
             style: TextStyle(
@@ -805,7 +1006,10 @@ class _BusinessOwnerSubscriptionPageState
     );
   }
 
-  Widget _buildActiveBody(BusinessSubscriptionTier currentTier) {
+  Widget _buildActiveBody(
+    BusinessSubscriptionTier currentTier,
+    BusinessOwnerSubscriptionState subState,
+  ) {
     if (BusinessSubscriptionConfig.mode == BusinessOwnerSubscriptionMode.off) {
       return Center(
         child: Padding(
@@ -877,12 +1081,20 @@ class _BusinessOwnerSubscriptionPageState
           .firstOrNull;
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppResources.spacingM, vertical: AppResources.spacingM),
-      child: Column(
+    return RefreshIndicator(
+      onRefresh: _refreshRemoteSubscriptionSettings,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppResources.spacingM,
+          vertical: AppResources.spacingM,
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // — Trial status banner —
+          if (subState.isTrialing && subState.trialEndsAt != null)
+            _buildTrialActiveBanner(subState.trialEndsAt!),
           // — Plan card —
           Container(
             padding: const EdgeInsets.all(20),
@@ -1033,6 +1245,7 @@ class _BusinessOwnerSubscriptionPageState
           const SizedBox(height: 12),
         ],
       ),
+    ),
     );
   }
 }
@@ -1050,6 +1263,7 @@ class _RevenueCatPlanTile extends StatelessWidget {
     this.highlighted = false,
     this.popular = false,
     this.current = false,
+    this.trialLabel,
     this.onTap,
   });
 
@@ -1063,6 +1277,8 @@ class _RevenueCatPlanTile extends StatelessWidget {
   final bool highlighted;
   final bool popular;
   final bool current;
+  /// When non-null, shows a green "First X months free" hint below the price.
+  final String? trialLabel;
   final VoidCallback? onTap;
 
   @override
@@ -1171,6 +1387,25 @@ class _RevenueCatPlanTile extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                  if (trialLabel != null) ...[
+                    const SizedBox(height: 5),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.card_giftcard_rounded,
+                            size: 12, color: Color(0xFF2E7D32)),
+                        const SizedBox(width: 3),
+                        Text(
+                          trialLabel!,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2E7D32),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   SizedBox(
                     width: 116,
@@ -1183,9 +1418,13 @@ class _RevenueCatPlanTile extends StatelessWidget {
                             borderColor: AppColors.backgroundGrey,
                           )
                         : AppButton(
-                            text: 'Choose Plan',
+                            text: trialLabel != null
+                                ? 'Start Free'
+                                : 'Choose Plan',
                             onPressed: onTap,
-                            backgroundColor: AppColors.brandPrimary,
+                            backgroundColor: trialLabel != null
+                                ? const Color(0xFF2E7D32)
+                                : AppColors.brandPrimary,
                             textColor: Colors.white,
                             height: 38,
                           ),
