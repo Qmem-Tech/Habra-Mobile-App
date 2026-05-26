@@ -25,6 +25,9 @@ abstract class AuthRemoteDataSource {
   );
   Future<void> logout();
 
+  /// Permanently deletes the signed-in account via the delete-account edge function.
+  Future<void> deleteAccount();
+
   /// Resends the signup confirmation email to [email].
   Future<void> resendVerificationEmail(String email);
 

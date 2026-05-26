@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:open_mail_launcher/open_mail_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
 import '../bloc/auth_cubit.dart';
 import '../bloc/auth_state.dart';
+import 'reset_password_page.dart';
 import 'sign_in_page.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -19,9 +23,25 @@ class ForgotPasswordPage extends StatefulWidget {
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
+  StreamSubscription<supa.AuthState>? _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _authSubscription =
+        supa.Supabase.instance.client.auth.onAuthStateChange.listen((state) {
+      if (state.event == supa.AuthChangeEvent.passwordRecovery && mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute<void>(builder: (_) => const ResetPasswordPage()),
+          (_) => false,
+        );
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _emailController.dispose();
     super.dispose();
   }

@@ -16,6 +16,7 @@ import 'email_verification_page.dart';
 import 'forgot_password_page.dart';
 import 'wrong_path_page.dart';
 import '../../../choose_path/presentation/pages/choose_path_page.dart';
+import 'sign_up_options_page.dart';
 import '../widgets/social_auth_widgets.dart';
 
 class SignInPage extends StatefulWidget {
@@ -342,7 +343,9 @@ class _SignInPageState extends State<SignInPage> {
                                 onTap: () {
                                   Navigator.of(context).pushReplacement(
                                     MaterialPageRoute(
-                                      builder: (_) => const ChoosePathPage(),
+                                      builder: (_) => const SignUpOptionsPage(
+                                        selectedRole: UserRole.customer,
+                                      ),
                                     ),
                                   );
                                 },

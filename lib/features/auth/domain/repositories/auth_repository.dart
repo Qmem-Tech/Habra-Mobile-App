@@ -11,6 +11,8 @@ abstract class AuthRepository {
   });
   Future<Either<Failure, User>> signInWithApple({UserRole? oauthIntendedRole});
   Future<Either<Failure, void>> logout();
+
+  Future<Either<Failure, void>> deleteAccount();
   Future<Either<Failure, User>> register(
     String email,
     String password,

@@ -3,11 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/navigation/main_navigation_wrapper.dart';
 import '../pages/auth_callback_verification_page.dart';
 import '../pages/reset_password_page.dart';
 
-/// Listens to Supabase auth state changes and navigates to [ResetPasswordPage]
-/// when the user opens the app via the password reset link (recovery flow).
+/// Listens to Supabase auth state and incoming auth deep links for the app lifetime.
+///
+/// Must wrap the [MaterialApp] navigator (via `builder`), not only the splash route,
+/// so password-recovery navigation still works after the user leaves splash.
 class AuthDeepLinkHandler extends StatefulWidget {
   const AuthDeepLinkHandler({super.key, required this.child});
 
@@ -19,7 +22,7 @@ class AuthDeepLinkHandler extends StatefulWidget {
 
 class _AuthDeepLinkHandlerState extends State<AuthDeepLinkHandler> {
   StreamSubscription<AuthState>? _authSubscription;
-  bool _hasHandledAuthNavigation = false;
+  bool _hasHandledEmailVerificationNavigation = false;
 
   @override
   void initState() {
@@ -36,19 +39,12 @@ class _AuthDeepLinkHandlerState extends State<AuthDeepLinkHandler> {
   }
 
   void _onAuthStateChange(AuthState state) {
-    if (_hasHandledAuthNavigation) return;
-
     if (state.event == AuthChangeEvent.passwordRecovery) {
-      _hasHandledAuthNavigation = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const ResetPasswordPage()),
-          (route) => false,
-        );
-      });
+      _navigateToResetPassword();
       return;
     }
+
+    if (_hasHandledEmailVerificationNavigation) return;
 
     if (state.event == AuthChangeEvent.signedIn ||
         state.event == AuthChangeEvent.initialSession ||
@@ -58,8 +54,19 @@ class _AuthDeepLinkHandlerState extends State<AuthDeepLinkHandler> {
     }
   }
 
+  void _navigateToResetPassword() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = mainNavigatorKey.currentState;
+      if (navigator == null) return;
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => const ResetPasswordPage()),
+        (_) => false,
+      );
+    });
+  }
+
   Future<void> _maybeHandleEmailVerificationCallback(Session? session) async {
-    if (_hasHandledAuthNavigation || session == null) return;
+    if (session == null) return;
     final isEmailVerified = session.user.emailConfirmedAt != null;
     if (!isEmailVerified) return;
 
@@ -79,19 +86,19 @@ class _AuthDeepLinkHandlerState extends State<AuthDeepLinkHandler> {
       // If profile lookup fails, still allow callback screen as fallback.
     }
 
-    _hasHandledAuthNavigation = true;
-    if (!mounted) return;
+    _hasHandledEmailVerificationNavigation = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const AuthCallbackVerificationPage()),
-        (route) => false,
+      final navigator = mainNavigatorKey.currentState;
+      if (navigator == null) return;
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute<void>(
+          builder: (_) => const AuthCallbackVerificationPage(),
+        ),
+        (_) => false,
       );
     });
   }
 
   @override
-  Widget build(BuildContext context) {
-    return widget.child;
-  }
+  Widget build(BuildContext context) => widget.child;
 }

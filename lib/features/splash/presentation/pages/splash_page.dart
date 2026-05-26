@@ -4,7 +4,7 @@ import '../../../../core/resources/app_assets.dart';
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/services/app_version_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/force_update_page.dart';
+import '../../../../core/widgets/force_update_dialog.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../bloc/splash_cubit.dart';
 import '../bloc/splash_state.dart';
@@ -113,18 +113,14 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     );
   }
 
-  /// Returns true when a force-update screen was pushed (caller should stop
+  /// Returns true when the force-update dialog is shown (caller should stop
   /// navigating to the rest of the app).
   Future<bool> _maybeShowForceUpdate() async {
     try {
       final versionStatus = await di.sl<AppVersionService>().evaluate();
       if (!mounted) return true;
       if (versionStatus.mustUpdate) {
-        await Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => ForceUpdatePage(status: versionStatus),
-          ),
-        );
+        await showForceUpdateDialog(context, versionStatus);
         return true;
       }
     } catch (_) {
@@ -189,8 +185,9 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
         }
       });
     } else if (state is SplashError) {
-      // On error, navigate to choose path after delay
-      Future.delayed(AppResources.splashScreenDuration, () {
+      Future.delayed(AppResources.splashScreenDuration, () async {
+        if (!mounted) return;
+        if (await _maybeShowForceUpdate()) return;
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const ChoosePathPage()),

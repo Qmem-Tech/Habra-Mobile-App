@@ -4,83 +4,134 @@ import 'package:logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Pulls remote version requirements from the `app_config` table and compares
-/// them against the installed build, so we can force the user to update before
-/// they hit a broken API contract.
-///
-/// Schema expected (single row, `id = 1` by convention):
-///
-/// ```sql
-/// create table public.app_config (
-///   id            int primary key default 1,
-///   min_android   text,            -- '1.2.0+34' or just '1.2.0'
-///   min_ios       text,
-///   latest_android text,
-///   latest_ios    text,
-///   store_url_android text,
-///   store_url_ios     text,
-///   message       text,            -- shown on the force-update page
-///   updated_at    timestamptz default now()
-/// );
-/// alter table public.app_config enable row level security;
-/// create policy "Anyone can read app_config" on public.app_config
-///   for select using (true);
-/// ```
-///
-/// The service degrades gracefully — if Supabase is unreachable or the table
-/// doesn't exist, no update is required.
+/// Default store links when admin has not set custom URLs.
+abstract final class AppStoreLinks {
+  static const playStore =
+      'https://play.google.com/store/apps/details?id=com.habra.habra';
+  static const appStore = 'https://apps.apple.com/app/habra/id000000000';
+}
+
+/// Reads minimum versions from `app_settings` (super admin) with fallback to
+/// legacy `app_config`. Compares against the installed build via semver.
 class AppVersionService {
   AppVersionService();
 
   final Logger _log = Logger();
+
+  static const _settingsKeys = [
+    'min_app_version_android',
+    'min_app_version_ios',
+    'force_update_message',
+    'store_url_android',
+    'store_url_ios',
+  ];
 
   Future<AppVersionStatus> evaluate() async {
     try {
       final info = await PackageInfo.fromPlatform();
       final current = _AppVersion.parse('${info.version}+${info.buildNumber}');
 
-      final res = await Supabase.instance.client
-          .from('app_config')
-          .select()
-          .limit(1)
-          .maybeSingle();
-      if (res == null) {
-        return AppVersionStatus.ok(current: current);
+      final settings = await _fetchAppSettings();
+      final isAndroid = Platform.isAndroid;
+      final minRaw = isAndroid
+          ? settings['min_app_version_android']
+          : settings['min_app_version_ios'];
+      final storeUrl = _firstNonEmpty([
+        isAndroid ? settings['store_url_android'] : settings['store_url_ios'],
+      ]);
+      final message = settings['force_update_message'];
+
+      var min = _AppVersion.tryParse(minRaw);
+      var resolvedStore = storeUrl;
+      _AppVersion? latest;
+
+      if (min == null) {
+        final legacy = await _fetchLegacyAppConfig(isAndroid);
+        min = legacy.min;
+        latest = legacy.latest;
+        resolvedStore ??= legacy.storeUrl;
       }
-      final row = Map<String, dynamic>.from(res as Map);
 
-      final platformKey = Platform.isAndroid ? 'android' : 'ios';
-      final minRaw = row['min_$platformKey']?.toString();
-      final latestRaw = row['latest_$platformKey']?.toString();
-      final storeUrl = row['store_url_$platformKey']?.toString();
-      final message = row['message']?.toString();
-
-      final min = _AppVersion.tryParse(minRaw);
-      final latest = _AppVersion.tryParse(latestRaw);
+      resolvedStore ??= isAndroid ? AppStoreLinks.playStore : AppStoreLinks.appStore;
 
       if (min != null && current.compareTo(min) < 0) {
         return AppVersionStatus.forceUpdate(
           current: current,
           required: min,
-          storeUrl: storeUrl,
-          message: message ??
-              'A newer version of Habra is required to continue. Please update to keep using the app.',
+          storeUrl: resolvedStore,
+          message: message?.isNotEmpty == true
+              ? message
+              : 'A newer version of Habra is required to continue. Please update to keep using the app.',
         );
       }
       if (latest != null && current.compareTo(latest) < 0) {
         return AppVersionStatus.recommended(
           current: current,
           recommended: latest,
-          storeUrl: storeUrl,
+          storeUrl: resolvedStore,
           message: message,
         );
       }
       return AppVersionStatus.ok(current: current);
     } catch (e, st) {
-      _log.w('AppVersionService.evaluate failed; allowing app to start: $e',
-          stackTrace: st);
+      _log.w(
+        'AppVersionService.evaluate failed; allowing app to start: $e',
+        stackTrace: st,
+      );
       return const AppVersionStatus._(kind: AppVersionStatusKind.ok);
     }
+  }
+
+  Future<Map<String, String?>> _fetchAppSettings() async {
+    final rows = await Supabase.instance.client
+        .from('app_settings')
+        .select('key, value')
+        .inFilter('key', _settingsKeys);
+
+    final out = <String, String?>{};
+    for (final row in (rows as List)) {
+      final key = row['key'] as String?;
+      if (key == null) continue;
+      out[key] = _settingString(row['value']);
+    }
+    return out;
+  }
+
+  Future<({ _AppVersion? min, _AppVersion? latest, String? storeUrl })>
+      _fetchLegacyAppConfig(bool isAndroid) async {
+    final res = await Supabase.instance.client
+        .from('app_config')
+        .select()
+        .limit(1)
+        .maybeSingle();
+    if (res == null) {
+      return (min: null, latest: null, storeUrl: null);
+    }
+    final row = Map<String, dynamic>.from(res as Map);
+    final platform = isAndroid ? 'android' : 'ios';
+    return (
+      min: _AppVersion.tryParse(row['min_$platform']?.toString()),
+      latest: _AppVersion.tryParse(row['latest_$platform']?.toString()),
+      storeUrl: row['store_url_$platform']?.toString(),
+    );
+  }
+
+  String? _firstNonEmpty(List<String?> values) {
+    for (final v in values) {
+      if (v != null && v.trim().isNotEmpty) return v.trim();
+    }
+    return null;
+  }
+
+  String? _settingString(dynamic value) {
+    if (value == null) return null;
+    if (value is String) {
+      final t = value.trim();
+      return t.isEmpty ? null : t;
+    }
+    if (value is num) return value.toString();
+    final s = value.toString().trim();
+    return s.isEmpty ? null : s;
   }
 }
 
@@ -140,7 +191,6 @@ class AppVersionStatus {
 class _AppVersion implements Comparable<_AppVersion> {
   const _AppVersion(this.parts, this.build);
 
-  /// Parses "1.2.0+34" or "1.2.0". Missing parts default to 0.
   factory _AppVersion.parse(String raw) {
     final v = _AppVersion.tryParse(raw);
     if (v == null) throw FormatException('Bad version: $raw');

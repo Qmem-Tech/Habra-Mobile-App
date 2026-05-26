@@ -1,6 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:habra_mobile_app/features/auth/domain/usecases/sign_in_with_apple_usecase.dart';
@@ -8,6 +9,7 @@ import 'package:habra_mobile_app/features/auth/domain/usecases/sign_in_with_goog
 import 'package:habra_mobile_app/l10n/app_localizations.dart';
 import 'core/notifications/fcm_background_handler.dart';
 import 'core/navigation/main_navigation_wrapper.dart';
+import 'core/widgets/force_update_host.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/services/revenue_cat_service.dart';
 import 'core/services/stripe_payment_service.dart';
@@ -21,6 +23,7 @@ import 'features/auth/presentation/bloc/auth_cubit.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/domain/usecases/login_usecase.dart';
 import 'features/auth/domain/usecases/logout_usecase.dart';
+import 'features/auth/domain/usecases/delete_account_usecase.dart';
 import 'features/auth/domain/usecases/register_usecase.dart';
 import 'features/auth/domain/usecases/login_as_guest_usecase.dart';
 import 'features/auth/domain/usecases/resend_verification_email_usecase.dart';
@@ -36,6 +39,9 @@ import 'core/subscription/subscription_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
   print("This is a test!");
   subscriptionLog('main() started (kDebugMode=$kDebugMode)');
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -122,6 +128,7 @@ class MyApp extends StatelessWidget {
           create: (_) => AuthCubit(
             loginUseCase: di.sl<LoginUseCase>(),
             logoutUseCase: di.sl<LogoutUseCase>(),
+            deleteAccountUseCase: di.sl<DeleteAccountUseCase>(),
             registerUseCase: di.sl<RegisterUseCase>(),
             loginAsGuestUseCase: di.sl<LoginAsGuestUseCase>(),
             signInWithGoogleUseCase: di.sl<SignInWithGoogleUseCase>(),
@@ -149,26 +156,31 @@ class MyApp extends StatelessWidget {
         builder: (context) {
           return BlocBuilder<LocalizationCubit, LocalizationState>(
             builder: (context, localeState) {
-              return MaterialApp(
-                navigatorKey: mainNavigatorKey,
-                title: 'Habra',
-                debugShowCheckedModeBanner: false,
+              return ForceUpdateHost(
+                child: MaterialApp(
+                  navigatorKey: mainNavigatorKey,
+                  title: 'Habra',
+                  debugShowCheckedModeBanner: false,
 
-                // Theme – single light theme only
-                theme: AppTheme.theme,
+                  // Theme – single light theme only
+                  theme: AppTheme.theme,
 
-                // Localization
-                locale: localeState.locale,
-                localizationsDelegates: const [
-                  AppLocalizations.delegate,
-                  GlobalMaterialLocalizations.delegate,
-                  GlobalWidgetsLocalizations.delegate,
-                  GlobalCupertinoLocalizations.delegate,
-                ],
-                supportedLocales: context.read<LocalizationCubit>().supportedLocales,
+                  // Localization
+                  locale: localeState.locale,
+                  localizationsDelegates: const [
+                    AppLocalizations.delegate,
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  supportedLocales: context.read<LocalizationCubit>().supportedLocales,
 
-                // Home - AuthDeepLinkHandler listens for password recovery links
-                home: const AuthDeepLinkHandler(child: SplashPage()),
+                  builder: (context, child) => AuthDeepLinkHandler(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
+
+                  home: const SplashPage(),
+                ),
               );
             },
           );

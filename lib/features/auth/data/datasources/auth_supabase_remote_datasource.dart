@@ -428,6 +428,25 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
   }
 
   @override
+  Future<void> deleteAccount() async {
+    try {
+      final res = await _client.functions.invoke('delete-account');
+      final data = res.data;
+      if (data is Map && data['error'] != null) {
+        throw app_errors.ServerException(data['error'].toString());
+      }
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+      try {
+        await _client.auth.signOut();
+      } catch (_) {}
+    } catch (e) {
+      SupabaseFailureMapper.throwFromError(e);
+    }
+  }
+
+  @override
   Future<UserModel> updateProfileCity(String city) async {
     try {
       final userId = _client.auth.currentUser?.id;

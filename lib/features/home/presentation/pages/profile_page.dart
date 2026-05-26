@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:habra_mobile_app/l10n/app_localizations.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -20,12 +21,14 @@ import '../../../profile/domain/entities/user_profile.dart';
 import '../../../profile/domain/usecases/get_profile_usecase.dart';
 import '../../../profile/presentation/bloc/edit_profile_cubit.dart';
 import '../../../settings/presentation/widgets/account_settings_body.dart';
+import '../../../settings/presentation/widgets/account_danger_zone.dart';
 import 'business_owner_notification_page.dart';
 import 'edit_profile_page.dart';
 import 'location_map_page.dart';
 import 'manage_business_photos_page.dart';
 import 'my_businesses_page.dart';
 import 'notification_preferences_page.dart';
+import 'payouts_setup_page.dart';
 import 'subscription_billing_page.dart';
 
 /// Profile tab: for owners, listing-centric hub; for others, personal account.
@@ -495,6 +498,67 @@ class _ProfilePageState extends State<ProfilePage> {
                                   );
                                 },
                               ),
+                              if (focus != null)
+                                _OwnerMenuTile(
+                                  icon: Icons.account_balance_wallet_outlined,
+                                  title: 'Payout setup',
+                                  subtitle: 'Receive earnings from ticket sales',
+                                  trailing: FutureBuilder<String?>(
+                                    key: ValueKey<String>('connect_${focus.id}'),
+                                    future: Supabase.instance.client
+                                        .from('businesses')
+                                        .select('stripe_connect_status')
+                                        .eq('id', focus.id)
+                                        .maybeSingle()
+                                        .then((r) => r?['stripe_connect_status'] as String?),
+                                    builder: (context, snap) {
+                                      final status = snap.data;
+                                      if (status == 'complete') {
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF1B4332),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: const Text('Active',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700)),
+                                        );
+                                      }
+                                      if (status == 'restricted') {
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: const Text('Action needed',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700)),
+                                        );
+                                      }
+                                      return const Icon(Icons.chevron_right,
+                                          color: AppColors.textSecondary, size: 18);
+                                    },
+                                  ),
+                                  onTap: () {
+                                    Navigator.push<void>(
+                                      context,
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => PayoutsSetupPage(
+                                          businessId: focus.id,
+                                          businessName: focus.displayName,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                               _OwnerMenuTile(
                                 icon: Icons.notifications_outlined,
                                 title: 'Notification preferences',
@@ -511,6 +575,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                   );
                                 },
                               ),
+                              const SizedBox(height: AppResources.spacingM),
+                              AccountDangerZone(user: widget.user),
                               const SizedBox(height: AppResources.spacingM),
                               Text(
                                 'Personal profile',

@@ -13,8 +13,6 @@ import '../../../../core/theme/app_fonts.dart';
 import '../../../../core/widgets/permission_list_page.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
-import '../../../auth/presentation/bloc/auth_cubit.dart';
-import '../../../choose_path/presentation/pages/choose_path_page.dart';
 import '../../../feedback/presentation/bloc/feedback_cubit.dart';
 import '../../../feedback/presentation/pages/feedback_page.dart';
 import '../../../home/presentation/pages/edit_profile_page.dart';
@@ -25,6 +23,7 @@ import '../pages/community_guidelines_page.dart';
 import '../pages/language_page.dart';
 import '../pages/privacy_policy_page.dart';
 import '../pages/terms_of_service_page.dart';
+import 'account_danger_zone.dart';
 
 /// Set to `true` when the profile language picker is ready to ship.
 const bool _showLanguageSettingOnProfile = false;
@@ -118,14 +117,6 @@ class _AccountSettingsBodyState extends State<AccountSettingsBody> {
       default:
         return 'English';
     }
-  }
-
-  void _logout(BuildContext context) {
-    context.read<AuthCubit>().logout();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const ChoosePathPage()),
-      (route) => false,
-    );
   }
 
   Future<void> _openEditProfile(BuildContext context, User user) async {
@@ -350,28 +341,7 @@ class _AccountSettingsBodyState extends State<AccountSettingsBody> {
           ),
         ),
         const SizedBox(height: AppResources.spacingXL),
-        if (user != null)
-          _SettingsCard(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _logout(context),
-                borderRadius: BorderRadius.circular(18),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppResources.spacingM,
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Log Out',
-                      style: AppFonts.body(color: AppColors.logoutActionText)
-                          .copyWith(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+        if (user != null) AccountDangerZone(user: user),
       ],
     );
   }

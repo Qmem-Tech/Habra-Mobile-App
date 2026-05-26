@@ -3,6 +3,7 @@ import '../../../../core/services/push_notification_service.dart';
 import '../../../../core/services/revenue_cat_service.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
+import '../../domain/usecases/delete_account_usecase.dart';
 import '../../domain/usecases/register_usecase.dart';
 import '../../domain/usecases/login_as_guest_usecase.dart';
 import '../../domain/usecases/sign_in_with_apple_usecase.dart';
@@ -18,6 +19,7 @@ import 'auth_state.dart';
 class AuthCubit extends Cubit<AuthState> {
   final LoginUseCase loginUseCase;
   final LogoutUseCase logoutUseCase;
+  final DeleteAccountUseCase deleteAccountUseCase;
   final RegisterUseCase registerUseCase;
   final LoginAsGuestUseCase loginAsGuestUseCase;
   final SignInWithGoogleUseCase signInWithGoogleUseCase;
@@ -32,6 +34,7 @@ class AuthCubit extends Cubit<AuthState> {
   AuthCubit({
     required this.loginUseCase,
     required this.logoutUseCase,
+    required this.deleteAccountUseCase,
     required this.registerUseCase,
     required this.loginAsGuestUseCase,
     required this.signInWithGoogleUseCase,
@@ -173,6 +176,28 @@ class AuthCubit extends Cubit<AuthState> {
       (_) async {
         await revenueCatService.logout();
         emit(AuthUnauthenticated());
+      },
+    );
+  }
+
+  /// Returns `true` when the account was deleted successfully.
+  Future<bool> deleteAccount() async {
+    final uid =
+        state is AuthAuthenticated ? (state as AuthAuthenticated).user.id : null;
+    if (uid != null) {
+      await pushNotificationService.clearTokenForUser(uid);
+    }
+    emit(AuthLoading());
+    final result = await deleteAccountUseCase();
+    return await result.fold<Future<bool>>(
+      (failure) async {
+        emit(AuthError(failure.message));
+        return false;
+      },
+      (_) async {
+        await revenueCatService.logout();
+        emit(AuthUnauthenticated());
+        return true;
       },
     );
   }
