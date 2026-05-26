@@ -1,71 +1,42 @@
 import '../models/user_model.dart';
-import '../../../../core/error/exceptions.dart';
-import '../../../../core/network/firebase/firebase_services.dart';
+import '../../domain/entities/user.dart';
 
+/// Remote data source for authentication.
+/// Implemented by [AuthSupabaseRemoteDataSource] (Supabase Auth + profiles).
 abstract class AuthRemoteDataSource {
   Future<UserModel> login(String email, String password);
-  Future<UserModel> register(String email, String password, String name);
+  Future<UserModel> loginAsGuest();
+  /// When [forceAccountPicker] is true, clears the Google plugin's cached
+  /// account first so the user sees the account chooser (e.g. business flow).
+  ///
+  /// [oauthIntendedRole]: when set (e.g. [UserRole.businessOwner] from the
+  /// business sign-up screen), ensures `profiles.role` matches after OAuth,
+  /// since Google/Apple do not send signup metadata like email/password sign-up.
+  Future<UserModel> signInWithGoogle({
+    bool forceAccountPicker = false,
+    UserRole? oauthIntendedRole,
+  });
+  Future<UserModel> signInWithApple({UserRole? oauthIntendedRole});
+  Future<UserModel> register(
+    String email,
+    String password,
+    String name,
+    UserRole role,
+  );
   Future<void> logout();
-}
 
-class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
-  final FirebaseServices firebaseServices;
+  /// Permanently deletes the signed-in account via the delete-account edge function.
+  Future<void> deleteAccount();
 
-  AuthRemoteDataSourceImpl(this.firebaseServices);
+  /// Resends the signup confirmation email to [email].
+  Future<void> resendVerificationEmail(String email);
 
-  @override
-  Future<UserModel> login(String email, String password) async {
-    try {
-      final userCredential = await firebaseServices.auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+  /// Sends a password reset email to [email]. User must tap the link to open the app.
+  Future<void> resetPasswordForEmail(String email);
 
-      if (userCredential.user != null) {
-        final user = userCredential.user!;
-        return UserModel(
-          id: user.uid,
-          email: user.email ?? '',
-          name: user.displayName ?? '',
-        );
-      } else {
-        throw ServerException('Login failed');
-      }
-    } catch (e) {
-      throw ServerException(e.toString());
-    }
-  }
+  /// Updates the current user's password. Requires an active recovery session (from reset link).
+  Future<void> updatePassword(String newPassword);
 
-  @override
-  Future<UserModel> register(String email, String password, String name) async {
-    try {
-      final userCredential = await firebaseServices.auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (userCredential.user != null) {
-        await userCredential.user!.updateDisplayName(name);
-        final user = userCredential.user!;
-        return UserModel(
-          id: user.uid,
-          email: user.email ?? '',
-          name: name,
-        );
-      } else {
-        throw ServerException('Registration failed');
-      }
-    } catch (e) {
-      throw ServerException(e.toString());
-    }
-  }
-
-  @override
-  Future<void> logout() async {
-    try {
-      await firebaseServices.auth.signOut();
-    } catch (e) {
-      throw ServerException(e.toString());
-    }
-  }
+  /// Persists home / feed location label to `profiles.city` and returns refreshed user.
+  Future<UserModel> updateProfileCity(String city);
 }

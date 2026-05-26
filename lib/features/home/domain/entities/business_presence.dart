@@ -1,0 +1,133 @@
+import 'package:equatable/equatable.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
+
+/// A single business or location managed by the owner (for selector and list).
+class BusinessPresence extends Equatable {
+  final String id;
+  final String name;
+  final String? locationName;
+  final String category;
+  final String? city;
+  final String? state;
+  /// From `businesses.latitude` / `longitude` when set (maps, nearby).
+  final double? latitude;
+  final double? longitude;
+  final String? phone;
+  final String? email;
+  final String? website;
+  final String imageUrl;
+  final String? logoUrl;
+  final String? backgroundUrl;
+  /// Extra storefront photos (`businesses.image_urls`); app enforces a small max count on upload.
+  final List<String> imageUrls;
+  final bool isVerified;
+  final bool isOpenNow;
+  final double? rating;
+  final int? reviewCount;
+  final String? statusText;
+  final int? openOrdersCount;
+  final String? businessGroupName;
+  /// Root listing id when this row is a branch (`businesses.parent_business_id`).
+  final String? parentBusinessId;
+  /// Short branch label for owner UI (`businesses.location_label`).
+  final String? locationLabel;
+  /// Denormalized monthly views when present (`businesses.monthly_profile_views`).
+  final int? monthlyProfileViews;
+  final BusinessSubscriptionTier subscriptionTier;
+  final BusinessSubscriptionStatus subscriptionStatus;
+
+  const BusinessPresence({
+    required this.id,
+    required this.name,
+    this.locationName,
+    required this.category,
+    this.city,
+    this.state,
+    this.latitude,
+    this.longitude,
+    this.phone,
+    this.email,
+    this.website,
+    required this.imageUrl,
+    this.logoUrl,
+    this.backgroundUrl,
+    this.imageUrls = const [],
+    this.isVerified = false,
+    this.isOpenNow = true,
+    this.rating,
+    this.reviewCount,
+    this.statusText,
+    this.openOrdersCount,
+    this.businessGroupName,
+    this.parentBusinessId,
+    this.locationLabel,
+    this.monthlyProfileViews,
+    this.subscriptionTier = BusinessSubscriptionTier.basic,
+    this.subscriptionStatus = BusinessSubscriptionStatus.unknown,
+  });
+
+  String get displayName => locationName != null ? '$name - $locationName' : name;
+  String get shortDisplayName {
+    if (name.length > 12) return '${name.substring(0, 10)}..';
+    return name;
+  }
+
+  String get locationDisplay {
+    if (city != null && state != null) return '$city, $state';
+    if (locationName != null) return locationName!;
+    return category;
+  }
+
+  /// User-friendly status text. Shows "Pending for approval" when not yet approved.
+  String get statusDisplayText {
+    if (statusText == 'pending') return 'Pending for approval';
+    if (statusText == 'rejected') return 'Rejected';
+    return category;
+  }
+
+  /// True when the business is awaiting admin approval.
+  bool get isPendingApproval => statusText == 'pending';
+
+  /// True when logo and background are both uploaded (required for full setup).
+  bool get hasRequiredImages =>
+      (logoUrl != null && logoUrl!.isNotEmpty) &&
+      (backgroundUrl != null && backgroundUrl!.isNotEmpty);
+
+  /// True when this listing is approved for public use (`approval_status` in DB).
+  static bool listHasApprovedBusiness(Iterable<BusinessPresence> presences) {
+    return presences
+        .where((p) => p.id != 'all')
+        .any((p) => (p.statusText ?? '').toLowerCase() == 'approved');
+  }
+
+  @override
+  List<Object?> get props => [
+        id,
+        name,
+        locationName,
+        category,
+        city,
+        state,
+        latitude,
+        longitude,
+        phone,
+        email,
+        website,
+        imageUrl,
+        logoUrl,
+        backgroundUrl,
+        imageUrls,
+        isVerified,
+        isOpenNow,
+        rating,
+        reviewCount,
+        statusText,
+        openOrdersCount,
+        businessGroupName,
+        parentBusinessId,
+        locationLabel,
+        monthlyProfileViews,
+        subscriptionTier,
+        subscriptionStatus,
+      ];
+}

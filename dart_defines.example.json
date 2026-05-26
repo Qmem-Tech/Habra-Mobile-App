@@ -1,0 +1,20 @@
+{
+  "SUPABASE_URL": "https://tygsxsulgeiyisydxlse.supabase.co",
+  "SUPABASE_ANON_KEY": "sb_publishable_G-ixOiz6jWvCutfB-ol05g_Cs26CrJo",
+  "SUPABASE_AUTH_REDIRECT_URL": "habra://auth/callback",
+  "GOOGLE_WEB_CLIENT_ID": "746808914980-dhqf09ggopmm4da0dn7rarll3oh3sp22.apps.googleusercontent.com",
+  "GOOGLE_IOS_CLIENT_ID": "746808914980-bjbh18uf809kd1t773f50dnq6ppn7329.apps.googleusercontent.com",
+  "BUSINESS_OWNER_SUBSCRIPTION_MODE": "profile",
+  "REVENUECAT_BUSINESS_ENTITLEMENT_ID": "business_owner_tools",
+  "REVENUECAT_BUSINESS_OFFERING_ID": "",
+  "REVENUECAT_BOOST_OFFERING_ID": "",
+  "STRIPE_PUBLISHABLE_KEY": "pk_test_51TIB6nRv5dSlV9DcXrIWF1Dc303USALXN5BFzLAm9RQ4TGpqrlgGZQ3zmzIglMAXsWiDv5tcGaJ2FRjzRoblrpUy0033uBVyWj",
+  "STRIPE_MERCHANT_COUNTRY": "US",
+  "STRIPE_PAYMENT_CURRENCY": "USD",
+  "STRIPE_MERCHANT_ID": "",
+  "STRIPE_PAYMENT_INTENT_FUNCTION": "create-event-payment-intent",
+  "STRIPE_SYNC_ORDER_PAYMENT_FUNCTION": "sync-event-order-payment",
+  "GOOGLE_MAPS_API_KEY": "AIzaSyA9FgSiOH9V1y7B_mcNbitFCsw7fo4SJjY",
+  "STRIPE_BUSINESS_SUBSCRIPTION_SUCCESS_URL": "https://habra.app/subscription/success",
+  "STRIPE_BUSINESS_SUBSCRIPTION_CANCEL_URL": "https://habra.app/subscription/cancel"
+}

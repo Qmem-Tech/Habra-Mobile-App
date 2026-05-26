@@ -31,3 +31,28 @@ class AuthError extends AuthState {
   @override
   List<Object> get props => [message];
 }
+
+/// Sign-up succeeded; user must verify email before they can sign in.
+class AuthEmailVerificationPending extends AuthState {
+  final String email;
+
+  const AuthEmailVerificationPending(this.email);
+
+  @override
+  List<Object> get props => [email];
+}
+
+/// Resend verification email succeeded (then cubit reverts to AuthEmailVerificationPending).
+class AuthResendVerificationSuccess extends AuthState {
+  const AuthResendVerificationSuccess();
+}
+
+/// Password reset email sent successfully.
+class AuthResetEmailSent extends AuthState {
+  const AuthResetEmailSent();
+}
+
+/// Password updated successfully (recovery flow complete).
+class AuthPasswordUpdated extends AuthState {
+  const AuthPasswordUpdated();
+}

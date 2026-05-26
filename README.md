@@ -1,6 +1,8 @@
 # Habra Mobile App
 
-A Flutter super app built with **Clean Architecture**, **Cubit/BLoC** for state management, **Firebase** backend, **Theme Management**, and **Multi-language Localization**.
+A Flutter mobile app (Android & iOS) built with **Clean Architecture**, **Cubit/BLoC** for state management, **Firebase** backend, **Theme Management**, and **Multi-language Localization**.
+
+> **Note:** This project is optimized for **Android and iOS only**. Web, Linux, macOS, and Windows platforms are not supported.
 
 ## 🏗️ Architecture
 
@@ -54,7 +56,7 @@ Before you begin, ensure you have the following installed:
 ### Step 1: Clone the Repository
 
 ```bash
-git clone <your-repo-url>
+git clone <https://github.com/Qmem-Tech/Habra-Mobile-App>
 cd Habra-Mobile-App
 ```
 
@@ -80,14 +82,14 @@ flutter pub get
 #### 3.2 Android Setup
 
 1. In Firebase Console, click "Add app" → Select Android
-2. Register your app with package name: `com.habra.habra_mobile_app`
+2. Register your app with package name: `com.habra.habra`
 3. Download `google-services.json`
 4. Place it in `android/app/` directory
 
 #### 3.3 iOS Setup
 
 1. In Firebase Console, click "Add app" → Select iOS
-2. Register your app with bundle ID: `com.habra.habraMobileApp`
+2. Register your app with bundle ID: `com.habra.habra`
 3. Download `GoogleService-Info.plist`
 4. Place it in `ios/Runner/` directory using Xcode
 
@@ -111,6 +113,10 @@ If you modify models with `@JsonSerializable()`, run:
 ```bash
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
+
+### Integrations (Google, RevenueCat, Stripe, push)
+
+All optional services and compile-time keys are documented in **[docs/INTEGRATION_DOCUMENT.md](docs/INTEGRATION_DOCUMENT.md)**. Copy `dart_defines.example.json` to `dart_defines.json` (gitignored), add your values, then run with `--dart-define-from-file=dart_defines.json`.
 
 ### Step 6: Run the App
 
@@ -270,6 +276,10 @@ See `pubspec.yaml` for the complete list.
 
 ## 🐛 Troubleshooting
 
+### Full Clean Up -> The Master Command List 
+
+`flutter doctor; flutter clean; flutter pub cache repair; flutter pub get; dart run build_runner build --delete-conflicting-outputs; flutter gen-l10n; flutter analyze`
+
 ### Firebase Not Initialized
 
 - Ensure `google-services.json` (Android) or `GoogleService-Info.plist` (iOS) is in the correct location
@@ -338,7 +348,10 @@ This project is licensed under the MIT License.
 
 ## 👥 Authors
 
-- Your Name - Initial work
+- Abel Hailemichael Dejene
+- Aminadab Elias
+- Beka Dessalegn Chalchisa
+
 
 ## 🙏 Acknowledgments
 
@@ -348,7 +361,7 @@ This project is licensed under the MIT License.
 
 ## 📞 Support
 
-For support, email your-email@example.com or open an issue in the repository.
+For support, email becka@example.com or open an issue in the repository.
 
 ---
 

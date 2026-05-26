@@ -1,0 +1,65 @@
+import '../../domain/entities/deal.dart';
+
+class DealModel extends Deal {
+  const DealModel({
+    required super.id,
+    required super.title,
+    required super.description,
+    required super.imageUrl,
+    required super.businessName,
+    required super.businessId,
+    super.businessLogoUrl,
+    required super.discountPercent,
+    super.promoCode,
+    super.expiryDate,
+    super.status,
+  });
+
+  factory DealModel.fromJson(Map<String, dynamic> json) {
+    return DealModel(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String,
+      imageUrl: json['imageUrl'] as String,
+      businessName: json['businessName'] as String,
+      businessId: json['businessId'] as String,
+      discountPercent: (json['discountPercent'] as num).toDouble(),
+      promoCode: json['promoCode'] as String?,
+      expiryDate: json['expiryDate'] != null
+          ? DateTime.parse(json['expiryDate'] as String)
+          : null,
+      status: _statusFromJson(json['status'] as String?),
+    );
+  }
+
+  static OwnerDealStatus _statusFromJson(String? status) {
+    switch ((status ?? '').toLowerCase()) {
+      case 'draft':
+        return OwnerDealStatus.draft;
+      case 'active':
+        return OwnerDealStatus.published;
+      case 'inactive':
+        return OwnerDealStatus.paused;
+      case 'expired':
+        return OwnerDealStatus.expired;
+      default:
+        return OwnerDealStatus.unknown;
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'imageUrl': imageUrl,
+      'businessName': businessName,
+      'businessId': businessId,
+      'businessLogoUrl': businessLogoUrl,
+      'discountPercent': discountPercent,
+      'promoCode': promoCode,
+      'expiryDate': expiryDate?.toIso8601String(),
+      'status': status.name,
+    };
+  }
+}

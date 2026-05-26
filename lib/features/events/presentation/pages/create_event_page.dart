@@ -1,0 +1,916 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/subscription/business_subscription_effective.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
+import '../../../../core/subscription/business_subscription_tier.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/resources/app_resources.dart';
+import '../../../../core/services/image_picker_service.dart';
+import '../../../../core/services/storage_service.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/loader_helper.dart';
+import '../../../../core/widgets/error_display_helper.dart';
+import '../../../../core/services/location_service.dart';
+import '../../../../core/permissions/app_permission.dart';
+import '../../../../core/services/permission_service.dart';
+import '../../../../core/domain/business_address_data.dart';
+import '../../../../core/widgets/street_address_field.dart';
+import '../../../../injection/injection_container.dart' as di;
+import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
+import '../../../home/presentation/bloc/business_owner_home_state.dart';
+import '../../domain/repositories/events_repository.dart';
+import '../../domain/entities/create_event_data.dart';
+import '../../domain/entities/event_category.dart';
+import '../bloc/create_event_cubit.dart';
+import '../bloc/create_event_state.dart';
+
+class CreateEventPage extends StatefulWidget {
+  const CreateEventPage({super.key, this.editingEventId});
+
+  /// When set, loads this event and saves via [CreateEventCubit.updateEvent].
+  final String? editingEventId;
+
+  @override
+  State<CreateEventPage> createState() => _CreateEventPageState();
+}
+
+class _CreateEventPageState extends State<CreateEventPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _venueNameController = TextEditingController();
+  final _venueAddressController = TextEditingController();
+  final _eventPolicyController = TextEditingController();
+
+  DateTime? _startAt;
+  DateTime? _endAt;
+  EventCategory _category = EventCategory.community;
+  File? _imageFile;
+  String? _imageUrl;
+  double? _venueLat;
+  double? _venueLng;
+  BusinessAddressData? _venueAddressData;
+
+  final List<_TicketTypeRow> _ticketTypes = [];
+  bool _loadingExisting = false;
+
+  bool get _isEditing => widget.editingEventId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.editingEventId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadExistingEvent();
+      });
+    }
+  }
+
+  Future<void> _loadExistingEvent() async {
+    final id = widget.editingEventId;
+    if (id == null) return;
+    setState(() => _loadingExisting = true);
+    final result = await di.sl<EventsRepository>().getEventDetail(id);
+    if (!mounted) return;
+    result.fold(
+      (failure) {
+        setState(() => _loadingExisting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(failure.message)),
+        );
+      },
+      (detail) {
+        final nonAllCats =
+            detail.categories.where((c) => c != EventCategory.all).toList();
+        setState(() {
+          _loadingExisting = false;
+          _titleController.text = detail.title;
+          _descriptionController.text = detail.description;
+          _venueNameController.text =
+              detail.venue.toLowerCase() == 'online' ? '' : detail.venue;
+          _venueAddressController.text = detail.isOnline
+              ? (detail.onlineUrl ?? detail.address)
+              : detail.address;
+          _startAt = detail.startDate;
+          _endAt = detail.endDate;
+          _venueLat = detail.latitude;
+          _venueLng = detail.longitude;
+          _imageUrl = detail.imageUrl;
+          if (nonAllCats.isNotEmpty) _category = nonAllCats.first;
+          _ticketTypes.clear();
+          for (final t in detail.ticketTypes) {
+            final row = _TicketTypeRow();
+            row.nameController.text = t.name;
+            row.priceController.text = t.price.toString();
+            row.quantityController.text =
+                (t.availableQuantity ?? 0).toString();
+            _ticketTypes.add(row);
+          }
+          _eventPolicyController.text =
+              (detail.policies ?? []).join('\n');
+        });
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _venueNameController.dispose();
+    _venueAddressController.dispose();
+    _eventPolicyController.dispose();
+    for (final row in _ticketTypes) {
+      row.nameController.dispose();
+      row.priceController.dispose();
+      row.quantityController.dispose();
+    }
+    super.dispose();
+  }
+
+  /// Same listing anchor as dashboard create-deal/job ([focusBusinessIdForOwnerTools]).
+  String? _businessIdForEvent() {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is BusinessOwnerHomeLoaded) {
+      return homeState.focusBusinessIdForOwnerTools;
+    }
+    return null;
+  }
+
+  BusinessSubscriptionTier _selectedBusinessTier(BuildContext context) {
+    final selectedId = _businessIdForEvent();
+    if (selectedId == null) return BusinessSubscriptionTier.basic;
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is BusinessOwnerHomeLoaded) {
+      for (final p in homeState.presences) {
+        if (p.id == selectedId) {
+          return BusinessSubscriptionEffective.fromContext(
+            context,
+            databaseTier: p.subscriptionTier,
+          );
+        }
+      }
+    }
+    return BusinessSubscriptionTier.basic;
+  }
+
+  Future<String?> _checkEventLimit() async {
+    final bizId = _businessIdForEvent();
+    if (bizId == null) return null;
+    final tier = _selectedBusinessTier(context);
+    final maxAllowed = BusinessSubscriptionPolicy.maxActiveEvents(tier);
+    final existing = await Supabase.instance.client
+        .from(SupabaseTables.events)
+        .select('id')
+        .eq('business_id', bizId)
+        .eq('is_active', true)
+        .gte('end_at', DateTime.now().toIso8601String());
+    final count = (existing as List).length;
+    if (count >= maxAllowed) {
+      return 'Your ${tier.displayName} plan allows up to $maxAllowed active event(s).';
+    }
+    return null;
+  }
+
+  Future<void> _pickImage() async {
+    final file = await di.sl<ImagePickerService>().pickImage(context);
+    if (file != null && mounted) {
+      setState(() => _imageFile = file);
+    }
+  }
+
+  Future<void> _createEvent() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_startAt == null || _endAt == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select start and end date/time')),
+      );
+      return;
+    }
+    if (_endAt!.isBefore(_startAt!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('End date must be after start date')),
+      );
+      return;
+    }
+    if (!_isEditing && _ticketTypes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add at least one ticket type')),
+      );
+      return;
+    }
+    if (_venueLat == null || _venueLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Choose an address from search suggestions or use current location '
+            'so the venue has map coordinates.',
+          ),
+        ),
+      );
+      return;
+    }
+    final bizId = _businessIdForEvent();
+    if (bizId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Add an approved business listing before creating an event.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (!_isEditing) {
+      final limitError = await _checkEventLimit();
+      if (limitError != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(limitError)),
+        );
+        return;
+      }
+    }
+
+    if (!_isEditing) {
+      for (final row in _ticketTypes) {
+        if (row.nameController.text.trim().isEmpty ||
+            row.priceController.text.trim().isEmpty ||
+            row.quantityController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Fill in all ticket type fields')),
+          );
+          return;
+        }
+      }
+    }
+
+    final ctx = context;
+    LoaderHelper.show(
+      ctx,
+      message: _isEditing ? 'Saving event…' : 'Creating event…',
+    );
+
+    String? imageUrl = _imageUrl;
+    if (_imageFile != null) {
+      try {
+        final userId = Supabase.instance.client.auth.currentUser?.id ?? 'anon';
+        imageUrl = await di.sl<StorageService>().uploadImage(
+          SupabaseBuckets.events,
+          userId,
+          _imageFile!,
+        );
+      } catch (e) {
+        if (!ctx.mounted) return;
+        await LoaderHelper.hide(ctx);
+        if (ctx.mounted) {
+          ErrorDisplayHelper.show(ctx, error: e, title: 'Image upload failed');
+        }
+        return;
+      }
+    }
+
+    final data = CreateEventData(
+      title: _titleController.text.trim(),
+      description: _descriptionController.text.trim(),
+      venueName: _venueNameController.text.trim(),
+      venueAddress: _venueAddressController.text.trim(),
+      venueLat: _venueLat,
+      venueLng: _venueLng,
+      locationName: _venueAddressData?.name,
+      locationCity: _venueAddressData?.city,
+      locationState: _venueAddressData?.state,
+      locationCountry: _venueAddressData?.country,
+      locationPostalCode: _venueAddressData?.zipCode,
+      placeId: _venueAddressData?.placeId,
+      googleMapsUrl: _venueAddressData?.googleMapsUrl,
+      isOnline: false,
+      onlineUrl: null,
+      startAt: _startAt!,
+      endAt: _endAt!,
+      imageUrl: imageUrl,
+      category: _category,
+      businessId: bizId,
+      eventPolicy: _eventPolicyController.text.trim().isEmpty
+          ? null
+          : _eventPolicyController.text.trim(),
+      ticketTypes: _isEditing
+          ? const <CreateEventTicketType>[]
+          : _ticketTypes
+              .map((r) => CreateEventTicketType(
+                    name: r.nameController.text.trim(),
+                    price: double.tryParse(r.priceController.text.trim()) ?? 0,
+                    quantityAvailable:
+                        int.tryParse(r.quantityController.text.trim()) ?? 0,
+                  ))
+              .toList(),
+    );
+
+    if (!ctx.mounted) return;
+    final cubit = ctx.read<CreateEventCubit>();
+    if (_isEditing) {
+      cubit.updateEvent(widget.editingEventId!, data);
+    } else {
+      cubit.createEvent(data);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<CreateEventCubit, CreateEventState>(
+        listener: (context, state) {
+          if (state is CreateEventSuccess) {
+            LoaderHelper.hide(context).then((_) {
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    _isEditing
+                        ? 'Event updated successfully!'
+                        : 'Event created successfully!',
+                  ),
+                ),
+              );
+              Navigator.pop(context, true);
+            });
+          } else if (state is CreateEventError) {
+            LoaderHelper.hide(context).then((_) {
+              if (context.mounted) {
+                ErrorDisplayHelper.show(
+                  context,
+                  message: state.message,
+                  title: _isEditing
+                      ? 'Could not save event'
+                      : 'Could not create event',
+                );
+              }
+            });
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            backgroundColor: AppColors.backgroundWhite,
+            foregroundColor: AppColors.textPrimary,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Text(
+              _isEditing ? 'Edit Event' : 'Create Event',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            centerTitle: true,
+          ),
+          body: _loadingExisting
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+            padding: const EdgeInsets.all(AppResources.spacingM),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionTitle('Event Details'),
+                  const SizedBox(height: 8),
+                  _buildTextField(
+                    'Event Title',
+                    controller: _titleController,
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    'Description',
+                    controller: _descriptionController,
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 16),
+                  _sectionTitle('Venue'),
+                  const SizedBox(height: 8),
+                  _buildTextField(
+                    'Venue Name',
+                    controller: _venueNameController,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildVenueAddressField(),
+                  const SizedBox(height: 12),
+                  _buildLocationSection(),
+                  const SizedBox(height: 16),
+                  _sectionTitle('Date & Time'),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDateField(
+                          'Start',
+                          _startAt,
+                          (d) => setState(() => _startAt = d),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDateField(
+                          'End',
+                          _endAt,
+                          (d) => setState(() => _endAt = d),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _sectionTitle('Event policy (optional)'),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Shown on attendee ticket details (refunds, dress code, age limits). '
+                    'Use a new line for each bullet.',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTextField(
+                    'Policy',
+                    controller: _eventPolicyController,
+                    maxLines: 6,
+                  ),
+                  const SizedBox(height: 16),
+                  _sectionTitle('Category'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: EventCategory.values
+                        .where((c) => c != EventCategory.all)
+                        .map((c) {
+                      final selected = _category == c;
+                      return FilterChip(
+                        label: Text(c.displayName),
+                        selected: selected,
+                        onSelected: (_) => setState(() => _category = c),
+                        selectedColor: AppColors.brandPrimary.withValues(alpha: 0.3),
+                      );
+                    })
+                        .toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  _sectionTitle('Event Image'),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      width: double.infinity,
+                      height: 160,
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundLight,
+                        borderRadius: BorderRadius.circular(AppResources.radiusM),
+                        border: Border.all(color: AppColors.backgroundGrey),
+                      ),
+                      child: _imageFile != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(AppResources.radiusM),
+                              child: Image.file(_imageFile!, fit: BoxFit.cover),
+                            )
+                          : (_imageUrl != null &&
+                                  _imageUrl!.isNotEmpty &&
+                                  _imageFile == null)
+                              ? ClipRRect(
+                                  borderRadius:
+                                      BorderRadius.circular(AppResources.radiusM),
+                                  child: Image.network(
+                                    _imageUrl!,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: 160,
+                                  ),
+                                )
+                              : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_photo_alternate, size: 48, color: AppColors.brandPrimary),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Tap to add image',
+                                  style: TextStyle(color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  if (_isEditing) ...[
+                    _sectionTitle('Ticket Types'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ticket types and pricing stay as originally published. '
+                      'Contact support if you need to change them.',
+                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    ),
+                  ] else ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _sectionTitle('Ticket Types'),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _ticketTypes.add(_TicketTypeRow());
+                            });
+                          },
+                          icon: const Icon(Icons.add, size: 20),
+                          label: const Text('Add'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ..._ticketTypes.asMap().entries.map((e) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _TicketTypeCard(
+                          row: e.value,
+                          onRemove: () =>
+                              setState(() => _ticketTypes.removeAt(e.key)),
+                        ),
+                      );
+                    }),
+                    if (_ticketTypes.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundLight,
+                          borderRadius:
+                              BorderRadius.circular(AppResources.radiusM),
+                          border: Border.all(color: AppColors.backgroundGrey),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.confirmation_number_outlined,
+                                color: AppColors.textSecondary),
+                            const SizedBox(width: 8),
+                            Text(
+                              'No ticket types. Tap "Add" to add one.',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                  const SizedBox(height: 24),
+                  AppButton(
+                    text: _isEditing ? 'Save changes' : 'Create Event',
+                    onPressed: _createEvent,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+  }
+
+  static String _formatVenueAddressLine(BusinessAddressData d) {
+    final parts = <String>[
+      if (d.street != null && d.street!.isNotEmpty) d.street!,
+      if (d.suite != null && d.suite!.isNotEmpty) d.suite!,
+      if (d.city != null && d.city!.isNotEmpty) d.city!,
+      if (d.state != null && d.state!.isNotEmpty) d.state!,
+      if (d.zipCode != null && d.zipCode!.isNotEmpty) d.zipCode!,
+    ];
+    return parts.isEmpty ? 'Selected location' : parts.join(', ');
+  }
+
+  void _applyVenueAddress(BusinessAddressData data) {
+    setState(() {
+      _venueAddressData = data;
+      if (data.name != null && data.name!.isNotEmpty) {
+        _venueNameController.text = data.name!;
+      }
+      _venueAddressController.text = _formatVenueAddressLine(data);
+      if (data.hasCoordinates) {
+        _venueLat = data.latitude;
+        _venueLng = data.longitude;
+      }
+    });
+  }
+
+  Widget _buildVenueAddressField() {
+    final decoration = InputDecoration(
+      filled: true,
+      fillColor: AppColors.backgroundWhite,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        borderSide: BorderSide(color: AppColors.backgroundGrey),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        borderSide: BorderSide(color: AppColors.backgroundGrey),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Venue Address',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        StreetAddressField(
+          controller: _venueAddressController,
+          hintText: 'Street, city, state — pick a suggestion or use search',
+          decoration: decoration,
+          onAddressPicked: _applyVenueAddress,
+          validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            'Pick a result from suggestions or address search to save latitude and longitude.',
+            style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationSection() {
+    final hasLocation = _venueLat != null && _venueLng != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Or use device location',
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () async {
+              final granted = await di.sl<PermissionService>().requestWithDialog(
+                context,
+                AppPermission.location,
+              );
+              if (!granted || !mounted) return;
+              await Future<void>.delayed(const Duration(milliseconds: 200));
+              if (!mounted) return;
+              final result = await di.sl<LocationService>().getCurrentLocationAsAddress(
+                nativePermissionAlreadyGranted: true,
+              );
+              if (!mounted) return;
+              result.fold(
+                (f) => ErrorDisplayHelper.show(context, message: f.message, title: 'Location'),
+                (data) {
+                  _applyVenueAddress(data);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Address set from current location')),
+                  );
+                },
+              );
+            },
+            icon: const Icon(Icons.my_location, size: 18),
+            label: const Text('Use current location'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.brandPrimary,
+              side: BorderSide(color: AppColors.brandPrimary),
+            ),
+          ),
+        ),
+        if (hasLocation)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, size: 18, color: AppColors.success),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Map coordinates saved — users will see this on the map and for nearby discovery.',
+                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    maxLines: 3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _sectionTitle(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: AppColors.textPrimary,
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    String label, {
+    required TextEditingController controller,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          maxLines: maxLines,
+          keyboardType: keyboardType,
+          validator: validator,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: AppColors.backgroundWhite,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: BorderSide(color: AppColors.backgroundGrey),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppResources.radiusM),
+              borderSide: BorderSide(color: AppColors.backgroundGrey),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateField(String label, DateTime? value, ValueChanged<DateTime> onSelect) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: () async {
+            final ctx = context;
+            final picked = await showDatePicker(
+              context: ctx,
+              initialDate: value ?? DateTime.now(),
+              firstDate: DateTime.now(),
+              lastDate: DateTime.now().add(const Duration(days: 365)),
+            );
+            if (picked != null) {
+              if (!ctx.mounted) return;
+              final time = await showTimePicker(
+                context: ctx,
+                initialTime: TimeOfDay.fromDateTime(value ?? DateTime.now()),
+              );
+              if (time != null) {
+                onSelect(DateTime(picked.year, picked.month, picked.day, time.hour, time.minute));
+              }
+            }
+          },
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final dateText = value == null
+                  ? 'Select'
+                  : constraints.maxWidth < 175
+                      ? DateFormat('MMM d • HH:mm').format(value)
+                      : DateFormat('MMM d, y • HH:mm').format(value);
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundWhite,
+                  borderRadius: BorderRadius.circular(AppResources.radiusM),
+                  border: Border.all(color: AppColors.backgroundGrey),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 20, color: AppColors.textSecondary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        dateText,
+                        style: TextStyle(
+                          color: value != null
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TicketTypeRow {
+  final nameController = TextEditingController();
+  final priceController = TextEditingController();
+  final quantityController = TextEditingController();
+}
+
+class _TicketTypeCard extends StatelessWidget {
+  const _TicketTypeCard({
+    required this.row,
+    required this.onRemove,
+  });
+
+  final _TicketTypeRow row;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(AppResources.radiusM),
+        border: Border.all(color: AppColors.backgroundGrey),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextFormField(
+                  controller: row.nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Name',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextFormField(
+                  controller: row.priceController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Price \$',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextFormField(
+                  controller: row.quantityController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Qty',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: onRemove,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

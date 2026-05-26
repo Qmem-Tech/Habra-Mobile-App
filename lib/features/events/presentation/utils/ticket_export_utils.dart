@@ -1,0 +1,436 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../domain/entities/order.dart' as events;
+import '../../domain/entities/ticket.dart';
+
+/// Share QR as PNG, build a simple ticket PDF, open Google Maps for in-person events.
+class TicketExportUtils {
+  TicketExportUtils._();
+
+  static const String _logoAsset = 'assets/logos/habra_app_logo.png';
+
+  /// Returns a share-sheet anchor rect centred on the screen.
+  /// Required on iPadOS; safe to pass on all iOS devices.
+  static Rect _shareOrigin(BuildContext ctx) {
+    final size = MediaQuery.sizeOf(ctx);
+    return Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: 1,
+      height: 1,
+    );
+  }
+
+  /// Strips characters outside the Latin-1 range that Helvetica cannot render.
+  /// Accented letters are kept (they fall within Latin-1); only truly unsupported
+  /// code-points (emoji, CJK, special symbols, etc.) are replaced with '?'.
+  static String _safe(String text) =>
+      text.runes.map((r) => r <= 0xFF ? String.fromCharCode(r) : '?').join();
+
+  static String _qrPayload(Ticket ticket) {
+    return ticket.qrCode?.isNotEmpty == true ? ticket.qrCode! : ticket.ticketId;
+  }
+
+  static Future<Uint8List?> _qrPngBytes(String data, {double size = 512}) async {
+    final painter = QrPainter(
+      data: data,
+      version: QrVersions.auto,
+      gapless: true,
+    );
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    painter.paint(canvas, Size(size, size));
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(size.toInt(), size.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData?.buffer.asUint8List();
+  }
+
+  /// Share QR image + short caption.
+  static Future<void> shareQrImage(BuildContext ctx, Ticket ticket) async {
+    final payload = _qrPayload(ticket);
+    final bytes = await _qrPngBytes(payload);
+    if (bytes == null) return;
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/habra_ticket_${ticket.ticketId}.png');
+    await file.writeAsBytes(bytes);
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text:
+          'Ticket for "${ticket.event.title}" - ${ticket.ticketTypeName}\nShow this QR at check-in.',
+      sharePositionOrigin: _shareOrigin(ctx),
+    );
+  }
+
+  /// Generate and share a PDF (users can save via the system sheet).
+  static Future<void> saveAndSharePdf(BuildContext ctx, Ticket ticket) async {
+    final payload = _qrPayload(ticket);
+    final qrBytes = await _qrPngBytes(payload, size: 320);
+    final event = ticket.event;
+    final pdf = pw.Document();
+
+    Uint8List? logoPdfBytes;
+    try {
+      final logoData = await rootBundle.load(_logoAsset);
+      logoPdfBytes = logoData.buffer.asUint8List();
+    } catch (_) {}
+
+    final policies = event.policies ?? const <String>[];
+    final policyWidgets = <pw.Widget>[
+      pw.Text(
+        'Event policy',
+        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+      ),
+      pw.SizedBox(height: 6),
+    ];
+    if (policies.isEmpty) {
+      policyWidgets.add(
+        pw.Text(
+          'No separate policy text was added by the organizer.',
+          style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
+        ),
+      );
+    } else {
+      for (final line in policies) {
+        policyWidgets.add(
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 4),
+            child: pw.Text('- ${_safe(line)}', style: const pw.TextStyle(fontSize: 11)),
+          ),
+        );
+      }
+    }
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (ctx) => [
+          if (logoPdfBytes != null)
+            pw.Container(
+              width: double.infinity,
+              color: PdfColor.fromInt(0xFF1F563F),
+              padding: const pw.EdgeInsets.fromLTRB(18, 16, 18, 16),
+              margin: const pw.EdgeInsets.only(bottom: 18),
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Image(
+                    pw.MemoryImage(logoPdfBytes),
+                    width: 76,
+                    height: 38,
+                  ),
+                  pw.Spacer(),
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.white, width: 0.8),
+                      borderRadius: pw.BorderRadius.circular(18),
+                    ),
+                    child: pw.Text(
+                      'E-TICKET',
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 9,
+                        letterSpacing: 1.4,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          pw.Text(
+            _safe(event.title),
+            style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            _safe(ticket.ticketTypeName),
+            style: pw.TextStyle(fontSize: 14, color: PdfColors.blue800),
+          ),
+          pw.SizedBox(height: 12),
+          pw.Text(
+            DateFormat('EEEE, MMMM d, yyyy  -  h:mm a').format(event.startDate),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Text(
+            event.isOnline
+                ? 'Online event'
+                : _safe('${event.venue}, ${event.fullAddress}'),
+          ),
+        pw.SizedBox(height: 16),
+        if (qrBytes != null)
+            pw.Center(
+              child: pw.Image(
+                pw.MemoryImage(qrBytes),
+                width: 200,
+                height: 200,
+              ),
+            ),
+          pw.SizedBox(height: 12),
+          pw.Text(
+            'Present this PDF or QR at entrance.',
+            style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+          ),
+          pw.SizedBox(height: 16),
+          pw.Divider(),
+          pw.SizedBox(height: 8),
+          ...policyWidgets,
+        ],
+      ),
+    );
+
+    final bytes = await pdf.save();
+    final dir = await getTemporaryDirectory();
+    final slug = event.title.replaceAll(RegExp(r'[^\w\-]+'), '_');
+    final safeTitle =
+        slug.length > 40 ? slug.substring(0, 40) : slug;
+    final file = File('${dir.path}/habra_ticket_${safeTitle}_${ticket.ticketId}.pdf');
+    await file.writeAsBytes(bytes);
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      subject: 'Ticket - ${event.title}',
+      sharePositionOrigin: _shareOrigin(ctx),
+    );
+  }
+
+  /// Build and share a single combined PDF for all tickets in an order.
+  /// Used from OrderConfirmationPage's "Download Tickets" before per-ticket
+  /// details are available.
+  static Future<void> saveAndShareOrderPdf(BuildContext ctx, events.Order order) async {
+    final event = order.event;
+    final pdf = pw.Document();
+
+    Uint8List? logoPdfBytes;
+    try {
+      final logoData = await rootBundle.load(_logoAsset);
+      logoPdfBytes = logoData.buffer.asUint8List();
+    } catch (_) {}
+
+    // One QR per issued ticket; if no IDs yet, fall back to a single order-level QR.
+    final qrIds = order.issuedTicketIds.isNotEmpty
+        ? order.issuedTicketIds
+        : <String>[order.id];
+
+    final qrPngs = <String, Uint8List?>{};
+    for (final id in qrIds) {
+      qrPngs[id] = await _qrPngBytes(id, size: 320);
+    }
+
+    for (var i = 0; i < qrIds.length; i++) {
+      final ticketId = qrIds[i];
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (ctx) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                if (logoPdfBytes != null)
+                  pw.Container(
+                    width: double.infinity,
+                    color: PdfColor.fromInt(0xFF1F563F),
+                    padding: const pw.EdgeInsets.fromLTRB(18, 16, 18, 16),
+                    margin: const pw.EdgeInsets.only(bottom: 18),
+                    child: pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Image(
+                          pw.MemoryImage(logoPdfBytes),
+                          width: 76,
+                          height: 38,
+                        ),
+                        pw.Spacer(),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border.all(
+                              color: PdfColors.white,
+                              width: 0.8,
+                            ),
+                            borderRadius: pw.BorderRadius.circular(18),
+                          ),
+                          child: pw.Text(
+                            'E-TICKET ${i + 1} / ${qrIds.length}',
+                            style: pw.TextStyle(
+                              color: PdfColors.white,
+                              fontSize: 9,
+                              letterSpacing: 1.4,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                pw.Text(
+                  _safe(event.title),
+                  style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+                ),
+                pw.SizedBox(height: 12),
+                pw.Text(
+                  DateFormat('EEEE, MMMM d, yyyy  -  h:mm a')
+                      .format(event.startDate),
+                ),
+                pw.SizedBox(height: 6),
+                pw.Text(
+                  event.isOnline
+                      ? 'Online event'
+                      : _safe('${event.venue}, ${event.fullAddress}'),
+                ),
+                pw.SizedBox(height: 6),
+                pw.Text(
+                  'Order #${order.id}',
+                  style: const pw.TextStyle(
+                    fontSize: 11,
+                    color: PdfColors.grey700,
+                  ),
+                ),
+                pw.SizedBox(height: 24),
+                if (qrPngs[ticketId] != null)
+                  pw.Center(
+                    child: pw.Image(
+                      pw.MemoryImage(qrPngs[ticketId]!),
+                      width: 220,
+                      height: 220,
+                    ),
+                  ),
+                pw.SizedBox(height: 12),
+                pw.Center(
+                  child: pw.Text(
+                    'Ticket ID: $ticketId',
+                    style: const pw.TextStyle(
+                      fontSize: 11,
+                      color: PdfColors.grey700,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+                pw.Text(
+                  'Present this QR at the entrance.',
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    }
+
+    final bytes = await pdf.save();
+    final dir = await getTemporaryDirectory();
+    final slug = event.title.replaceAll(RegExp(r'[^\w\-]+'), '_');
+    final safeTitle = slug.length > 40 ? slug.substring(0, 40) : slug;
+    final file = File(
+      '${dir.path}/habra_order_${safeTitle}_${order.id}.pdf',
+    );
+    await file.writeAsBytes(bytes);
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      subject: 'Tickets - ${event.title}',
+      sharePositionOrigin: _shareOrigin(ctx),
+    );
+  }
+
+  /// Build an ICS calendar file from the event and offer it via the system share
+  /// sheet. Most calendar apps will offer "Add to Calendar" on the .ics file.
+  static Future<void> shareEventIcs(BuildContext ctx, events.Order order) async {
+    final event = order.event;
+    final start = event.startDate.toUtc();
+    final end = event.endDate.toUtc();
+
+    String fmt(DateTime d) {
+      String two(int v) => v.toString().padLeft(2, '0');
+      return '${d.year}${two(d.month)}${two(d.day)}T${two(d.hour)}${two(d.minute)}${two(d.second)}Z';
+    }
+
+    String escape(String s) =>
+        s.replaceAll(r'\', r'\\').replaceAll(',', r'\,').replaceAll(';', r'\;');
+
+    final location = event.isOnline
+        ? (event.onlineUrl ?? 'Online event')
+        : '${event.venue}, ${event.fullAddress}';
+
+    final ics = StringBuffer()
+      ..writeln('BEGIN:VCALENDAR')
+      ..writeln('VERSION:2.0')
+      ..writeln('PRODID:-//Habra//EN')
+      ..writeln('BEGIN:VEVENT')
+      ..writeln('UID:order-${order.id}@habra')
+      ..writeln('DTSTAMP:${fmt(DateTime.now().toUtc())}')
+      ..writeln('DTSTART:${fmt(start)}')
+      ..writeln('DTEND:${fmt(end)}')
+      ..writeln('SUMMARY:${escape(event.title)}')
+      ..writeln('LOCATION:${escape(location)}')
+      ..writeln('DESCRIPTION:${escape('Habra order #${order.id}')}')
+      ..writeln('END:VEVENT')
+      ..writeln('END:VCALENDAR');
+
+    final dir = await getTemporaryDirectory();
+    final slug = event.title.replaceAll(RegExp(r'[^\w\-]+'), '_');
+    final safeTitle = slug.length > 40 ? slug.substring(0, 40) : slug;
+    final file = File('${dir.path}/habra_event_$safeTitle.ics');
+    await file.writeAsString(ics.toString());
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'text/calendar')],
+      subject: 'Add to calendar - ${event.title}',
+      sharePositionOrigin: _shareOrigin(ctx),
+    );
+  }
+
+  /// Plain-text share of an event the user is attending.
+  static Future<void> shareOrderSummary(BuildContext ctx, events.Order order) async {
+    final event = order.event;
+    final when = DateFormat('EEE, MMM d - h:mm a').format(event.startDate);
+    final where = event.isOnline ? 'Online event' : event.venue;
+    final body = StringBuffer()
+      ..writeln("I'm going to ${event.title}")
+      ..writeln('$when at $where')
+      ..writeln('Get your tickets on Habra!');
+    await Share.share(
+      body.toString(),
+      subject: event.title,
+      sharePositionOrigin: _shareOrigin(ctx),
+    );
+  }
+
+  /// Opens Google Maps directions/search for physical venues only.
+  static Future<bool> openDirections(Ticket ticket) async {
+    final event = ticket.event;
+    if (event.isOnline) return false;
+
+    final lat = event.latitude;
+    final lng = event.longitude;
+    Uri uri;
+    if (lat != null && lng != null) {
+      uri = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+      );
+    } else {
+      final query =
+          '${event.venue}, ${event.fullAddress}'.trim().replaceAll(RegExp(r'\s+'), ' ');
+      uri = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(query)}',
+      );
+    }
+
+    if (await canLaunchUrl(uri)) {
+      return launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+    return false;
+  }
+}

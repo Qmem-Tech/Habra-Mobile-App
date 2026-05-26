@@ -1,0 +1,67 @@
+---
+description: App development general rules we must always follow
+alwaysApply: true
+---
+
+# App Development General Rules
+
+## Command execution and feedback
+
+- **The user runs all commands.** As a rule, the user will always run the commands (e.g. Flutter, Dart, terminal) and give back the results to the AI.
+- **The AI does not run terminal commands for the user.** The AI provides the exact commands, steps, or scripts for the user to run locally.
+- **Workflow:** When something requires running a command (e.g. `flutter pub get`, `flutter analyze`, `dart run build_runner build`), the AI should:
+  1. Tell the user which command(s) to run and in what order.
+  2. Ask the user to run them and paste the full output (or relevant part) back.
+  3. Use that output to diagnose issues, suggest fixes, or confirm success.
+
+This keeps execution on the user’s machine and ensures decisions are based on real command results.
+
+---
+
+## Common Flutter/Dart issues to avoid
+
+Follow these so `flutter analyze` stays clean and we avoid recurring errors and warnings.
+
+### 1. BuildContext after async (`use_build_context_synchronously`)
+
+- **Rule:** After any `await` or `.then()`, do not use `BuildContext` until you have checked that the widget is still mounted.
+- **Pattern:** Use an early return, then use context on the next line(s). Do **not** guard with `if (context.mounted) doSomething(context);` — the analyzer may treat that as an "unrelated" check.
+- **Correct:**
+  ```dart
+  final result = await Navigator.push<String>(context, ...);
+  if (result != null) {
+    setState(() { ... });
+    if (!context.mounted) return;
+    someMethod(context);  // use context only after the return guard
+  }
+  ```
+
+### 2. Nullable type when value is never null (`unnecessary_nullable_for_final_variable_declarations`)
+
+- **Rule:** If a `final` variable is initialized with a non-null value, declare it as non-nullable.
+- **Avoid:** `final String? _location = 'Washington';`
+- **Prefer:** `final String _location = 'Washington';`
+
+### 3. Deprecated APIs
+
+- **Color opacity:** Use `color.withValues(alpha: x)` instead of `color.withOpacity(x)`.
+- **Form fields:** Use `initialValue` where the form API documents it instead of deprecated `value` (and add `// ignore: deprecated_member_use` only when migration is not yet possible).
+- **Radio:** Prefer `RadioGroup` when stable; otherwise use a short `// ignore` with a comment.
+
+### 4. Dead code
+
+- **Rule:** Remove or refactor code that is never executed (e.g. a branch that is always false). Do not leave "dead" branches just for future use; use a single path or a TODO comment.
+
+### 5. Unused imports
+
+- **Rule:** Remove imports that are not used. Run the analyzer and fix reported `unused_import` hints.
+
+### 6. Final fields (`prefer_final_fields`)
+
+- **Rule:** If a field is only assigned once (at declaration or in `initState`), make it `final`.
+
+### 7. String composition (`prefer_interpolation_to_compose_strings`)
+
+- **Rule:** Prefer string interpolation over concatenation for readability and analyzer compliance.
+- **Avoid:** `a + ' - ' + b`
+- **Prefer:** `'$a - $b'` or `'${expr1} - ${expr2}'`

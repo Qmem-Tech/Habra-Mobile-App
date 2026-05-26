@@ -1,0 +1,200 @@
+import 'package:dartz/dartz.dart';
+import '../../../../core/error/failures.dart';
+import '../../../../core/error/exceptions.dart';
+import '../../domain/entities/create_event_data.dart';
+import '../../domain/entities/event_list_item.dart';
+import '../../domain/entities/event_detail.dart';
+import '../../domain/entities/event_filters.dart';
+import '../../domain/entities/ticket.dart';
+import '../../domain/entities/order.dart' as events;
+import '../../domain/repositories/events_repository.dart';
+import '../datasources/events_remote_datasource.dart';
+
+class EventsRepositoryImpl implements EventsRepository {
+  final EventsRemoteDataSource remoteDataSource;
+
+  EventsRepositoryImpl(this.remoteDataSource);
+
+  @override
+  Future<Either<Failure, List<EventListItem>>> getEvents({
+    String? location,
+    EventFilters? filters,
+    String? searchQuery,
+  }) async {
+    try {
+      final events = await remoteDataSource.getEvents(
+        location: location,
+        filters: filters,
+        searchQuery: searchQuery,
+      );
+      return Right(events);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<EventListItem>>> getEventsByBusinessId(
+    String businessId,
+  ) async {
+    try {
+      final events = await remoteDataSource.getEventsByBusinessId(businessId);
+      return Right(events);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, EventDetail>> getEventDetail(String eventId) async {
+    try {
+      final event = await remoteDataSource.getEventDetail(eventId);
+      return Right(event);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<EventListItem>>> getSimilarEvents(String eventId) async {
+    try {
+      final events = await remoteDataSource.getSimilarEvents(eventId);
+      return Right(events);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<Ticket>>> getUserTickets({bool upcomingOnly = true}) async {
+    try {
+      final tickets = await remoteDataSource.getUserTickets(upcomingOnly: upcomingOnly);
+      return Right(tickets);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Ticket>> getTicketDetail(String ticketId) async {
+    try {
+      final ticket = await remoteDataSource.getTicketDetail(ticketId);
+      return Right(ticket);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, events.Order>> createOrder({
+    required String eventId,
+    required List<Map<String, dynamic>> tickets,
+    required Map<String, dynamic> contactInfo,
+  }) async {
+    try {
+      final order = await remoteDataSource.createOrder(
+        eventId: eventId,
+        tickets: tickets,
+        contactInfo: contactInfo,
+      );
+      return Right(order);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, events.Order>> processPayment({
+    required String orderId,
+    required Map<String, dynamic> paymentMethod,
+    String? promoCode,
+  }) async {
+    try {
+      final order = await remoteDataSource.processPayment(
+        orderId: orderId,
+        paymentMethod: paymentMethod,
+        promoCode: promoCode,
+      );
+      return Right(order);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Unit>> cancelUnpaidEventOrder(String orderId) async {
+    try {
+      await remoteDataSource.cancelUnpaidEventOrder(orderId);
+      return const Right(unit);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, EventDetail>> createEvent(CreateEventData data) async {
+    try {
+      final event = await remoteDataSource.createEvent(data);
+      return Right(event);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, EventDetail>> updateEvent(
+    String eventId,
+    CreateEventData data,
+  ) async {
+    try {
+      final event = await remoteDataSource.updateEvent(eventId, data);
+      return Right(event);
+    } on ForbiddenException catch (e) {
+      return Left(ForbiddenFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+}
