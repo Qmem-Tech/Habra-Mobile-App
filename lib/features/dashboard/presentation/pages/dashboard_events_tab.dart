@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/owner_upcoming_event.dart';
 import '../widgets/empty_state_widget.dart';
+import '../widgets/payout_setup_required_banner.dart';
 import '../../../events/presentation/bloc/create_event_cubit.dart';
 import '../../../events/presentation/pages/create_event_page.dart';
 import '../../../events/presentation/pages/scan_ticket_page.dart';
@@ -21,11 +22,17 @@ class DashboardEventsTab extends StatefulWidget {
     super.key,
     required this.events,
     required this.onCreateEvent,
+    required this.payoutSetupComplete,
+    required this.onSetUpPayouts,
+    this.connectStatus,
     this.onRefresh,
   });
 
   final List<OwnerUpcomingEvent> events;
   final VoidCallback onCreateEvent;
+  final bool payoutSetupComplete;
+  final VoidCallback onSetUpPayouts;
+  final String? connectStatus;
   final Future<void> Function()? onRefresh;
 
   @override
@@ -78,6 +85,23 @@ class _DashboardEventsTabState extends State<DashboardEventsTab>
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.payoutSetupComplete) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PayoutSetupRequiredBanner(
+            connectStatus: widget.connectStatus,
+            onSetUpPayouts: widget.onSetUpPayouts,
+          ),
+          Expanded(
+            child: widget.events.isEmpty
+                ? _buildPayoutRequiredEmptyHint()
+                : _buildTabbedEvents(),
+          ),
+        ],
+      );
+    }
+
     if (widget.events.isEmpty) {
       return EmptyStateWidget(
         illustrationPath: AppAssets.eventPlaceholder,
@@ -90,6 +114,49 @@ class _DashboardEventsTabState extends State<DashboardEventsTab>
       );
     }
 
+    return _buildTabbedEvents();
+  }
+
+  Widget _buildPayoutRequiredEmptyHint() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        AppResources.spacingM,
+        32,
+        AppResources.spacingM,
+        100,
+      ),
+      children: [
+        Icon(
+          Icons.event_busy_outlined,
+          size: 56,
+          color: AppColors.textTertiary.withValues(alpha: 0.6),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Events will appear here',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'After payout setup is complete, you can create events and sell tickets.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.35,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabbedEvents() {
     final tabBar = Material(
       color: AppColors.backgroundWhite,
       child: TabBar(

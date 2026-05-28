@@ -5,6 +5,7 @@ import '../../../../core/config/business_subscription_config.dart';
 import '../../../../core/services/revenue_cat_service.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/subscription/subscription_logger.dart';
+import '../../../../core/subscription/subscription_bypass_service.dart';
 import '../../../../core/subscription/subscription_trial_service.dart';
 
 class BusinessOwnerSubscriptionState extends Equatable {
@@ -14,11 +15,15 @@ class BusinessOwnerSubscriptionState extends Equatable {
     this.currentTier = BusinessSubscriptionTier.basic,
     this.isTrialing = false,
     this.trialEndsAt,
+    this.subscriptionBypass = false,
   });
 
   final bool isLoading;
   final bool hasActiveSubscription;
   final BusinessSubscriptionTier currentTier;
+
+  /// Super-admin bypass on `profiles.subscription_bypass`.
+  final bool subscriptionBypass;
 
   /// True when access is granted via platform free-trial (not a store purchase).
   final bool isTrialing;
@@ -30,7 +35,8 @@ class BusinessOwnerSubscriptionState extends Equatable {
   bool get shouldShowSubscribeBanner =>
       BusinessSubscriptionConfig.gatesPaidBusinessTabs &&
       !isLoading &&
-      !hasActiveSubscription;
+      !hasActiveSubscription &&
+      !subscriptionBypass;
 
   BusinessOwnerSubscriptionState copyWith({
     bool? isLoading,
@@ -39,6 +45,7 @@ class BusinessOwnerSubscriptionState extends Equatable {
     bool? isTrialing,
     DateTime? trialEndsAt,
     bool clearTrialEndsAt = false,
+    bool? subscriptionBypass,
   }) {
     return BusinessOwnerSubscriptionState(
       isLoading: isLoading ?? this.isLoading,
@@ -47,21 +54,32 @@ class BusinessOwnerSubscriptionState extends Equatable {
       currentTier: currentTier ?? this.currentTier,
       isTrialing: isTrialing ?? this.isTrialing,
       trialEndsAt: clearTrialEndsAt ? null : (trialEndsAt ?? this.trialEndsAt),
+      subscriptionBypass: subscriptionBypass ?? this.subscriptionBypass,
     );
   }
 
   @override
-  List<Object?> get props =>
-      [isLoading, hasActiveSubscription, currentTier, isTrialing, trialEndsAt];
+  List<Object?> get props => [
+        isLoading,
+        hasActiveSubscription,
+        currentTier,
+        isTrialing,
+        trialEndsAt,
+        subscriptionBypass,
+      ];
 }
 
 /// Resolves whether business-owner paid tabs (Dash) are allowed.
 class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionState> {
-  BusinessOwnerSubscriptionCubit(this._revenueCat, this._trial)
-      : super(const BusinessOwnerSubscriptionState());
+  BusinessOwnerSubscriptionCubit(
+    this._revenueCat,
+    this._trial,
+    this._bypass,
+  ) : super(const BusinessOwnerSubscriptionState());
 
   final RevenueCatService _revenueCat;
   final SubscriptionTrialService _trial;
+  final SubscriptionBypassService _bypass;
 
   Future<void> refresh(String userId, {bool forceRefresh = false}) async {
     emit(state.copyWith(isLoading: true));
@@ -82,6 +100,7 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
       currentTier: result.tier,
       isTrialing: result.isTrialing,
       trialEndsAt: result.trialEndsAt,
+      subscriptionBypass: result.subscriptionBypass,
     ));
   }
 
@@ -91,7 +110,22 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
         BusinessSubscriptionTier tier,
         bool isTrialing,
         DateTime? trialEndsAt,
+        bool subscriptionBypass,
       })> _resolveState(String userId, {bool forceRefresh = false}) async {
+    final bypassSnap = await _bypass.fetchForUser(userId);
+    if (bypassSnap.bypass) {
+      final tier = bypassSnap.profileTier != BusinessSubscriptionTier.basic
+          ? bypassSnap.profileTier
+          : BusinessSubscriptionTier.premium;
+      return (
+        active: true,
+        tier: tier,
+        isTrialing: false,
+        trialEndsAt: null,
+        subscriptionBypass: true,
+      );
+    }
+
     switch (BusinessSubscriptionConfig.mode) {
       case BusinessOwnerSubscriptionMode.off:
         return (
@@ -99,6 +133,7 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
           tier: BusinessSubscriptionTier.premium,
           isTrialing: false,
           trialEndsAt: null,
+          subscriptionBypass: false,
         );
       case BusinessOwnerSubscriptionMode.stubLocked:
         return (
@@ -106,6 +141,7 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
           tier: BusinessSubscriptionTier.basic,
           isTrialing: false,
           trialEndsAt: null,
+          subscriptionBypass: false,
         );
       case BusinessOwnerSubscriptionMode.revenuecat:
         // Check platform trial first (independent of store / RC).
@@ -117,6 +153,7 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
             tier: BusinessSubscriptionTier.pro,
             isTrialing: true,
             trialEndsAt: trialStatus.endsAt,
+            subscriptionBypass: false,
           );
         }
 
@@ -127,6 +164,7 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
             tier: BusinessSubscriptionTier.basic,
             isTrialing: false,
             trialEndsAt: trialStatus.endsAt,
+            subscriptionBypass: false,
           );
         }
 
@@ -140,6 +178,7 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
             tier: BusinessSubscriptionTier.basic,
             isTrialing: false,
             trialEndsAt: trialStatus.endsAt,
+            subscriptionBypass: false,
           );
         }
         final tier = await _revenueCat.resolveCurrentTier();
@@ -148,6 +187,7 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
           tier: tier,
           isTrialing: false,
           trialEndsAt: trialStatus.endsAt,
+          subscriptionBypass: false,
         );
     }
   }

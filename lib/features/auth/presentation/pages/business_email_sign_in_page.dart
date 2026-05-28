@@ -219,7 +219,6 @@ class _BusinessEmailSignInPageState extends State<BusinessEmailSignInPage> {
                         const SizedBox(height: AppResources.spacingL),
                         SizedBox(
                           width: double.infinity,
-                          height: AppResources.buttonHeightM,
                           child: ElevatedButton(
                             onPressed: isLoading
                                 ? null
@@ -235,6 +234,14 @@ class _BusinessEmailSignInPageState extends State<BusinessEmailSignInPage> {
                               backgroundColor: AppColors.brandPrimary,
                               foregroundColor: AppColors.textOnPrimary,
                               elevation: 0,
+                              minimumSize: const Size(
+                                double.infinity,
+                                AppResources.buttonHeightM,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: AppResources.spacingS,
+                                horizontal: AppResources.spacingM,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(AppResources.radiusM),
                               ),
@@ -250,7 +257,9 @@ class _BusinessEmailSignInPageState extends State<BusinessEmailSignInPage> {
                                   )
                                 : Text(
                                     'Log in',
-                                    style: AppFonts.button(color: AppColors.textOnPrimary),
+                                    style: AppFonts.button(
+                                      color: AppColors.textOnPrimary,
+                                    ).copyWith(height: 1.2),
                                   ),
                           ),
                         ),

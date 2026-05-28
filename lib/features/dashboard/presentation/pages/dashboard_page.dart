@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/payout/business_payout_gate.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/navigation/business_owner_tool_route.dart';
 import '../../../../core/subscription/business_subscription_policy.dart';
@@ -14,6 +15,7 @@ import '../../../home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../../home/presentation/bloc/business_owner_home_state.dart';
 import '../../../home/presentation/pages/business_owner_notification_page.dart';
 import '../../../home/presentation/pages/my_businesses_page.dart';
+import '../../../home/presentation/pages/payouts_setup_page.dart';
 import '../../../home/presentation/widgets/business_owner_drawer.dart';
 import '../../../explore/presentation/pages/business_detail_page.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
@@ -58,6 +60,7 @@ class _DashboardPageState extends State<DashboardPage> {
   late int _tabIndex;
   /// One post-frame resync per time we land on [DashboardInitial] (avoids spam + restores after sub-flows).
   bool _scheduledInitialResync = false;
+  String? _stripeConnectStatus;
 
   @override
   void initState() {
@@ -90,6 +93,59 @@ class _DashboardPageState extends State<DashboardPage> {
       businessId,
       ownerId: widget.user.id,
     );
+    await _refreshPayoutConnectStatus(businessId);
+  }
+
+  Future<void> _refreshPayoutConnectStatus(String businessId) async {
+    final status = await BusinessPayoutGate.fetchConnectStatus(businessId);
+    if (mounted) setState(() => _stripeConnectStatus = status);
+  }
+
+  bool get _payoutSetupComplete =>
+      BusinessPayoutGate.isComplete(_stripeConnectStatus);
+
+  String? _focusBusinessId(BusinessOwnerHomeLoaded home) =>
+      home.focusBusinessIdForOwnerTools;
+
+  String _focusBusinessName(BusinessOwnerHomeLoaded home) {
+    final p = home.selectedPresence;
+    if (p != null && p.id != 'all') return p.displayName;
+    return 'Your business';
+  }
+
+  Future<bool> _ensurePayoutSetupForEvents() async {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is! BusinessOwnerHomeLoaded) return false;
+    final businessId = _focusBusinessId(homeState);
+    if (businessId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a business listing first')),
+      );
+      return false;
+    }
+    return BusinessPayoutGate.ensureCanCreateEvents(
+      context,
+      businessId: businessId,
+      businessName: _focusBusinessName(homeState),
+    );
+  }
+
+  Future<void> _openPayoutSetup() async {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is! BusinessOwnerHomeLoaded) return;
+    final businessId = _focusBusinessId(homeState);
+    if (businessId == null) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => PayoutsSetupPage(
+          businessId: businessId,
+          businessName: _focusBusinessName(homeState),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _refreshPayoutConnectStatus(businessId);
   }
 
   Future<void> _loadDashboard() async {
@@ -303,6 +359,10 @@ class _DashboardPageState extends State<DashboardPage> {
                   );
                 }
               },
+              onEventsTap: () {
+                Navigator.pop(context);
+                BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 3);
+              },
               onCreateEventTap: _navigateToCreateEvent,
               onSettingsTap: () {
                 Navigator.push(
@@ -474,6 +534,9 @@ class _DashboardPageState extends State<DashboardPage> {
                       return DashboardEventsTab(
                         events: state.upcomingEvents,
                         onCreateEvent: _navigateToCreateEvent,
+                        payoutSetupComplete: _payoutSetupComplete,
+                        connectStatus: _stripeConnectStatus,
+                        onSetUpPayouts: _openPayoutSetup,
                         onRefresh: _loadDashboard,
                       );
                     case 4:
@@ -518,7 +581,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     child: const Icon(Icons.add, color: AppColors.textOnPrimary),
                   );
                 }
-                if (_tabIndex == 3) {
+                if (_tabIndex == 3 && _payoutSetupComplete) {
                   return FloatingActionButton(
                     onPressed: _navigateToCreateEvent,
                     backgroundColor: AppColors.brandSecondary,
@@ -566,6 +629,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Future<void> _navigateToCreateEvent() async {
     if (!await _ensureCanPostDealsEventsJobs()) return;
+    if (!await _ensurePayoutSetupForEvents()) return;
     final dashboardCubit = context.read<DashboardCubit>();
     final homeCubit = context.read<BusinessOwnerHomeCubit>();
     final createEventCubit = di.sl<CreateEventCubit>();

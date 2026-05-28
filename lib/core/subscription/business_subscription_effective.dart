@@ -28,6 +28,14 @@ class BusinessSubscriptionEffective {
           // Route did not pass [BusinessOwnerSubscriptionCubit]; use synced DB tier.
           return databaseTier;
         }
+        if (sub.subscriptionBypass) {
+          if (databaseTier != BusinessSubscriptionTier.basic) {
+            return databaseTier;
+          }
+          return sub.currentTier != BusinessSubscriptionTier.basic
+              ? sub.currentTier
+              : BusinessSubscriptionTier.premium;
+        }
         if (sub.isLoading || !sub.hasActiveSubscription) {
           return BusinessSubscriptionTier.basic;
         }

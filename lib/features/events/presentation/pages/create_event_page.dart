@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/payout/business_payout_gate.dart';
 import '../../../../core/subscription/business_subscription_effective.dart';
 import '../../../../core/subscription/business_subscription_policy.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
@@ -68,7 +69,31 @@ class _CreateEventPageState extends State<CreateEventPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _loadExistingEvent();
       });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _ensurePayoutBeforeCreate();
+      });
     }
+  }
+
+  Future<void> _ensurePayoutBeforeCreate() async {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is! BusinessOwnerHomeLoaded) {
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+    final businessId = homeState.focusBusinessIdForOwnerTools;
+    if (businessId == null) {
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+    final name = homeState.selectedPresence?.displayName ?? 'Your business';
+    final ok = await BusinessPayoutGate.ensureCanCreateEvents(
+      context,
+      businessId: businessId,
+      businessName: name,
+    );
+    if (!ok && mounted) Navigator.pop(context);
   }
 
   Future<void> _loadExistingEvent() async {

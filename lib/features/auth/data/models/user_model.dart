@@ -8,6 +8,7 @@ class UserModel extends User {
     required super.role,
     super.avatarUrl,
     super.city,
+    super.subscriptionBypass,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -18,6 +19,7 @@ class UserModel extends User {
       role: _roleFromString(json['role'] as String? ?? 'customer'),
       avatarUrl: json['avatarUrl'] as String?,
       city: json['city'] as String?,
+      subscriptionBypass: json['subscriptionBypass'] as bool? ?? false,
     );
   }
 
@@ -29,6 +31,7 @@ class UserModel extends User {
       'role': roleToString(role),
       'avatarUrl': avatarUrl,
       'city': city,
+      'subscriptionBypass': subscriptionBypass,
     };
   }
 
@@ -40,6 +43,7 @@ class UserModel extends User {
     final roleString = profile['role'] as String? ?? 'customer';
     final avatarUrl = profile['avatar_url'] as String?;
     final city = profile['city'] as String?;
+    final subscriptionBypass = profile['subscription_bypass'] == true;
     return UserModel(
       id: id,
       email: email,
@@ -47,6 +51,7 @@ class UserModel extends User {
       role: _roleFromString(roleString),
       avatarUrl: avatarUrl,
       city: city,
+      subscriptionBypass: subscriptionBypass,
     );
   }
 

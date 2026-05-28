@@ -24,7 +24,9 @@ class EventsSupabaseDataSource implements EventsRemoteDataSource {
   EventsSupabaseDataSource();
 
   SupabaseClient get _client => Supabase.instance.client;
-  static const double _serviceFeeRate = 0.05;
+  /// Customer pays ticket face value; platform fee is taken via Stripe Connect
+  /// (`create-event-payment-intent`), not added at checkout.
+  static const double _serviceFeeRate = 0.0;
   static const Duration _paymentConfirmationMaxWait = Duration(seconds: 12);
 
   /// Adaptive poll cadence after Payment Sheet succeeds.

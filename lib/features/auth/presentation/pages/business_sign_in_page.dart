@@ -167,7 +167,6 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
                               ),
                               const SizedBox(height: AppResources.spacingXXL),
                               SizedBox(
-                                height: AppResources.buttonHeightL,
                                 child: ElevatedButton.icon(
                                         onPressed:
                                             isLoading ? null : _openEmailSignIn,
@@ -180,12 +179,20 @@ class _BusinessSignInPageState extends State<BusinessSignInPage> {
                                           'Continue with Email',
                                           style: AppFonts.button(
                                             color: AppColors.textOnPrimary,
-                                          ),
+                                          ).copyWith(height: 1.2),
                                         ),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: AppColors.brandPrimary,
                                           foregroundColor: AppColors.textOnPrimary,
                                           elevation: 0,
+                                          minimumSize: const Size(
+                                            double.infinity,
+                                            AppResources.buttonHeightL,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: AppResources.spacingS,
+                                            horizontal: AppResources.spacingM,
+                                          ),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(
                                               AppResources.radiusL,

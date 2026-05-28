@@ -19,6 +19,9 @@ class User extends Equatable {
   /// Home / feed location label from `profiles.city` (set at onboarding or when picking location).
   final String? city;
 
+  /// Super-admin flag: skip RevenueCat paywall and subscription tier limits.
+  final bool subscriptionBypass;
+
   const User({
     required this.id,
     required this.email,
@@ -26,6 +29,7 @@ class User extends Equatable {
     required this.role,
     this.avatarUrl,
     this.city,
+    this.subscriptionBypass = false,
   });
 
   bool get isGuest => role == UserRole.guest;
@@ -34,5 +38,6 @@ class User extends Equatable {
   bool get isAdmin => role == UserRole.admin;
 
   @override
-  List<Object?> get props => [id, email, name, role, avatarUrl, city];
+  List<Object?> get props =>
+      [id, email, name, role, avatarUrl, city, subscriptionBypass];
 }

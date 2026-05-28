@@ -27,7 +27,6 @@ class SelectTicketsPage extends StatefulWidget {
 class _SelectTicketsPageState extends State<SelectTicketsPage> {
   final Map<String, int> _selectedTickets = {};
   double _subtotal = 0.0;
-  double _serviceFee = 0.0;
   double _total = 0.0;
   EventDetail? _currentEvent;
 
@@ -271,20 +270,6 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
             children: [
               Text('Subtotal($totalItems items)', style: TextStyle(color: AppColors.textSecondary)),
               Text('\$${_subtotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w600)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Text('Service Fee', style: TextStyle(color: AppColors.textSecondary)),
-                  const SizedBox(width: 4),
-                  Icon(Icons.info_outline, size: 16, color: AppColors.textSecondary),
-                ],
-              ),
-              Text('\$${_serviceFee.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w600)),
             ],
           ),
           const Divider(height: 24),
@@ -668,8 +653,7 @@ class _SelectTicketsPageState extends State<SelectTicketsPage> {
       final ticketType = ticketTypes.firstWhere((t) => t.id == ticketId);
       _subtotal += ticketType.price * quantity;
     });
-    _serviceFee = _subtotal * 0.05; // 5% service fee
-    _total = _subtotal + _serviceFee;
+    _total = _subtotal;
   }
 
   IconData _getTicketIcon(String? icon) {

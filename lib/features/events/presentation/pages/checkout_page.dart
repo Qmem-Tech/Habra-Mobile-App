@@ -355,7 +355,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Widget _buildTotalSummary(double subtotal, double total) {
-    final serviceFee = subtotal * 0.05;
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
@@ -366,22 +365,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Subtotal'),
-              Text('\$${subtotal.toStringAsFixed(2)}'),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Service fee'),
-              Text('\$${serviceFee.toStringAsFixed(2)}'),
-            ],
-          ),
-          const Divider(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -530,11 +513,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return subtotal;
   }
 
-  double _calculateOrderTotal(EventDetail? event) {
-    final subtotal = _calculateSubtotal(event);
-    final serviceFee = subtotal * 0.05;
-    return subtotal + serviceFee;
-  }
+  double _calculateOrderTotal(EventDetail? event) => _calculateSubtotal(event);
 
   /// Returns list of (ticketTypeName, quantity, price) for display.
   List<({String name, int quantity, double price})> _getTicketBreakdown(EventDetail event) {

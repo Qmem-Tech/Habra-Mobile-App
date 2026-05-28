@@ -342,6 +342,24 @@ class AuthSupabaseRemoteDataSource implements AuthRemoteDataSource {
         data: {'full_name': name, 'role': roleString},
         emailRedirectTo: _authRedirectUrl,
       );
+
+      // Supabase returns a "success" response for duplicate emails (anti-enumeration)
+      // with an empty identities list instead of "email already registered".
+      final identities = response.user?.identities;
+      if (response.user != null &&
+          (identities == null || identities.isEmpty)) {
+        throw app_errors.AuthException(
+          'This email is already registered. Please sign in with your email and password.',
+        );
+      }
+
+      // Already confirmed but no session (e.g. repeat sign-up after verification).
+      if (response.user?.emailConfirmedAt != null && response.session == null) {
+        throw app_errors.AuthException(
+          'This email is already registered. Please sign in with your email and password.',
+        );
+      }
+
       if (response.user != null) {
         await SupabaseFailureMapper.guard(
           () => _client

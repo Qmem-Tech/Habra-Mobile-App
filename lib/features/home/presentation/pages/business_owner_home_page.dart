@@ -15,6 +15,7 @@ import '../../../events/presentation/bloc/create_event_cubit.dart';
 import '../../../events/presentation/pages/create_event_page.dart';
 import '../../../../core/constants/support_contact.dart';
 import '../../../../core/utils/relative_time_short.dart';
+import '../../../../core/payout/business_payout_gate.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/navigation/business_owner_tool_route.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -118,6 +119,14 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     final selected = homeState is BusinessOwnerHomeLoaded
         ? homeState.selectedPresence
         : null;
+    if (homeState is! BusinessOwnerHomeLoaded) return;
+    final businessId = homeState.focusBusinessIdForOwnerTools;
+    if (businessId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a business listing first')),
+      );
+      return;
+    }
     final tier = selected != null && selected.id != 'all'
         ? _effectiveTier(context, selected)
         : BusinessSubscriptionTier.basic;
@@ -126,6 +135,16 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         context,
         widget.user,
       );
+      return;
+    }
+    final businessName = selected != null && selected.id != 'all'
+        ? selected.displayName
+        : 'Your business';
+    if (!await BusinessPayoutGate.ensureCanCreateEvents(
+      context,
+      businessId: businessId,
+      businessName: businessName,
+    )) {
       return;
     }
     final dashboardCubit = context.read<DashboardCubit>();
@@ -654,6 +673,9 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   const SnackBar(content: Text('Select a business first')),
                 );
               }
+            },
+            onEventsTap: () {
+              BusinessOwnerNavigationWrapper.navigateToTab(context, 1, dashboardTab: 3);
             },
             onCreateEventTap: _navigateToCreateEvent,
             onSettingsTap: () {
