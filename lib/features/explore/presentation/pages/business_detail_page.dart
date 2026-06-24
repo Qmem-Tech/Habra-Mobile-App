@@ -9,6 +9,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/resources/app_assets.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_share.dart';
+import '../../../../core/utils/business_time_format.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../injection/injection_container.dart' as di;
@@ -26,6 +27,7 @@ import '../bloc/businesses_state.dart';
 import '../bloc/reviews_cubit.dart';
 import '../bloc/reviews_state.dart';
 import '../widgets/business_card.dart';
+import '../widgets/business_map_preview.dart';
 import '../widgets/review_widget.dart';
 import 'business_photos_gallery_page.dart';
 import 'business_reviews_page.dart';
@@ -234,8 +236,8 @@ class BusinessDetailPage extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 business.isOpen
-                    ? 'Open Now${business.closingTime != null ? ' • Closes ${business.closingTime}' : ''}'
-                    : 'Closed${business.openingTime != null ? ' • Opens ${business.openingTime}' : ''}',
+                    ? 'Open Now${business.closingTime != null ? ' • Closes ${formatBusinessTimeHmToAmPm(business.closingTime!)}' : ''}'
+                    : 'Closed${business.openingTime != null ? ' • Opens ${formatBusinessTimeHmToAmPm(business.openingTime!)}' : ''}',
                 style: TextStyle(
                   fontSize: 14,
                   color: business.isOpen ? AppColors.success : AppColors.error,
@@ -478,58 +480,9 @@ class BusinessDetailPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => MapPage(
-                    businessId: business.id,
-                    latitude: business.latitude,
-                    longitude: business.longitude,
-                    businessName: business.name,
-                    businessAddress: business.fullAddress,
-                    subtitle: business.categories.isNotEmpty
-                        ? '${business.categories.first.displayName} • ${business.rating.toStringAsFixed(1)} (${business.reviewCount})'
-                        : null,
-                  ),
-                ),
-              );
-            },
-            child: Container(
-              height: 150,
-              decoration: BoxDecoration(
-                color: AppColors.backgroundGrey,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Stack(
-                children: [
-                  Center(
-                    child: Icon(
-                      Icons.map,
-                      size: 48,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.brandPrimary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.location_on,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          BusinessMapPreview(
+            business: business,
+            height: 150,
           ),
         ],
       ),

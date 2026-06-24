@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/location/user_geo_for_feed.dart';
 import '../../domain/usecases/get_businesses_usecase.dart';
 import '../../domain/usecases/get_business_detail_usecase.dart';
 import '../../domain/entities/business_filters.dart';
@@ -18,6 +19,7 @@ class BusinessesCubit extends Cubit<BusinessesState> {
     BusinessFilters? filters,
     String? searchQuery,
     bool featuredOnly = false,
+    UserGeoForFeed? userGeo,
   }) async {
     if (state is! BusinessesLoaded) {
       emit(BusinessesLoading());
@@ -28,6 +30,7 @@ class BusinessesCubit extends Cubit<BusinessesState> {
       filters: filters,
       searchQuery: searchQuery,
       featuredOnly: featuredOnly,
+      userGeo: userGeo,
     );
 
     result.fold(

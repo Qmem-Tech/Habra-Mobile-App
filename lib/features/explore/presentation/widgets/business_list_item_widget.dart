@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/business_time_format.dart';
 import '../../domain/entities/business_list_item.dart';
 
 class BusinessListItemWidget extends StatelessWidget {
@@ -35,20 +36,7 @@ class BusinessListItemWidget extends StatelessWidget {
             // Image
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                business.imageUrl,
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 80,
-                    height: 80,
-                    color: AppColors.backgroundGrey,
-                    child: const Icon(Icons.store, size: 32, color: AppColors.textSecondary),
-                  );
-                },
-              ),
+              child: _buildThumb(business.imageUrl),
             ),
             const SizedBox(width: 12),
             // Content
@@ -148,8 +136,8 @@ class BusinessListItemWidget extends StatelessWidget {
                       Expanded(
                         child: Text(
                           business.isOpen
-                              ? 'Open Now${business.closingTime != null ? ' • Closes ${business.closingTime}' : ''}'
-                              : 'Closed${business.openingTime != null ? ' • Opens ${business.openingTime}' : ''}',
+                              ? 'Open Now${business.closingTime != null ? ' • Closes ${formatBusinessTimeHmToAmPm(business.closingTime!)}' : ''}'
+                              : 'Closed${business.openingTime != null ? ' • Opens ${formatBusinessTimeHmToAmPm(business.openingTime!)}' : ''}',
                           style: TextStyle(
                             fontSize: 12,
                             color: business.isOpen ? AppColors.success : AppColors.error,
@@ -167,6 +155,56 @@ class BusinessListItemWidget extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildThumb(String imageUrl) {
+    const size = 80.0;
+    final trimmed = imageUrl.trim();
+    if (trimmed.isEmpty) return _placeholder(size);
+
+    final isNetwork =
+        trimmed.startsWith('http://') || trimmed.startsWith('https://');
+    if (isNetwork) {
+      return Image.network(
+        trimmed,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholder(size),
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            width: size,
+            height: size,
+            color: AppColors.backgroundGrey,
+            child: const Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    return Image.asset(
+      trimmed,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _placeholder(size),
+    );
+  }
+
+  Widget _placeholder(double size) {
+    return Container(
+      width: size,
+      height: size,
+      color: AppColors.backgroundGrey,
+      child: const Icon(Icons.store, size: 32, color: AppColors.textSecondary),
     );
   }
 }

@@ -7,7 +7,6 @@ import '../../../../core/location/session_device_location_cubit.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../../core/navigation/main_navigation_wrapper.dart';
-import '../../domain/entities/location_entity.dart';
 import '../bloc/home_cubit.dart';
 import '../bloc/search_cubit.dart';
 import '../bloc/notification_cubit.dart';
@@ -31,11 +30,15 @@ class CustomerHomePage extends StatelessWidget {
             final auth = context.read<AuthCubit>().state;
             final signedIn = auth is AuthAuthenticated ? auth.user : user;
             final savedCity = signedIn.city?.trim();
-            if (savedCity != null && savedCity.isNotEmpty) {
-              c.setSessionLocation(locationEntityFromProfileCity(savedCity));
-            } else {
-              Future.microtask(() => c.refreshFromDeviceGps());
-            }
+            Future.microtask(() async {
+              if (savedCity != null && savedCity.isNotEmpty) {
+                await c.setSessionLocationFromCityLabel(savedCity);
+              } else {
+                await c.refreshFromDeviceGps();
+              }
+              // Always refresh GPS for accurate mile distances (display label may stay as city).
+              await c.refreshDeviceGpsForDistance();
+            });
             return c;
           },
         ),
@@ -50,9 +53,10 @@ class CustomerHomePage extends StatelessWidget {
           if (state is! AuthAuthenticated) return;
           final city = state.user.city?.trim();
           if (city == null || city.isEmpty) return;
-          context.read<SessionDeviceLocationCubit>().setSessionLocation(
-                locationEntityFromProfileCity(city),
-              );
+          final cubit = context.read<SessionDeviceLocationCubit>();
+          cubit.setSessionLocationFromCityLabel(city).then((_) {
+            cubit.refreshDeviceGpsForDistance();
+          });
         },
         child: BlocBuilder<AuthCubit, AuthState>(
           buildWhen: (prev, curr) {

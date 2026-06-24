@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/location/user_geo_for_feed.dart';
 import '../../domain/entities/business_list_item.dart';
 import '../../domain/entities/business_detail.dart';
 import '../../domain/entities/business_filters.dart';
@@ -21,6 +22,7 @@ class BusinessesRepositoryImpl implements BusinessesRepository {
     BusinessFilters? filters,
     String? searchQuery,
     bool featuredOnly = false,
+    UserGeoForFeed? userGeo,
   }) async {
     try {
       final businesses = await remoteDataSource.getBusinesses(
@@ -28,6 +30,7 @@ class BusinessesRepositoryImpl implements BusinessesRepository {
         filters: filters,
         searchQuery: searchQuery,
         featuredOnly: featuredOnly,
+        userGeo: userGeo,
       );
       return Right(businesses);
     } catch (e) {

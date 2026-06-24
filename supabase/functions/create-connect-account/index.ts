@@ -4,6 +4,8 @@
  *
  * Request body (POST):
  *   { business_id: string, return_url: string, refresh_url: string }
+ *   { business_id: string, check_status: true }
+ *   { business_id: string, manage_payouts: true } — Express Dashboard login link
  *
  * Response:
  *   { url: string }  — open this in the browser; Stripe handles the rest.
@@ -48,13 +50,14 @@ serve(async (req) => {
     const body = await req.json();
     const businessId = String(body?.business_id ?? "").trim();
     const checkStatusOnly = body?.check_status === true;
+    const managePayouts = body?.manage_payouts === true;
     const returnUrl = String(body?.return_url ?? "").trim();
     const refreshUrl = String(body?.refresh_url ?? "").trim();
 
     if (!businessId) {
       return json({ error: "business_id is required." }, 400);
     }
-    if (!checkStatusOnly && (!returnUrl || !refreshUrl)) {
+    if (!checkStatusOnly && !managePayouts && (!returnUrl || !refreshUrl)) {
       return json({ error: "return_url and refresh_url are required." }, 400);
     }
 
@@ -107,8 +110,18 @@ serve(async (req) => {
       }, 200);
     }
 
+    // ── Express Dashboard login (bank, tax, payout history) for onboarded accounts
+    const existingAccountId = business.stripe_account_id as string | null;
+    if (managePayouts) {
+      if (!existingAccountId) {
+        return json({ error: "Complete payout setup first." }, 400);
+      }
+      const loginLink = await stripe.accounts.createLoginLink(existingAccountId);
+      return json({ url: loginLink.url, account_id: existingAccountId }, 200);
+    }
+
     // ── Reuse existing account if one was already created ────────────────────
-    let accountId = business.stripe_account_id as string | null;
+    let accountId = existingAccountId;
     if (!accountId) {
       const account = await stripe.accounts.create({
         type: "express",
@@ -134,15 +147,19 @@ serve(async (req) => {
         .eq("id", businessId);
     }
 
-    // Generate a fresh onboarding link (they expire after a few minutes).
+    // Hosted link: initial onboarding, or updates (bank / identity) when already connected.
+    const linkType =
+      business.stripe_connect_status === "complete"
+        ? "account_update"
+        : "account_onboarding";
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       refresh_url: refreshUrl,
       return_url: returnUrl,
-      type: "account_onboarding",
+      type: linkType,
     });
 
-    return json({ url: accountLink.url, account_id: accountId }, 200);
+    return json({ url: accountLink.url, account_id: accountId, link_type: linkType }, 200);
   } catch (error) {
     console.error("[create-connect-account]", error);
     return json({ error: (error as Error).message }, 500);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/utils/business_time_format.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/loader_helper.dart';
 import '../../../../core/widgets/error_display_helper.dart';
@@ -228,15 +229,7 @@ class _UpdateHoursPageState extends State<UpdateHoursPage> {
     }
   }
 
-  String _formatTimeLabel(String key) {
-    final parts = key.split(':');
-    if (parts.length < 2) return key;
-    final h = int.tryParse(parts[0]) ?? 0;
-    final m = parts[1];
-    final hour12 = h > 12 ? h - 12 : (h == 0 ? 12 : h);
-    final amPm = h < 12 ? 'AM' : 'PM';
-    return '$hour12:$m $amPm';
-  }
+  String _formatTimeLabel(String key) => formatBusinessTimeHmToAmPm(key);
 
   void _selectPreset(int day, bool isOpen, String key) {
     setState(() {

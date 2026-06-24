@@ -1,0 +1,5 @@
+flutter run --dart-define-from-file=dart_defines.json
+
+For Building
+flutter build appbundle --release --dart-define-from-file=dart_defines.json
+./scripts/build_ios_store.sh - for ios

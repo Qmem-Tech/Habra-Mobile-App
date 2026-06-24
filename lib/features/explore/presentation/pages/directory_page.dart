@@ -80,6 +80,7 @@ class _DirectoryPageState extends State<DirectoryPage> {
       location: loc,
       filters: filters,
       searchQuery: _searchController.text.isEmpty ? null : _searchController.text,
+      userGeo: SessionDeviceLocationCubit.tryGeo(context),
     );
   }
 

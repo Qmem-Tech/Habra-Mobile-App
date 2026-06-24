@@ -52,15 +52,16 @@ class DashboardPage extends StatefulWidget {
   final int? initialTabIndex;
 
   @override
-  State<DashboardPage> createState() => _DashboardPageState();
+  DashboardPageState createState() => DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class DashboardPageState extends State<DashboardPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late int _tabIndex;
   /// One post-frame resync per time we land on [DashboardInitial] (avoids spam + restores after sub-flows).
   bool _scheduledInitialResync = false;
   String? _stripeConnectStatus;
+  bool _payoutConnectStatusLoaded = false;
 
   @override
   void initState() {
@@ -96,13 +97,34 @@ class _DashboardPageState extends State<DashboardPage> {
     await _refreshPayoutConnectStatus(businessId);
   }
 
+  /// Re-reads Stripe Connect status for the focused listing (e.g. after payout setup on Profile).
+  Future<void> refreshPayoutConnectStatus() async {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is! BusinessOwnerHomeLoaded) return;
+    final businessId = homeState.focusBusinessIdForOwnerTools;
+    if (businessId == null) return;
+    await _refreshPayoutConnectStatus(businessId);
+  }
+
   Future<void> _refreshPayoutConnectStatus(String businessId) async {
+    if (mounted) {
+      setState(() => _payoutConnectStatusLoaded = false);
+    }
     final status = await BusinessPayoutGate.fetchConnectStatus(businessId);
-    if (mounted) setState(() => _stripeConnectStatus = status);
+    if (!mounted) return;
+    setState(() {
+      _stripeConnectStatus = status;
+      _payoutConnectStatusLoaded = true;
+    });
   }
 
   bool get _payoutSetupComplete =>
+      _payoutConnectStatusLoaded &&
       BusinessPayoutGate.isComplete(_stripeConnectStatus);
+
+  bool get _showPayoutSetupBanner =>
+      _payoutConnectStatusLoaded &&
+      !BusinessPayoutGate.isComplete(_stripeConnectStatus);
 
   String? _focusBusinessId(BusinessOwnerHomeLoaded home) =>
       home.focusBusinessIdForOwnerTools;
@@ -395,6 +417,9 @@ class _DashboardPageState extends State<DashboardPage> {
               currentIndex: _tabIndex,
               onTap: (index) {
                 setState(() => _tabIndex = index);
+                if (index == 3) {
+                  refreshPayoutConnectStatus();
+                }
               },
             ),
             const SizedBox(height: 8),
@@ -534,7 +559,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       return DashboardEventsTab(
                         events: state.upcomingEvents,
                         onCreateEvent: _navigateToCreateEvent,
-                        payoutSetupComplete: _payoutSetupComplete,
+                        showPayoutSetupBanner: _showPayoutSetupBanner,
                         connectStatus: _stripeConnectStatus,
                         onSetUpPayouts: _openPayoutSetup,
                         onRefresh: _loadDashboard,

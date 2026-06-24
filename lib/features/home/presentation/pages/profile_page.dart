@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../../../core/resources/app_resources.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_fonts.dart';
+import '../../../../core/utils/business_time_format.dart';
 import '../../../../core/widgets/notification_icon_with_badge.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../auth/domain/entities/user.dart';
@@ -20,6 +21,7 @@ import '../bloc/business_owner_subscription_cubit.dart';
 import '../../../profile/domain/entities/user_profile.dart';
 import '../../../profile/domain/usecases/get_profile_usecase.dart';
 import '../../../profile/presentation/bloc/edit_profile_cubit.dart';
+import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../settings/presentation/widgets/account_settings_body.dart';
 import '../../../settings/presentation/widgets/account_danger_zone.dart';
 import 'business_owner_notification_page.dart';
@@ -149,15 +151,6 @@ class _ProfilePageState extends State<ProfilePage> {
         );
   }
 
-  static String _formatHhmmToAmPm(String hhmm) {
-    final parts = hhmm.split(':');
-    final h = int.tryParse(parts[0]) ?? 0;
-    final m = int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0;
-    final hour12 = h > 12 ? h - 12 : (h == 0 ? 12 : h);
-    final amPm = h < 12 ? 'AM' : 'PM';
-    return '$hour12:${m.toString().padLeft(2, '0')} $amPm';
-  }
-
   static Future<String> _todayHoursSubtitle(
     DashboardCubit cubit,
     String businessId,
@@ -179,11 +172,11 @@ class _ProfilePageState extends State<ProfilePage> {
       if (m['closed'] == true) return 'Closed today';
       final o = m['open']?.toString() ?? hours['opening_time']?.toString() ?? '09:00';
       final c = m['close']?.toString() ?? hours['closing_time']?.toString() ?? '17:00';
-      return 'Open today: ${_formatHhmmToAmPm(o)} – ${_formatHhmmToAmPm(c)}';
+      return 'Open today: ${formatBusinessTimeHmToAmPm(o)} – ${formatBusinessTimeHmToAmPm(c)}';
     }
     final o = hours['opening_time']?.toString() ?? '09:00';
     final c = hours['closing_time']?.toString() ?? '17:00';
-    return 'Open today: ${_formatHhmmToAmPm(o)} – ${_formatHhmmToAmPm(c)}';
+    return 'Open today: ${formatBusinessTimeHmToAmPm(o)} – ${formatBusinessTimeHmToAmPm(c)}';
   }
 
   @override
@@ -459,12 +452,16 @@ class _ProfilePageState extends State<ProfilePage> {
                               const _OwnerSectionHeader(title: 'Account'),
                               _OwnerMenuTile(
                                 icon: Icons.verified_user_outlined,
-                                title: 'Verification status',
-                                subtitle: focus?.isVerified ?? false
-                                    ? 'Your listing is verified'
-                                    : 'Complete verification when prompted',
+                                title: 'Listing approval',
+                                subtitle: focus?.isListingApproved ?? false
+                                    ? 'Your business listing is approved'
+                                    : focus?.isPendingApproval ?? false
+                                        ? 'Waiting for Habra to review your listing'
+                                        : 'Your listing was not approved — contact support',
                                 trailing: _VerificationBadge(
-                                  verified: focus?.isVerified ?? false,
+                                  verified: focus?.isListingApproved ?? false,
+                                  pendingLabel: 'PENDING',
+                                  verifiedLabel: 'APPROVED',
                                 ),
                                 onTap: () {},
                                 interactive: false,
@@ -547,8 +544,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                           color: AppColors.textSecondary, size: 18);
                                     },
                                   ),
-                                  onTap: () {
-                                    Navigator.push<void>(
+                                  onTap: () async {
+                                    await Navigator.push<void>(
                                       context,
                                       MaterialPageRoute<void>(
                                         builder: (_) => PayoutsSetupPage(
@@ -557,6 +554,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                         ),
                                       ),
                                     );
+                                    if (!mounted) return;
+                                    BusinessOwnerNavigationWrapper
+                                        .refreshDashboardPayoutStatus(context);
                                   },
                                 ),
                               _OwnerMenuTile(
@@ -821,9 +821,15 @@ class _OwnerSectionHeader extends StatelessWidget {
 }
 
 class _VerificationBadge extends StatelessWidget {
-  const _VerificationBadge({required this.verified});
+  const _VerificationBadge({
+    required this.verified,
+    this.verifiedLabel = 'VERIFIED',
+    this.pendingLabel = 'PENDING',
+  });
 
   final bool verified;
+  final String verifiedLabel;
+  final String pendingLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -836,7 +842,7 @@ class _VerificationBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        verified ? 'VERIFIED' : 'PENDING',
+        verified ? verifiedLabel : pendingLabel,
         style: AppFonts.bodySmall(
           color: verified ? AppColors.brandPrimary : AppColors.textSecondary,
         ).copyWith(

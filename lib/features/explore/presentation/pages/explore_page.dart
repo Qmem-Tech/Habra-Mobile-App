@@ -97,6 +97,7 @@ class _ExplorePageState extends State<ExplorePage> {
     await context.read<BusinessesCubit>().loadBusinesses(
           location: loc,
           featuredOnly: false,
+          userGeo: SessionDeviceLocationCubit.tryGeo(context),
         );
     if (!context.mounted) return;
     await context.read<DealsCubit>().loadDeals(location: loc);
@@ -159,6 +160,7 @@ class _ExplorePageState extends State<ExplorePage> {
               cubit.loadBusinesses(
                 location: sessionLoc ?? stored,
                 featuredOnly: false,
+                userGeo: SessionDeviceLocationCubit.tryGeo(context),
               );
             });
             return cubit;
@@ -432,7 +434,11 @@ class _ExplorePageState extends State<ExplorePage> {
 
   Widget _buildFeaturedBusinesses(BusinessesState state) {
     if (state is BusinessesLoaded) {
-          final featured = state.businesses.where((b) => b.isFeatured).toList();
+          final featured = [...state.businesses]
+            ..sort((a, b) {
+              if (b.rating != a.rating) return b.rating.compareTo(a.rating);
+              return b.reviewCount.compareTo(a.reviewCount);
+            });
           if (featured.isEmpty) return const SizedBox.shrink();
 
           return Column(

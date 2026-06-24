@@ -109,18 +109,16 @@ class _HomePageState extends State<HomePage> {
 
   HomeFeedLocation _homeFeedLocation(BuildContext context) {
     final label = _locationQueryString(context);
-    LocationEntity? anchor;
-    if (widget.useSessionDeviceLocation) {
-      final s = context.read<SessionDeviceLocationCubit>().state;
-      if (s is SessionDeviceLocationReady) anchor = s.location;
-    } else {
-      anchor = _currentLocation;
-    }
-    final lat = anchor?.latitude;
-    final lng = anchor?.longitude;
-    final geo = (lat != null && lng != null)
-        ? UserGeoForFeed(latitude: lat, longitude: lng)
-        : null;
+    final geo = widget.useSessionDeviceLocation
+        ? SessionDeviceLocationCubit.tryGeo(context)
+        : () {
+            final anchor = _currentLocation;
+            final lat = anchor?.latitude;
+            final lng = anchor?.longitude;
+            return (lat != null && lng != null)
+                ? UserGeoForFeed(latitude: lat, longitude: lng)
+                : null;
+          }();
     return HomeFeedLocation(label: label, geo: geo);
   }
 
@@ -735,7 +733,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildBusinessesSection(List<Business> businesses, String? error) {
-    final topBusinesses = businesses.take(8).toList();
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -759,7 +756,7 @@ class _HomePageState extends State<HomePage> {
                 subtitle: error,
               ),
             )
-          else if (topBusinesses.isEmpty)
+          else if (businesses.isEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: _sectionMessage(
@@ -774,9 +771,9 @@ class _HomePageState extends State<HomePage> {
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: topBusinesses.length,
+                itemCount: businesses.length,
                 itemBuilder: (context, index) {
-                  final b = topBusinesses[index];
+                  final b = businesses[index];
                   return Align(
                     alignment: Alignment.topCenter,
                     child: FeaturedBusinessCard(

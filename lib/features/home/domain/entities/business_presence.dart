@@ -88,6 +88,10 @@ class BusinessPresence extends Equatable {
   /// True when the business is awaiting admin approval.
   bool get isPendingApproval => statusText == 'pending';
 
+  /// True when Super Admin has approved this listing (`businesses.approval_status`).
+  bool get isListingApproved =>
+      (statusText ?? '').toLowerCase().trim() == 'approved';
+
   /// True when logo and background are both uploaded (required for full setup).
   bool get hasRequiredImages =>
       (logoUrl != null && logoUrl!.isNotEmpty) &&

@@ -31,6 +31,7 @@ BusinessListItemModel _$BusinessListItemModelFromJson(
   closingTime: json['closingTime'] as String?,
   openingTime: json['openingTime'] as String?,
   isFeatured: json['isFeatured'] as bool? ?? false,
+  isSubscribed: json['isSubscribed'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$BusinessListItemModelToJson(
@@ -55,6 +56,7 @@ Map<String, dynamic> _$BusinessListItemModelToJson(
   'closingTime': instance.closingTime,
   'openingTime': instance.openingTime,
   'isFeatured': instance.isFeatured,
+  'isSubscribed': instance.isSubscribed,
 };
 
 const _$BusinessCategoryEnumMap = {

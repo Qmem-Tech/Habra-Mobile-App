@@ -1523,6 +1523,15 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
   @override
   Future<LegalDocumentsStatus> getLegalDocumentsStatus(String businessId) async {
     return SupabaseFailureMapper.guard(() async {
+      final bizRow = await _client
+          .from(SupabaseTables.businesses)
+          .select('approval_status')
+          .eq('id', businessId)
+          .maybeSingle();
+      final listingApproved =
+          (parseString(bizRow?['approval_status']) ?? '').toLowerCase() ==
+          'approved';
+
       final res = await _client
           .from(SupabaseTables.businessLegalDocuments)
           .select('status, review_status, document_type, rejection_reason')
@@ -1569,6 +1578,7 @@ class DashboardSupabaseDataSource implements DashboardRemoteDataSource {
       return LegalDocumentsStatus(
         uploadedCount: rows.length,
         approvedCount: approvedCount,
+        listingApproved: listingApproved,
         hasRejected: hasRejected,
         hasBusinessLicense: hasBusinessLicense,
         businessLicenseApproved: businessLicenseApproved,

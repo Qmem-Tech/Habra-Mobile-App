@@ -7,6 +7,7 @@ import '../../../../core/subscription/business_subscription_policy.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/supabase/nearby_feed_rpc_helper.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
+import '../../../../core/location/geo_coordinates.dart';
 import '../../../../core/location/geo_distance_miles.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../../../core/utils/job_type_format.dart';
@@ -172,22 +173,14 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
   Future<List<BusinessModel>> getPopularBusinesses(HomeFeedLocation location) async {
     return SupabaseFailureMapper.guard(() async {
       Future<List<Map<String, dynamic>>> fetch(String select) async {
-        var query = _client
+        final query = _client
             .from('businesses')
             .select(select)
             .eq('approval_status', 'approved')
             .eq('is_active', true)
             .eq('is_verified', true);
 
-        final geo = location.geo;
-        if (geo != null) {
-          final nearby = await NearbyFeedRpcHelper(_client).nearbyBusinessIds(geo);
-          if (nearby != null && nearby.isNotEmpty) {
-            query = query.inFilter('id', nearby);
-          }
-        }
-
-        final res = await query.order('rating', ascending: false).limit(10);
+        final res = await query.order('rating', ascending: false);
         return (res as List).cast<Map<String, dynamic>>();
       }
 
@@ -216,14 +209,18 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
         final listImage = logo ??
             (imageUrls.isNotEmpty ? imageUrls.first : null) ??
             'https://placehold.co/400x300?text=Business';
-        final lat = normalizedLocation?.latitude ?? parseDouble(row['latitude']);
-        final lng = normalizedLocation?.longitude ?? parseDouble(row['longitude']);
+        final coords = resolveListingCoordinates(
+          location: normalizedLocation,
+          businessRow: row,
+        );
+        final lat = coords?.lat;
+        final lng = coords?.lng;
         final tier = businessTierFromRaw(parseString(row['subscription_tier']));
         final subStatus = businessSubscriptionStatusFromRaw(
           parseString(row['subscription_status']),
         );
         final dist =
-            distanceMilesFromGeo(location.geo, lat, lng) ?? 0.0;
+            distanceMilesFromGeo(location.geo, lat, lng) ?? double.nan;
         return BusinessModel(
           id: parseStringRequired(row['id']),
           name: parseStringRequired(row['name']),

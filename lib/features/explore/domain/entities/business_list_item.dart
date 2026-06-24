@@ -20,6 +20,8 @@ class BusinessListItem extends Equatable {
   final String? closingTime;
   final String? openingTime;
   final bool isFeatured;
+  /// Standard or Premium subscription (`subscription_tier` is `pro` or `premium`).
+  final bool isSubscribed;
   /// E.164 or raw digits; optional (e.g. for call / redeem flows).
   final String? phone;
 
@@ -41,6 +43,7 @@ class BusinessListItem extends Equatable {
     this.closingTime,
     this.openingTime,
     this.isFeatured = false,
+    this.isSubscribed = false,
     this.phone,
   });
 
@@ -48,10 +51,13 @@ class BusinessListItem extends Equatable {
 
   String get displayDistance {
     if (distance == null) return '';
-    if (distance! < 1) {
-      return '${(distance! * 10).round() / 10} mi';
+    final miles = distance!;
+    if (miles.isNaN) return '—';
+    if (miles < 0.05) return '< 0.1 mi';
+    if (miles < 1) {
+      return '${(miles * 10).round() / 10} mi';
     }
-    return '${distance!.toStringAsFixed(1)} mi';
+    return '${miles.toStringAsFixed(1)} mi';
   }
 
   @override
@@ -73,6 +79,7 @@ class BusinessListItem extends Equatable {
         closingTime,
         openingTime,
         isFeatured,
+        isSubscribed,
         phone,
       ];
 }

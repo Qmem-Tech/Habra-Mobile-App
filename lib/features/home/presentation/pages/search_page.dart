@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/location/session_device_location_cubit.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../domain/repositories/search_repository.dart';
@@ -69,7 +70,12 @@ class _SearchPageState extends State<SearchPage> {
               setState(() {});
               if (value.isEmpty) {
                 final cat = context.read<SearchCubit>().state.selectedCategory;
-                context.read<SearchCubit>().search('', cat, widget.location);
+                context.read<SearchCubit>().search(
+                      '',
+                      cat,
+                      widget.location,
+                      userGeo: SessionDeviceLocationCubit.tryGeo(context),
+                    );
               }
             },
             onSubmitted: (value) {
@@ -314,7 +320,12 @@ class _SearchPageState extends State<SearchPage> {
   void _performSearch(String query) {
     if (query.isNotEmpty) {
       final cat = context.read<SearchCubit>().state.selectedCategory;
-      context.read<SearchCubit>().search(query, cat, widget.location);
+      context.read<SearchCubit>().search(
+            query,
+            cat,
+            widget.location,
+            userGeo: SessionDeviceLocationCubit.tryGeo(context),
+          );
     }
   }
 }

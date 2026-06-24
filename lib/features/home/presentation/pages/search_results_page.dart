@@ -237,7 +237,7 @@ class SearchResultsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${business.category} • ${business.distance.toStringAsFixed(1)} mi',
+                  '${business.category} • ${_formatDistance(business.distance)}',
                   style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
                 if (business.status != null) ...[
@@ -255,6 +255,15 @@ class SearchResultsPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static String _formatDistance(double distance) {
+    if (!distance.isFinite || distance < 0) return '—';
+    if (distance < 10) {
+      final rounded = (distance * 10).round() / 10;
+      return '${rounded == rounded.roundToDouble() ? rounded.toStringAsFixed(0) : rounded.toStringAsFixed(1)} mi';
+    }
+    return '${distance.toStringAsFixed(1)} mi';
   }
 
   Widget _buildSectionTitle(String title) {

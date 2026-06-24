@@ -74,6 +74,13 @@ class BusinessOwnerNavigationWrapper extends StatefulWidget {
     });
   }
 
+  /// Refreshes Stripe Connect status on the dashboard (e.g. after payout setup on Profile).
+  static void refreshDashboardPayoutStatus(BuildContext context) {
+    final state =
+        context.findAncestorStateOfType<_BusinessOwnerNavigationWrapperState>();
+    state?._refreshDashboardPayoutStatus();
+  }
+
   /// Call after legal docs (or similar) change so Dashboard access is re-checked on next open.
   static void invalidateBusinessToolsAccessCache(BuildContext context) {
     final state =
@@ -127,6 +134,9 @@ class BusinessOwnerNavigationWrapper extends StatefulWidget {
 class _BusinessOwnerNavigationWrapperState
     extends State<BusinessOwnerNavigationWrapper> {
   static const double _disabledNavOpacity = 0.38;
+
+  final GlobalKey<DashboardPageState> _dashboardPageKey =
+      GlobalKey<DashboardPageState>();
 
   late int _currentIndex;
   late PageController _pageController;
@@ -538,6 +548,15 @@ class _BusinessOwnerNavigationWrapperState
         if (mounted) setState(() => _pendingDashboardTab = null);
       });
     }
+    if (index == 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _refreshDashboardPayoutStatus();
+      });
+    }
+  }
+
+  void _refreshDashboardPayoutStatus() {
+    _dashboardPageKey.currentState?.refreshPayoutConnectStatus();
   }
 
   void _onTabTapped(int index) {
@@ -601,6 +620,7 @@ class _BusinessOwnerNavigationWrapperState
           children: [
             BusinessOwnerHomePage(user: widget.user),
             DashboardPage(
+              key: _dashboardPageKey,
               user: widget.user,
               initialTabIndex: _pendingDashboardTab,
             ),

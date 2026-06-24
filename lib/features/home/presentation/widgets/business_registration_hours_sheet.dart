@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
+import '../../../../core/utils/business_time_format.dart';
 import '../../../../core/widgets/app_button.dart';
 
 /// Result of editing hours during business registration.
@@ -56,15 +57,7 @@ class RegistrationHoursResult {
     return dayClosed[index] ? 'Closed' : openDaysHoursLabel;
   }
 
-  static String formatTimeHm(String hhmm) {
-    final parts = hhmm.split(':');
-    if (parts.length < 2) return hhmm;
-    var h = int.tryParse(parts[0]) ?? 0;
-    final m = int.tryParse(parts[1]) ?? 0;
-    final am = h < 12;
-    final h12 = h > 12 ? h - 12 : (h == 0 ? 12 : h);
-    return '$h12:${m.toString().padLeft(2, '0')} ${am ? 'AM' : 'PM'}';
-  }
+  static String formatTimeHm(String hhmm) => formatBusinessTimeHmToAmPm(hhmm);
 }
 
 /// Bottom sheet to edit registration hours (weekly closed days + shared open/close).

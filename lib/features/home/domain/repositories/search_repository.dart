@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/location/user_geo_for_feed.dart';
 import '../entities/event.dart';
 import '../entities/business.dart';
 import '../entities/job.dart';
@@ -14,8 +15,9 @@ abstract class SearchRepository {
   Future<Either<Failure, SearchResults>> search(
     String query,
     SearchCategory category,
-    String location,
-  );
+    String location, {
+    UserGeoForFeed? userGeo,
+  });
 }
 
 class SearchResults {

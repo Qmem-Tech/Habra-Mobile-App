@@ -24,6 +24,7 @@ class BusinessListItemModel extends BusinessListItem {
     super.closingTime,
     super.openingTime,
     super.isFeatured,
+    super.isSubscribed = false,
   });
 
   factory BusinessListItemModel.fromJson(Map<String, dynamic> json) =>
@@ -50,6 +51,7 @@ class BusinessListItemModel extends BusinessListItem {
       closingTime: entity.closingTime,
       openingTime: entity.openingTime,
       isFeatured: entity.isFeatured,
+      isSubscribed: entity.isSubscribed,
     );
   }
 }

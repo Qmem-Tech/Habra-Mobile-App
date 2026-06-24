@@ -3,7 +3,11 @@ import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/location/geo_coordinates.dart';
+import '../../../../core/location/geo_distance_miles.dart';
+import '../../../../core/location/user_geo_for_feed.dart';
 import '../../../../core/subscription/business_gallery_access.dart';
+import '../../../../core/subscription/business_subscription_policy.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/domain/normalized_location.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
@@ -86,7 +90,10 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
     return list.toList();
   }
 
-  BusinessListItem _rowToBusinessListItem(Map<String, dynamic> row) {
+  BusinessListItem _rowToBusinessListItem(
+    Map<String, dynamic> row, {
+    UserGeoForFeed? userGeo,
+  }) {
     final location = NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
     final id = parseStringRequired(row['id']);
     final name = parseStringRequired(row['name']);
@@ -94,6 +101,8 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
     final listingTier = businessTierFromRaw(
       parseString(row['subscription_tier']),
     );
+    final isSubscribed =
+        BusinessSubscriptionPolicy.qualifiesForFeaturedFeed(listingTier);
     final imageUrls = BusinessGalleryAccess.urlsForPublic(
       parseStringList(row['image_urls']),
       listingTier,
@@ -111,6 +120,13 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
     final closingTime = row['closing_time']?.toString();
     final categories = _categoriesFromRow(row);
     final listingCategoryIds = _listingCategoryIdsFromRow(row);
+    final coords = resolveListingCoordinates(
+      location: location,
+      businessRow: row,
+    );
+    final lat = coords?.lat;
+    final lng = coords?.lng;
+    final distance = distanceMilesFromGeo(userGeo, lat, lng);
 
     return BusinessListItem(
       id: id,
@@ -121,7 +137,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
       address: address.isEmpty ? city : address,
       city: city,
       state: state,
-      distance: null,
+      distance: distance,
       rating: rating,
       reviewCount: reviewCount,
       priceRange: priceRange,
@@ -130,6 +146,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
       closingTime: closingTime,
       openingTime: openingTime,
       isFeatured: isFeatured,
+      isSubscribed: isSubscribed,
     );
   }
 
@@ -139,6 +156,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
     BusinessFilters? filters,
     String? searchQuery,
     bool featuredOnly = false,
+    UserGeoForFeed? userGeo,
   }) async {
     return SupabaseFailureMapper.guard(() async {
       final selectWithLocation =
@@ -153,7 +171,6 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
             .eq('is_active', true)
             .eq('is_verified', true);
 
-        if (featuredOnly) query = query.eq('is_featured', true);
         // TODO: Add location filter when ready: query.or('address_city.ilike.%$location%,address_state.ilike.%$location%')
         if (searchQuery != null && searchQuery.isNotEmpty) {
           final q = searchQuery.replaceAll('%', '').trim();
@@ -182,7 +199,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
         }
       }
 
-      var items = list.map(_rowToBusinessListItem).toList();
+      var items = list.map((row) => _rowToBusinessListItem(row, userGeo: userGeo)).toList();
 
       if (filters != null) {
         final minRating = filters.minRating;

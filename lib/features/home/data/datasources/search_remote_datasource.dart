@@ -1,5 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/domain/normalized_location.dart';
+import '../../../../core/location/geo_coordinates.dart';
+import '../../../../core/location/geo_distance_miles.dart';
+import '../../../../core/location/user_geo_for_feed.dart';
 import '../../../../core/supabase/supabase_failure_mapper.dart';
 import '../../../../core/supabase/supabase_mappers.dart';
 import '../../../../core/utils/job_type_format.dart';
@@ -12,8 +17,9 @@ abstract class SearchRemoteDataSource {
   Future<SearchResults> search(
     String query,
     SearchCategory category,
-    String location,
-  );
+    String location, {
+    UserGeoForFeed? userGeo,
+  });
   Future<List<String>> getTrendingSearches();
 }
 
@@ -33,8 +39,9 @@ class SearchRemoteDataSourceImpl implements SearchRemoteDataSource {
   Future<SearchResults> search(
     String query,
     SearchCategory category,
-    String location,
-  ) async {
+    String location, {
+    UserGeoForFeed? userGeo,
+  }) async {
     return SupabaseFailureMapper.guard(() async {
       final q = _sanitizeIlike(query);
       if (q.isEmpty) {
@@ -78,32 +85,66 @@ class SearchRemoteDataSourceImpl implements SearchRemoteDataSource {
       }
 
       Future<void> searchBusinesses() async {
-        final res = await _client
-            .from('businesses')
-            .select('*')
-            .eq('approval_status', 'approved')
-            .eq('is_active', true)
-            .eq('is_verified', true)
-            .or('name.ilike.%$q%,description.ilike.%$q%,address_city.ilike.%$q%')
-            .order('rating', ascending: false)
-            .limit(_perTypeLimit);
-        for (final row in (res as List).cast<Map<String, dynamic>>()) {
-          final categoryLabel =
-              parseString(row['description']) ?? parseString(row['address_city']) ?? 'Business';
+        Future<List<Map<String, dynamic>>> fetch(String select) async {
+          final res = await _client
+              .from('businesses')
+              .select(select)
+              .eq('approval_status', 'approved')
+              .eq('is_active', true)
+              .eq('is_verified', true)
+              .or('name.ilike.%$q%,description.ilike.%$q%,address_city.ilike.%$q%')
+              .order('rating', ascending: false)
+              .limit(_perTypeLimit);
+          return (res as List).cast<Map<String, dynamic>>();
+        }
+
+        late final List<Map<String, dynamic>> rows;
+        try {
+          rows = await fetch('*, ${SupabaseTables.locations}(*)');
+        } on PostgrestException catch (e) {
+          if (e.code == 'PGRST200' ||
+              e.message.contains('could not find') ||
+              e.message.contains('relationship') ||
+              e.message.contains('locations')) {
+            rows = await fetch('*');
+          } else {
+            rethrow;
+          }
+        }
+
+        for (final row in rows) {
+          final normalizedLocation =
+              NormalizedLocation.maybeFromEmbedded(row[SupabaseTables.locations]);
+          final categoryLabel = parseString(row['description']) ??
+              normalizedLocation?.city ??
+              parseString(row['address_city']) ??
+              'Business';
+          final coords = resolveListingCoordinates(
+            location: normalizedLocation,
+            businessRow: row,
+          );
+          final lat = coords?.lat;
+          final lng = coords?.lng;
+          final distance =
+              distanceMilesFromGeo(userGeo, lat, lng) ?? double.nan;
           businesses.add(Business(
             id: parseStringRequired(row['id']),
             name: parseStringRequired(row['name']),
-            category: categoryLabel.length > 30 ? '${categoryLabel.substring(0, 30)}...' : categoryLabel,
+            category: categoryLabel.length > 30
+                ? '${categoryLabel.substring(0, 30)}...'
+                : categoryLabel,
             imageUrl: parseString(row['logo_url']) ??
                 (parseStringList(row['image_urls']).isNotEmpty
                     ? parseStringList(row['image_urls']).first
                     : 'https://placehold.co/400x300?text=Business'),
             rating: parseDouble(row['rating']) ?? 0.0,
             reviewCount: parseInt(row['review_count']) ?? 0,
-            distance: 0,
+            distance: distance,
             priceRange: parseString(row['price_range']) ?? '\$',
             status: null,
             isVerified: parseBool(row['is_verified']),
+            latitude: lat,
+            longitude: lng,
           ));
         }
       }

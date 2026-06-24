@@ -22,7 +22,7 @@ class DashboardEventsTab extends StatefulWidget {
     super.key,
     required this.events,
     required this.onCreateEvent,
-    required this.payoutSetupComplete,
+    required this.showPayoutSetupBanner,
     required this.onSetUpPayouts,
     this.connectStatus,
     this.onRefresh,
@@ -30,7 +30,7 @@ class DashboardEventsTab extends StatefulWidget {
 
   final List<OwnerUpcomingEvent> events;
   final VoidCallback onCreateEvent;
-  final bool payoutSetupComplete;
+  final bool showPayoutSetupBanner;
   final VoidCallback onSetUpPayouts;
   final String? connectStatus;
   final Future<void> Function()? onRefresh;
@@ -85,7 +85,7 @@ class _DashboardEventsTabState extends State<DashboardEventsTab>
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.payoutSetupComplete) {
+    if (widget.showPayoutSetupBanner) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

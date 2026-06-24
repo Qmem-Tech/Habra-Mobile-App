@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/location/user_geo_for_feed.dart';
 import '../entities/business_list_item.dart';
 import '../entities/business_detail.dart';
 import '../entities/business_filters.dart';
@@ -14,6 +15,7 @@ abstract class BusinessesRepository {
     BusinessFilters? filters,
     String? searchQuery,
     bool featuredOnly = false,
+    UserGeoForFeed? userGeo,
   });
 
   Future<Either<Failure, BusinessDetail>> getBusinessDetail(String businessId);

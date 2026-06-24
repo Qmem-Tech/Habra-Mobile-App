@@ -48,6 +48,34 @@ double? parseDouble(dynamic value) {
   return null;
 }
 
+/// Parses PostGIS / GeoJSON point payloads as `(latitude, longitude)`.
+({double lat, double lng})? parsePostGisPoint(dynamic value) {
+  dynamic geo = value;
+  if (geo is String) {
+    final trimmed = geo.trim();
+    if (trimmed.isEmpty) return null;
+    try {
+      geo = jsonDecode(trimmed);
+    } catch (_) {
+      return null;
+    }
+  }
+  if (geo is! Map) return null;
+
+  final coords = geo['coordinates'];
+  if (coords is List && coords.length >= 2) {
+    final lng = parseDouble(coords[0]);
+    final lat = parseDouble(coords[1]);
+    if (lat != null && lng != null) return (lat: lat, lng: lng);
+  }
+
+  final lat = parseDouble(geo['lat'] ?? geo['latitude']);
+  final lng = parseDouble(geo['lng'] ?? geo['longitude']);
+  if (lat != null && lng != null) return (lat: lat, lng: lng);
+
+  return null;
+}
+
 /// Returns [value] as bool; defaults to false if null.
 bool parseBool(dynamic value) {
   if (value == null) return false;

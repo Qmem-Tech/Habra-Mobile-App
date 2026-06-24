@@ -5,6 +5,7 @@ import '../../domain/entities/deal.dart';
 import '../../domain/entities/deal_redemption.dart';
 import '../../domain/entities/my_review.dart';
 import '../../domain/entities/review.dart';
+import '../../../../core/location/user_geo_for_feed.dart';
 
 abstract class BusinessesRemoteDataSource {
   Future<List<BusinessListItem>> getBusinesses({
@@ -12,6 +13,7 @@ abstract class BusinessesRemoteDataSource {
     BusinessFilters? filters,
     String? searchQuery,
     bool featuredOnly = false,
+    UserGeoForFeed? userGeo,
   });
 
   Future<BusinessDetail> getBusinessDetail(String businessId);
@@ -50,6 +52,7 @@ class BusinessesRemoteDataSourceImpl implements BusinessesRemoteDataSource {
     BusinessFilters? filters,
     String? searchQuery,
     bool featuredOnly = false,
+    UserGeoForFeed? userGeo,
   }) async {
     return [];
   }

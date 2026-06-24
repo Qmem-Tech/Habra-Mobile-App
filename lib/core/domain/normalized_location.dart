@@ -1,4 +1,5 @@
 import '../supabase/supabase_mappers.dart';
+import '../location/geo_coordinates.dart';
 
 class NormalizedLocation {
   const NormalizedLocation({
@@ -47,6 +48,12 @@ class NormalizedLocation {
   }
 
   factory NormalizedLocation.fromRow(Map<String, dynamic> row) {
+    final fromGeo = parsePostGisPoint(row['location']);
+    var latitude = fromGeo?.lat ?? parseDouble(row['latitude']);
+    var longitude = fromGeo?.lng ?? parseDouble(row['longitude']);
+    final normalized = normalizeLatLng(latitude, longitude);
+    latitude = normalized?.lat;
+    longitude = normalized?.lng;
     return NormalizedLocation(
       id: parseString(row['id']),
       name: parseString(row['name']),
@@ -56,8 +63,8 @@ class NormalizedLocation {
       state: parseString(row['state']),
       country: parseString(row['country']),
       postalCode: parseString(row['postal_code']),
-      latitude: parseDouble(row['latitude']),
-      longitude: parseDouble(row['longitude']),
+      latitude: latitude,
+      longitude: longitude,
       placeId: parseString(row['place_id']),
       timezone: parseString(row['timezone']),
       isVerified: parseBool(row['is_verified']),

@@ -88,10 +88,13 @@ class LegalDocumentsStatus {
   final bool hasLegacyDocPair;
   final bool hasPendingRows;
   final List<String> rejectionReasons;
+  /// When true, listing-level approval satisfies document review (no per-file review).
+  final bool listingApproved;
 
   const LegalDocumentsStatus({
     required this.uploadedCount,
     required this.approvedCount,
+    this.listingApproved = false,
     this.hasRejected = false,
     this.hasBusinessLicense = false,
     this.businessLicenseApproved = false,
@@ -107,7 +110,9 @@ class LegalDocumentsStatus {
       hasBusinessLicense || hasLegacyDocPair || uploadedCount >= 2;
 
   /// License approved; if EIN was uploaded it must be approved too. Legacy: both docs approved.
+  /// When [listingApproved], uploaded docs with no rejection are enough (business-level review).
   bool get isFullyApproved {
+    if (listingApproved && hasRequiredUploaded && !hasRejected) return true;
     if (hasLegacyDocPair || (!hasBusinessLicense && uploadedCount >= 2)) {
       return approvedCount >= 2 && !hasRejected;
     }

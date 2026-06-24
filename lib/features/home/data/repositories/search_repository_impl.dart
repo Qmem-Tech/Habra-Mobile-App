@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../../../core/location/user_geo_for_feed.dart';
 import '../../domain/repositories/search_repository.dart';
 import '../datasources/search_remote_datasource.dart';
 import '../datasources/search_local_datasource.dart';
@@ -63,10 +64,16 @@ class SearchRepositoryImpl implements SearchRepository {
   Future<Either<Failure, SearchResults>> search(
     String query,
     SearchCategory category,
-    String location,
-  ) async {
+    String location, {
+    UserGeoForFeed? userGeo,
+  }) async {
     try {
-      final results = await remoteDataSource.search(query, category, location);
+      final results = await remoteDataSource.search(
+        query,
+        category,
+        location,
+        userGeo: userGeo,
+      );
       // Save to recent searches
       if (query.isNotEmpty) {
         await localDataSource.saveRecentSearch(query);

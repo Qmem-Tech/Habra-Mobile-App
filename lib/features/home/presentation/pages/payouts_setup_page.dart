@@ -71,19 +71,24 @@ class _PayoutsSetupPageState extends State<PayoutsSetupPage> {
     }
   }
 
-  Future<void> _startOnboarding() async {
+  Future<void> _openStripeUrl({required bool managePayouts}) async {
     setState(() {
       _actionLoading = true;
       _error = null;
     });
     try {
+      final body = <String, dynamic>{
+        'business_id': widget.businessId,
+      };
+      if (managePayouts) {
+        body['manage_payouts'] = true;
+      } else {
+        body['return_url'] = _returnUrl;
+        body['refresh_url'] = _refreshUrl;
+      }
       final res = await Supabase.instance.client.functions.invoke(
         'create-connect-account',
-        body: {
-          'business_id': widget.businessId,
-          'return_url': _returnUrl,
-          'refresh_url': _refreshUrl,
-        },
+        body: body,
       );
 
       if (!mounted) return;
@@ -92,7 +97,10 @@ class _PayoutsSetupPageState extends State<PayoutsSetupPage> {
       final url = data?['url'] as String?;
       if (url == null || url.isEmpty) {
         setState(() {
-          _error = data?['error'] as String? ?? 'Could not create onboarding link.';
+          _error = data?['error'] as String? ??
+              (managePayouts
+                  ? 'Could not open payout settings.'
+                  : 'Could not create onboarding link.');
           _actionLoading = false;
         });
         return;
@@ -115,6 +123,10 @@ class _PayoutsSetupPageState extends State<PayoutsSetupPage> {
       if (mounted) setState(() => _actionLoading = false);
     }
   }
+
+  Future<void> _startOnboarding() => _openStripeUrl(managePayouts: false);
+
+  Future<void> _managePayoutSettings() => _openStripeUrl(managePayouts: true);
 
   Future<void> _refreshStatus() async {
     setState(() {
@@ -188,16 +200,20 @@ class _PayoutsSetupPageState extends State<PayoutsSetupPage> {
                     const SizedBox(height: AppResources.spacingL),
                     _buildHowItWorksCard(),
                     const SizedBox(height: AppResources.spacingL),
-                    if (_connectStatus != 'complete') ...[
-                      if (_error != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: AppResources.spacingM),
-                          child: Text(
-                            _error!,
-                            style: AppFonts.body(color: Colors.red),
-                            textAlign: TextAlign.center,
-                          ),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppResources.spacingM),
+                        child: Text(
+                          _error!,
+                          style: AppFonts.body(color: Colors.red),
+                          textAlign: TextAlign.center,
                         ),
+                      ),
+                    if (_connectStatus == 'complete') ...[
+                      _buildManagePayoutsButton(),
+                      const SizedBox(height: AppResources.spacingM),
+                      _buildRefreshStatusButton(),
+                    ] else ...[
                       _buildActionButton(),
                       const SizedBox(height: AppResources.spacingM),
                       _buildAlreadyDoneButton(),
@@ -214,7 +230,8 @@ class _PayoutsSetupPageState extends State<PayoutsSetupPage> {
       'complete' => (
           Icons.verified_rounded,
           'Payouts active',
-          'You will automatically receive funds 2–7 business days after each ticket sale.',
+          'You will automatically receive funds 2–7 business days after each ticket sale. '
+              'Use “Manage payout settings” to update your bank account or view payout history on Stripe.',
           const Color(0xFF1B4332),
         ),
       'restricted' => (
@@ -381,6 +398,46 @@ class _PayoutsSetupPageState extends State<PayoutsSetupPage> {
             )
           : const Icon(Icons.open_in_browser_rounded),
       label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+    );
+  }
+
+  Widget _buildManagePayoutsButton() {
+    return FilledButton.icon(
+      onPressed: _actionLoading ? null : _managePayoutSettings,
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColors.brandPrimary,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(double.infinity, 52),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      icon: _actionLoading
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            )
+          : const Icon(Icons.settings_outlined),
+      label: const Text(
+        'Manage payout settings',
+        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+      ),
+    );
+  }
+
+  Widget _buildRefreshStatusButton() {
+    return OutlinedButton.icon(
+      onPressed: _actionLoading ? null : _refreshStatus,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.brandPrimary,
+        side: const BorderSide(color: AppColors.brandPrimary),
+        minimumSize: const Size(double.infinity, 48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      icon: const Icon(Icons.refresh_rounded),
+      label: const Text('Refresh status'),
     );
   }
 

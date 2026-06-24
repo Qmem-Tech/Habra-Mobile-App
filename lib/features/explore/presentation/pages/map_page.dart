@@ -6,22 +6,13 @@ import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/location/map_coordinates.dart';
 import '../../../../core/permissions/app_permission.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/services/permission_service.dart';
 import '../../../../injection/injection_container.dart' as di;
-
-/// True when [latitude]/[longitude] are usable for the map (not null island / unset DB rows).
-bool isValidBusinessMapCoordinate(double latitude, double longitude) {
-  if (latitude.isNaN || longitude.isNaN) return false;
-  if (latitude < -90 || latitude > 90) return false;
-  if (longitude < -180 || longitude > 180) return false;
-  const t = 1e-6;
-  if (latitude.abs() < t && longitude.abs() < t) return false;
-  return true;
-}
 
 class MapPage extends StatefulWidget {
   final String businessId;
@@ -59,7 +50,7 @@ class _MapPageState extends State<MapPage> {
   @override
   void initState() {
     super.initState();
-    if (isValidBusinessMapCoordinate(widget.latitude, widget.longitude)) {
+    if (isValidMapCoordinate(widget.latitude, widget.longitude)) {
       _targetLat = widget.latitude;
       _targetLng = widget.longitude;
       _showInlineMap = true;
@@ -98,7 +89,7 @@ class _MapPageState extends State<MapPage> {
       final loc = locations.first;
       final lat = loc.latitude;
       final lng = loc.longitude;
-      if (!isValidBusinessMapCoordinate(lat, lng)) {
+      if (!isValidMapCoordinate(lat, lng)) {
         setState(() {
           _resolvingGeocode = false;
           _showInlineMap = false;
@@ -204,7 +195,7 @@ class _MapPageState extends State<MapPage> {
   /// Coordinates when valid; otherwise search by address.
   Uri? _mapsDestinationUri() {
     if (_showInlineMap &&
-        isValidBusinessMapCoordinate(_targetLat, _targetLng)) {
+        isValidMapCoordinate(_targetLat, _targetLng)) {
       final lat = _targetLat;
       final lng = _targetLng;
       if (Platform.isIOS) {

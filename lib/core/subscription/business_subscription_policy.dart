@@ -20,6 +20,10 @@ class BusinessSubscriptionPolicy {
   static bool isFreeListingOnlyTier(BusinessSubscriptionTier tier) =>
       tier == BusinessSubscriptionTier.basic;
 
+  /// Standard or Premium — eligible for the public featured carousel.
+  static bool qualifiesForFeaturedFeed(BusinessSubscriptionTier tier) =>
+      !isFreeListingOnlyTier(tier);
+
   /// Deals, hosted events, and job posts require Standard or Premium.
   static bool canPostDealsEventsJobs(BusinessSubscriptionTier tier) =>
       !isFreeListingOnlyTier(tier);
