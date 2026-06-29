@@ -76,7 +76,8 @@ class JobsSupabaseDataSource implements JobsRemoteDataSource {
           .select('id')
           .eq('approval_status', 'approved')
           .eq('is_active', true)
-          .eq('is_verified', true);
+          .eq('is_verified', true)
+          .eq('is_visible', true);
       final approvedBizList = approvedBizRes as List;
       if (approvedBizList.isEmpty) return [];
       final approvedIds = approvedBizList.map((e) => (e as Map)['id']).whereType<String>().toList();

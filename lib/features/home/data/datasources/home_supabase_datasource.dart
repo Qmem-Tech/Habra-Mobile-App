@@ -42,7 +42,8 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
         .select('id')
         .eq('approval_status', 'approved')
         .eq('is_active', true)
-        .eq('is_verified', true);
+        .eq('is_verified', true)
+        .eq('is_visible', true);
     final approvedBizList = approvedBizRes as List;
     if (approvedBizList.isEmpty) return [];
     var ids = approvedBizList
@@ -178,7 +179,8 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
             .select(select)
             .eq('approval_status', 'approved')
             .eq('is_active', true)
-            .eq('is_verified', true);
+            .eq('is_verified', true)
+            .eq('is_visible', true);
 
         final res = await query.order('rating', ascending: false);
         return (res as List).cast<Map<String, dynamic>>();
