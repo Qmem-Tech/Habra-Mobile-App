@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_share.dart';
 import '../../../../core/widgets/habra_circular_loader.dart';
-import '../../../../core/widgets/app_button.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../saved_items/domain/entities/saved_item.dart';
 import '../../../saved_items/domain/usecases/save_item_usecase.dart';
@@ -12,7 +11,7 @@ import '../../domain/entities/deal.dart';
 import '../bloc/deals_cubit.dart';
 import '../bloc/deals_state.dart';
 import '../widgets/deal_network_image.dart';
-import 'redeem_deal_page.dart';
+import '../widgets/listing_map_preview.dart';
 import 'business_detail_page.dart';
 
 class DealDetailPage extends StatelessWidget {
@@ -60,7 +59,6 @@ class DealDetailPage extends StatelessWidget {
               _buildDealDetails(deal),
               _buildTermsAndConditions(deal),
               _buildLocation(context, deal),
-              _buildRedeemButton(context, deal),
               const SizedBox(height: 24),
             ],
           ),
@@ -497,61 +495,18 @@ class DealDetailPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Container(
+          ListingMapPreview(
+            listingId: deal.business.id,
+            name: deal.business.name,
+            fullAddress: deal.business.fullAddress,
+            latitude: deal.business.latitude,
+            longitude: deal.business.longitude,
+            subtitle: deal.business.categories.isNotEmpty
+                ? deal.business.categories.first.displayName
+                : null,
             height: 150,
-            decoration: BoxDecoration(
-              color: AppColors.backgroundGrey,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Stack(
-              children: [
-                Center(
-                  child: Icon(
-                    Icons.map,
-                    size: 48,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.brandPrimary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.location_on,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildRedeemButton(BuildContext context, Deal deal) {
-    if (!deal.isRedeemable) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: AppButton(
-        text: 'Redeem This Deal',
-        icon: Icons.qr_code,
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => RedeemDealPage(dealId: deal.id),
-            ),
-          );
-        },
       ),
     );
   }

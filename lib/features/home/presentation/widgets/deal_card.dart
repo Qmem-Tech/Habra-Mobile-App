@@ -109,7 +109,7 @@ class _DealCardState extends State<DealCard> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

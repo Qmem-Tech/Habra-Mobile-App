@@ -22,8 +22,10 @@ class BusinessListItem extends Equatable {
   final bool isFeatured;
   /// Standard or Premium subscription (`subscription_tier` is `pro` or `premium`).
   final bool isSubscribed;
-  /// E.164 or raw digits; optional (e.g. for call / redeem flows).
+  /// E.164 or raw digits; optional (e.g. for call flows).
   final String? phone;
+  final double? latitude;
+  final double? longitude;
 
   const BusinessListItem({
     required this.id,
@@ -45,6 +47,8 @@ class BusinessListItem extends Equatable {
     this.isFeatured = false,
     this.isSubscribed = false,
     this.phone,
+    this.latitude,
+    this.longitude,
   });
 
   String get fullAddress => '$address, $city, $state';
@@ -81,5 +85,7 @@ class BusinessListItem extends Equatable {
         isFeatured,
         isSubscribed,
         phone,
+        latitude,
+        longitude,
       ];
 }

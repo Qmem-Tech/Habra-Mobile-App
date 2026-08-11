@@ -683,7 +683,7 @@ class _HomePageState extends State<HomePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitleRow(
-            title: 'Hot Deals Near You 🔥',
+            title: 'Hot Deals 🔥',
             actionLabel: 'View All >',
             onAction: () async {
               await Navigator.push<void>(
@@ -702,29 +702,28 @@ class _HomePageState extends State<HomePage> {
             _sectionMessage(
               icon: Icons.local_offer_outlined,
               title: 'No deals right now',
-              subtitle: 'Nearby specials will show up here when businesses post them.',
+              subtitle: 'Special offers from local businesses will show up here.',
             )
           else
-            SizedBox(
-              height: 260,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: topDeals.length,
-                itemBuilder: (context, index) {
-                  final deal = topDeals[index];
-                  return DealCard(
-                    deal: deal,
-                    onTap: () async {
-                      await Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => DealDetailPage(dealId: deal.id),
-                        ),
-                      );
-                    },
-                  );
-                },
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < topDeals.length; i++)
+                    DealCard(
+                      deal: topDeals[i],
+                      onTap: () async {
+                        await Navigator.push<void>(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => DealDetailPage(dealId: topDeals[i].id),
+                          ),
+                        );
+                      },
+                    ),
+                ],
               ),
             ),
         ],

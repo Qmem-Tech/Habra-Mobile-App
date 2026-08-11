@@ -34,6 +34,22 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
                 message.contains('relationship')));
   }
 
+  /// Approved, visible businesses for home feed sections (no geo filter).
+  Future<List<String>> _approvedBusinessIds() async {
+    final approvedBizRes = await _client
+        .from('businesses')
+        .select('id')
+        .eq('approval_status', 'approved')
+        .eq('is_active', true)
+        .eq('is_verified', true)
+        .eq('is_visible', true);
+    final approvedBizList = approvedBizRes as List;
+    return approvedBizList
+        .map((e) => (e as Map)['id'])
+        .whereType<String>()
+        .toList();
+  }
+
   /// When [geo] is set, intersect with `habra_feed_nearby_business_ids` when possible.
   /// If RPC fails or returns empty, keeps full approved list (fallback).
   Future<List<String>> _approvedBusinessIdsForGeo(UserGeoForFeed? geo) async {
@@ -132,7 +148,7 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
   @override
   Future<List<DealModel>> getHotDealsNearYou(HomeFeedLocation location) async {
     return SupabaseFailureMapper.guard(() async {
-      final approvedIds = await _approvedBusinessIdsForGeo(location.geo);
+      final approvedIds = await _approvedBusinessIds();
       if (approvedIds.isEmpty) return [];
 
       var query = _client
@@ -141,7 +157,7 @@ class HomeSupabaseDataSource implements HomeRemoteDataSource {
           .eq('status', 'active')
           .gte('valid_until', DateTime.now().toIso8601String())
           .inFilter('business_id', approvedIds);
-      final res = await query.order('valid_until', ascending: true).limit(10);
+      final res = await query.order('valid_until', ascending: true);
       final list = (res as List).cast<Map<String, dynamic>>();
       return list.map((row) {
         final biz = row['businesses'];

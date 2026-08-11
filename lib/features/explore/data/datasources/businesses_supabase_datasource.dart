@@ -90,6 +90,41 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
     return list.toList();
   }
 
+  static const _dealBusinessSelectWithLocation =
+      'id, name, address_street, address_city, address_state, logo_url, image_urls, phone, rating, review_count, latitude, longitude, ${SupabaseTables.locations}(*), business_categories(categories(id, name, slug))';
+
+  static const _dealBusinessSelectLegacy =
+      'id, name, address_street, address_city, address_state, logo_url, image_urls, phone, rating, review_count, latitude, longitude, business_categories(categories(id, name, slug))';
+
+  BusinessListItem _businessListItemFromDealEmbed(Map<String, dynamic> biz) {
+    final location = NormalizedLocation.maybeFromEmbedded(biz[SupabaseTables.locations]);
+    final coords = resolveListingCoordinates(
+      location: location,
+      businessRow: biz,
+    );
+    final bid = parseString(biz['id']);
+    final logoUrl = parseString(biz['logo_url']);
+    final imageUrls = parseStringList(biz['image_urls']);
+    final bImage = logoUrl ?? (imageUrls.isNotEmpty ? imageUrls.first : '');
+    return BusinessListItem(
+      id: bid ?? '',
+      name: parseStringRequired(biz['name']),
+      imageUrl: bImage,
+      categories: _categoriesFromRow(biz),
+      listingCategoryIds: _listingCategoryIdsFromRow(biz),
+      address: location?.addressLine1 ?? parseStringRequired(biz['address_street']),
+      city: location?.city ?? parseStringRequired(biz['address_city']),
+      state: location?.state ?? parseStringRequired(biz['address_state']),
+      rating: parseDouble(biz['rating']) ?? 0.0,
+      reviewCount: parseInt(biz['review_count']) ?? 0,
+      isOpen: true,
+      isFeatured: false,
+      phone: parseString(biz['phone']),
+      latitude: coords?.lat,
+      longitude: coords?.lng,
+    );
+  }
+
   BusinessListItem _rowToBusinessListItem(
     Map<String, dynamic> row, {
     UserGeoForFeed? userGeo,
@@ -466,9 +501,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
 
       var query = _client
           .from('deals')
-          .select(
-            '*, businesses!deals_business_id_fkey(id, name, address_street, address_city, address_state, logo_url, image_urls, phone, rating, review_count, business_categories(categories(id, name, slug)))',
-          )
+          .select('*, businesses!deals_business_id_fkey($_dealBusinessSelectWithLocation)')
           .eq('status', 'active')
           .gte('valid_until', DateTime.now().toIso8601String())
           .inFilter('business_id', approvedIds);
@@ -478,32 +511,35 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
         query = query.eq('category', category);
       }
 
-      final res = await query.order('valid_until', ascending: true);
-      final list = (res as List).cast<Map<String, dynamic>>();
+      List<Map<String, dynamic>> list;
+      try {
+        final res = await query.order('valid_until', ascending: true);
+        list = (res as List).cast<Map<String, dynamic>>();
+      } on PostgrestException catch (e) {
+        if (e.code == 'PGRST200' ||
+            e.message.contains('could not find') ||
+            e.message.contains('relationship') ||
+            e.message.contains('locations')) {
+          query = _client
+              .from('deals')
+              .select('*, businesses!deals_business_id_fkey($_dealBusinessSelectLegacy)')
+              .eq('status', 'active')
+              .gte('valid_until', DateTime.now().toIso8601String())
+              .inFilter('business_id', approvedIds);
+          if (category != null && category.isNotEmpty) {
+            query = query.eq('category', category);
+          }
+          final res = await query.order('valid_until', ascending: true);
+          list = (res as List).cast<Map<String, dynamic>>();
+        } else {
+          rethrow;
+        }
+      }
       return list.map((row) {
         BusinessListItem? b;
         final biz = row['businesses'];
         if (biz is Map<String, dynamic>) {
-          final bid = parseString(biz['id']);
-          final bname = parseStringRequired(biz['name']);
-          final logoUrl = parseString(biz['logo_url']);
-          final imageUrls = parseStringList(biz['image_urls']);
-          final bImage = logoUrl ?? (imageUrls.isNotEmpty ? imageUrls.first : '');
-          b = BusinessListItem(
-            id: bid ?? '',
-            name: bname,
-            imageUrl: bImage,
-            categories: _categoriesFromRow(biz),
-            listingCategoryIds: _listingCategoryIdsFromRow(biz),
-            address: parseStringRequired(biz['address_street']),
-            city: parseStringRequired(biz['address_city']),
-            state: parseStringRequired(biz['address_state']),
-            rating: parseDouble(biz['rating']) ?? 0.0,
-            reviewCount: parseInt(biz['review_count']) ?? 0,
-            isOpen: true,
-            isFeatured: false,
-            phone: parseString(biz['phone']),
-          );
+          b = _businessListItemFromDealEmbed(biz);
         }
         return _rowToDeal(row, b);
       }).toList();
@@ -513,13 +549,25 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
   @override
   Future<Deal> getDealDetail(String dealId) async {
     return SupabaseFailureMapper.guard(() async {
-      final res = await _client
+      Future<dynamic> fetch(String businessSelect) => _client
           .from('deals')
-          .select(
-            '*, businesses!deals_business_id_fkey(id, name, address_street, address_city, address_state, logo_url, image_urls, phone, rating, review_count, business_categories(categories(id, name, slug)))',
-          )
+          .select('*, businesses!deals_business_id_fkey($businessSelect)')
           .eq('id', dealId)
           .maybeSingle();
+
+      dynamic res;
+      try {
+        res = await fetch(_dealBusinessSelectWithLocation);
+      } on PostgrestException catch (e) {
+        if (e.code == 'PGRST200' ||
+            e.message.contains('could not find') ||
+            e.message.contains('relationship') ||
+            e.message.contains('locations')) {
+          res = await fetch(_dealBusinessSelectLegacy);
+        } else {
+          rethrow;
+        }
+      }
       if (res == null) throw Exception('Deal not found');
       final row = Map<String, dynamic>.from(res as Map);
       final dealStatus = parseString(row['status']);
@@ -533,25 +581,7 @@ class BusinessesSupabaseDataSource implements BusinessesRemoteDataSource {
       BusinessListItem? b;
       final biz = row['businesses'];
       if (biz is Map<String, dynamic>) {
-        final bid = parseString(biz['id']);
-        final logoUrl = parseString(biz['logo_url']);
-        final imageUrls = parseStringList(biz['image_urls']);
-        final bImage = logoUrl ?? (imageUrls.isNotEmpty ? imageUrls.first : '');
-        b = BusinessListItem(
-          id: bid ?? '',
-          name: parseStringRequired(biz['name']),
-          imageUrl: bImage,
-          categories: _categoriesFromRow(biz),
-          listingCategoryIds: _listingCategoryIdsFromRow(biz),
-          address: parseStringRequired(biz['address_street']),
-          city: parseStringRequired(biz['address_city']),
-          state: parseStringRequired(biz['address_state']),
-          rating: parseDouble(biz['rating']) ?? 0.0,
-          reviewCount: parseInt(biz['review_count']) ?? 0,
-          isOpen: true,
-          isFeatured: false,
-          phone: parseString(biz['phone']),
-        );
+        b = _businessListItemFromDealEmbed(biz);
       }
       return _rowToDeal(row, b);
     });
