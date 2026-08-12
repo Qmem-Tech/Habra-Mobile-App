@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/supabase_tables.dart';
+import '../../../../core/legal/business_legal_docs_gate.dart';
 import '../../../../core/payout/business_payout_gate.dart';
 import '../../../../core/subscription/business_subscription_effective.dart';
 import '../../../../core/subscription/business_subscription_policy.dart';
@@ -88,12 +89,22 @@ class _CreateEventPageState extends State<CreateEventPage> {
       return;
     }
     final name = homeState.selectedPresence?.displayName ?? 'Your business';
-    final ok = await BusinessPayoutGate.ensureCanCreateEvents(
+    final docsOk = await BusinessLegalDocsGate.ensureCanCreateEvents(
       context,
       businessId: businessId,
       businessName: name,
     );
-    if (!ok && mounted) Navigator.pop(context);
+    if (!docsOk && mounted) {
+      Navigator.pop(context);
+      return;
+    }
+    if (!mounted) return;
+    final payoutOk = await BusinessPayoutGate.ensureCanCreateEvents(
+      context,
+      businessId: businessId,
+      businessName: name,
+    );
+    if (!payoutOk && mounted) Navigator.pop(context);
   }
 
   Future<void> _loadExistingEvent() async {

@@ -2,7 +2,6 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/subscription/business_subscription_effective.dart';
 import '../../../../core/subscription/business_subscription_policy.dart';
@@ -13,8 +12,8 @@ import '../../../../core/storage/local_storage.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../events/presentation/bloc/create_event_cubit.dart';
 import '../../../events/presentation/pages/create_event_page.dart';
-import '../../../../core/constants/support_contact.dart';
 import '../../../../core/utils/relative_time_short.dart';
+import '../../../../core/legal/business_legal_docs_gate.dart';
 import '../../../../core/payout/business_payout_gate.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/navigation/business_owner_tool_route.dart';
@@ -44,14 +43,10 @@ import '../../../dashboard/presentation/pages/create_deal_page.dart';
 import '../../../dashboard/presentation/pages/create_job_post_page.dart';
 import '../../../dashboard/presentation/pages/dashboard_page.dart';
 import '../../../dashboard/presentation/pages/job_applicants_page.dart';
-import '../../../dashboard/domain/repositories/dashboard_repository.dart'
-    show LegalDocumentsStatus;
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../dashboard/presentation/widgets/business_gallery_photos_dialog.dart';
 import '../../../dashboard/presentation/widgets/business_images_upload_dialog.dart';
 import '../../../dashboard/presentation/widgets/choose_business_for_images_dialog.dart';
-import '../../../dashboard/presentation/widgets/choose_business_for_legal_docs_dialog.dart';
-import '../../../dashboard/presentation/widgets/legal_documents_upload_dialog.dart';
 import '../../../explore/presentation/pages/business_detail_page.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import 'business_owner_notification_page.dart';
@@ -70,18 +65,10 @@ class BusinessOwnerHomePage extends StatefulWidget {
 class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _imagesDialogShownThisSession = false;
-  bool _legalDocsDialogShownThisSession = false;
-  bool _selectedBusinessMissingLegalDocs = false;
-  bool _selectedBusinessLegalRejected = false;
-  List<String> _selectedBusinessLegalRejectionReasons = [];
-  bool _selectedBusinessLegalAwaitingReview = false;
 
-  /// Session dismissals for home info banners (under review, legal pending, etc.).
+  /// Session dismissals for home info banners.
   final Set<String> _dismissedHomeBannerKeys = <String>{};
   final LocalStorage _localStorage = di.sl<LocalStorage>();
-  int _businessesNeedingLegalDocsCount = 0;
-  String? _lastCheckedPresenceId;
-  bool _checkingLegalDocsForPresence = false;
 
   @override
   void initState() {
@@ -140,6 +127,13 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     final businessName = selected != null && selected.id != 'all'
         ? selected.displayName
         : 'Your business';
+    if (!await BusinessLegalDocsGate.ensureCanCreateEvents(
+      context,
+      businessId: businessId,
+      businessName: businessName,
+    )) {
+      return;
+    }
     if (!await BusinessPayoutGate.ensureCanCreateEvents(
       context,
       businessId: businessId,
@@ -172,12 +166,12 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
     }
   }
 
-  /// Shows post-login dialogs in sequence: images first, then legal documents.
+  /// Shows post-login dialogs (images). Legal docs are asked at event creation.
   void _checkAndShowPostLoginDialogs(
     BuildContext context,
     BusinessOwnerHomeLoaded state,
   ) {
-    if (_imagesDialogShownThisSession && _legalDocsDialogShownThisSession) return;
+    if (_imagesDialogShownThisSession) return;
 
     final businesses = state.presences.where((p) => p.id != 'all').toList();
     if (businesses.isEmpty) return;
@@ -233,114 +227,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         }
       }
 
-      if (!context.mounted) return;
-
-      // Step 2: Legal documents dialog (if needed)
-      if (_legalDocsDialogShownThisSession) return;
-
-      _legalDocsDialogShownThisSession = true; // Claim early to avoid duplicate on reload
-
-      List<String> idsNeedingDocs;
-      try {
-        idsNeedingDocs = await context.read<DashboardCubit>().getBusinessIdsNeedingLegalDocs(widget.user.id);
-      } catch (_) {
-        if (!context.mounted) return;
-        _legalDocsDialogShownThisSession = false; // Allow retry on next load
-        return;
-      }
-
-      if (!context.mounted) return;
-      if (mounted) {
-        setState(() {
-          _businessesNeedingLegalDocsCount = idsNeedingDocs.length;
-        });
-      }
-      if (idsNeedingDocs.isEmpty) return;
-
-      final presencesNeedingDocs = businesses.where((p) => idsNeedingDocs.contains(p.id)).toList();
-      if (presencesNeedingDocs.isEmpty) return;
-
-      final selected = await showDialog<BusinessPresence>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => ChooseBusinessForLegalDocsDialog(presences: presencesNeedingDocs),
-      );
-
-      if (!context.mounted) return;
-
-      if (selected == null) return;
-
-      final result = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => BlocProvider.value(
-          value: context.read<DashboardCubit>(),
-          child: LegalDocumentsUploadDialog(
-            businessId: selected.id,
-            businessName: selected.name,
-          ),
-        ),
-      );
-      if (!context.mounted) return;
-      if (result == true) {
-        await _afterLegalDocumentsUploaded(selected.id);
-      }
-    });
-  }
-
-  /// Clears legal-doc presence cache, reloads home, syncs banners from Supabase, success toast.
-  Future<void> _afterLegalDocumentsUploaded(String businessId) async {
-    if (!mounted) return;
-    setState(() {
-      _lastCheckedPresenceId = null;
-      _checkingLegalDocsForPresence = false;
-    });
-    if (!context.mounted) return;
-    BusinessOwnerNavigationWrapper.invalidateBusinessToolsAccessCache(context);
-
-    final dashboardCubit = context.read<DashboardCubit>();
-    final homeCubit = context.read<BusinessOwnerHomeCubit>();
-
-    try {
-      final ids = await dashboardCubit.getBusinessIdsNeedingLegalDocs(widget.user.id);
-      if (mounted) {
-        setState(() => _businessesNeedingLegalDocsCount = ids.length);
-      }
-    } catch (_) {}
-
-    await homeCubit.loadOwnerHome(
-      ownerId: widget.user.id,
-      showSetupIncomplete: false,
-    );
-
-    try {
-      final status = await dashboardCubit.getLegalDocumentsStatus(businessId);
-      if (!mounted) return;
-      setState(() {
-        _applyLegalStatusToSelectionState(status);
-        _lastCheckedPresenceId = businessId;
-        _dismissedHomeBannerKeys.remove('legal_pending_$businessId');
-        _dismissedHomeBannerKeys.remove('legal_required_$businessId');
-        _dismissedHomeBannerKeys.remove('legal_rejected_$businessId');
-      });
-    } catch (_) {
-      if (mounted) {
-        setState(() => _lastCheckedPresenceId = null);
-      }
-    }
-
-    if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          showCloseIcon: true,
-          content: const Text(
-            'Legal documents submitted successfully. We\'ll review them shortly.',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
     });
   }
 
@@ -360,122 +246,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         ),
       );
     });
-  }
-
-  void _applyLegalStatusToSelectionState(LegalDocumentsStatus status) {
-    _selectedBusinessMissingLegalDocs = status.missingInitialUpload;
-    _selectedBusinessLegalRejected = status.hasRejected;
-    _selectedBusinessLegalRejectionReasons = List<String>.from(status.rejectionReasons);
-    _selectedBusinessLegalAwaitingReview = status.awaitingLegalDocReview;
-  }
-
-  void _checkSelectedBusinessLegalDocs(BusinessOwnerHomeLoaded state) {
-    final selected = state.selectedPresence;
-    if (selected == null || selected.id == 'all') {
-      if (_selectedBusinessMissingLegalDocs ||
-          _selectedBusinessLegalAwaitingReview ||
-          _selectedBusinessLegalRejected ||
-          _lastCheckedPresenceId != null) {
-        setState(() {
-          _selectedBusinessMissingLegalDocs = false;
-          _selectedBusinessLegalAwaitingReview = false;
-          _selectedBusinessLegalRejected = false;
-          _selectedBusinessLegalRejectionReasons = [];
-          _lastCheckedPresenceId = null;
-        });
-      }
-      return;
-    }
-    if (_lastCheckedPresenceId == selected.id || _checkingLegalDocsForPresence) return;
-    _checkingLegalDocsForPresence = true;
-    _lastCheckedPresenceId = selected.id;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        final status = await context.read<DashboardCubit>().getLegalDocumentsStatus(selected.id);
-        if (!mounted) return;
-        setState(() {
-          _applyLegalStatusToSelectionState(status);
-        });
-      } catch (_) {
-        if (!mounted) return;
-        setState(() {
-          _selectedBusinessMissingLegalDocs = false;
-          _selectedBusinessLegalRejected = false;
-          _selectedBusinessLegalRejectionReasons = [];
-          _selectedBusinessLegalAwaitingReview = false;
-        });
-      } finally {
-        _checkingLegalDocsForPresence = false;
-      }
-    });
-  }
-
-  Future<void> _openLegalDocsRequiredFlow() async {
-    final state = context.read<BusinessOwnerHomeCubit>().state;
-    if (state is! BusinessOwnerHomeLoaded) return;
-    final selected = state.selectedPresence;
-    if (selected != null && selected.id != 'all') {
-      final status =
-          await context.read<DashboardCubit>().getLegalDocumentsStatus(selected.id);
-      if (!mounted) return;
-      if (!status.needsOwnerAction) {
-        final msg = status.showLegalApprovalSuccess
-            ? 'Your legal documents are already approved.'
-            : 'Legal documents are already submitted or under review. Upload again only if we rejected a file or asked for a replacement.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            showCloseIcon: true,
-            content: Text(msg),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-      final result = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => BlocProvider.value(
-          value: context.read<DashboardCubit>(),
-          child: LegalDocumentsUploadDialog(
-            businessId: selected.id,
-            businessName: selected.name,
-          ),
-        ),
-      );
-      if (!mounted) return;
-      if (result == true) {
-        await _afterLegalDocumentsUploaded(selected.id);
-      }
-      return;
-    }
-
-    final businesses = state.presences.where((p) => p.id != 'all').toList();
-    if (businesses.isEmpty) return;
-    final ids = await context.read<DashboardCubit>().getBusinessIdsNeedingLegalDocs(widget.user.id);
-    final presencesNeedingDocs = businesses.where((p) => ids.contains(p.id)).toList();
-    if (!mounted || presencesNeedingDocs.isEmpty) return;
-
-    final selectedBusiness = await showDialog<BusinessPresence>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => ChooseBusinessForLegalDocsDialog(presences: presencesNeedingDocs),
-    );
-    if (!mounted || selectedBusiness == null) return;
-    final result = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => BlocProvider.value(
-        value: context.read<DashboardCubit>(),
-        child: LegalDocumentsUploadDialog(
-          businessId: selectedBusiness.id,
-          businessName: selectedBusiness.name,
-        ),
-      ),
-    );
-    if (!mounted) return;
-    if (result == true) {
-      await _afterLegalDocumentsUploaded(selectedBusiness.id);
-    }
   }
 
   @override
@@ -529,9 +299,8 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
             userName: widget.user.name,
             userEmail: widget.user.email,
             selectedBusiness: selectedPresence,
-            showBusinessToolsMenu: state is BusinessOwnerHomeLoaded
-                ? BusinessPresence.listHasApprovedBusiness(state.presences)
-                : false,
+            showBusinessToolsMenu: state is BusinessOwnerHomeLoaded &&
+                state.presences.any((p) => p.id != 'all'),
             showDashboardMenuItem:
                 BusinessOwnerNavigationWrapper.drawerShowDashboardMenu(context),
             onHomeTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 0),
@@ -702,7 +471,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   }
                   if (state is BusinessOwnerHomeLoaded) {
                     _checkAndShowPostLoginDialogs(context, state);
-                    _checkSelectedBusinessLegalDocs(state);
                     if (state.isSetupIncomplete) {
                       return _buildSetupIncompleteView(state);
                     }
@@ -1005,8 +773,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
 
   Widget _buildSingleBusinessView(BusinessOwnerHomeLoaded state) {
     final presence = state.selectedPresence;
-    final showOwnerTools =
-        BusinessPresence.listHasApprovedBusiness(state.presences);
     final blurEngagement = _shouldBlurFreeTierEngagement(context, state);
 
     return RefreshIndicator(
@@ -1031,16 +797,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   ],
                 ),
               ),
-              if (_selectedBusinessLegalRejected && presence != null)
-                _buildLegalDocsRejectedNotice(
-                  dismissKey: 'legal_rejected_${presence.id}',
-                  reasons: _selectedBusinessLegalRejectionReasons,
-                ),
-              if (_selectedBusinessMissingLegalDocs && presence != null)
-                _buildLegalDocsRequiredNotice(
-                  singleBusiness: true,
-                  dismissKey: 'legal_required_${presence.id}',
-                ),
               _buildSubscriptionUpgradePrompt(),
               if (blurEngagement)
                 Container(
@@ -1101,25 +857,23 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   child: _buildSnapshotCards(state.snapshot),
                 ),
               ],
-              if (showOwnerTools) ...[
-                Container(
-                  width: double.infinity,
-                  color: AppColors.backgroundWhite,
-                  padding: const EdgeInsets.fromLTRB(
-                    AppResources.spacingM,
-                    20,
-                    AppResources.spacingM,
-                    12,
-                  ),
-                  child: _buildSectionHeader('Quick Actions'),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  20,
+                  AppResources.spacingM,
+                  12,
                 ),
-                Container(
-                  width: double.infinity,
-                  color: AppColors.backgroundWhite,
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: _buildQuickActions(),
-                ),
-              ],
+                child: _buildSectionHeader('Quick Actions'),
+              ),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.only(bottom: 20),
+                child: _buildQuickActions(),
+              ),
               if (blurEngagement)
                 Container(
                   width: double.infinity,
@@ -1311,8 +1065,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
   }
 
   Widget _buildAllBusinessesView(BusinessOwnerHomeLoaded state) {
-    final showOwnerTools =
-        BusinessPresence.listHasApprovedBusiness(state.presences);
     final blurEngagement = _shouldBlurFreeTierEngagement(context, state);
 
     return RefreshIndicator(
@@ -1384,11 +1136,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   child: _buildSnapshotCards(state.snapshot),
                 ),
               ],
-              if (_businessesNeedingLegalDocsCount > 0)
-                _buildLegalDocsRequiredNotice(
-                  singleBusiness: false,
-                  dismissKey: 'legal_required_all',
-                ),
               _buildSubscriptionUpgradePrompt(),
               Container(
                 width: double.infinity,
@@ -1426,25 +1173,23 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
                   onPressed: () => _openAddNewPresence(context),
                 ),
               ),
-              if (showOwnerTools) ...[
-                Container(
-                  width: double.infinity,
-                  color: AppColors.backgroundWhite,
-                  padding: const EdgeInsets.fromLTRB(
-                    AppResources.spacingM,
-                    8,
-                    AppResources.spacingM,
-                    12,
-                  ),
-                  child: _buildSectionHeader('Quick Actions'),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.fromLTRB(
+                  AppResources.spacingM,
+                  8,
+                  AppResources.spacingM,
+                  12,
                 ),
-                Container(
-                  width: double.infinity,
-                  color: AppColors.backgroundWhite,
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: _buildQuickActions(),
-                ),
-              ],
+                child: _buildSectionHeader('Quick Actions'),
+              ),
+              Container(
+                width: double.infinity,
+                color: AppColors.backgroundWhite,
+                padding: const EdgeInsets.only(bottom: 20),
+                child: _buildQuickActions(),
+              ),
               if (blurEngagement)
                 Container(
                   width: double.infinity,
@@ -2067,35 +1812,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
               ],
             ],
           ),
-          if (presence.isPendingApproval) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.ownerHomePrimary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppColors.ownerHomePrimary.withValues(alpha: 0.22),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.schedule,
-                      size: 16, color: AppColors.ownerHomePrimary),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Pending for approval',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.ownerHomePrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -2268,190 +1984,6 @@ class _BusinessOwnerHomePageState extends State<BusinessOwnerHomePage> {
         ),
       ),
     );
-  }
-
-  Widget _buildLegalDocsRequiredNotice({
-    required bool singleBusiness,
-    required String dismissKey,
-  }) {
-    final description = singleBusiness
-        ? 'This business is missing required legal documents. Upload them to continue business owner flows.'
-        : '$_businessesNeedingLegalDocsCount business account(s) still require legal documents. Please complete uploads.';
-    return _buildDismissibleHomeBanner(
-      dismissKey: dismissKey,
-      backgroundColor: AppColors.warning.withValues(alpha: 0.12),
-      borderColor: AppColors.warning.withValues(alpha: 0.35),
-      outerPadding: const EdgeInsets.fromLTRB(
-        AppResources.spacingM,
-        8,
-        AppResources.spacingM,
-        8,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Legal documents required',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: AppResources.spacingXS),
-          Text(
-            description,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: AppResources.spacingS),
-          TextButton(
-            onPressed: _openLegalDocsRequiredFlow,
-            child: const Text('Upload documents now'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLegalDocsRejectedNotice({
-    required String dismissKey,
-    required List<String> reasons,
-  }) {
-    return _buildDismissibleHomeBanner(
-      dismissKey: dismissKey,
-      backgroundColor: AppColors.error.withValues(alpha: 0.08),
-      borderColor: AppColors.error.withValues(alpha: 0.35),
-      outerPadding: const EdgeInsets.fromLTRB(
-        AppResources.spacingM,
-        8,
-        AppResources.spacingM,
-        8,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.error_outline, color: AppColors.error, size: 22),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Document update required',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.error,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppResources.spacingS),
-          const Text(
-            'A reviewer could not accept your submission. Please upload corrected files.',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textPrimary,
-              height: 1.35,
-            ),
-          ),
-          if (reasons.isNotEmpty) ...[
-            const SizedBox(height: AppResources.spacingS),
-            const Text(
-              'Details from the reviewer:',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            ...reasons.map(
-              (r) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('• ', style: TextStyle(color: AppColors.textSecondary)),
-                    Expanded(
-                      child: Text(
-                        r,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textPrimary,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: AppResources.spacingS),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              TextButton(
-                onPressed: _openLegalDocsRequiredFlow,
-                child: const Text('Upload replacement'),
-              ),
-              TextButton(
-                onPressed: () => _openSupportEmail(
-                  subject: 'Habra — legal document question',
-                ),
-                child: const Text('Contact support'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _openSupportEmail({required String subject}) async {
-    if (kSupportEmail.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Support email is not configured in the app build. Reach out through your usual Habra support channel.',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-    final uri = Uri(
-      scheme: 'mailto',
-      path: kSupportEmail,
-      queryParameters: {'subject': subject},
-    );
-    try {
-      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!ok && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Email us at $kSupportEmail'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Email us at $kSupportEmail'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
   }
 
   Widget _buildSnapshotCards(OwnerSnapshotMetrics snapshot) {

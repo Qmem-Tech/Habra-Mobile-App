@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/resources/app_resources.dart';
@@ -7,11 +8,13 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/business_address_input.dart';
 import '../../domain/entities/business_brand_entity.dart';
 import '../../domain/entities/business_presence.dart';
+import '../../../auth/presentation/bloc/auth_cubit.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../dashboard/domain/repositories/dashboard_repository.dart';
 import '../../../dashboard/presentation/bloc/dashboard_cubit.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../../../core/widgets/error_display_helper.dart';
-import 'listing_status_page.dart';
+import 'business_owner_wrapper_page.dart';
 
 /// Add a new location to an existing business brand (Add New Presence → New Location flow).
 /// Step 2 of 2: address fields, same hours toggle, Complete Registration.
@@ -340,32 +343,21 @@ class _AddLocationPageState extends State<AddLocationPage> {
       if (!ctx.mounted) return;
       setState(() => _isLoading = false);
       if (!ctx.mounted) return;
-      final showAsLive = parent != null &&
-          !parent.isPendingApproval &&
-          parent.statusText != 'rejected';
-      final cityForStatus = cityTrim.isNotEmpty &&
-              cityTrim.toLowerCase() != 'unknown'
-          ? cityTrim
-          : null;
-      final streetTrim = _streetController.text.trim();
-      final locationLine = cityForStatus == null
-          ? null
-          : (streetTrim.isNotEmpty ? '$streetTrim, $cityTrim' : cityTrim);
 
-      Navigator.of(ctx).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => ListingStatusPage(
-            isVerified: showAsLive,
-            businessId: businessId,
-            businessName: widget.selectedBrand.name,
-            cityName: cityForStatus,
-            imageUrl: parent?.logoUrl ?? widget.selectedBrand.logoUrl ?? '',
-            locationText: locationLine,
-            refreshOwnerShellOnContinue: widget.isFirstListingSetup,
+      final authState = ctx.read<AuthCubit>().state;
+      if (authState is AuthAuthenticated) {
+        Navigator.of(ctx).pushAndRemoveUntil(
+          MaterialPageRoute<void>(
+            builder: (_) => BusinessOwnerWrapperPage(
+              user: authState.user,
+              initialNavIndex: 1,
+            ),
           ),
-        ),
-        (route) => route.isFirst,
-      );
+          (route) => false,
+        );
+        return;
+      }
+      Navigator.of(ctx).popUntil((route) => route.isFirst);
     } catch (e) {
       if (ctx.mounted) {
         setState(() => _isLoading = false);

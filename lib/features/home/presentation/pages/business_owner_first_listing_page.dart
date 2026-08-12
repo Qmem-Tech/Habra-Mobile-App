@@ -63,9 +63,9 @@ class BusinessOwnerFirstListingPage extends StatelessWidget {
               ),
               const SizedBox(height: AppResources.spacingM),
               Text(
-                'Tell us about your business—location, contact details, photos, and '
-                'verification documents. After you submit, your listing will be pending '
-                'review before it appears to the community.',
+                'Tell us about your business—location, contact details, and photos. '
+                'After you submit, your listing will be pending review before it appears '
+                'to the community.',
                 style: AppFonts.body(color: AppColors.textSecondary),
               ),
               if (user.email.isNotEmpty) ...[

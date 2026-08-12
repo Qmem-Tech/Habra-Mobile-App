@@ -29,22 +29,23 @@ class BusinessOwnerOnboardingPage extends StatelessWidget {
               ),
               const SizedBox(height: AppResources.spacingM),
               Text(
-                'Before you start, complete these steps to unlock your dashboard.',
+                'Set up your listing to start managing your business on Habra.',
                 style: AppFonts.body(color: AppColors.textSecondary),
               ),
               const SizedBox(height: AppResources.spacingXL),
               _StepCard(
-                icon: Icons.description_outlined,
-                title: 'Upload legal documents',
+                icon: Icons.storefront_outlined,
+                title: 'Add your business listing',
                 subtitle:
-                    'Each business must submit required documents for review.',
+                    'Share your details, location, and photos so customers can find you.',
               ),
               const SizedBox(height: AppResources.spacingM),
               _StepCard(
-                icon: Icons.approval_outlined,
-                title: 'Wait for approval',
+                icon: Icons.event_available_outlined,
+                title: 'Create events when ready',
                 subtitle:
-                    'Your dashboard tools unlock after document approval.',
+                    'Before your first event, upload a business license for Habra to approve. '
+                    'EIN proof is optional.',
               ),
               const Spacer(),
               SizedBox(

@@ -146,8 +146,8 @@ class _LegalDocumentsUploadDialogState extends State<LegalDocumentsUploadDialog>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Upload your business license for ${widget.businessName}. '
-                          'EIN proof is optional. A super admin will review and approve.',
+                          'Upload your business license for ${widget.businessName} to create events. '
+                          'EIN proof is optional. You can create events after Habra approves your documents.',
                           style: TextStyle(
                             fontSize: 14,
                             color: AppColors.textSecondary,

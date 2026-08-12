@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../injection/injection_container.dart' as di;
 import '../../domain/entities/owner_upcoming_event.dart';
 import '../widgets/empty_state_widget.dart';
+import '../widgets/legal_docs_required_banner.dart';
 import '../widgets/payout_setup_required_banner.dart';
 import '../../../events/presentation/bloc/create_event_cubit.dart';
 import '../../../events/presentation/pages/create_event_page.dart';
@@ -24,6 +25,9 @@ class DashboardEventsTab extends StatefulWidget {
     required this.onCreateEvent,
     required this.showPayoutSetupBanner,
     required this.onSetUpPayouts,
+    this.showLegalDocsBanner = false,
+    this.legalDocsAwaitingReview = false,
+    this.onUploadLegalDocs,
     this.connectStatus,
     this.onRefresh,
   });
@@ -32,6 +36,9 @@ class DashboardEventsTab extends StatefulWidget {
   final VoidCallback onCreateEvent;
   final bool showPayoutSetupBanner;
   final VoidCallback onSetUpPayouts;
+  final bool showLegalDocsBanner;
+  final bool legalDocsAwaitingReview;
+  final VoidCallback? onUploadLegalDocs;
   final String? connectStatus;
   final Future<void> Function()? onRefresh;
 
@@ -85,6 +92,30 @@ class _DashboardEventsTabState extends State<DashboardEventsTab>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.showLegalDocsBanner) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LegalDocsRequiredBanner(
+            awaitingReview: widget.legalDocsAwaitingReview,
+            onUploadDocuments: widget.onUploadLegalDocs,
+          ),
+          Expanded(
+            child: widget.events.isEmpty
+                ? _buildPrerequisiteEmptyHint(
+                    title: widget.legalDocsAwaitingReview
+                        ? 'Waiting for document approval'
+                        : 'Legal documents needed first',
+                    description: widget.legalDocsAwaitingReview
+                        ? 'Once Habra approves your business license, you can set up payouts and create events.'
+                        : 'Upload your business license before setting up payouts or creating events.',
+                  )
+                : _buildTabbedEvents(),
+          ),
+        ],
+      );
+    }
+
     if (widget.showPayoutSetupBanner) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -95,7 +126,11 @@ class _DashboardEventsTabState extends State<DashboardEventsTab>
           ),
           Expanded(
             child: widget.events.isEmpty
-                ? _buildPayoutRequiredEmptyHint()
+                ? _buildPrerequisiteEmptyHint(
+                    title: 'Events will appear here',
+                    description:
+                        'After payout setup is complete, you can create events and sell tickets.',
+                  )
                 : _buildTabbedEvents(),
           ),
         ],
@@ -117,7 +152,10 @@ class _DashboardEventsTabState extends State<DashboardEventsTab>
     return _buildTabbedEvents();
   }
 
-  Widget _buildPayoutRequiredEmptyHint() {
+  Widget _buildPrerequisiteEmptyHint({
+    required String title,
+    required String description,
+  }) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
@@ -133,10 +171,10 @@ class _DashboardEventsTabState extends State<DashboardEventsTab>
           color: AppColors.textTertiary.withValues(alpha: 0.6),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Events will appear here',
+        Text(
+          title,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
@@ -144,7 +182,7 @@ class _DashboardEventsTabState extends State<DashboardEventsTab>
         ),
         const SizedBox(height: 8),
         Text(
-          'After payout setup is complete, you can create events and sell tickets.',
+          description,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,

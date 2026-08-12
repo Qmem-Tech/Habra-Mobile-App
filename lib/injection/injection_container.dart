@@ -15,6 +15,7 @@ import '../core/services/app_version_service.dart';
 import '../core/services/push_notification_service.dart';
 import '../core/services/revenue_cat_service.dart';
 import '../core/subscription/subscription_bypass_service.dart';
+import '../core/subscription/subscription_required_service.dart';
 import '../core/subscription/subscription_trial_service.dart';
 import '../core/services/stripe_payment_service.dart';
 import '../features/auth/data/datasources/auth_remote_datasource.dart';
@@ -192,6 +193,9 @@ Future<void> init() async {
   sl.registerLazySingleton<RevenueCatService>(() => RevenueCatService());
   sl.registerLazySingleton<SubscriptionTrialService>(() => SubscriptionTrialService());
   sl.registerLazySingleton<SubscriptionBypassService>(() => SubscriptionBypassService());
+  sl.registerLazySingleton<SubscriptionRequiredService>(
+    () => SubscriptionRequiredService(),
+  );
   sl.registerLazySingleton<StripePaymentService>(() => StripePaymentService());
   sl.registerLazySingleton<AppVersionService>(() => AppVersionService());
   sl.registerLazySingleton<PushNotificationService>(
@@ -312,6 +316,7 @@ Future<void> init() async {
         sl<RevenueCatService>(),
         sl<SubscriptionTrialService>(),
         sl<SubscriptionBypassService>(),
+        sl<SubscriptionRequiredService>(),
       ));
 
   // Features - Events

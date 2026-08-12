@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/legal/business_legal_docs_gate.dart';
 import '../../../../core/payout/business_payout_gate.dart';
 import '../../../../core/navigation/business_owner_navigation_wrapper.dart';
 import '../../../../core/navigation/business_owner_tool_route.dart';
@@ -21,6 +22,7 @@ import '../../../explore/presentation/pages/business_detail_page.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import '../bloc/dashboard_cubit.dart';
 import '../bloc/dashboard_state.dart';
+import '../../domain/repositories/dashboard_repository.dart' show LegalDocumentsStatus;
 import '../widgets/dashboard_app_bar.dart';
 import '../widgets/dashboard_listing_tier_locked.dart';
 import '../widgets/dashboard_tab_bar.dart';
@@ -62,6 +64,8 @@ class DashboardPageState extends State<DashboardPage> {
   bool _scheduledInitialResync = false;
   String? _stripeConnectStatus;
   bool _payoutConnectStatusLoaded = false;
+  LegalDocumentsStatus? _legalDocsStatus;
+  bool _legalDocsStatusLoaded = false;
 
   @override
   void initState() {
@@ -94,7 +98,10 @@ class DashboardPageState extends State<DashboardPage> {
       businessId,
       ownerId: widget.user.id,
     );
-    await _refreshPayoutConnectStatus(businessId);
+    await Future.wait([
+      _refreshPayoutConnectStatus(businessId),
+      _refreshLegalDocsStatus(businessId),
+    ]);
   }
 
   /// Re-reads Stripe Connect status for the focused listing (e.g. after payout setup on Profile).
@@ -118,11 +125,41 @@ class DashboardPageState extends State<DashboardPage> {
     });
   }
 
-  bool get _payoutSetupComplete =>
-      _payoutConnectStatusLoaded &&
-      BusinessPayoutGate.isComplete(_stripeConnectStatus);
+  Future<void> _refreshLegalDocsStatus(String businessId) async {
+    if (mounted) {
+      setState(() => _legalDocsStatusLoaded = false);
+    }
+    try {
+      final status =
+          await context.read<DashboardCubit>().getLegalDocumentsStatus(businessId);
+      if (!mounted) return;
+      setState(() {
+        _legalDocsStatus = status;
+        _legalDocsStatusLoaded = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _legalDocsStatus = null;
+        _legalDocsStatusLoaded = true;
+      });
+    }
+  }
 
+  bool get _legalDocsReadyForEvents =>
+      _legalDocsStatusLoaded && (_legalDocsStatus?.canCreateEvents ?? false);
+
+  bool get _showLegalDocsBanner =>
+      _legalDocsStatusLoaded &&
+      _legalDocsStatus != null &&
+      !_legalDocsStatus!.canCreateEvents;
+
+  bool get _legalDocsAwaitingReview =>
+      _legalDocsStatus?.awaitingLegalDocReview == true;
+
+  /// Payout banner only after legal docs are ready for events.
   bool get _showPayoutSetupBanner =>
+      _legalDocsReadyForEvents &&
       _payoutConnectStatusLoaded &&
       !BusinessPayoutGate.isComplete(_stripeConnectStatus);
 
@@ -135,7 +172,7 @@ class DashboardPageState extends State<DashboardPage> {
     return 'Your business';
   }
 
-  Future<bool> _ensurePayoutSetupForEvents() async {
+  Future<bool> _ensureCanCreateEvents() async {
     final homeState = context.read<BusinessOwnerHomeCubit>().state;
     if (homeState is! BusinessOwnerHomeLoaded) return false;
     final businessId = _focusBusinessId(homeState);
@@ -145,10 +182,47 @@ class DashboardPageState extends State<DashboardPage> {
       );
       return false;
     }
-    return BusinessPayoutGate.ensureCanCreateEvents(
+    final name = _focusBusinessName(homeState);
+    if (!await BusinessLegalDocsGate.ensureCanCreateEvents(
+      context,
+      businessId: businessId,
+      businessName: name,
+    )) {
+      if (mounted) await _refreshLegalDocsStatus(businessId);
+      return false;
+    }
+    if (!context.mounted) return false;
+    await _refreshLegalDocsStatus(businessId);
+    if (!context.mounted) return false;
+    final payoutOk = await BusinessPayoutGate.ensureCanCreateEvents(
+      context,
+      businessId: businessId,
+      businessName: name,
+    );
+    if (mounted) await _refreshPayoutConnectStatus(businessId);
+    return payoutOk;
+  }
+
+  Future<void> _openLegalDocsUpload() async {
+    final homeState = context.read<BusinessOwnerHomeCubit>().state;
+    if (homeState is! BusinessOwnerHomeLoaded) return;
+    final businessId = _focusBusinessId(homeState);
+    if (businessId == null) return;
+    final uploaded = await BusinessLegalDocsGate.openUploadDialog(
       context,
       businessId: businessId,
       businessName: _focusBusinessName(homeState),
+    );
+    if (!mounted) return;
+    await _refreshLegalDocsStatus(businessId);
+    if (!mounted || !uploaded) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Legal documents submitted. You can create events after Habra approves them.',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -157,12 +231,24 @@ class DashboardPageState extends State<DashboardPage> {
     if (homeState is! BusinessOwnerHomeLoaded) return;
     final businessId = _focusBusinessId(homeState);
     if (businessId == null) return;
+    final name = _focusBusinessName(homeState);
+    if (!await BusinessLegalDocsGate.ensureCanCreateEvents(
+      context,
+      businessId: businessId,
+      businessName: name,
+    )) {
+      if (mounted) await _refreshLegalDocsStatus(businessId);
+      return;
+    }
+    if (!mounted) return;
+    await _refreshLegalDocsStatus(businessId);
+    if (!mounted) return;
     await Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
         builder: (_) => PayoutsSetupPage(
           businessId: businessId,
-          businessName: _focusBusinessName(homeState),
+          businessName: name,
         ),
       ),
     );
@@ -239,9 +325,8 @@ class DashboardPageState extends State<DashboardPage> {
               userName: widget.user.name,
               userEmail: widget.user.email,
               selectedBusiness: selectedPresence,
-              showBusinessToolsMenu: state is BusinessOwnerHomeLoaded
-                  ? BusinessPresence.listHasApprovedBusiness(state.presences)
-                  : false,
+              showBusinessToolsMenu: state is BusinessOwnerHomeLoaded &&
+                  state.presences.any((p) => p.id != 'all'),
               showDashboardMenuItem:
                   BusinessOwnerNavigationWrapper.drawerShowDashboardMenu(context),
               onHomeTap: () => BusinessOwnerNavigationWrapper.navigateToTab(context, 0),
@@ -559,6 +644,9 @@ class DashboardPageState extends State<DashboardPage> {
                       return DashboardEventsTab(
                         events: state.upcomingEvents,
                         onCreateEvent: _navigateToCreateEvent,
+                        showLegalDocsBanner: _showLegalDocsBanner,
+                        legalDocsAwaitingReview: _legalDocsAwaitingReview,
+                        onUploadLegalDocs: _openLegalDocsUpload,
                         showPayoutSetupBanner: _showPayoutSetupBanner,
                         connectStatus: _stripeConnectStatus,
                         onSetUpPayouts: _openPayoutSetup,
@@ -606,7 +694,7 @@ class DashboardPageState extends State<DashboardPage> {
                     child: const Icon(Icons.add, color: AppColors.textOnPrimary),
                   );
                 }
-                if (_tabIndex == 3 && _payoutSetupComplete) {
+                if (_tabIndex == 3) {
                   return FloatingActionButton(
                     onPressed: _navigateToCreateEvent,
                     backgroundColor: AppColors.brandSecondary,
@@ -654,7 +742,7 @@ class DashboardPageState extends State<DashboardPage> {
 
   Future<void> _navigateToCreateEvent() async {
     if (!await _ensureCanPostDealsEventsJobs()) return;
-    if (!await _ensurePayoutSetupForEvents()) return;
+    if (!await _ensureCanCreateEvents()) return;
     final dashboardCubit = context.read<DashboardCubit>();
     final homeCubit = context.read<BusinessOwnerHomeCubit>();
     final createEventCubit = di.sl<CreateEventCubit>();

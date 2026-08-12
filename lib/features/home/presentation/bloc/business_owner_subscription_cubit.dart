@@ -6,6 +6,7 @@ import '../../../../core/services/revenue_cat_service.dart';
 import '../../../../core/subscription/business_subscription_tier.dart';
 import '../../../../core/subscription/subscription_logger.dart';
 import '../../../../core/subscription/subscription_bypass_service.dart';
+import '../../../../core/subscription/subscription_required_service.dart';
 import '../../../../core/subscription/subscription_trial_service.dart';
 
 class BusinessOwnerSubscriptionState extends Equatable {
@@ -22,7 +23,7 @@ class BusinessOwnerSubscriptionState extends Equatable {
   final bool hasActiveSubscription;
   final BusinessSubscriptionTier currentTier;
 
-  /// Super-admin bypass on `profiles.subscription_bypass`.
+  /// True when access is unlocked via per-user or global subscription bypass.
   final bool subscriptionBypass;
 
   /// True when access is granted via platform free-trial (not a store purchase).
@@ -75,11 +76,13 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
     this._revenueCat,
     this._trial,
     this._bypass,
+    this._subscriptionRequired,
   ) : super(const BusinessOwnerSubscriptionState());
 
   final RevenueCatService _revenueCat;
   final SubscriptionTrialService _trial;
   final SubscriptionBypassService _bypass;
+  final SubscriptionRequiredService _subscriptionRequired;
 
   Future<void> refresh(String userId, {bool forceRefresh = false}) async {
     emit(state.copyWith(isLoading: true));
@@ -112,6 +115,17 @@ class BusinessOwnerSubscriptionCubit extends Cubit<BusinessOwnerSubscriptionStat
         DateTime? trialEndsAt,
         bool subscriptionBypass,
       })> _resolveState(String userId, {bool forceRefresh = false}) async {
+    final required = await _subscriptionRequired.isSubscriptionRequired();
+    if (!required) {
+      return (
+        active: true,
+        tier: BusinessSubscriptionTier.premium,
+        isTrialing: false,
+        trialEndsAt: null,
+        subscriptionBypass: true,
+      );
+    }
+
     final bypassSnap = await _bypass.fetchForUser(userId);
     if (bypassSnap.bypass) {
       final tier = bypassSnap.profileTier != BusinessSubscriptionTier.basic

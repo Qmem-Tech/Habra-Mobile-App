@@ -21,7 +21,14 @@ import 'business_owner_onboarding_page.dart';
 class BusinessOwnerWrapperPage extends StatefulWidget {
   final User user;
 
-  const BusinessOwnerWrapperPage({super.key, required this.user});
+  /// Bottom-nav tab when entering the main shell: 0 Home, 1 Dashboard, 2 Profile.
+  final int initialNavIndex;
+
+  const BusinessOwnerWrapperPage({
+    super.key,
+    required this.user,
+    this.initialNavIndex = 0,
+  });
 
   @override
   State<BusinessOwnerWrapperPage> createState() => _BusinessOwnerWrapperPageState();
@@ -127,7 +134,7 @@ class _BusinessOwnerWrapperPageState extends State<BusinessOwnerWrapperPage> {
       ],
       child: BusinessOwnerNavigationWrapper(
         user: widget.user,
-        initialIndex: 0,
+        initialIndex: widget.initialNavIndex,
       ),
     );
   }

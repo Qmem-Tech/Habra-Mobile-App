@@ -11,18 +11,18 @@ import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/dashboard/presentation/pages/business_legal_documents_detail_page.dart';
 import '../../features/auth/domain/entities/user.dart';
 import '../../features/dashboard/presentation/bloc/dashboard_cubit.dart';
-import '../../features/home/domain/entities/business_presence.dart';
 import '../../features/home/presentation/bloc/business_owner_home_cubit.dart';
 import '../../features/home/presentation/bloc/business_owner_home_state.dart';
 import '../../features/home/presentation/pages/profile_page.dart';
 import '../../features/home/presentation/pages/business_owner_subscription_page.dart';
 import '../subscription/subscription_logger.dart';
 
-/// Result of evaluating listing approval + legal-doc rules for owner navigation.
+/// Result of evaluating owner navigation tool access.
 ///
 /// **Product rules**
 /// - **Home** and **Profile** are always reachable.
-/// - **Dashboard** uses the same focus listing as the dashboard APIs ([BusinessOwnerHomeLoaded.focusBusinessIdForOwnerTools]): that location must be `approved` and have no rejected legal row.
+/// - **Dashboard** is available once the owner has at least one business (no listing/legal wait).
+/// - **Event creation** separately requires uploaded + approved legal documents.
 class BusinessOwnerNavToolsSnapshot {
   const BusinessOwnerNavToolsSnapshot({
     required this.dashboardEnabled,
@@ -235,9 +235,6 @@ class _BusinessOwnerNavigationWrapperState
   Future<BusinessOwnerNavToolsSnapshot> _computeToolsSnapshot() async {
     try {
       final dashboardCubit = context.read<DashboardCubit>();
-      final homeCubit = context.read<BusinessOwnerHomeCubit>();
-      final homeState = homeCubit.state;
-
       final businesses = await dashboardCubit.getOwnerBusinesses(widget.user.id);
       final real = businesses.where((b) => b.id != 'all').toList();
       if (real.isEmpty) {
@@ -252,66 +249,8 @@ class _BusinessOwnerNavigationWrapperState
         return snap;
       }
 
-      String? focusId;
-      if (homeState is BusinessOwnerHomeLoaded) {
-        focusId = homeState.focusBusinessIdForOwnerTools;
-      }
-      focusId ??= real.first.id;
-
-      final BusinessPresence focus = real.any((b) => b.id == focusId)
-          ? real.firstWhere((b) => b.id == focusId)
-          : real.first;
-      focusId = focus.id;
-
-      final raw = (focus.statusText ?? '').toLowerCase().trim();
-      final listingApproved = raw == 'approved';
-
-      String? listingMessage;
-      if (!listingApproved) {
-        if (raw == 'rejected') {
-          listingMessage =
-              '${focus.name}: listing was rejected. Update this location or contact support if you need help.';
-        } else {
-          listingMessage =
-              '${focus.name}: listing is pending approval. Dashboard opens here once this location is approved.';
-        }
-      }
-
-      var focusLegalRejected = false;
-      try {
-        focusLegalRejected = (await dashboardCubit.getLegalDocumentsStatus(focusId))
-            .hasRejected;
-      } catch (_) {
-        focusLegalRejected = false;
-      }
-
-      if (focusLegalRejected) {
-        final snap = BusinessOwnerNavToolsSnapshot(
-          dashboardEnabled: false,
-          gateEvaluated: true,
-          userMessage:
-              'A legal document was rejected for ${focus.name}. Re-upload a corrected file to continue.',
-          primaryBlockedBusinessId: focusId,
-          primaryBlockedBusinessName: focus.name,
-          showLegalDocumentsSnackAction: true,
-        );
-        if (mounted) setState(() => _toolsSnapshot = snap);
-        return snap;
-      }
-
-      if (!listingApproved) {
-        final snap = BusinessOwnerNavToolsSnapshot(
-          dashboardEnabled: false,
-          gateEvaluated: true,
-          userMessage: listingMessage,
-          primaryBlockedBusinessId: focusId,
-          primaryBlockedBusinessName: focus.name,
-          showLegalDocumentsSnackAction: false,
-        );
-        if (mounted) setState(() => _toolsSnapshot = snap);
-        return snap;
-      }
-
+      // Owner tools are available without waiting for listing/legal approval.
+      // Legal-doc approval is required only when creating events.
       const snap = BusinessOwnerNavToolsSnapshot(
         dashboardEnabled: true,
         gateEvaluated: true,
@@ -338,7 +277,7 @@ class _BusinessOwnerNavigationWrapperState
 
   void _showGateSnackBar(BusinessOwnerNavToolsSnapshot snap) {
     final reason = snap.userMessage ??
-        'This section is not available yet. Finish listing approval and legal requirements from Home.';
+        'This section is not available yet.';
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
     final bizId = snap.primaryBlockedBusinessId;

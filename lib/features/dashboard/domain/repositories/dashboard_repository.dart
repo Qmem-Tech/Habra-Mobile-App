@@ -113,8 +113,14 @@ class LegalDocumentsStatus {
   /// When [listingApproved], uploaded docs with no rejection are enough (business-level review).
   bool get isFullyApproved {
     if (listingApproved && hasRequiredUploaded && !hasRejected) return true;
+    return canCreateEvents;
+  }
+
+  /// Document-level approval required to create events (does **not** use listing approval shortcut).
+  bool get canCreateEvents {
+    if (!hasRequiredUploaded || hasRejected) return false;
     if (hasLegacyDocPair || (!hasBusinessLicense && uploadedCount >= 2)) {
-      return approvedCount >= 2 && !hasRejected;
+      return approvedCount >= 2;
     }
     if (!businessLicenseApproved) return false;
     if (hasEinProof && !einProofApproved) return false;
@@ -127,18 +133,13 @@ class LegalDocumentsStatus {
   /// Nothing on file yet and nothing rejected (first-time upload prompt).
   bool get missingInitialUpload => !hasRequiredUploaded && !hasRejected;
 
-  /// Submitted and not rejected, but at least one row still `pending` admin review.
-  /// If the admin marked all rows approved, [hasPendingRows] is false so this is false
-  /// even if [isFullyApproved] were miscalculated.
+  /// Submitted and not rejected, but docs are still awaiting admin review for event creation.
   bool get awaitingLegalDocReview =>
-      hasRequiredUploaded &&
-      !hasRejected &&
-      !isFullyApproved &&
-      hasPendingRows;
+      hasRequiredUploaded && !hasRejected && !canCreateEvents;
 
   /// All required documents approved; show success / compliance-complete UI.
   bool get showLegalApprovalSuccess =>
-      hasRequiredUploaded && !hasRejected && isFullyApproved;
+      hasRequiredUploaded && !hasRejected && canCreateEvents;
 }
 
 /// Rating overview for reviews tab.
